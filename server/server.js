@@ -17,11 +17,11 @@ const handleDatabaseError = (err, res, customMessage = "Internal server error") 
   return res.status(500).json({ error: customMessage });
 };
 
-// Function to recreate skin_tests table
-const recreateSkinTestsTable = () => {
+// Function to create skin_tests table if it doesn't exist
+const createSkinTestsTable = () => {
   return new Promise((resolve, reject) => {
     const createTableSQL = `
-      CREATE TABLE skin_tests (
+      CREATE TABLE IF NOT EXISTS skin_tests (
         tokenNo TEXT PRIMARY KEY,
         date TEXT,
         time TEXT,
@@ -53,15 +53,62 @@ const recreateSkinTestsTable = () => {
       )
     `;
     
+    db.run(createTableSQL, (err) => {
+      if (err) {
+        console.error('Error creating table:', err);
+        reject(err);
+        return;
+      }
+      console.log('Table creation checked successfully');
+      resolve();
+    });
+  });
+};
+
+// Function to reset skin_tests table
+const resetSkinTestsTable = () => {
+  return new Promise((resolve, reject) => {
+    const createTableSQL = `
+      CREATE TABLE IF NOT EXISTS skin_tests (
+        tokenNo TEXT PRIMARY KEY,
+        date TEXT,
+        time TEXT,
+        name TEXT,
+        weight TEXT,
+        sample TEXT,
+        highest TEXT,
+        average TEXT,
+        gold_fineness TEXT,
+        karat TEXT,
+        silver TEXT,
+        copper TEXT,
+        zinc TEXT,
+        cadmium TEXT,
+        nickel TEXT,
+        tungsten TEXT,
+        iridium TEXT,
+        ruthenium TEXT,
+        osmium TEXT,
+        rhodium TEXT,
+        rhenium TEXT,
+        indium TEXT,
+        titanium TEXT,
+        palladium TEXT,
+        platinum TEXT,
+        others TEXT,
+        remarks TEXT,
+        code TEXT
+      )
+    `;
     db.serialize(() => {
       db.run("DROP TABLE IF EXISTS skin_tests")
         .run(createTableSQL, (err) => {
           if (err) {
-            console.error('Error creating table:', err);
+            console.error('Error resetting table:', err);
             reject(err);
             return;
           }
-          console.log('Table recreated successfully');
+          console.log('Table reset successfully');
           resolve();
         });
     });
@@ -107,7 +154,7 @@ db.serialize(async () => {
       )
     `);
 
-    await recreateSkinTestsTable();
+    await createSkinTestsTable();
     console.log('All tables initialized successfully');
   } catch (err) {
     console.error('Error initializing tables:', err);
@@ -344,7 +391,7 @@ app.delete("/skin_tests/:tokenNo", (req, res) => {
 // Reset skin_tests table endpoint
 app.post("/reset_skin_tests", async (req, res) => {
   try {
-    await recreateSkinTestsTable();
+    await resetSkinTestsTable();
     res.json({ message: "Table reset successfully" });
   } catch (err) {
     handleDatabaseError(err, res, "Failed to reset table");
