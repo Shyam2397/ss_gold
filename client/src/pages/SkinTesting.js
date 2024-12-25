@@ -11,6 +11,7 @@ import {
   FiEdit2,
   FiTrash2,
   FiAlertCircle,
+  FiMessageSquare,
 } from "react-icons/fi";
 import { GiTestTubes } from "react-icons/gi";
 
@@ -93,43 +94,92 @@ const FormInput = ({ label, name, value, onChange, readOnly = false }) => {
   );
 };
 
-const TableRow = ({ test, onEdit, onDelete }) => (
-  <motion.tr
-    initial={{ opacity: 0 }}
-    animate={{ opacity: 1 }}
-    className="hover:bg-amber-50 transition-colors duration-200"
-  >
-    <td className="px-6 py-4 whitespace-nowrap">
-      <div className="flex space-x-2">
-        <button
-          onClick={() => onEdit(test)}
-          className="text-amber-600 hover:text-amber-900 transition-colors duration-200"
-        >
-          <FiEdit2 className="h-5 w-5" />
-        </button>
-        <button
-          onClick={() => onDelete(test.tokenNo)}
-          className="text-red-600 hover:text-red-900 transition-colors duration-200"
-        >
-          <FiTrash2 className="h-5 w-5" />
-        </button>
-      </div>
-    </td>
-    {Object.keys(test)
-      .filter((key) => !["code", "phoneNumber"].includes(key))
-      .map((key) => (
-        <td
-          key={key}
-          className="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
-        >
-          {test[key]}
-        </td>
-      ))}
-    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-      {test.phoneNumber || 'N/A'}
-    </td>
-  </motion.tr>
-);
+const TableRow = ({ test, onEdit, onDelete }) => {
+  const handleWhatsAppShare = () => {
+    const message = `
+Token No: ${test.tokenNo}
+Name: ${test.name}
+Date: ${test.date}
+Time: ${test.time}
+Weight: ${test.weight}
+Sample: ${test.sample}
+Gold Fineness: ${test.gold_fineness}%
+Karat: ${test.karat}
+Remarks: ${test.remarks}`;
+
+    const encodedMessage = encodeURIComponent(message);
+    let phoneNumber = test.phoneNumber?.replace(/\D/g, '') || '';
+
+    // Handle Indian phone numbers
+    if (phoneNumber) {
+      // Remove leading zeros if any
+      phoneNumber = phoneNumber.replace(/^0+/, '');
+
+      // If number starts with 91, make sure it's not duplicated
+      if (phoneNumber.startsWith('91')) {
+        phoneNumber = phoneNumber.substring(2);
+      }
+
+      // Check if it's a valid Indian mobile number (10 digits)
+      if (phoneNumber.length === 10) {
+        phoneNumber = '91' + phoneNumber;
+      } else {
+        alert('Invalid phone number format. Please ensure it is a 10-digit Indian mobile number.');
+        return;
+      }
+    } else {
+      alert('No phone number available for this entry');
+      return;
+    }
+
+    window.open(`https://wa.me/${phoneNumber}?text=${encodedMessage}`, '_blank');
+  };
+
+  return (
+    <motion.tr
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="hover:bg-amber-50 transition-colors duration-200"
+    >
+      <td className="px-6 py-4 whitespace-nowrap">
+        <div className="flex space-x-2">
+          <button
+            onClick={() => onEdit(test)}
+            className="text-amber-600 hover:text-amber-900 transition-colors duration-200"
+          >
+            <FiEdit2 className="h-5 w-5" />
+          </button>
+          <button
+            onClick={() => onDelete(test.tokenNo)}
+            className="text-red-600 hover:text-red-900 transition-colors duration-200"
+          >
+            <FiTrash2 className="h-5 w-5" />
+          </button>
+          <button
+            onClick={handleWhatsAppShare}
+            className="text-green-600 hover:text-green-900 transition-colors duration-200"
+            title="Share via WhatsApp"
+          >
+            <FiMessageSquare className="h-5 w-5" />
+          </button>
+        </div>
+      </td>
+      {Object.keys(test)
+        .filter((key) => !["code", "phoneNumber"].includes(key))
+        .map((key) => (
+          <td
+            key={key}
+            className="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
+          >
+            {test[key]}
+          </td>
+        ))}
+      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+        {test.phoneNumber || "N/A"}
+      </td>
+    </motion.tr>
+  );
+};
 
 const SkinTesting = () => {
   // State variables
@@ -227,31 +277,31 @@ const SkinTesting = () => {
   // Fetch phone number based on the code
   const fetchPhoneNumber = async (code) => {
     if (!code) {
-      console.log('No code provided for phone number lookup');
+      console.log("No code provided for phone number lookup");
       return null;
     }
 
     try {
       console.log(`Attempting to fetch phone number for code: ${code}`);
-      
+
       const response = await axios.get(
         `${process.env.REACT_APP_API_URL}/entries`,
         { params: { code } }
       );
 
-      console.log('Entries response:', response.data);
+      console.log("Entries response:", response.data);
 
       // Handle different response structures
       let phoneNumber = null;
 
-      if (typeof response.data === 'object') {
+      if (typeof response.data === "object") {
         // If response is an object with phoneNumber
         if (response.data.phoneNumber) {
           phoneNumber = response.data.phoneNumber;
-        } 
+        }
         // If response is an array or object with entries
         else if (Array.isArray(response.data)) {
-          const matchingEntry = response.data.find(entry => 
+          const matchingEntry = response.data.find((entry) =>
             entry.code === code || entry.code.toString() === code.toString()
           );
           phoneNumber = matchingEntry?.phoneNumber;
@@ -273,7 +323,7 @@ const SkinTesting = () => {
       console.error("Error fetching phone number:", {
         message: err.message,
         response: err.response?.data,
-        status: err.response?.status
+        status: err.response?.status,
       });
       return null;
     }
@@ -306,7 +356,7 @@ const SkinTesting = () => {
             code,
             tokenNo: value,
           }));
-          
+
           // Fetch phone number using the code
           const phoneNumber = await fetchPhoneNumber(code);
           if (phoneNumber) {
@@ -357,15 +407,30 @@ const SkinTesting = () => {
 
     // Validate numeric fields
     const numericFields = [
-      'highest', 'average', 'gold_fineness', 'karat', 'silver', 'copper',
-      'zinc', 'cadmium', 'nickel', 'tungsten', 'iridium', 'ruthenium',
-      'osmium', 'rhodium', 'rhenium', 'indium', 'titanium', 'palladium',
-      'platinum'
+      "highest",
+      "average",
+      "gold_fineness",
+      "karat",
+      "silver",
+      "copper",
+      "zinc",
+      "cadmium",
+      "nickel",
+      "tungsten",
+      "iridium",
+      "ruthenium",
+      "osmium",
+      "rhodium",
+      "rhenium",
+      "indium",
+      "titanium",
+      "palladium",
+      "platinum",
     ];
 
     for (const field of numericFields) {
       if (formData[field] && isNaN(parseFloat(formData[field]))) {
-        setError(`${field.replace('_', ' ')} must be a valid number`);
+        setError(`${field.replace("_", " ")} must be a valid number`);
         return false;
       }
     }
@@ -405,37 +470,37 @@ const SkinTesting = () => {
       titanium: parseFloat(formData.titanium) || 0,
       palladium: parseFloat(formData.palladium) || 0,
       platinum: parseFloat(formData.platinum) || 0,
-      others: (formData.others || '').trim(),
-      remarks: (formData.remarks || '').trim(),
-      code: (formData.code || '').trim(),
-      phoneNumber: (formData.phoneNumber || '').trim()
+      others: (formData.others || "").trim(),
+      remarks: (formData.remarks || "").trim(),
+      code: (formData.code || "").trim(),
+      phoneNumber: (formData.phoneNumber || "").trim(),
     };
 
     try {
-      console.log('Submitting data:', processedFormData);
-      
+      console.log("Submitting data:", processedFormData);
+
       if (isEditing) {
         const response = await axios.put(
           `${process.env.REACT_APP_API_URL}/skin_tests/${processedFormData.tokenNo}`,
           processedFormData,
-          { headers: { 'Content-Type': 'application/json' } }
+          { headers: { "Content-Type": "application/json" } }
         );
-        console.log('Update response:', response.data);
+        console.log("Update response:", response.data);
         setIsEditing(false);
       } else {
         const response = await axios.post(
           `${process.env.REACT_APP_API_URL}/skin_tests`,
           processedFormData,
-          { headers: { 'Content-Type': 'application/json' } }
+          { headers: { "Content-Type": "application/json" } }
         );
-        console.log('Create response:', response.data);
+        console.log("Create response:", response.data);
       }
       fetchSkinTests();
       setFormData(initialFormData);
       setError("");
       setSum(0);
     } catch (err) {
-      console.error('Error details:', err.response?.data || err.message);
+      console.error("Error details:", err.response?.data || err.message);
       if (err.response?.data?.error === "Token number already exists") {
         setError("Token number already exists");
       } else {
@@ -459,7 +524,7 @@ const SkinTesting = () => {
       );
       fetchSkinTests();
     } catch (err) {
-      console.error('Error details:', err.response?.data || err.message);
+      console.error("Error details:", err.response?.data || err.message);
       setError(err.response?.data?.error || "Failed to delete skin test");
     }
   };
@@ -700,27 +765,27 @@ const SkinTesting = () => {
                       <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                         Actions
                       </th>
-                      {filteredSkinTests.length > 0 
+                      {filteredSkinTests.length > 0
                         ? Object.keys(filteredSkinTests[0])
-                          .filter((key) => key !== "code" && key !== "phoneNumber")
-                          .map((key) => (
-                            <th
-                              key={key}
-                              className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider"
-                            >
-                              {key.replace(/_/g, " ")}
-                            </th>
-                          ))
+                            .filter((key) => key !== "code" && key !== "phoneNumber")
+                            .map((key) => (
+                              <th
+                                key={key}
+                                className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider"
+                              >
+                                {key.replace(/_/g, " ")}
+                              </th>
+                            ))
                         : Object.keys(initialFormData)
-                          .filter((key) => key !== "code" && key !== "phoneNumber")
-                          .map((key) => (
-                            <th
-                              key={key}
-                              className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider"
-                            >
-                              {key.replace(/_/g, " ")}
-                            </th>
-                          ))}
+                            .filter((key) => key !== "code" && key !== "phoneNumber")
+                            .map((key) => (
+                              <th
+                                key={key}
+                                className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider"
+                              >
+                                {key.replace(/_/g, " ")}
+                              </th>
+                            ))}
                       <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                         Phone Number
                       </th>
