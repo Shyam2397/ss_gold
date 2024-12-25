@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { FiMenu, FiBell, FiLogOut, FiUsers, FiActivity, FiCamera } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
@@ -9,6 +9,10 @@ const API_URL = 'http://localhost:5000';
 const Navbar = ({ onToggleSidebar, isSidebarOpen, setLoggedIn, user }) => {
   const [showActivities, setShowActivities] = useState(false);
   const [activities, setActivities] = useState([]);
+  const [newActivitiesCount, setNewActivitiesCount] = useState(0);
+  const [lastViewedActivityTime, setLastViewedActivityTime] = useState(null);
+  const activitiesRef = useRef(null);
+  const bellButtonRef = useRef(null);
 
   const fetchActivities = async () => {
     try {
@@ -25,6 +29,7 @@ const Navbar = ({ onToggleSidebar, isSidebarOpen, setLoggedIn, user }) => {
           title: `New Customer: ${entry.name}`,
           subtitle: `Place: ${entry.place}`,
           time: 'Recently added',
+          timestamp: new Date().getTime(),
           color: 'blue'
         })),
         ...tokensRes.data.slice(-3).map(token => ({
@@ -35,15 +40,22 @@ const Navbar = ({ onToggleSidebar, isSidebarOpen, setLoggedIn, user }) => {
           title: `${token.test}: ${token.name}`,
           subtitle: `Token #${token.tokenNo}`,
           time: `${token.date} ${token.time}`,
+          timestamp: new Date(`${token.date} ${token.time}`).getTime(),
           color: token.test === 'Skin Testing' ? 'purple' : 'pink'
         }))
       ]
       .sort((a, b) => {
         if (a.time === 'Recently added') return -1;
         if (b.time === 'Recently added') return 1;
-        return new Date(b.time) - new Date(a.time);
+        return b.timestamp - a.timestamp;
       })
       .slice(0, 4);
+
+      // Calculate new activities count
+      const newActivities = combinedActivities.filter(
+        activity => !lastViewedActivityTime || activity.timestamp > lastViewedActivityTime
+      );
+      setNewActivitiesCount(newActivities.length);
 
       setActivities(combinedActivities);
     } catch (error) {
@@ -58,9 +70,50 @@ const Navbar = ({ onToggleSidebar, isSidebarOpen, setLoggedIn, user }) => {
     // Set up polling interval (every 10 seconds)
     const intervalId = setInterval(fetchActivities, 10000);
 
-    // Cleanup interval on component unmount
-    return () => clearInterval(intervalId);
+    // Handle click outside of activities dropdown
+    const handleClickOutside = (event) => {
+      if (
+        activitiesRef.current && 
+        !activitiesRef.current.contains(event.target) &&
+        bellButtonRef.current &&
+        !bellButtonRef.current.contains(event.target)
+      ) {
+        setShowActivities(false);
+      }
+    };
+
+    // Add click event listener
+    document.addEventListener('mousedown', handleClickOutside);
+
+    // Cleanup interval and event listener on component unmount
+    return () => {
+      clearInterval(intervalId);
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
   }, []);
+
+  // Auto-close dropdown after 5 seconds of inactivity
+  useEffect(() => {
+    let timeoutId;
+    if (showActivities) {
+      timeoutId = setTimeout(() => {
+        setShowActivities(false);
+      }, 5000);
+    }
+
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [showActivities]);
+
+  const handleBellClick = () => {
+    // Reset new activities count and update last viewed time
+    setNewActivitiesCount(0);
+    setLastViewedActivityTime(new Date().getTime());
+    
+    // Toggle dropdown visibility
+    setShowActivities(!showActivities);
+  };
 
   const handleLogout = () => {
     localStorage.removeItem('isLoggedIn');
@@ -89,20 +142,24 @@ const Navbar = ({ onToggleSidebar, isSidebarOpen, setLoggedIn, user }) => {
             {/* Notifications */}
             <div className="relative">
               <motion.button
+                ref={bellButtonRef}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={() => setShowActivities(!showActivities)}
+                onClick={handleBellClick}
                 className="ml-4 p-2 rounded-full text-amber-600 hover:text-amber-700 hover:bg-amber-50 focus:outline-none focus:ring-2 focus:ring-amber-500 relative"
               >
                 <FiBell className="h-6 w-6" />
-                {activities.length > 0 && (
-                  <span className="absolute top-1 right-1 block h-2 w-2 rounded-full bg-red-400 ring-2 ring-white" />
+                {newActivitiesCount > 0 && (
+                  <span className="absolute top-1 right-1 block h-2 w-2 rounded-full bg-red-400 ring-2 ring-white">
+                    {newActivitiesCount > 9 ? '9+' : newActivitiesCount}
+                  </span>
                 )}
               </motion.button>
 
               <AnimatePresence>
                 {showActivities && (
                   <motion.div
+                    ref={activitiesRef}
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -10 }}
