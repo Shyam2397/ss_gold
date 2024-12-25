@@ -1,290 +1,427 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-
-const API_URL = process.env.REACT_APP_API_URL;
+import { motion } from "framer-motion";
+import { MdPersonAdd } from "react-icons/md";
+import { FiSearch, FiAlertCircle } from "react-icons/fi";
+import { BsQrCode } from "react-icons/bs";
 
 const NewEntry = () => {
+  const [code, setCode] = useState("");
   const [name, setName] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
-  const [code, setCode] = useState("");
   const [place, setPlace] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [entries, setEntries] = useState([]);
-  const [editingEntry, setEditingEntry] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [customers, setCustomers] = useState([]);
+  const [editMode, setEditMode] = useState(false);
+  const [editId, setEditId] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
 
+  // Fetch customers on component mount
   useEffect(() => {
-    fetchEntries();
+    fetchCustomers();
   }, []);
 
-  const fetchEntries = async () => {
-    try {
-      const response = await axios.get(`${API_URL}/entries`);
-      setEntries(response.data);
-      setError("");
-    } catch (error) {
-      console.error("Error fetching entries:", error);
-      setError("Failed to fetch entries. Please try again.");
-    }
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    if (!validateForm()) {
-      return;
-    }
-
-    const isCodeDuplicate = entries.some((entry) => entry.code === code);
-    if (isCodeDuplicate) {
-      setError("Code already exists in the entries.");
-      return;
-    }
-
-    const entryData = { name, phoneNumber, code, place };
-
-    try {
-      if (editingEntry) {
-        await axios.put(`${API_URL}/entries/${editingEntry.id}`, entryData);
-        setSuccess("Entry updated successfully!");
-      } else {
-        await axios.post(`${API_URL}/entries`, entryData);
-        setSuccess("Entry added successfully!");
-      }
-      resetForm();
-      fetchEntries();
-      setError("");
-    } catch (error) {
-      console.error("Error saving entry:", error);
-      setError("Failed to save entry. Please try again.");
-    }
-  };
-
-  const handleEdit = (entry) => {
-    setEditingEntry(entry);
-    setName(entry.name);
-    setPhoneNumber(entry.phoneNumber);
-    setCode(entry.code);
-    setPlace(entry.place);
-    setError("");
-    setSuccess("");
-  };
-
-  const handleDelete = async (id) => {
-    try {
-      await axios.delete(`${API_URL}/entries/${id}`);
-      setSuccess("Entry deleted successfully!");
-      fetchEntries();
-      setError("");
-    } catch (error) {
-      console.error("Error deleting entry:", error);
-      setError("Failed to delete entry. Please try again.");
-    }
-  };
-
-  const validateForm = () => {
-    if (!name) {
-      setError("Name is required.");
-      return false;
-    }
-    if (!phoneNumber || !/^\d{10}$/.test(phoneNumber)) {
-      setError("Phone number must be a 10-digit number.");
-      return false;
-    }
-    if (code.length !== 4 || isNaN(Number(code))) {
-      setError("Code must be a 4-digit number.");
-      return false;
-    }
-    if (!place) {
-      setError("Place is required.");
-      return false;
-    }
-    setError("");
-    return true;
-  };
-
-  const resetForm = () => {
-    setName("");
-    setPhoneNumber("");
-    setCode("");
-    setPlace("");
-    setError("");
-    setSuccess("");
-    setEditingEntry(null);
-    setSearchQuery("");
-  };
-
-  const handleSearch = (e) => {
-    const query = e.target.value.toLowerCase();
-    setSearchQuery(query);
-  };
-
-  const filteredEntries = entries.filter(
-    (entry) =>
-      entry.name.toLowerCase().includes(searchQuery) ||
-      entry.phoneNumber.includes(searchQuery)
+  // Filter customers based on search query
+  const filteredCustomers = customers.filter((customer) =>
+    Object.values(customer)
+      .join(" ")
+      .toLowerCase()
+      .includes(searchQuery.toLowerCase())
   );
 
+  // Fetch all customers
+  const fetchCustomers = async () => {
+    try {
+      setLoading(true);
+      const response = await axios.get(
+        `${process.env.REACT_APP_API_URL}/entries`
+      );
+      setCustomers(response.data);
+    } catch (err) {
+      setError("Error fetching customers");
+      console.error("Error fetching customers:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const checkDuplicates = async (code, phoneNumber, id = null) => {
+    try {
+      const response = await axios.get(
+        `${process.env.REACT_APP_API_URL}/entries`
+      );
+      const existingCustomers = response.data;
+
+      const duplicateCode = existingCustomers.find(
+        (customer) => customer.code === code && customer.id !== id
+      );
+
+      const duplicatePhone = existingCustomers.find(
+        (customer) => customer.phoneNumber === phoneNumber && customer.id !== id
+      );
+
+      if (duplicateCode) {
+        throw new Error("Customer code already exists");
+      }
+
+      if (duplicatePhone) {
+        throw new Error("Phone number already exists");
+      }
+
+      return true;
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  // Handle form submission (create/update)
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+    setSuccess("");
+    setLoading(true);
+
+    const customerData = {
+      code,
+      name,
+      phoneNumber,
+      place,
+    };
+
+    try {
+      // Check for duplicates before saving
+      await checkDuplicates(code, phoneNumber, editMode ? editId : null);
+
+      if (editMode) {
+        await axios.put(
+          `${process.env.REACT_APP_API_URL}/entries/${editId}`,
+          customerData
+        );
+        setSuccess("Customer updated successfully!");
+      } else {
+        await axios.post(
+          `${process.env.REACT_APP_API_URL}/entries`,
+          customerData
+        );
+        setSuccess("Customer added successfully!");
+      }
+      resetForm();
+      fetchCustomers();
+    } catch (err) {
+      setError(
+        err.message || err.response?.data?.error || "Error saving customer"
+      );
+      console.error("Error saving customer:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle customer edit
+  const handleEdit = (customer) => {
+    setCode(customer.code);
+    setName(customer.name);
+    setPhoneNumber(customer.phoneNumber);
+    setPlace(customer.place);
+    setEditMode(true);
+    setEditId(customer.id);
+    setError("");
+    setSuccess("");
+  };
+
+  // Handle customer delete
+  const handleDelete = async (id) => {
+    if (window.confirm("Are you sure you want to delete this customer?")) {
+      try {
+        setLoading(true);
+        await axios.delete(`${process.env.REACT_APP_API_URL}/entries/${id}`);
+        setSuccess("Customer deleted successfully!");
+        fetchCustomers();
+      } catch (err) {
+        setError("Error deleting customer");
+        console.error("Error deleting customer:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
+
+  // Reset form fields
+  const resetForm = () => {
+    setCode("");
+    setName("");
+    setPhoneNumber("");
+    setPlace("");
+    setEditMode(false);
+    setEditId(null);
+    setError("");
+    setSuccess("");
+  };
+  const handleInputChange = (setter) => (e) => {
+    setter(e.target.value);
+    if (error) {
+      setError("");
+    }
+  };
   return (
-    <div className="p-6 bg-[#F9F3F1] shadow-lg rounded-xl max-w-full h-full text-[#391145] flex flex-col">
-      <div
-        className="flex justify-between mb-4"
-        style={{ width: "100%", borderBottom: "4px solid #D3B04D" }}
-      >
-        <h1 className="text-3xl font-bold">
-          {editingEntry ? "Edit Entry" : "New Entry"}
-        </h1>
-        {error && <div className="text-red-600">{error}</div>}
-        {success && <div className="text-green-600">{success}</div>}
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+      {/* Form Section */}
+      <div className="bg-white rounded-xl shadow-sm p-6 border border-amber-100">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center">
+            <MdPersonAdd className="w-8 h-8 text-amber-600 mr-3" />
+            <h2 className="text-2xl font-bold text-amber-900">
+              {editMode ? "Edit Customer" : "New Customer"}
+            </h2>
+          </div>
+          {error && (
+            <div className=" p-2 bg-red-50 border-l-4 border-red-500 rounded-md">
+              <div className="flex">
+                <FiAlertCircle className="h-5 w-5 text-red-400" />
+                <p className="ml-3 text-red-700">{error}</p>
+              </div>
+            </div>
+          )}
+          {success && (
+            <div className=" p-2 bg-green-50 border-l-4 border-green-500 rounded-md">
+              <p className="text-green-700">{success}</p>
+            </div>
+          )}
+        </div>
+
+        <form
+          onSubmit={handleSubmit}
+          className="grid grid-cols-1 md:grid-cols-2 gap-6"
+        >
+          <div className="space-y-4">
+            <div>
+              <label
+                htmlFor="name"
+                className="block text-sm font-medium text-amber-900 mb-1"
+              >
+                Name
+              </label>
+              <input
+                type="text"
+                id="name"
+                value={name}
+                onChange={handleInputChange(setName)}
+                className="w-full pl-4 pr-10 py-2 rounded-lg border border-amber-200 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all duration-200"
+                placeholder="Enter name"
+                required
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="code"
+                className="block text-sm font-medium text-amber-900 mb-1"
+              >
+                Code
+              </label>
+              <input
+                type="text"
+                id="code"
+                value={code}
+                onChange={handleInputChange(setCode)}
+                className="w-full pl-4 pr-10 py-2 rounded-lg border border-amber-200 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all duration-200"
+                placeholder="Enter code"
+                required
+              />
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <label
+                htmlFor="phoneNumber"
+                className="block text-sm font-medium text-amber-900 mb-1"
+              >
+                Phone Number
+              </label>
+              <input
+                type="text"
+                id="phoneNumber"
+                value={phoneNumber}
+                onChange={handleInputChange(setPhoneNumber)}
+                className="w-full pl-4 pr-10 py-2 rounded-lg border border-amber-200 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all duration-200"
+                placeholder="Enter phone number"
+                required
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="place"
+                className="block text-sm font-medium text-amber-900 mb-1"
+              >
+                Place
+              </label>
+              <input
+                type="text"
+                id="place"
+                value={place}
+                onChange={handleInputChange(setPlace)}
+                className="w-full pl-4 pr-10 py-2 rounded-lg border border-amber-200 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all duration-200"
+                placeholder="Enter place"
+                required
+              />
+            </div>
+          </div>
+
+          <div className="md:col-span-2 flex justify-end space-x-4">
+            <button
+              type="button"
+              onClick={resetForm}
+              className="px-4 py-2 border border-amber-200 text-amber-700 rounded-lg hover:bg-amber-50 transition-all duration-200"
+            >
+              Reset
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="px-4 py-2 bg-gradient-to-r from-amber-600 to-yellow-500 text-white rounded-lg hover:from-amber-700 hover:to-yellow-600 transition-all duration-200 transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+            >
+              {loading ? (
+                <svg className="animate-spin h-5 w-5 mr-2" viewBox="0 0 24 24">
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                    fill="none"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  />
+                </svg>
+              ) : editMode ? (
+                "Update Customer"
+              ) : (
+                "Add Customer"
+              )}
+            </button>
+          </div>
+        </form>
       </div>
 
-      <form
-        onSubmit={handleSubmit}
-        className="mb-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
-      >
-        <FormField
-          label="Name"
-          value={name}
-          onChange={(e) => {
-            setName(e.target.value);
-            setError("");
-          }}
-          required
-        />
-        <FormField
-          label="Phone Number"
-          type="tel"
-          value={phoneNumber}
-          onChange={(e) => {
-            setPhoneNumber(e.target.value);
-            setError("");
-          }}
-          required
-        />
-        <FormField
-          label="Code"
-          value={code}
-          onChange={(e) => {
-            setCode(e.target.value);
-            setError("");
-          }}
-          required
-        />
-        <FormField
-          label="Place"
-          value={place}
-          onChange={(e) => {
-            setPlace(e.target.value);
-            setError("");
-          }}
-          required
-        />
-        <div className="col-span-1 xl:col-span-4 md:col-span-3 flex flex-col md:flex-row sm:flex-row sm:col-span-2 justify-evenly mt-8">
-          <button
-            type="submit"
-            className="w-full md:w-48 sm:w-32 bg-emerald-600 text-white py-2.5 px-4 rounded-full hover:bg-gradient-to-br from-emerald-400 to-emerald-800 transition-transform transform hover:scale-105 text-xl font-bold mb-4 md:mb-0"
-          >
-            {editingEntry ? "Update" : "Submit"}
-          </button>
-          <input
-            type="text"
-            placeholder="Search by name"
-            value={searchQuery}
-            onChange={handleSearch}
-            className="w-full md:w-48 sm:w-32 border border-gray-300 input rounded-full px-4 py-2 bg-transparent mb-4 md:mb-0"
-          />
-          <button
-            type="button"
-            onClick={resetForm}
-            className="w-full md:w-48 sm:w-32 bg-red-600 text-white py-2.5 px-4 rounded-full hover:bg-gradient-to-br from-red-600 to-red-800 transition-transform transform hover:scale-105 text-xl font-bold mb-4 md:mb-0"
-          >
-            Reset
-          </button>
+      {/* Customer List Section */}
+      <div className="mt-8 bg-white rounded-xl shadow-sm p-6 border border-amber-100">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center">
+            <BsQrCode className="w-6 h-6 text-amber-600 mr-3" />
+            <h3 className="text-xl font-semibold text-amber-900">
+              Customer List
+            </h3>
+          </div>
+          <div className="relative">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search customers..."
+              className="w-64 pl-10 pr-4 py-2 rounded-lg border border-amber-200 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all duration-200"
+            />
+            <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+          </div>
         </div>
-      </form>
-      <div className="mt-2 overflow-x-auto bg-[#FFFCF5] rounded-2xl h-64 sm:flex-grow">
-        <table className="table table-pin-rows table-pin-cols min-w-full">
-          <thead>
-            <tr>
-              <th className="text-base bg-[#DD845A] text-white w-96">Name</th>
-              <th className="text-base bg-[#DD845A] text-white hidden sm:table-cell">
-                Phone Number
-              </th>
-              <th className="text-base bg-[#DD845A] text-white hidden sm:table-cell">
-                Code
-              </th>
-              <th className="text-base bg-[#DD845A] text-white hidden sm:table-cell">
-                Place
-              </th>
-              <th className="text-base bg-[#DD845A] text-white">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredEntries.map((entry) => (
-              <tr key={entry.id}>
-                <td className="whitespace-nowrap font-semibold sm:font-normal">
-                  {entry.name}
-                  <dl className=" sm:hidden">
-                    <dd className=" text-xs font-normal">
-                      {entry.phoneNumber}
-                    </dd>
-                    <dd className=" text-xs font-normal">{entry.code}</dd>
-                  </dl>
-                </td>
-                <td className="whitespace-nowrap hidden sm:table-cell">
-                  {entry.phoneNumber}
-                </td>
-                <td className="whitespace-nowrap hidden sm:table-cell">
-                  {entry.code}
-                </td>
-                <td className="whitespace-nowrap hidden sm:table-cell">
-                  {entry.place}
-                </td>
-                <td className="whitespace-nowrap">
-                  <button
-                    onClick={() => handleEdit(entry)}
-                    className="text-blue-600 hover:underline mr-2"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => handleDelete(entry.id)}
-                    className="text-red-600 hover:underline"
-                  >
-                    Delete
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+
+        {loading ? (
+          <div className="flex justify-center py-12">
+            <svg
+              className="animate-spin h-8 w-8 text-amber-600"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+                fill="none"
+              />
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+              />
+            </svg>
+          </div>
+        ) : (
+          <div className="overflow-hidden rounded-lg border border-amber-100">
+            <div className="overflow-x-auto">
+              <div className="max-h-[400px] overflow-y-auto scrollbar-thin scrollbar-thumb-amber-500 scrollbar-track-amber-100">
+                <table className="min-w-full divide-y divide-amber-200">
+                  <thead className="bg-gradient-to-r from-amber-500 to-yellow-500 sticky top-0 z-10">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
+                        Code
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
+                        Name
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
+                        Phone Number
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
+                        Place
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-amber-100">
+                    {filteredCustomers.map((customer) => (
+                      <motion.tr
+                        key={customer.id}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className="hover:bg-amber-50 transition-colors duration-200"
+                      >
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-amber-900">
+                          {customer.code}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {customer.name}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {customer.phoneNumber}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {customer.place}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+                          <button
+                            onClick={() => handleEdit(customer)}
+                            className="text-amber-600 hover:text-amber-900 transition-colors duration-200"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDelete(customer.id)}
+                            className="text-red-600 hover:text-red-900 transition-colors duration-200"
+                          >
+                            Delete
+                          </button>
+                        </td>
+                      </motion.tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
 };
-
-const FormField = ({
-  label,
-  type = "text",
-  value,
-  onChange,
-  readOnly = false,
-  required = false,
-  step,
-}) => (
-  <div className="text-[#391145]">
-    <label className="block text-xl font-bold text-gray-900">{label}</label>
-    <input
-      type={type}
-      value={value}
-      onChange={onChange}
-      readOnly={readOnly}
-      required={required}
-      step={step}
-      className="mt-1 block w-full border border-gray-300 input rounded-full px-4 py-2 bg-transparent"
-    />
-  </div>
-);
 
 export default NewEntry;

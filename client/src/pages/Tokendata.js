@@ -1,11 +1,47 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import * as XLSX from "xlsx";
+import { motion } from "framer-motion";
+import {
+  FiDownload,
+  FiTrash2,
+  FiCalendar,
+  FiX,
+  FiLoader,
+  FiAlertCircle,
+} from "react-icons/fi";
+const DateInput = ({ label, value, onChange }) => (
+  <div className="flex items-center gap-4">
+    <label className="text-sm font-medium text-amber-900 whitespace-nowrap">
+      {label}
+    </label>
+    <div className="relative flex-1">
+      <div className="relative rounded-md shadow-sm cursor-pointer">
+        <div className="absolute inset-y-0 left-0 pl-3 flex items-center">
+          <FiCalendar className="h-5 w-5 text-amber-400" />
+        </div>
+        <input
+          type="date"
+          value={value}
+          onChange={onChange}
+          className="pl-10 pr-4 py-2 w-full rounded-lg border-2 border-amber-200 
+                   focus:ring-2 focus:ring-amber-500 focus:border-amber-500 
+                   bg-white hover:border-amber-300 transition-all duration-200
+                   cursor-pointer"
+          onClick={(e) => {
+            e.currentTarget.showPicker();
+          }}
+        />
+      </div>
+    </div>
+  </div>
+);
 
 const Tokendata = () => {
   const [tokens, setTokens] = useState([]);
   const [filteredTokens, setFilteredTokens] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
 
@@ -15,7 +51,7 @@ const Tokendata = () => {
 
   useEffect(() => {
     filterTokensByDate();
-  }); // Add dependencies to re-run the effect when fromDate or toDate changes
+  }, [fromDate, toDate, tokens]);
 
   const fetchTokens = async () => {
     setLoading(true);
@@ -24,8 +60,10 @@ const Tokendata = () => {
         `${process.env.REACT_APP_API_URL}/tokens`
       );
       setTokens(response.data);
+      setError("");
     } catch (error) {
       console.error("Error fetching tokens:", error);
+      setError("Failed to fetch tokens. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -33,7 +71,7 @@ const Tokendata = () => {
 
   const filterTokensByDate = () => {
     if (!fromDate || !toDate) {
-      setFilteredTokens(tokens); // If no date range is selected, show all tokens
+      setFilteredTokens(tokens);
       return;
     }
 
@@ -56,8 +94,10 @@ const Tokendata = () => {
     try {
       await axios.delete(`${process.env.REACT_APP_API_URL}/tokens/${tokenId}`);
       setTokens(tokens.filter((token) => token.id !== tokenId));
+      setError("");
     } catch (error) {
       console.error("Error deleting token:", error);
+      setError("Failed to delete token. Please try again.");
     }
   };
 
@@ -67,135 +107,174 @@ const Tokendata = () => {
   };
 
   return (
-    <div className="p-6 bg-[#F9F3F1] shadow-lg rounded-xl max-w-full h-full text-[#391145] flex flex-col">
-      <div
-        className="flex justify-between mb-4"
-        style={{ width: "100%", borderBottom: "4px solid #D3B04D" }}
-      >
-        <h1 className="text-3xl font-bold">Token Data</h1>
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+      className="p-8 bg-gradient-to-br from-[#F9F3F1] to-[#FFF8F0] shadow-xl rounded-2xl max-w-full h-full text-[#391145]"
+    >
+      <div className="flex flex-col sm:flex-row justify-between items-center mb-6 pb-4 border-b-4 border-[#D3B04D]">
+        <h1 className="text-4xl font-bold mb-4 sm:mb-0 bg-clip-text text-transparent bg-gradient-to-r from-[#391145] to-[#D3B04D]">
+          Token Data
+        </h1>
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={exportToExcel}
+          className="flex items-center gap-2 bg-gradient-to-r from-[#D3B04D] to-[#DD845A] text-white px-6 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300"
+        >
+          <FiDownload className="h-5 w-5" />
+          Export to Excel
+        </motion.button>
       </div>
-      <div className="mb-4 flex justify-between items-center">
-        <div>
-          <label className="mr-2">From Date:</label>
-          <input
-            type="date"
+
+      {error && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="mb-6 p-4 bg-red-100 border-l-4 border-red-500 text-red-700 rounded-r flex items-center space-x-2"
+        >
+          <FiAlertCircle className="h-5 w-5" />
+          <span>{error}</span>
+        </motion.div>
+      )}
+
+      <div className="mb-6 bg-white p-6 rounded-xl shadow-md">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+          <DateInput
+            label="From Date"
             value={fromDate}
             onChange={(e) => setFromDate(e.target.value)}
-            className="border border-orange-400 rounded-lg p-2 bg-[#FFF4D6]"
           />
-          <label className="ml-4 mr-2">To Date:</label>
-          <input
-            type="date"
-            value={toDate}
-            onChange={(e) => setToDate(e.target.value)}
-            className="border border-orange-400 rounded-lg p-2 bg-[#FFF4D6]"
-          />
-          <button
+          <div className="pl-10">
+            <DateInput
+              label="To Date"
+              value={toDate}
+              onChange={(e) => setToDate(e.target.value)}
+            />
+          </div>
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
             onClick={clearDates}
-            className="text-[#391145] font-bold hover:text-red-600 hover:underline px-4 ml-4"
+            className="flex items-center justify-center gap-2 px-4 py-2 text-red-600 hover:text-red-700 transition-colors duration-200"
           >
-            Clear
-          </button>
-        </div>
-        <div>
-          <button
-            onClick={exportToExcel}
-            className="text-[#391145] font-bold hover:text-green-600 hover:underline px-4"
-          >
-            Export to Excel
-          </button>
+            <FiX className="h-5 w-5" />
+            Clear Dates
+          </motion.button>
         </div>
       </div>
-      <div className="overflow-x-auto bg-[#FFFCF5] rounded-2xl h-72 sm:flex-grow">
+
+      <div className="bg-white rounded-xl shadow-lg overflow-hidden">
         {loading ? (
-          <div>Loading...</div>
+          <div className="flex items-center justify-center h-64">
+            <FiLoader className="h-8 w-8 text-[#D3B04D] animate-spin" />
+          </div>
         ) : (
-          <TokenTable tokens={filteredTokens} onDelete={handleDelete} />
+          <div className="overflow-x-auto">
+            <div className="max-h-[450px] overflow-y-auto">
+              <table className="w-full border-collapse">
+                <thead className="sticky top-0 z-10">
+                  <tr className="bg-gradient-to-r from-[#DD845A] to-[#D3B04D]">
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-white">
+                      Token No
+                    </th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-white max-[600px]:hidden">
+                      Date
+                    </th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-white max-[600px]:hidden">
+                      Time
+                    </th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-white max-[600px]:hidden">
+                      Code
+                    </th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-white">
+                      Name
+                    </th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-white hidden md:table-cell">
+                      Test
+                    </th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-white hidden md:table-cell">
+                      Weight
+                    </th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-white hidden md:table-cell">
+                      Sample
+                    </th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-white hidden md:table-cell">
+                      Amount
+                    </th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-white">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-amber-100">
+                  {filteredTokens.map((token, index) => (
+                    <motion.tr
+                      key={token.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.1 }}
+                      className="hover:bg-amber-50 transition-colors duration-200"
+                    >
+                      <td className="px-6 py-3 whitespace-nowrap text-sm">
+                        {token.tokenNo}
+                        <dl className="sm:hidden mt-1">
+                          <dd className="text-sm text-gray-600">
+                            {token.date}
+                          </dd>
+                          <dd className="text-sm text-gray-600">
+                            {token.time}
+                          </dd>
+                          <dd className="text-sm text-gray-600">
+                            {token.code}
+                          </dd>
+                        </dl>
+                      </td>
+                      <td className="px-6 py-3 text-sm whitespace-nowrap max-[600px]:hidden">
+                        {token.date}
+                      </td>
+                      <td className="px-6 py-3 text-sm whitespace-nowrap max-[600px]:hidden">
+                        {token.time}
+                      </td>
+                      <td className="px-6 py-3 text-sm whitespace-nowrap max-[600px]:hidden">
+                        {token.code}
+                      </td>
+                      <td className="px-6 py-3 text-sm whitespace-nowrap font-medium">
+                        {token.name}
+                      </td>
+                      <td className="px-6 py-3 text-sm whitespace-nowrap hidden md:table-cell">
+                        {token.test}
+                      </td>
+                      <td className="px-6 py-3 text-sm whitespace-nowrap hidden md:table-cell">
+                        {token.weight}
+                      </td>
+                      <td className="px-6 py-3 text-sm whitespace-nowrap hidden md:table-cell">
+                        {token.sample}
+                      </td>
+                      <td className="px-6 py-3 text-sm whitespace-nowrap hidden md:table-cell">
+                        {token.amount}
+                      </td>
+                      <td className="px-6 py-3 whitespace-nowrap">
+                        <motion.button
+                          whileHover={{ scale: 1.1 }}
+                          whileTap={{ scale: 0.9 }}
+                          onClick={() => handleDelete(token.id)}
+                          className="text-red-500 hover:text-red-700 transition-colors duration-200"
+                        >
+                          <FiTrash2 className="h-5 w-5" />
+                        </motion.button>
+                      </td>
+                    </motion.tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
         )}
       </div>
-    </div>
+    </motion.div>
   );
 };
-
-const TokenTable = ({ tokens, onDelete }) => (
-  <div>
-    <table className="table table-pin-rows table-pin-cols w-full">
-      <thead>
-        <tr>
-          <th className="text-base bg-[#DD845A] text-white">Token No</th>
-          <th className="text-base bg-[#DD845A] text-white max-[600px]:hidden">
-            Date
-          </th>
-          <th className="text-base bg-[#DD845A] text-white max-[600px]:hidden">
-            Time
-          </th>
-          <th className="text-base bg-[#DD845A] text-white max-[600px]:hidden">
-            Code
-          </th>
-          <th className="text-base bg-[#DD845A] text-white">Name</th>
-          <th className="text-base bg-[#DD845A] text-white hidden md:table-cell">
-            Test
-          </th>
-          <th className="text-base bg-[#DD845A] text-white hidden md:table-cell">
-            Weight
-          </th>
-          <th className="text-base bg-[#DD845A] text-white hidden md:table-cell">
-            Sample
-          </th>
-          <th className="text-base bg-[#DD845A] text-white hidden md:table-cell">
-            Amount
-          </th>
-          <th className="text-base bg-[#DD845A] text-white">Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        {tokens.map((token) => (
-          <tr key={token.id}>
-            <td className="whitespace-nowrap max-[600px]:font-bold max-[600px]:text-center pl-11 max-[600px]:pl-0">
-              {token.tokenNo}
-              <dl className="sm:hidden">
-                <dd className="text-xs font-normal">{token.date}</dd>
-                <dd className="text-xs font-normal">{token.time}</dd>
-                <dd className="text-xs font-normal">{token.code}</dd>
-              </dl>
-            </td>
-            <td className="whitespace-nowrap max-[600px]:hidden">
-              {token.date}
-            </td>
-            <td className="whitespace-nowrap max-[600px]:hidden">
-              {token.time}
-            </td>
-            <td className="whitespace-nowrap max-[600px]:hidden">
-              {token.code}
-            </td>
-            <td className="whitespace-nowrap max-[600px]:font-bold">
-              {token.name}
-            </td>
-            <td className="whitespace-nowrap hidden md:table-cell">
-              {token.test}
-            </td>
-            <td className="whitespace-nowrap hidden md:table-cell">
-              {token.weight}
-            </td>
-            <td className="whitespace-nowrap hidden md:table-cell">
-              {token.sample}
-            </td>
-            <td className="whitespace-nowrap hidden md:table-cell">
-              {token.amount}
-            </td>
-            <td>
-              <button
-                onClick={() => onDelete(token.id)}
-                className="text-red-600 hover:underline"
-              >
-                Delete
-              </button>
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  </div>
-);
 
 export default Tokendata;
