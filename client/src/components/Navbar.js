@@ -1,5 +1,5 @@
 import React from 'react';
-import { FiMenu, FiBell, FiSearch, FiLogOut } from 'react-icons/fi';
+import { FiMenu, FiBell, FiLogOut } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import Logo from '../asset/logo.png';
 
@@ -28,20 +28,6 @@ const Navbar = ({ onToggleSidebar, isSidebarOpen, setLoggedIn, user }) => {
           </div>
 
           <div className="flex items-center">
-            {/* Search Bar */}
-            <div className="hidden md:block">
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <FiSearch className="h-5 w-5 text-gray-400" />
-                </div>
-                <input
-                  type="text"
-                  placeholder="Search..."
-                  className="block w-full pl-10 pr-3 py-2 border border-amber-200 rounded-lg placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 sm:text-sm transition-all duration-200"
-                />
-              </div>
-            </div>
-
             {/* Notifications */}
             <motion.button
               whileHover={{ scale: 1.05 }}
