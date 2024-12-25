@@ -46,32 +46,6 @@ const StatCard = ({ icon: Icon, title, value, trend, color }) => (
   </motion.div>
 );
 
-const RecentActivity = ({ activities }) => (
-  <div className="bg-white p-6 rounded-xl shadow-sm border border-amber-100">
-    <h2 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h2>
-    <div className="space-y-4">
-      {activities.map((activity, index) => (
-        <motion.div
-          key={index}
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: index * 0.1 }}
-          className="flex items-center space-x-4"
-        >
-          <div className={`p-2 rounded-lg bg-${activity.color}-50`}>
-            {activity.icon}
-          </div>
-          <div className="flex-grow">
-            <p className="text-sm font-medium text-gray-900">{activity.title}</p>
-            <p className="text-xs text-gray-500">{activity.subtitle}</p>
-            <p className="text-xs text-gray-400">{activity.time}</p>
-          </div>
-        </motion.div>
-      ))}
-    </div>
-  </div>
-);
-
 const MonthlyTestChart = ({ tokens }) => {
   // Process tokens data to get monthly counts and amounts
   const processMonthlyData = (tokens) => {
@@ -306,7 +280,6 @@ const Dashboard = () => {
     { icon: FiActivity, title: 'Active Skin Testing', value: '0', trend: 0, color: 'amber' },
     { icon: FiCamera, title: 'Active Photo Testing', value: '0', trend: 0, color: 'amber' },
   ]);
-  const [recentActivities, setRecentActivities] = useState([]);
   const [tokens, setTokens] = useState([]);
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -339,43 +312,6 @@ const Dashboard = () => {
           { icon: FiCamera, title: 'Active Photo Testing', value: activePhotoTests.toString(), trend: null, color: 'amber' },
         ]);
 
-        // Combine and sort activities from different sources
-        const combinedActivities = [
-          // Recent Entries (New Customers)
-          ...customersResponse.data.slice(-3).map(entry => ({
-            type: 'customer',
-            icon: <FiUsers className="h-5 w-5 text-blue-500" />,
-            title: `New Customer: ${entry.name}`,
-            subtitle: `Place: ${entry.place}`,
-            time: 'Recently added',
-            color: 'blue'
-          })),
-
-          // Recent Tokens (All Tests)
-          ...tokensResponse.data.slice(-3).map(token => ({
-            type: 'token',
-            icon: token.test === 'Skin Testing' ? 
-              <FiActivity className="h-5 w-5 text-purple-500" /> : 
-              <FiCamera className="h-5 w-5 text-pink-500" />,
-            title: `${token.test}: ${token.name}`,
-            subtitle: `Token #${token.tokenNo}`,
-            time: `${token.date} ${token.time}`,
-            color: token.test === 'Skin Testing' ? 'purple' : 'pink'
-          }))
-        ]
-        // Sort by time, most recent first
-        .sort((a, b) => {
-          // Handle 'Recently added' case
-          if (a.time === 'Recently added') return -1;
-          if (b.time === 'Recently added') return 1;
-          
-          // Compare dates
-          return new Date(b.time) - new Date(a.time);
-        })
-        // Take top 4
-        .slice(0, 4);
-
-        setRecentActivities(combinedActivities);
         setError(null);
       } catch (err) {
         console.error('Error fetching dashboard data:', err);
@@ -435,9 +371,6 @@ const Dashboard = () => {
         {/* Chart Sections */}
         <MonthlyTestChart tokens={tokens} />
         <TestTypeDistributionChart tokens={tokens} entries={entries} />
-
-        {/* Recent Activity */}
-        <RecentActivity activities={recentActivities} />
       </div>
     </div>
   );
