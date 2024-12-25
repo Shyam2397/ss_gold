@@ -424,9 +424,34 @@ app.get("/debug/entries/:code", (req, res) => {
 
 // Skin tests routes
 app.get("/skin_tests", (req, res) => {
-  db.all("SELECT * FROM skin_tests", [], (err, rows) => {
+  db.all("SELECT * FROM skin_tests ORDER BY tokenNo DESC", [], (err, rows) => {
     if (err) return handleDatabaseError(err, res);
-    res.json({ data: rows });
+    
+    // Fetch phone numbers for each skin test entry
+    const processedRows = rows.map(row => {
+      return new Promise((resolve, reject) => {
+        db.get("SELECT phoneNumber FROM entries WHERE code = ?", [row.code], (err, entryRow) => {
+          if (err) {
+            console.error(`Error fetching phone number for code ${row.code}:`, err);
+            resolve({ ...row, phoneNumber: null });
+          } else {
+            resolve({ 
+              ...row, 
+              phoneNumber: entryRow ? entryRow.phoneNumber : null 
+            });
+          }
+        });
+      });
+    });
+
+    Promise.all(processedRows)
+      .then(finalRows => {
+        res.json({ data: finalRows });
+      })
+      .catch(error => {
+        console.error('Error processing skin tests:', error);
+        res.status(500).json({ error: 'Failed to process skin tests' });
+      });
   });
 });
 

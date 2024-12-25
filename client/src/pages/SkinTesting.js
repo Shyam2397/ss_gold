@@ -79,14 +79,9 @@ const FormInput = ({ label, name, value, onChange, readOnly = false }) => {
           value={value}
           onChange={onChange}
           readOnly={readOnly}
-          className={`
-            w-full pl-4 pr-10 py-2 
-            rounded-lg border border-amber-200 
-            focus:ring-2 focus:ring-amber-500 focus:border-amber-500 
-            transition-all duration-200
-            ${readOnly ? "bg-gray-50" : ""}
-            ${isMetalField ? "bg-amber-50" : ""}
-          `}
+          className={`w-full pl-4 pr-10 py-2 rounded-lg border border-amber-200 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all duration-200 ${
+            readOnly ? "bg-gray-50" : ""
+          } ${isMetalField ? "bg-amber-50" : ""}`}
         />
         {isMetalField && (
           <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
@@ -120,14 +115,19 @@ const TableRow = ({ test, onEdit, onDelete }) => (
         </button>
       </div>
     </td>
-    {Object.keys(test).map((key) => (
-      <td
-        key={key}
-        className="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
-      >
-        {test[key]}
-      </td>
-    ))}
+    {Object.keys(test)
+      .filter((key) => !["code", "phoneNumber"].includes(key))
+      .map((key) => (
+        <td
+          key={key}
+          className="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
+        >
+          {test[key]}
+        </td>
+      ))}
+    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+      {test.phoneNumber || 'N/A'}
+    </td>
   </motion.tr>
 );
 
@@ -497,7 +497,7 @@ const SkinTesting = () => {
 
     // Construct the HTML content for printing
     printWindow.document.open();
-    printWindow.document.write(`
+    printWindow.document.write(`\
       <html>
         <head>
           <title>Print</title>
@@ -700,14 +700,30 @@ const SkinTesting = () => {
                       <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                         Actions
                       </th>
-                      {Object.keys(initialFormData).map((key) => (
-                        <th
-                          key={key}
-                          className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider"
-                        >
-                          {key.replace(/_/g, " ")}
-                        </th>
-                      ))}
+                      {filteredSkinTests.length > 0 
+                        ? Object.keys(filteredSkinTests[0])
+                          .filter((key) => key !== "code" && key !== "phoneNumber")
+                          .map((key) => (
+                            <th
+                              key={key}
+                              className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider"
+                            >
+                              {key.replace(/_/g, " ")}
+                            </th>
+                          ))
+                        : Object.keys(initialFormData)
+                          .filter((key) => key !== "code" && key !== "phoneNumber")
+                          .map((key) => (
+                            <th
+                              key={key}
+                              className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider"
+                            >
+                              {key.replace(/_/g, " ")}
+                            </th>
+                          ))}
+                      <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
+                        Phone Number
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-amber-100">
