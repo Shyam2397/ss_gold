@@ -43,6 +43,7 @@ const initialFormData = {
   others: "",
   remarks: "",
   code: "",
+  phoneNumber: "",
 };
 
 const FormInput = ({ label, name, value, onChange, readOnly = false }) => {
@@ -223,6 +224,61 @@ const SkinTesting = () => {
     updateFormData(name, value);
   };
 
+  // Fetch phone number based on the code
+  const fetchPhoneNumber = async (code) => {
+    if (!code) {
+      console.log('No code provided for phone number lookup');
+      return null;
+    }
+
+    try {
+      console.log(`Attempting to fetch phone number for code: ${code}`);
+      
+      const response = await axios.get(
+        `${process.env.REACT_APP_API_URL}/entries`,
+        { params: { code } }
+      );
+
+      console.log('Entries response:', response.data);
+
+      // Handle different response structures
+      let phoneNumber = null;
+
+      if (typeof response.data === 'object') {
+        // If response is an object with phoneNumber
+        if (response.data.phoneNumber) {
+          phoneNumber = response.data.phoneNumber;
+        } 
+        // If response is an array or object with entries
+        else if (Array.isArray(response.data)) {
+          const matchingEntry = response.data.find(entry => 
+            entry.code === code || entry.code.toString() === code.toString()
+          );
+          phoneNumber = matchingEntry?.phoneNumber;
+        }
+        // If response is an object with a single entry
+        else if (response.data.code && response.data.phoneNumber) {
+          phoneNumber = response.data.phoneNumber;
+        }
+      }
+
+      if (phoneNumber) {
+        console.log("Fetched Phone Number:", phoneNumber);
+        return phoneNumber;
+      } else {
+        console.log(`No phone number found for code: ${code}`);
+        return null;
+      }
+    } catch (err) {
+      console.error("Error fetching phone number:", {
+        message: err.message,
+        response: err.response?.data,
+        status: err.response?.status
+      });
+      return null;
+    }
+  };
+
   // Handle token change
   const handleTokenChange = async (e) => {
     const { name, value } = e.target;
@@ -250,8 +306,15 @@ const SkinTesting = () => {
             code,
             tokenNo: value,
           }));
+          
           // Fetch phone number using the code
-          fetchPhoneNumber(code); // Fetch phone number based on code
+          const phoneNumber = await fetchPhoneNumber(code);
+          if (phoneNumber) {
+            setFormData((prevFormData) => ({
+              ...prevFormData,
+              phoneNumber, // Add phone number to form data
+            }));
+          }
         } else {
           setError("No token data found for the entered token number.");
         }
@@ -262,25 +325,6 @@ const SkinTesting = () => {
           setError("Failed to fetch token data. Please try again later.");
         }
       }
-    }
-  };
-
-  // Fetch phone number based on the code
-  const fetchPhoneNumber = async (code) => {
-    try {
-      const response = await axios.get(
-        `${process.env.REACT_APP_API_URL}/entries?code=${code}`
-      );
-
-      // Check if the response contains the expected data structure
-      if (response.data && response.data.length > 0) {
-        const phone = response.data[0].phoneNumber; // Adjust based on your response structure
-        console.log("Fetched Phone Number:", phone); // Console the phone number
-      } else {
-        console.log("No phone number found for the given code.");
-      }
-    } catch (err) {
-      console.error("Error fetching phone number:", err);
     }
   };
 
@@ -363,7 +407,8 @@ const SkinTesting = () => {
       platinum: parseFloat(formData.platinum) || 0,
       others: (formData.others || '').trim(),
       remarks: (formData.remarks || '').trim(),
-      code: (formData.code || '').trim()
+      code: (formData.code || '').trim(),
+      phoneNumber: (formData.phoneNumber || '').trim()
     };
 
     try {

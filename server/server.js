@@ -179,36 +179,50 @@ app.post("/login", (req, res) => {
 });
 
 // Entries routes
-app.post("/entries", (req, res) => {
-  const { name, phoneNumber, code, place } = req.body;
-  db.run(
-    "INSERT INTO entries (name, phoneNumber, code, place) VALUES (?, ?, ?, ?)",
-    [name, phoneNumber, code, place],
-    function (err) {
-      if (err) return handleDatabaseError(err, res, "Failed to create entry");
-      res.status(201).json({ id: this.lastID });
-    }
-  );
-});
-
 app.get("/entries", (req, res) => {
-  const { code } = req.query;
+  const { code, phoneNumber } = req.query;
   
+  // If specific query parameters are provided, use them for filtering
   if (code) {
-    // Get phone number by code
-    db.get(
-      "SELECT phoneNumber FROM entries WHERE code = ?",
-      [code],
-      (err, row) => {
-        if (err) return handleDatabaseError(err, res, "Failed to retrieve phone number");
-        if (!row) return res.status(404).json({ error: "No entry found for the provided code" });
-        res.status(200).json({ phoneNumber: row.phoneNumber });
+    // Get entries by code
+    db.get("SELECT * FROM entries WHERE code = ?", [code], (err, row) => {
+      if (err) {
+        console.error(`Error fetching entries for code ${code}:`, err);
+        return res.status(500).json({ error: "Database error" });
       }
-    );
+      
+      if (!row) {
+        console.log(`No entries found for code ${code}`);
+        return res.status(404).json({ error: "No entries found" });
+      }
+      
+      console.log(`Entry for code ${code}:`, row);
+      res.status(200).json(row);
+    });
+  } else if (phoneNumber) {
+    // Get entries by phone number
+    db.get("SELECT * FROM entries WHERE phoneNumber = ?", [phoneNumber], (err, row) => {
+      if (err) {
+        console.error(`Error fetching entries for phone number ${phoneNumber}:`, err);
+        return res.status(500).json({ error: "Database error" });
+      }
+      
+      if (!row) {
+        console.log(`No entries found for phone number ${phoneNumber}`);
+        return res.status(404).json({ error: "No entries found" });
+      }
+      
+      console.log(`Entry for phone number ${phoneNumber}:`, row);
+      res.status(200).json(row);
+    });
   } else {
     // Get all entries
     db.all("SELECT * FROM entries", [], (err, rows) => {
-      if (err) return handleDatabaseError(err, res, "Failed to retrieve entries");
+      if (err) {
+        console.error('Error fetching entries:', err);
+        return res.status(500).json({ error: "Database error" });
+      }
+      console.log('All entries:', rows);
       res.status(200).json(rows);
     });
   }
@@ -222,6 +236,33 @@ app.get("/entries/:code", (req, res) => {
     (err, row) => {
       if (err) return handleDatabaseError(err, res);
       res.json({ name: row ? row.name : "" });
+    }
+  );
+});
+
+app.post("/entries", (req, res) => {
+  const { name, phoneNumber, code, place } = req.body;
+  
+  // Validate required fields
+  if (!code) {
+    return res.status(400).json({ error: "Code is required" });
+  }
+
+  db.run(
+    "INSERT INTO entries (name, phoneNumber, code, place) VALUES (?, ?, ?, ?)",
+    [name, phoneNumber, code, place],
+    function (err) {
+      if (err) {
+        console.error('Error creating entry:', err);
+        return res.status(500).json({ error: "Failed to create entry", details: err.message });
+      }
+      res.status(201).json({ 
+        id: this.lastID, 
+        name, 
+        phoneNumber, 
+        code, 
+        place 
+      });
     }
   );
 });
@@ -318,6 +359,66 @@ app.get("/generateTokenNo", (req, res) => {
       }
     }
     res.json({ tokenNo: nextTokenNo });
+  });
+});
+
+// Fetch phone number for a skin test by code
+app.get("/skin_tests/phone_number/:code", (req, res) => {
+  const { code } = req.params;
+  console.log(`Received request for phone number with code: ${code}`);
+  
+  // First, log all entries to see what's in the database
+  db.all("SELECT * FROM entries", [], (allErr, allRows) => {
+    if (allErr) {
+      console.error('Error fetching all entries:', allErr);
+      return res.status(500).json({ error: "Failed to retrieve entries" });
+    }
+    console.log('All entries:', allRows);
+  });
+
+  db.get(
+    "SELECT phoneNumber FROM entries WHERE code = ?",
+    [code],
+    (err, row) => {
+      if (err) {
+        console.error(`Database error for code ${code}:`, err);
+        return handleDatabaseError(err, res, "Failed to retrieve phone number");
+      }
+      
+      console.log(`Query result for code ${code}:`, row);
+      
+      if (!row) {
+        console.warn(`No phone number found for code: ${code}`);
+        return res.status(404).json({ error: "No phone number found for the provided code" });
+      }
+      
+      res.status(200).json({ phoneNumber: row.phoneNumber });
+    }
+  );
+});
+
+// Debug route to list all entries
+app.get("/debug/entries", (req, res) => {
+  db.all("SELECT * FROM entries", [], (err, rows) => {
+    if (err) {
+      console.error('Error fetching entries:', err);
+      return res.status(500).json({ error: "Failed to retrieve entries" });
+    }
+    console.log('All entries:', rows);
+    res.status(200).json(rows);
+  });
+});
+
+// Debug route to check entries by code
+app.get("/debug/entries/:code", (req, res) => {
+  const { code } = req.params;
+  db.all("SELECT * FROM entries WHERE code = ?", [code], (err, rows) => {
+    if (err) {
+      console.error(`Error fetching entries for code ${code}:`, err);
+      return res.status(500).json({ error: "Failed to retrieve entries" });
+    }
+    console.log(`Entries for code ${code}:`, rows);
+    res.status(200).json(rows);
   });
 });
 
