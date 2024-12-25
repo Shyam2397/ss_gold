@@ -9,9 +9,9 @@ import {
   FiDatabase,
   FiChevronDown,
   FiChevronRight,
-  FiSettings,
-  FiActivity
+  FiSettings
 } from 'react-icons/fi';
+import { GiTestTubes } from 'react-icons/gi';
 
 const MenuItem = ({ icon: Icon, label, to, isActive, onClick }) => (
   <Link
@@ -47,7 +47,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
     { icon: FiHome, label: 'Dashboard', path: '/dashboard' },
     { icon: FiUsers, label: 'New Entries', path: '/entries' },
     { icon: FiTag, label: 'Token', path: '/token' },
-    { icon: FiActivity, label: 'Skin Testing', path: '/skin-testing' },
+    { icon: GiTestTubes, label: 'Skin Testing', path: '/skin-testing' },
     { icon: FiCamera, label: 'Photo Testing', path: '/photo-testing' },
   ];
 
