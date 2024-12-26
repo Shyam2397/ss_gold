@@ -8,7 +8,7 @@ import {
   FiCamera,
 } from 'react-icons/fi';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, PointElement, LineElement, Title, Tooltip, Legend, ArcElement } from 'chart.js';
-import { Bar, Pie } from 'react-chartjs-2';
+import { Pie, Line } from 'react-chartjs-2';
 
 // Register ChartJS components
 ChartJS.register(
@@ -89,33 +89,51 @@ const MonthlyTestChart = ({ tokens }) => {
   // Process the data
   const processedData = processMonthlyData(tokens);
   
-  // Prepare chart data
+  // Chart data
   const chartData = {
     labels: processedData.map(([month]) => month),
     datasets: [
       {
-        type: 'bar',
         label: 'Skin Test Count',
         data: processedData.map(([, data]) => data.skinTestCount),
-        backgroundColor: 'rgba(75, 192, 192, 0.6)',
-        borderColor: 'rgba(75, 192, 192, 1)',
-        yAxisID: 'y-count'
+        borderColor: 'rgb(212, 175, 55)', // Gold
+        backgroundColor: 'rgba(212, 175, 55, 0.1)',
+        fill: true,
+        tension: 0.4,
+        borderWidth: 2,
+        pointRadius: 0,
+        pointHoverRadius: 4,
+        pointHoverBackgroundColor: 'rgb(212, 175, 55)',
+        pointHoverBorderColor: 'white',
+        pointHoverBorderWidth: 2
       },
       {
-        type: 'bar',
         label: 'Photo Test Count',
         data: processedData.map(([, data]) => data.photoTestCount),
-        backgroundColor: 'rgba(255, 99, 132, 0.6)',
-        borderColor: 'rgba(255, 99, 132, 1)',
-        yAxisID: 'y-count'
+        borderColor: 'rgb(184, 115, 51)', // Bronze/Rose Gold
+        backgroundColor: 'rgba(184, 115, 51, 0.1)',
+        fill: true,
+        tension: 0.4,
+        borderWidth: 2,
+        pointRadius: 0,
+        pointHoverRadius: 4,
+        pointHoverBackgroundColor: 'rgb(184, 115, 51)',
+        pointHoverBorderColor: 'white',
+        pointHoverBorderWidth: 2
       },
       {
-        type: 'line',
         label: 'Total Amount',
         data: processedData.map(([, data]) => data.totalAmount),
-        borderColor: 'rgba(255, 206, 86, 1)',
-        backgroundColor: 'rgba(255, 206, 86, 0.2)',
-        yAxisID: 'y-amount'
+        borderColor: 'rgb(192, 192, 192)', // Silver
+        backgroundColor: 'rgba(192, 192, 192, 0.1)',
+        fill: true,
+        tension: 0.4,
+        borderWidth: 2,
+        pointRadius: 0,
+        pointHoverRadius: 4,
+        pointHoverBackgroundColor: 'rgb(192, 192, 192)',
+        pointHoverBorderColor: 'white',
+        pointHoverBorderWidth: 2
       }
     ]
   };
@@ -123,44 +141,101 @@ const MonthlyTestChart = ({ tokens }) => {
   // Chart options
   const chartOptions = {
     responsive: true,
+    maintainAspectRatio: false,
     interaction: {
-      mode: 'index',
-      intersect: false,
+      mode: 'nearest',
+      axis: 'x',
+      intersect: false
     },
     scales: {
-      'y-count': {
-        type: 'linear',
-        display: true,
-        position: 'left',
-        title: {
-          display: true,
-          text: 'Test Count'
+      y: {
+        beginAtZero: true,
+        grid: {
+          color: 'rgba(0, 0, 0, 0.04)',
+          drawBorder: false
+        },
+        ticks: {
+          color: '#6B7280',
+          padding: 10,
+          font: {
+            size: 11
+          }
+        },
+        border: {
+          display: false
         }
       },
-      'y-amount': {
-        type: 'linear',
-        display: true,
-        position: 'right',
-        title: {
-          display: true,
-          text: 'Total Amount'
-        },
+      x: {
         grid: {
-          drawOnChartArea: false,
+          display: false
+        },
+        ticks: {
+          color: '#6B7280',
+          padding: 10,
+          font: {
+            size: 11
+          }
+        },
+        border: {
+          display: false
         }
       }
     },
     plugins: {
+      legend: {
+        position: 'top',
+        align: 'end',
+        labels: {
+          boxWidth: 10,
+          boxHeight: 10,
+          borderRadius: 5,
+          useBorderRadius: true,
+          color: '#4B5563',
+          padding: 15,
+          font: {
+            size: 12
+          }
+        }
+      },
       title: {
-        display: true,
-        text: 'Monthly Tests and Total Amount'
+        display: false
+      },
+      tooltip: {
+        backgroundColor: 'white',
+        titleColor: '#111827',
+        bodyColor: '#4B5563',
+        borderColor: '#E5E7EB',
+        borderWidth: 1,
+        cornerRadius: 8,
+        padding: 12,
+        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+        titleFont: {
+          size: 13,
+          weight: '600'
+        },
+        bodyFont: {
+          size: 12
+        },
+        displayColors: false,
+        callbacks: {
+          title: function(context) {
+            return context[0].label;
+          },
+          label: function(context) {
+            return ` ${context.dataset.label}: ${context.formattedValue}`;
+          }
+        }
       }
     }
   };
   
   return (
-    <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-      <Bar data={chartData} options={chartOptions} />
+    <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-100 h-[400px]">
+      <Line 
+        data={chartData} 
+        options={chartOptions} 
+        className="w-full h-full"
+      />
     </div>
   );
 };
@@ -209,16 +284,14 @@ const TestTypeDistributionChart = ({ tokens, entries }) => {
     datasets: [{
       data: Object.values(testTypeData),
       backgroundColor: [
-        'rgba(75, 192, 192, 0.6)',  // Skin Testing
-        'rgba(255, 99, 132, 0.6)',  // Photo Testing
-        'rgba(255, 206, 86, 0.6)'   // Other
+        'rgb(212, 175, 55)',  // Gold
+        'rgb(184, 115, 51)',  // Bronze/Rose Gold
+        'rgb(192, 192, 192)'  // Silver
       ],
-      borderColor: [
-        'rgba(75, 192, 192, 1)',
-        'rgba(255, 99, 132, 1)',
-        'rgba(255, 206, 86, 1)'
-      ],
-      borderWidth: 1
+      borderColor: 'white',
+      borderWidth: 3,
+      spacing: 2,
+      hoverOffset: 8
     }]
   };
 
@@ -228,46 +301,166 @@ const TestTypeDistributionChart = ({ tokens, entries }) => {
     datasets: [{
       data: Object.values(customerDistributionData),
       backgroundColor: [
-        'rgba(54, 162, 235, 0.6)',
-        'rgba(255, 206, 86, 0.6)',
-        'rgba(75, 192, 192, 0.6)',
-        'rgba(153, 102, 255, 0.6)',
-        'rgba(255, 159, 64, 0.6)'
+        'rgb(212, 175, 55)',  // Gold
+        'rgb(184, 115, 51)',  // Bronze/Rose Gold
+        'rgb(192, 192, 192)',  // Silver
+        'rgb(205, 127, 50)',  // Copper
+        'rgb(218, 165, 32)'   // Golden Rod
       ],
-      borderColor: [
-        'rgba(54, 162, 235, 1)',
-        'rgba(255, 206, 86, 1)',
-        'rgba(75, 192, 192, 1)',
-        'rgba(153, 102, 255, 1)',
-        'rgba(255, 159, 64, 1)'
-      ],
-      borderWidth: 1
+      borderColor: 'white',
+      borderWidth: 3,
+      spacing: 2,
+      hoverOffset: 8
     }]
-  };
-
-  // Chart options
-  const chartOptions = {
-    responsive: true,
-    plugins: {
-      legend: {
-        position: 'top',
-      },
-      title: {
-        display: true,
-        text: 'Distribution Overview'
-      }
-    }
   };
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Test Type Distribution</h3>
-        <Pie data={testTypeChartData} options={chartOptions} />
+      <div className="bg-white rounded-xl shadow-lg border border-gray-100 flex flex-col min-h-[400px] justify-center items-center">
+        <h3 className="text-xl font-bold text-gray-800 text-center w-full px-6 py-4">Test Type Distribution</h3>
+        <div className="flex-grow flex items-center justify-center w-full">
+          <Pie 
+            data={testTypeChartData} 
+            options={{
+              responsive: true,
+              maintainAspectRatio: false,
+              layout: {
+                padding: {
+                  top: 0,
+                  bottom: 0,
+                  left: 0,
+                  right: 0
+                }
+              },
+              plugins: {
+                legend: {
+                  display: false
+                },
+                title: {
+                  display: false
+                },
+                tooltip: {
+                  backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                  titleColor: '#1F2937',
+                  bodyColor: '#4B5563',
+                  borderColor: '#E5E7EB',
+                  borderWidth: 1,
+                  cornerRadius: 12,
+                  padding: 16,
+                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                  titleFont: {
+                    family: "'Inter', sans-serif",
+                    size: 14,
+                    weight: '600'
+                  },
+                  bodyFont: {
+                    family: "'Inter', sans-serif",
+                    size: 13
+                  },
+                  callbacks: {
+                    label: function(context) {
+                      const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                      const currentValue = context.parsed;
+                      const percentage = ((currentValue / total) * 100).toFixed(1);
+                      return ` ${context.label}: ${currentValue} (${percentage}%)`;
+                    }
+                  }
+                }
+              },
+              cutout: '75%',
+              radius: '90%',
+              animation: {
+                animateRotate: true,
+                animateScale: true,
+                duration: 800,
+                easing: 'easeOutQuart'
+              },
+              elements: {
+                arc: {
+                  borderWidth: 3,
+                  borderColor: 'white',
+                  borderRadius: 6,
+                  hoverBorderWidth: 4,
+                  hoverOffset: 8
+                }
+              }
+            }} 
+            className="max-w-[300px] max-h-[300px]"
+          />
+        </div>
       </div>
-      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Customer Distribution by Place</h3>
-        <Pie data={customerDistributionChartData} options={chartOptions} />
+      <div className="bg-white rounded-xl shadow-lg border border-gray-100 flex flex-col min-h-[400px] justify-center items-center">
+        <h3 className="text-xl font-bold text-gray-800 text-center w-full px-6 py-4">Customer Distribution</h3>
+        <div className="flex-grow flex items-center justify-center w-full">
+          <Pie 
+            data={customerDistributionChartData} 
+            options={{
+              responsive: true,
+              maintainAspectRatio: false,
+              layout: {
+                padding: {
+                  top: 0,
+                  bottom: 0,
+                  left: 0,
+                  right: 0
+                }
+              },
+              plugins: {
+                legend: {
+                  display: false
+                },
+                title: {
+                  display: false
+                },
+                tooltip: {
+                  backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                  titleColor: '#1F2937',
+                  bodyColor: '#4B5563',
+                  borderColor: '#E5E7EB',
+                  borderWidth: 1,
+                  cornerRadius: 12,
+                  padding: 16,
+                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                  titleFont: {
+                    family: "'Inter', sans-serif",
+                    size: 14,
+                    weight: '600'
+                  },
+                  bodyFont: {
+                    family: "'Inter', sans-serif",
+                    size: 13
+                  },
+                  callbacks: {
+                    label: function(context) {
+                      const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                      const currentValue = context.parsed;
+                      const percentage = ((currentValue / total) * 100).toFixed(1);
+                      return ` ${context.label}: ${currentValue} (${percentage}%)`;
+                    }
+                  }
+                }
+              },
+              cutout: '75%',
+              radius: '90%',
+              animation: {
+                animateRotate: true,
+                animateScale: true,
+                duration: 800,
+                easing: 'easeOutQuart'
+              },
+              elements: {
+                arc: {
+                  borderWidth: 3,
+                  borderColor: 'white',
+                  borderRadius: 6,
+                  hoverBorderWidth: 4,
+                  hoverOffset: 8
+                }
+              }
+            }} 
+            className="max-w-[300px] max-h-[300px]"
+          />
+        </div>
       </div>
     </div>
   );
