@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 import * as XLSX from "xlsx";
 import { motion } from "framer-motion";
@@ -46,14 +46,6 @@ const Skintestdata = () => {
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
 
-  useEffect(() => {
-    fetchSkinTests();
-  }, []);
-
-  useEffect(() => {
-    filterTestsByDate();
-  }, [fromDate, toDate, skinTests]);
-
   const fetchSkinTests = async () => {
     setLoading(true);
     try {
@@ -74,25 +66,39 @@ const Skintestdata = () => {
     }
   };
 
-  const filterTestsByDate = () => {
-    if (!fromDate || !toDate) {
-      setFilteredTests(
-        [...skinTests].sort(
-          (a, b) => parseFloat(b.token_no) - parseFloat(a.token_no)
-        )
-      );
+  const filterTestsByDate = useCallback(() => {
+    if (!fromDate && !toDate) {
+      setFilteredTests(skinTests);
       return;
     }
 
-    const filtered = skinTests
-      .filter((test) => {
-        const testDate = new Date(test.date.split("-").reverse().join("-"));
-        return testDate >= new Date(fromDate) && testDate <= new Date(toDate);
-      })
-      .sort((a, b) => parseFloat(b.token_no) - parseFloat(a.token_no));
+    const filtered = skinTests.filter((test) => {
+      const testDate = new Date(test.date);
+      const from = fromDate ? new Date(fromDate) : null;
+      const to = toDate ? new Date(toDate) : null;
+
+      if (from && to) {
+        return testDate >= from && testDate <= to;
+      }
+      if (from) {
+        return testDate >= from;
+      }
+      if (to) {
+        return testDate <= to;
+      }
+      return true;
+    });
 
     setFilteredTests(filtered);
-  };
+  }, [skinTests, fromDate, toDate]);
+
+  useEffect(() => {
+    fetchSkinTests();
+  }, []);
+
+  useEffect(() => {
+    filterTestsByDate();
+  }, [fromDate, toDate, skinTests, filterTestsByDate]);
 
   const exportToExcel = () => {
     const worksheet = XLSX.utils.json_to_sheet(filteredTests);

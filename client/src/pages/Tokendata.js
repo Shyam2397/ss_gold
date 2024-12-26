@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 import * as XLSX from "xlsx";
 import { motion } from "framer-motion";
@@ -10,6 +10,7 @@ import {
   FiLoader,
   FiAlertCircle,
 } from "react-icons/fi";
+
 const DateInput = ({ label, value, onChange }) => (
   <div className="flex items-center gap-4">
     <label className="text-sm font-medium text-amber-900 whitespace-nowrap">
@@ -45,14 +46,6 @@ const Tokendata = () => {
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
 
-  useEffect(() => {
-    fetchTokens();
-  }, []);
-
-  useEffect(() => {
-    filterTokensByDate();
-  }, [fromDate, toDate, tokens]);
-
   const fetchTokens = async () => {
     setLoading(true);
     try {
@@ -69,19 +62,39 @@ const Tokendata = () => {
     }
   };
 
-  const filterTokensByDate = () => {
-    if (!fromDate || !toDate) {
+  const filterTokensByDate = useCallback(() => {
+    if (!fromDate && !toDate) {
       setFilteredTokens(tokens);
       return;
     }
 
     const filtered = tokens.filter((token) => {
-      const tokenDate = new Date(token.date.split("-").reverse().join("-"));
-      return tokenDate >= new Date(fromDate) && tokenDate <= new Date(toDate);
+      const tokenDate = new Date(token.date);
+      const from = fromDate ? new Date(fromDate) : null;
+      const to = toDate ? new Date(toDate) : null;
+
+      if (from && to) {
+        return tokenDate >= from && tokenDate <= to;
+      }
+      if (from) {
+        return tokenDate >= from;
+      }
+      if (to) {
+        return tokenDate <= to;
+      }
+      return true;
     });
 
     setFilteredTokens(filtered);
-  };
+  }, [tokens, fromDate, toDate]);
+
+  useEffect(() => {
+    fetchTokens();
+  }, []);
+
+  useEffect(() => {
+    filterTokensByDate();
+  }, [fromDate, toDate, tokens, filterTokensByDate]);
 
   const exportToExcel = () => {
     const worksheet = XLSX.utils.json_to_sheet(filteredTokens);

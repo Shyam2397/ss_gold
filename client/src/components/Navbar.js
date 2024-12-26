@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { FiMenu, FiBell, FiLogOut, FiUsers, FiActivity, FiCamera } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
@@ -14,7 +14,7 @@ const Navbar = ({ onToggleSidebar, isSidebarOpen, setLoggedIn, user }) => {
   const activitiesRef = useRef(null);
   const bellButtonRef = useRef(null);
 
-  const fetchActivities = async () => {
+  const fetchActivities = useCallback(async () => {
     try {
       const [entriesRes, tokensRes] = await Promise.all([
         axios.get(`${API_URL}/entries`),
@@ -61,7 +61,7 @@ const Navbar = ({ onToggleSidebar, isSidebarOpen, setLoggedIn, user }) => {
     } catch (error) {
       console.error('Error fetching activities:', error);
     }
-  };
+  }, [lastViewedActivityTime]);
 
   useEffect(() => {
     // Initial fetch
@@ -90,7 +90,7 @@ const Navbar = ({ onToggleSidebar, isSidebarOpen, setLoggedIn, user }) => {
       clearInterval(intervalId);
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, []);
+  }, [fetchActivities]);
 
   // Auto-close dropdown after 5 seconds of inactivity
   useEffect(() => {
