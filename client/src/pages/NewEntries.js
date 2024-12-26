@@ -17,6 +17,10 @@ const NewEntry = () => {
   const [editMode, setEditMode] = useState(false);
   const [editId, setEditId] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [deleteConfirmation, setDeleteConfirmation] = useState({
+    isOpen: false,
+    customerId: null
+  });
 
   // Fetch customers on component mount
   useEffect(() => {
@@ -91,7 +95,6 @@ const NewEntry = () => {
     };
 
     try {
-      // Check for duplicates before saving
       await checkDuplicates(code, phoneNumber, editMode ? editId : null);
 
       if (editMode) {
@@ -131,20 +134,43 @@ const NewEntry = () => {
     setSuccess("");
   };
 
-  // Handle customer delete
-  const handleDelete = async (id) => {
-    if (window.confirm("Are you sure you want to delete this customer?")) {
-      try {
-        setLoading(true);
-        await axios.delete(`${process.env.REACT_APP_API_URL}/entries/${id}`);
-        setSuccess("Customer deleted successfully!");
-        fetchCustomers();
-      } catch (err) {
-        setError("Error deleting customer");
-        console.error("Error deleting customer:", err);
-      } finally {
-        setLoading(false);
-      }
+  // Trigger delete confirmation
+  const confirmDelete = (id) => {
+    setDeleteConfirmation({
+      isOpen: true,
+      customerId: id
+    });
+  };
+
+  // Cancel delete operation
+  const cancelDelete = () => {
+    setDeleteConfirmation({
+      isOpen: false,
+      customerId: null
+    });
+  };
+
+  // Confirm and proceed with delete
+  const proceedDelete = async () => {
+    if (!deleteConfirmation.customerId) return;
+
+    try {
+      setLoading(true);
+      await axios.delete(
+        `${process.env.REACT_APP_API_URL}/entries/${deleteConfirmation.customerId}`
+      );
+      setSuccess("Customer deleted successfully!");
+      fetchCustomers();
+    } catch (err) {
+      setError("Error deleting customer");
+      console.error("Error deleting customer:", err);
+    } finally {
+      // Reset delete confirmation
+      setDeleteConfirmation({
+        isOpen: false,
+        customerId: null
+      });
+      setLoading(false);
     }
   };
 
@@ -159,12 +185,40 @@ const NewEntry = () => {
     setError("");
     setSuccess("");
   };
+
+  // Add state for message timeout duration
+  const MESSAGE_TIMEOUT = 5000; // 5 seconds
+
+  // Auto-clear messages after a timeout
+  useEffect(() => {
+    let errorTimer, successTimer;
+
+    if (error) {
+      errorTimer = setTimeout(() => {
+        setError("");
+      }, MESSAGE_TIMEOUT);
+    }
+
+    if (success) {
+      successTimer = setTimeout(() => {
+        setSuccess("");
+      }, MESSAGE_TIMEOUT);
+    }
+
+    // Cleanup timers to prevent memory leaks
+    return () => {
+      if (errorTimer) clearTimeout(errorTimer);
+      if (successTimer) clearTimeout(successTimer);
+    };
+  }, [error, success]);
+
   const handleInputChange = (setter) => (e) => {
     setter(e.target.value);
     if (error) {
       setError("");
     }
   };
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
       {/* Form Section */}
@@ -405,7 +459,7 @@ const NewEntry = () => {
                             Edit
                           </button>
                           <button
-                            onClick={() => handleDelete(customer.id)}
+                            onClick={() => confirmDelete(customer.id)}
                             className="text-red-600 hover:text-red-900 transition-colors duration-200"
                           >
                             Delete
@@ -420,6 +474,40 @@ const NewEntry = () => {
           </div>
         )}
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirmation.isOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 shadow-xl max-w-sm w-full">
+            <div className="text-center">
+              <FiAlertCircle className="mx-auto h-12 w-12 text-amber-600 mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                Confirm Deletion
+              </h3>
+              <p className="text-sm text-gray-500 mb-6">
+                Are you sure you want to delete this customer? 
+                This action cannot be undone.
+              </p>
+              <div className="flex justify-center space-x-4">
+                <button
+                  type="button"
+                  onClick={cancelDelete}
+                  className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={proceedDelete}
+                  className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
