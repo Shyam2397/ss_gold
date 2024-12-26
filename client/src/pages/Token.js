@@ -383,19 +383,19 @@ const TokenPage = () => {
             <style>
               @page { 
                 size: 80mm auto; 
-                margin: 5mm; 
+                margin: 0; 
               }
               body { 
                 font-family: Arial, sans-serif; 
                 max-width: 300px; 
                 margin: 0 auto; 
-                padding: 5px;
+                
               }
               .header { 
                 text-align: center; 
-                margin-bottom: 2px; 
-                border-bottom: 1px solid #ddd; 
-                padding-bottom: 2px; 
+                margin-bottom: 1px; 
+                border-bottom: 1px solid black; 
+                padding-bottom: 1px; 
                 display: flex;
                 align-items: center;
                 justify-content: center;
@@ -426,24 +426,48 @@ const TokenPage = () => {
                 margin: 1px 0;
                 font-size: 12px;
               }
+              .header-subtitle:nth-child(2) {
+                font-size: 14px;
+                font-weight: bold;
+                margin: 1px 0;
+              }
               .content { 
-                margin-bottom: 15px; 
+                margin-bottom: 1px;
+                border-bottom: 1px dotted black; 
               }
               .row { 
                 display: flex; 
                 justify-content: space-between; 
-                margin-bottom: 5px; 
-                font-size: 14px; 
+                margin-bottom: 3px; 
+                font-size: 13px; 
               }
               .row span:first-child { 
-                font-weight: bold; 
+                font-weight: medium;
+                text-transform: uppercase;
+                padding-left: 5px;
               }
-              .footer { 
-                text-align: center; 
-                font-size: 12px; 
-                margin-top: 15px; 
-                border-top: 1px solid #ddd; 
-                padding-top: 10px; 
+              .row span:last-child {
+                text-align: center;
+                width: 50%;
+              }
+              
+              .date-time {
+                display: flex;
+                justify-content: end;
+                font-size: 11px;
+                margin-bottom: 1px;
+                border-bottom: 1px dotted black;
+                padding-bottom: 1px;
+              }
+              .date-time span {
+                margin-right: 5px;
+              }
+              .thank-you {
+                text-align: center;
+                font-size: 12px;
+                margin: 1px 0;
+                font-style: italic;
+                font-family: 'Vivaldi', cursive;
               }
             </style>
           </head>
@@ -454,50 +478,46 @@ const TokenPage = () => {
                 ${logoBase64 ? `<img src="${logoBase64}" alt="SS GOLD Logo" class="logo" />` : ''}
                 <h1 class="header-title">SS GOLD</h1>
               </div>
-               
                 <p class="header-subtitle">Computer X-ray Testing</p>
                   <p class="header-subtitle">59, Main Bazaar, Nilakottai - 624208</p>
                   <p class="header-subtitle">Ph.No: 8903225544</p>
-                </div>  
-            
+                </div>        
+            </div>
+            <div class="date-time">
+              <span>${date}</span>
+              <span>${time}</span>
             </div>
             <div class="content">
               <div class="row">
-                <span>Token No:</span>
+                <span>Token No</span>
                 <span>${tokenNo}</span>
               </div>
+              
               <div class="row">
-                <span>Date:</span>
-                <span>${date}</span>
-              </div>
-              <div class="row">
-                <span>Time:</span>
-                <span>${time}</span>
-              </div>
-              <div class="row">
-                <span>Name:</span>
+                <span>Name</span>
                 <span>${name}</span>
               </div>
               <div class="row">
-                <span>Test:</span>
+                <span>Test</span>
                 <span>${test}</span>
               </div>
               <div class="row">
-                <span>Weight:</span>
-                <span>${weight} g</span>
+                <span>Weight</span>
+                <span>${parseFloat(weight).toFixed(3)} g</span>
               </div>
               <div class="row">
-                <span>Sample:</span>
+                <span>Sample</span>
                 <span>${sample}</span>
               </div>
               <div class="row">
-                <span>Amount:</span>
+                <span>Amount</span>
                 <span>₹${amount}</span>
               </div>
             </div>
-            <div class="footer">
-              <p>Powered by SS GOLD</p>
+            <div class="thank-you">
+            Thank You.... Visit Again....
             </div>
+            
           </body>
         </html>
       `;
