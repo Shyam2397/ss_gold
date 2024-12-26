@@ -15,6 +15,7 @@ import {
   FiSave,
   FiRotateCcw,
   FiAlertCircle,
+  FiCheckCircle,
 } from "react-icons/fi";
 import { BsReceipt } from "react-icons/bs";
 import logoPath from '../assets/logo.png';
@@ -178,6 +179,7 @@ const TokenPage = () => {
   const [editMode, setEditMode] = useState(false);
   const [editId, setEditId] = useState(null);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [filteredTokens, setFilteredTokens] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(false);
@@ -185,6 +187,9 @@ const TokenPage = () => {
     isOpen: false,
     tokenId: null
   });
+
+  // Add state for message timeout duration
+  const MESSAGE_TIMEOUT = 5000; // 5 seconds
 
   useEffect(() => {
     fetchTokens();
@@ -202,6 +207,20 @@ const TokenPage = () => {
       )
     );
   }, [searchQuery, tokens]);
+
+  useEffect(() => {
+    let successTimer;
+
+    if (success) {
+      successTimer = setTimeout(() => {
+        setSuccess("");
+      }, MESSAGE_TIMEOUT);
+    }
+
+    return () => {
+      if (successTimer) clearTimeout(successTimer);
+    };
+  }, [success]);
 
   const generateTokenNumber = async () => {
     try {
@@ -293,6 +312,7 @@ const TokenPage = () => {
       resetForm();
       fetchTokens();
       generateTokenNumber();
+      setSuccess("Token saved successfully!");
     } catch (error) {
       setError("Failed to save token");
     }
@@ -356,6 +376,7 @@ const TokenPage = () => {
       fetchTokens();
       generateTokenNumber();
       setError("");
+      setSuccess("Token deleted successfully!");
     } catch (error) {
       setError("Failed to delete token");
     } finally {
@@ -594,6 +615,18 @@ const TokenPage = () => {
                 </div>
                 <div className="ml-3">
                   <p className="text-sm text-red-700">{error}</p>
+                </div>
+              </div>
+            </div>
+          )}
+          {success && (
+            <div className="p-2 bg-green-50 border-l-4 border-green-500 rounded-md">
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  <FiCheckCircle className="h-5 w-5 text-green-400" />
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm text-green-700">{success}</p>
                 </div>
               </div>
             </div>
