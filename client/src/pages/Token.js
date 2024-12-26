@@ -17,6 +17,7 @@ import {
   FiAlertCircle,
 } from "react-icons/fi";
 import { BsReceipt } from "react-icons/bs";
+import logoPath from '../assets/logo.png';
 
 const FormField = ({
   label,
@@ -162,64 +163,6 @@ const TokenTable = ({ tokens, onEdit, onDelete }) => (
   </div>
 );
 
-const PrintArea = ({
-  tokenNo,
-  date,
-  time,
-  name,
-  test,
-  weight,
-  sample,
-  amount,
-}) => (
-  <div id="printArea" className="hidden">
-    <div className="p-4 max-w-sm mx-auto bg-white">
-      <div className="text-center mb-4">
-        <h1 className="text-xl font-bold">SS GOLD</h1>
-        <p className="text-sm">59, Main Bazaar, Nilakottai - 624208</p>
-        <p className="text-sm">Ph.No: 8903225544</p>
-      </div>
-      <div className="space-y-2">
-        <div className="flex justify-between">
-          <span>Token No:</span>
-          <span>{tokenNo}</span>
-        </div>
-        <div className="flex justify-between">
-          <span>Date:</span>
-          <span>{date}</span>
-        </div>
-        <div className="flex justify-between">
-          <span>Time:</span>
-          <span>{time}</span>
-        </div>
-        <div className="flex justify-between">
-          <span>Name:</span>
-          <span>{name}</span>
-        </div>
-        <div className="flex justify-between">
-          <span>Test:</span>
-          <span>{test}</span>
-        </div>
-        <div className="flex justify-between">
-          <span>Weight:</span>
-          <span>{weight}</span>
-        </div>
-        <div className="flex justify-between">
-          <span>Sample:</span>
-          <span>{sample}</span>
-        </div>
-        <div className="flex justify-between">
-          <span>Amount:</span>
-          <span>{amount}</span>
-        </div>
-      </div>
-      <div className="mt-4 text-center text-sm">
-        <p>Thank you for your business!</p>
-      </div>
-    </div>
-  </div>
-);
-
 const TokenPage = () => {
   const [code, setCode] = useState("");
   const [tokenNo, setTokenNo] = useState("");
@@ -255,21 +198,6 @@ const TokenPage = () => {
     );
   }, [searchQuery, tokens]);
 
-  const fetchTokens = async () => {
-    setLoading(true);
-    try {
-      const response = await axios.get(
-        `${process.env.REACT_APP_API_URL}/tokens`
-      );
-      setTokens(response.data);
-    } catch (error) {
-      setError("Failed to fetch tokens. Please try again later.");
-      console.error("Error fetching tokens:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const generateTokenNumber = async () => {
     try {
       const response = await axios.get(
@@ -277,7 +205,7 @@ const TokenPage = () => {
       );
       setTokenNo(response.data.tokenNo);
     } catch (error) {
-      console.error("Error generating token number:", error);
+      setError("Failed to generate token number");
     }
   };
 
@@ -295,19 +223,33 @@ const TokenPage = () => {
     setTime(formattedTime);
   };
 
+  const fetchTokens = async () => {
+    setLoading(true);
+    try {
+      const response = await axios.get(
+        `${process.env.REACT_APP_API_URL}/tokens`
+      );
+      setTokens(response.data);
+    } catch (error) {
+      setError("Failed to fetch tokens");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleCodeChange = async (e) => {
-    const code = e.target.value;
-    setCode(code);
+    const inputCode = e.target.value;
+    setCode(inputCode);
     setError("");
 
-    if (code.length === 4) {
+    if (inputCode.length === 4) {
       try {
         const response = await axios.get(
-          `${process.env.REACT_APP_API_URL}/entries/${code}`
+          `${process.env.REACT_APP_API_URL}/entries/${inputCode}`
         );
         setName(response.data.name || "Not Found");
       } catch (error) {
-        console.error("Error fetching name:", error);
+        setError("Failed to fetch name");
       }
     } else {
       setName("");
@@ -347,7 +289,7 @@ const TokenPage = () => {
       fetchTokens();
       generateTokenNumber();
     } catch (error) {
-      console.error("Error saving token:", error);
+      setError("Failed to save token");
     }
   };
 
@@ -392,7 +334,7 @@ const TokenPage = () => {
       fetchTokens();
       generateTokenNumber();
     } catch (error) {
-      console.error("Error deleting token:", error);
+      setError("Failed to delete token");
     }
     resetForm();
   };
@@ -409,27 +351,115 @@ const TokenPage = () => {
   };
 
   const handlePrint = () => {
-    const printWindow = window.open("", "", "width=600,height=600");
-    printWindow.document.write(`
-      <html>
-        <head>
-          <title>Print Token</title>
-          <style>
-            @page { size: 80mm auto; margin: 0; }
-            body { margin: 10px; padding: 10px; font-family: Arial, sans-serif; }
-            .container { max-width: 300px; margin: 0 auto; }
-            .header { text-align: center; margin-bottom: 20px; }
-            .content { margin-bottom: 20px; }
-            .row { display: flex; justify-content: space-between; margin-bottom: 5px; }
-            .footer { text-align: center; margin-top: 20px; font-size: 12px; }
-          </style>
-        </head>
-        <body>
-          <div class="container">
+    const convertImageToBase64 = (imagePath) => {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0);
+          resolve(canvas.toDataURL('image/png'));
+        };
+        img.onerror = reject;
+        img.src = imagePath;
+      });
+    };
+    
+
+    const printToken = async () => {
+      let logoBase64 = '';
+      try {
+        logoBase64 = await convertImageToBase64(logoPath);
+      } catch (error) {
+        console.error('Error converting logo to base64:', error);
+      }
+
+      const printContent = `
+        <html>
+          <head>
+            <title>Token Receipt - SS GOLD</title>
+            <style>
+              @page { 
+                size: 80mm auto; 
+                margin: 5mm; 
+              }
+              body { 
+                font-family: Arial, sans-serif; 
+                max-width: 300px; 
+                margin: 0 auto; 
+                padding: 5px;
+              }
+              .header { 
+                text-align: center; 
+                margin-bottom: 2px; 
+                border-bottom: 1px solid #ddd; 
+                padding-bottom: 2px; 
+                display: flex;
+                align-items: center;
+                justify-content: center;
+              }
+              .logo-container {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+              }
+              .logo {
+                width: 30px;
+                height: 30px;
+                margin-right: 5px;
+                object-fit: contain;
+              }
+              .header-text {
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+              }
+              .header-title {
+                margin: 0;
+                font-size: 20px;
+                line-height: 1;
+                vertical-align: middle;
+              }
+              .header-subtitle {
+                margin: 1px 0;
+                font-size: 12px;
+              }
+              .content { 
+                margin-bottom: 15px; 
+              }
+              .row { 
+                display: flex; 
+                justify-content: space-between; 
+                margin-bottom: 5px; 
+                font-size: 14px; 
+              }
+              .row span:first-child { 
+                font-weight: bold; 
+              }
+              .footer { 
+                text-align: center; 
+                font-size: 12px; 
+                margin-top: 15px; 
+                border-top: 1px solid #ddd; 
+                padding-top: 10px; 
+              }
+            </style>
+          </head>
+          <body>
             <div class="header">
-              <h1 style="margin: 0; font-size: 24px;">SS GOLD</h1>
-              <p style="margin: 5px 0; font-size: 14px;">59, Main Bazaar, Nilakottai - 624208</p>
-              <p style="margin: 5px 0; font-size: 14px;">Ph.No: 8903225544</p>
+            <div class="header-text">
+            <div class="logo-container">
+                ${logoBase64 ? `<img src="${logoBase64}" alt="SS GOLD Logo" class="logo" />` : ''}
+                <h1 class="header-title">SS GOLD</h1>
+              </div>
+               
+                <p class="header-subtitle">Computer X-ray Testing</p>
+                  <p class="header-subtitle">59, Main Bazaar, Nilakottai - 624208</p>
+                  <p class="header-subtitle">Ph.No: 8903225544</p>
+                </div>  
+            
             </div>
             <div class="content">
               <div class="row">
@@ -454,7 +484,7 @@ const TokenPage = () => {
               </div>
               <div class="row">
                 <span>Weight:</span>
-                <span>${weight}</span>
+                <span>${weight} g</span>
               </div>
               <div class="row">
                 <span>Sample:</span>
@@ -462,27 +492,31 @@ const TokenPage = () => {
               </div>
               <div class="row">
                 <span>Amount:</span>
-                <span>${amount}</span>
+                <span>₹${amount}</span>
               </div>
             </div>
             <div class="footer">
-              <p>Thank you for your business!</p>
+              <p>Powered by SS GOLD</p>
             </div>
-          </div>
-        </body>
-      </html>
-    `);
-    printWindow.document.close();
-    printWindow.focus();
-    setTimeout(() => {
-      printWindow.print();
-      printWindow.close();
-    }, 250);
+          </body>
+        </html>
+      `;
+
+      const printWindow = window.open('', '', 'width=1200,height=600');
+      printWindow.document.write(printContent);
+      printWindow.document.close();
+      
+      setTimeout(() => {
+        printWindow.print();
+        printWindow.close();
+      }, 250);
+    };
+
+    printToken();
   };
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
-      {/* Form Section */}
       <div className="bg-white rounded-xl shadow-sm p-6 border border-amber-100">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center">
@@ -506,7 +540,6 @@ const TokenPage = () => {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Token Information */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-4 bg-amber-50 rounded-lg">
             <FormField
               label="Token No"
@@ -531,7 +564,6 @@ const TokenPage = () => {
             />
           </div>
 
-          {/* Customer Information */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-4 bg-amber-50 rounded-lg">
             <FormField
               label="Code"
@@ -555,7 +587,6 @@ const TokenPage = () => {
             />
           </div>
 
-          {/* Sample Information */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-4 bg-amber-50 rounded-lg">
             <FormField
               label="Weight"
@@ -576,7 +607,6 @@ const TokenPage = () => {
             <FormField
               label="Amount"
               icon={FiDollarSign}
-              type="number"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               required
@@ -610,7 +640,6 @@ const TokenPage = () => {
         </form>
       </div>
 
-      {/* Token List */}
       <div className="mt-8 bg-white rounded-xl shadow-sm p-6 border border-amber-100">
         <div className="mb-6 flex justify-end">
           <div className="relative w-64">
@@ -653,19 +682,6 @@ const TokenPage = () => {
             onDelete={handleDelete}
           />
         )}
-      </div>
-
-      <div id="print-content" className="hidden">
-        <PrintArea
-          tokenNo={tokenNo}
-          date={date}
-          time={time}
-          name={name}
-          test={test}
-          weight={weight}
-          sample={sample}
-          amount={amount}
-        />
       </div>
     </div>
   );
