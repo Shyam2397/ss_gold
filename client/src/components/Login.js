@@ -18,21 +18,17 @@ const Login = ({ setLoggedIn }) => {
     setLoading(true);
 
     try {
-      const response = await axios.post('http://localhost:5000/login', {
+      const response = await axios.post(`${process.env.REACT_APP_API_URL}/login`, {
         username,
         password,
       });
 
-      console.log('Login response:', response);
-
       if (response.status === 200) {
-        console.log('Login successful');
         localStorage.setItem('isLoggedIn', 'true');
         setLoggedIn(true);
         navigate('/dashboard');
       }
     } catch (err) {
-      console.error('Login error:', err);
       if (err.response && err.response.status === 401) {
         setError('Invalid username or password');
       } else {
@@ -104,7 +100,7 @@ const Login = ({ setLoggedIn }) => {
             </div>
           )}
 
-          <div>
+          <div className="pb-6">
             <button
               type="submit"
               disabled={loading}
@@ -125,18 +121,6 @@ const Login = ({ setLoggedIn }) => {
             </button>
           </div>
         </form>
-
-        <div className="mt-6 text-center text-sm">
-          <p className="text-gray-600">
-            Don't have an account?{' '}
-            <button 
-              onClick={() => {}} 
-              className="font-medium text-amber-600 hover:text-amber-500 focus:outline-none"
-            >
-              Contact admin
-            </button>
-          </p>
-        </div>
       </motion.div>
     </div>
   );
