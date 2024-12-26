@@ -181,6 +181,10 @@ const TokenPage = () => {
   const [filteredTokens, setFilteredTokens] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState({
+    isOpen: false,
+    tokenId: null
+  });
 
   useEffect(() => {
     fetchTokens();
@@ -329,15 +333,40 @@ const TokenPage = () => {
     setAmount(token.amount);
   };
 
-  const handleDelete = async (id) => {
+  const confirmDelete = (id) => {
+    setDeleteConfirmation({
+      isOpen: true,
+      tokenId: id
+    });
+  };
+
+  const cancelDelete = () => {
+    setDeleteConfirmation({
+      isOpen: false,
+      tokenId: null
+    });
+  };
+
+  const proceedDelete = async () => {
+    if (!deleteConfirmation.tokenId) return;
+
     try {
-      await axios.delete(`${process.env.REACT_APP_API_URL}/tokens/${id}`);
+      setLoading(true);
+      await axios.delete(`${process.env.REACT_APP_API_URL}/tokens/${deleteConfirmation.tokenId}`);
       fetchTokens();
       generateTokenNumber();
+      setError("");
     } catch (error) {
       setError("Failed to delete token");
+    } finally {
+      // Reset delete confirmation
+      setDeleteConfirmation({
+        isOpen: false,
+        tokenId: null
+      });
+      setLoading(false);
+      resetForm();
     }
-    resetForm();
   };
 
   const resetForm = () => {
@@ -384,7 +413,7 @@ const TokenPage = () => {
   const handlePrint = async () => {
     try {
       const imagesToPreload = [logoPath]; // Add other image paths if needed
-      const preloadedImages = await preloadImages(imagesToPreload);
+      await preloadImages(imagesToPreload);
 
       const base64Logo = await convertImageToBase64(logoPath);
       
@@ -711,8 +740,40 @@ const TokenPage = () => {
           <TokenTable
             tokens={filteredTokens}
             onEdit={handleEdit}
-            onDelete={handleDelete}
+            onDelete={confirmDelete}
           />
+        )}
+        {deleteConfirmation.isOpen && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 shadow-xl max-w-sm w-full">
+              <div className="text-center">
+                <FiAlertCircle className="mx-auto h-12 w-12 text-amber-600 mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  Confirm Deletion
+                </h3>
+                <p className="text-sm text-gray-500 mb-6">
+                  Are you sure you want to delete this token? 
+                  This action cannot be undone.
+                </p>
+                <div className="flex justify-center space-x-4">
+                  <button
+                    type="button"
+                    onClick={cancelDelete}
+                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={proceedDelete}
+                    className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </div>
