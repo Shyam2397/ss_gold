@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import Navbar from '../Navbar';
+import Navbar from '../navbar/Navbar';
 import Sidebar from '../Sidebar';
 import LogoSection from './LogoSection';
 import MainContent from './MainContent';
