@@ -18,6 +18,7 @@ import {
 } from "react-icons/fi";
 import { BsReceipt } from "react-icons/bs";
 import logoPath from '../assets/logo.png';
+import loadImage from 'blueimp-load-image';
 
 const FormField = ({
   label,
@@ -350,32 +351,43 @@ const TokenPage = () => {
     setError("");
   };
 
-  const handlePrint = () => {
-    const convertImageToBase64 = (imagePath) => {
-      return new Promise((resolve, reject) => {
-        const img = new Image();
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          canvas.width = img.width;
-          canvas.height = img.height;
-          const ctx = canvas.getContext('2d');
-          ctx.drawImage(img, 0, 0);
+  const preloadImages = (imagePaths) => {
+    return Promise.all(
+      imagePaths.map(path => 
+        new Promise((resolve, reject) => {
+          const img = new Image();
+          img.onload = () => resolve({ path, img });
+          img.onerror = reject;
+          img.src = path;
+        })
+      )
+    );
+  };
+
+  const convertImageToBase64 = (imagePath) => {
+    return new Promise((resolve, reject) => {
+      loadImage(
+        imagePath,
+        (canvas) => {
           resolve(canvas.toDataURL('image/png'));
-        };
-        img.onerror = reject;
-        img.src = imagePath;
-      });
-    };
-    
+        },
+        {
+          maxWidth: 1000, // Optional: limit max width
+          maxHeight: 1000, // Optional: limit max height
+          canvas: true,
+          orientation: true
+        }
+      );
+    });
+  };
 
-    const printToken = async () => {
-      let logoBase64 = '';
-      try {
-        logoBase64 = await convertImageToBase64(logoPath);
-      } catch (error) {
-        console.error('Error converting logo to base64:', error);
-      }
+  const handlePrint = async () => {
+    try {
+      const imagesToPreload = [logoPath]; // Add other image paths if needed
+      const preloadedImages = await preloadImages(imagesToPreload);
 
+      const base64Logo = await convertImageToBase64(logoPath);
+      
       const printContent = `
         <html>
           <head>
@@ -475,7 +487,7 @@ const TokenPage = () => {
             <div class="header">
             <div class="header-text">
             <div class="logo-container">
-                ${logoBase64 ? `<img src="${logoBase64}" alt="SS GOLD Logo" class="logo" />` : ''}
+                ${base64Logo ? `<img src="${base64Logo}" alt="SS GOLD Logo" class="logo" />` : ''}
                 <h1 class="header-title">SS GOLD</h1>
               </div>
                 <p class="header-subtitle">Computer X-ray Testing</p>
@@ -530,9 +542,9 @@ const TokenPage = () => {
         printWindow.print();
         printWindow.close();
       }, 250);
-    };
-
-    printToken();
+    } catch (error) {
+      console.error('Image conversion error:', error);
+    }
   };
 
   return (
