@@ -7,7 +7,7 @@ import NewEntries from "./pages/NewEntries";
 import SkinTesting from "./pages/SkinTesting";
 import PhotoTesting from "./pages/PhotoTesting";
 import Token from "./pages/Token";
-import Customerdata from "./pages/Customerdata";
+import Customerdata from "./pages/CustomerData/Customerdata";
 import Tokendata from "./pages/Tokendata";
 import Skintestdata from "./pages/Skintestdata";
 
