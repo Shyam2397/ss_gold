@@ -9,7 +9,7 @@ import PhotoTesting from "./pages/PhotoTesting";
 import Token from "./pages/Token";
 import Customerdata from "./pages/CustomerData/Customerdata";
 import Tokendata from "./pages/Tokendata";
-import Skintestdata from "./pages/Skintestdata";
+import Skintestdata from "./pages/SkinTestData/SkinTestDataPage";
 
 function App() {
   const [loggedIn, setLoggedIn] = React.useState(false);
