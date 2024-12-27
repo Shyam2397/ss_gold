@@ -7,7 +7,7 @@ import NewEntries from "./pages/NewEntries";
 import SkinTesting from "./pages/SkinTesting";
 import PhotoTesting from "./pages/PhotoTesting";
 import Token from "./pages/Token";
-import Customerdata from "./pages/CustomerData/Customerdata";
+import CustomerDataPage from "./pages/CustomerData/CustomerDataPage";
 import Tokendata from "./pages/TokenData/TokenDataPage";
 import Skintestdata from "./pages/SkinTestData/SkinTestDataPage";
 
@@ -32,7 +32,7 @@ function App() {
           <Route path="/token" element={<Token />} />
           <Route path="/skin-testing" element={<SkinTesting />} />
           <Route path="/photo-testing" element={<PhotoTesting />} />
-          <Route path="/customer-data" element={<Customerdata />} />
+          <Route path="/customer-data" element={<CustomerDataPage />} />
           <Route path="/token-data" element={<Tokendata />} />
           <Route path="/skintest-data" element={<Skintestdata />} />
           {/* Add more routes here */}
