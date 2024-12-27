@@ -8,7 +8,7 @@ import SkinTesting from "./pages/SkinTesting";
 import PhotoTesting from "./pages/PhotoTesting";
 import Token from "./pages/Token";
 import Customerdata from "./pages/CustomerData/Customerdata";
-import Tokendata from "./pages/Tokendata";
+import Tokendata from "./pages/TokenData/TokenDataPage";
 import Skintestdata from "./pages/SkinTestData/SkinTestDataPage";
 
 function App() {
