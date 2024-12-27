@@ -29,6 +29,46 @@ const useSkinTests = () => {
     }
   };
 
+  const parseDate = (dateStr) => {
+    // Try parsing with different strategies
+    let parsedDate = new Date(dateStr);
+    
+    // If ISO parsing fails, try manual parsing
+    if (isNaN(parsedDate)) {
+      // Common formats: DD/MM/YYYY, MM/DD/YYYY, YYYY-MM-DD
+      const formats = [
+        /^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/,  // DD/MM/YYYY or DD-MM-YYYY
+        /^(\d{4})-(\d{2})-(\d{2})$/,            // YYYY-MM-DD
+        /^(\d{1,2})[/-](\d{1,2})[/-](\d{2})$/   // DD/MM/YY or MM/DD/YY
+      ];
+      
+      for (const regex of formats) {
+        const match = dateStr.match(regex);
+        if (match) {
+          let year, month, day;
+          if (match[3].length === 4) {
+            // YYYY-MM-DD or DD/MM/YYYY
+            year = match[3];
+            month = match[2];
+            day = match[1];
+          } else {
+            // YY format or swapped
+            year = match[3].length === 2 ? 
+              (parseInt(match[3]) > 50 ? '19' : '20') + match[3] : 
+              match[3];
+            month = match[1];
+            day = match[2];
+          }
+          
+          parsedDate = new Date(year, month - 1, day);
+          break;
+        }
+      }
+    }
+    
+    return parsedDate;
+  };
+
   const filterTestsByDate = useCallback(() => {
     if (!fromDate && !toDate) {
       setFilteredTests(skinTests);
@@ -36,9 +76,13 @@ const useSkinTests = () => {
     }
 
     const filtered = skinTests.filter((test) => {
-      const testDate = new Date(test.date);
-      const from = fromDate ? new Date(fromDate) : null;
-      const to = toDate ? new Date(toDate) : null;
+      const testDate = parseDate(test.date);
+      const from = fromDate ? parseDate(fromDate) : null;
+      const to = toDate ? parseDate(toDate) : null;
+
+      // Reset time to start/end of day for accurate comparison
+      if (from) from.setHours(0, 0, 0, 0);
+      if (to) to.setHours(23, 59, 59, 999);
 
       if (from && to) {
         return testDate >= from && testDate <= to;
