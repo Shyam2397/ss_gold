@@ -388,6 +388,32 @@ const NewEntry = () => {
     }
   };
 
+  const headingIconVariants = {
+    initial: { 
+      scale: 0.8, 
+      opacity: 0,
+      rotate: -20 
+    },
+    animate: { 
+      scale: 1, 
+      opacity: 1,
+      rotate: 0,
+      transition: {
+        type: "spring",
+        stiffness: 300,
+        damping: 10
+      }
+    },
+    hover: {
+      scale: 1.1,
+      rotate: 15,
+      transition: {
+        type: "spring",
+        stiffness: 300
+      }
+    }
+  };
+
   const renderMotionInput = (label, id, value, onChange, placeholder) => (
     <motion.div
       variants={inputVariants}
@@ -437,7 +463,15 @@ const NewEntry = () => {
           >
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center">
-                <MdPersonAdd className="w-8 h-8 text-amber-600 mr-3" />
+                <motion.div
+                  variants={headingIconVariants}
+                  initial="initial"
+                  animate="animate"
+                  whileHover="hover"
+                  className="mr-3"
+                >
+                  <MdPersonAdd className="w-8 h-8 text-amber-600" />
+                </motion.div>
                 <h2 className="text-2xl font-bold text-amber-900">
                   {editMode ? "Edit Customer" : "New Customer"}
                 </h2>
@@ -549,7 +583,15 @@ const NewEntry = () => {
           >
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center">
-                <BsQrCode className="w-6 h-6 text-amber-600 mr-3" />
+                <motion.div
+                  variants={headingIconVariants}
+                  initial="initial"
+                  animate="animate"
+                  whileHover="hover"
+                  className="mr-3"
+                >
+                  <BsQrCode className="w-6 h-6 text-amber-600" />
+                </motion.div>
                 <h3 className="text-xl font-semibold text-amber-900">
                   Customer List
                 </h3>
