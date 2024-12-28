@@ -712,7 +712,7 @@ const TokenPage = () => {
       animate="in"
       exit="out"
       variants={pageVariants}
-      className="container mx-auto px-4 py-2"
+      className="container mx-auto px-8 py-2"
     >
       <motion.div
         initial="hidden"
