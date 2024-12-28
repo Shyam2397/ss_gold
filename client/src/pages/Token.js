@@ -16,6 +16,7 @@ import {
   FiRotateCcw,
   FiAlertCircle,
   FiCheckCircle,
+  FiList
 } from "react-icons/fi";
 import { BsReceipt } from "react-icons/bs";
 import logoPath from '../assets/logo.png';
@@ -240,9 +241,9 @@ const TokenPage = () => {
       .split("/")
       .join("-");
     const formattedTime = currentDate.toLocaleTimeString("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+        hour: "2-digit",
+        minute: "2-digit",
+      });
     setDate(formattedDate);
     setTime(formattedTime);
   };
@@ -597,145 +598,353 @@ const TokenPage = () => {
     }
   };
 
+  // Global transition configuration for consistent, smooth animations
+  const transitionConfig = {
+    type: "tween",
+    ease: "easeInOut",
+    duration: 0.3
+  };
+
+  const smoothSpringTransition = {
+    type: "spring",
+    stiffness: 120,
+    damping: 10,
+    mass: 0.5
+  };
+
+  // Page and component animation variants
+  const pageVariants = {
+    initial: { 
+      opacity: 0, 
+      x: '-5%',
+      transition: {
+        ...transitionConfig,
+        duration: 0.4
+      }
+    },
+    in: { 
+      opacity: 1, 
+      x: 0,
+      transition: {
+        ...transitionConfig,
+        duration: 0.5
+      }
+    },
+    out: { 
+      opacity: 0, 
+      x: '5%',
+      transition: {
+        ...transitionConfig,
+        duration: 0.4
+      }
+    }
+  };
+
+  const componentVariants = {
+    hidden: { 
+      opacity: 0, 
+      scale: 0.98,
+      transition: {
+        ...transitionConfig
+      }
+    },
+    visible: { 
+      opacity: 1, 
+      scale: 1,
+      transition: {
+        ...smoothSpringTransition,
+        delay: 0.1
+      }
+    }
+  };
+
+  const formVariants = {
+    initial: { 
+      opacity: 0, 
+      y: 10,
+      transition: transitionConfig
+    },
+    animate: { 
+      opacity: 1, 
+      y: 0,
+      transition: {
+        ...smoothSpringTransition,
+        delay: 0.2
+      }
+    },
+    exit: { 
+      opacity: 0, 
+      y: 10,
+      transition: transitionConfig
+    }
+  };
+
+  const headingIconVariants = {
+    initial: { 
+      scale: 0.7, 
+      opacity: 0,
+      rotate: -15,
+      transition: transitionConfig
+    },
+    animate: { 
+      scale: 1, 
+      opacity: 1,
+      rotate: 0,
+      transition: {
+        ...smoothSpringTransition,
+        delay: 0.3
+      }
+    },
+    hover: {
+      scale: 1.1,
+      rotate: 10,
+      transition: {
+        type: "spring",
+        stiffness: 300,
+        damping: 5
+      }
+    }
+  };
+
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
-      <div className="bg-white rounded-xl shadow-sm p-6 border border-amber-100">
+    <motion.div
+      initial="initial"
+      animate="in"
+      exit="out"
+      variants={pageVariants}
+      className="container mx-auto px-4 py-2"
+    >
+      <motion.div
+        initial="hidden"
+        animate="visible"
+        variants={componentVariants}
+      >
+        <motion.div 
+          variants={formVariants}
+          initial="initial"
+          animate="animate"
+          exit="exit"
+          className="bg-white rounded-xl shadow-sm p-6 border border-amber-100"
+        >
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center">
+              <motion.div
+                variants={headingIconVariants}
+                initial="initial"
+                animate="animate"
+                whileHover="hover"
+                className="mr-3"
+              >
+                <BsReceipt className="w-8 h-8 text-amber-600" />
+              </motion.div>
+              <h2 className="text-2xl font-bold text-amber-900">
+                {editMode ? "Edit Token" : "New Token"}
+              </h2>
+            </div>
+            {error && (
+              <div className="p-2 bg-red-50 border-l-4 border-red-500 rounded-md">
+                <div className="flex">
+                  <div className="flex-shrink-0">
+                    <FiAlertCircle className="h-5 w-5 text-red-400" />
+                  </div>
+                  <div className="ml-3">
+                    <p className="text-sm text-red-700">{error}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+            {success && (
+              <div className="p-2 bg-green-50 border-l-4 border-green-500 rounded-md">
+                <div className="flex">
+                  <div className="flex-shrink-0">
+                    <FiCheckCircle className="h-5 w-5 text-green-400" />
+                  </div>
+                  <div className="ml-3">
+                    <p className="text-sm text-green-700">{success}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-4 bg-amber-50 rounded-lg">
+              <motion.div 
+                variants={componentVariants}
+                initial="hidden"
+                animate="visible"
+              >
+                <FormField
+                  label="Token No"
+                  icon={FiHash}
+                  value={tokenNo}
+                  readOnly
+                  required
+                />
+              </motion.div>
+              <motion.div 
+                variants={componentVariants}
+                initial="hidden"
+                animate="visible"
+              >
+                <FormField
+                  label="Date"
+                  icon={FiCalendar}
+                  value={date}
+                  readOnly
+                  required
+                />
+              </motion.div>
+              <motion.div 
+                variants={componentVariants}
+                initial="hidden"
+                animate="visible"
+              >
+                <FormField
+                  label="Time"
+                  icon={FiClock}
+                  value={time}
+                  readOnly
+                  required
+                />
+              </motion.div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-4 bg-amber-50 rounded-lg">
+              <motion.div 
+                variants={componentVariants}
+                initial="hidden"
+                animate="visible"
+              >
+                <FormField
+                  label="Code"
+                  icon={FiHash}
+                  value={code}
+                  onChange={handleCodeChange}
+                  required
+                />
+              </motion.div>
+              <motion.div 
+                variants={componentVariants}
+                initial="hidden"
+                animate="visible"
+              >
+                <FormField
+                  label="Name"
+                  icon={FiUser}
+                  value={name}
+                  readOnly
+                  required
+                />
+              </motion.div>
+              <motion.div 
+                variants={componentVariants}
+                initial="hidden"
+                animate="visible"
+              >
+                <FormSelect
+                  label="Test"
+                  value={test}
+                  onChange={(e) => setTest(e.target.value)}
+                  options={["Skin Testing", "Photo Testing"]}
+                />
+              </motion.div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-4 bg-amber-50 rounded-lg">
+              <motion.div 
+                variants={componentVariants}
+                initial="hidden"
+                animate="visible"
+              >
+                <FormField
+                  label="Weight"
+                  icon={FiPackage}
+                  type="number"
+                  step="0.001"
+                  value={weight}
+                  onChange={(e) => setWeight(e.target.value)}
+                  required
+                />
+              </motion.div>
+              <motion.div 
+                variants={componentVariants}
+                initial="hidden"
+                animate="visible"
+              >
+                <FormField
+                  label="Sample"
+                  icon={FiPackage}
+                  value={sample}
+                  onChange={(e) => setSample(e.target.value)}
+                  required
+                />
+              </motion.div>
+              <motion.div 
+                variants={componentVariants}
+                initial="hidden"
+                animate="visible"
+              >
+                <FormField
+                  label="Amount"
+                  icon={FiDollarSign}
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  required
+                />
+              </motion.div>
+            </div>
+
+            <div className="flex justify-end space-x-4">
+              <button
+                type="button"
+                onClick={resetForm}
+                className="inline-flex items-center px-4 py-2 border border-amber-200 text-amber-700 rounded-lg hover:bg-amber-50 transition-all duration-200"
+              >
+                <FiRotateCcw className="-ml-1 mr-2 h-5 w-5" />
+                Reset
+              </button>
+              <button
+                type="submit"
+                className="inline-flex items-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-gradient-to-r from-amber-600 to-yellow-500 hover:from-amber-700 hover:to-yellow-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 transition-all duration-200"
+              >
+                <FiSave className="-ml-1 mr-2 h-5 w-5" />
+                {editMode ? "Update Token" : "Save Token"}
+              </button>
+              <button
+                onClick={handlePrint}
+                className="inline-flex items-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-gradient-to-r from-amber-600 to-yellow-500 hover:from-amber-700 hover:to-yellow-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 transition-all duration-200"
+              >
+                <FiPrinter className="-ml-1 mr-2 h-5 w-5" />
+                Print
+              </button>
+            </div>
+          </form>
+        </motion.div>
+      </motion.div>
+
+      <motion.div
+        variants={formVariants}
+        initial="initial"
+        animate="animate"
+        exit="exit"
+        className="mt-8 bg-white rounded-xl shadow-sm p-6 border border-amber-100"
+      >
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center">
-            <BsReceipt className="w-8 h-8 text-amber-600 mr-3" />
-            <h2 className="text-2xl font-bold text-amber-900">
-              {editMode ? "Edit Token" : "New Token"}
-            </h2>
-          </div>
-          {error && (
-            <div className="p-2 bg-red-50 border-l-4 border-red-500 rounded-md">
-              <div className="flex">
-                <div className="flex-shrink-0">
-                  <FiAlertCircle className="h-5 w-5 text-red-400" />
-                </div>
-                <div className="ml-3">
-                  <p className="text-sm text-red-700">{error}</p>
-                </div>
-              </div>
-            </div>
-          )}
-          {success && (
-            <div className="p-2 bg-green-50 border-l-4 border-green-500 rounded-md">
-              <div className="flex">
-                <div className="flex-shrink-0">
-                  <FiCheckCircle className="h-5 w-5 text-green-400" />
-                </div>
-                <div className="ml-3">
-                  <p className="text-sm text-green-700">{success}</p>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-4 bg-amber-50 rounded-lg">
-            <FormField
-              label="Token No"
-              icon={FiHash}
-              value={tokenNo}
-              readOnly
-              required
-            />
-            <FormField
-              label="Date"
-              icon={FiCalendar}
-              value={date}
-              readOnly
-              required
-            />
-            <FormField
-              label="Time"
-              icon={FiClock}
-              value={time}
-              readOnly
-              required
-            />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-4 bg-amber-50 rounded-lg">
-            <FormField
-              label="Code"
-              icon={FiHash}
-              value={code}
-              onChange={handleCodeChange}
-              required
-            />
-            <FormField
-              label="Name"
-              icon={FiUser}
-              value={name}
-              readOnly
-              required
-            />
-            <FormSelect
-              label="Test"
-              value={test}
-              onChange={(e) => setTest(e.target.value)}
-              options={["Skin Testing", "Photo Testing"]}
-            />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-4 bg-amber-50 rounded-lg">
-            <FormField
-              label="Weight"
-              icon={FiPackage}
-              type="number"
-              step="0.001"
-              value={weight}
-              onChange={(e) => setWeight(e.target.value)}
-              required
-            />
-            <FormField
-              label="Sample"
-              icon={FiPackage}
-              value={sample}
-              onChange={(e) => setSample(e.target.value)}
-              required
-            />
-            <FormField
-              label="Amount"
-              icon={FiDollarSign}
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              required
-            />
-          </div>
-
-          <div className="flex justify-end space-x-4">
-            <button
-              type="button"
-              onClick={resetForm}
-              className="inline-flex items-center px-4 py-2 border border-amber-200 text-amber-700 rounded-lg hover:bg-amber-50 transition-all duration-200"
+            <motion.div
+              variants={headingIconVariants}
+              initial="initial"
+              animate="animate"
+              whileHover="hover"
+              className="mr-3"
             >
-              <FiRotateCcw className="-ml-1 mr-2 h-5 w-5" />
-              Reset
-            </button>
-            <button
-              type="submit"
-              className="inline-flex items-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-gradient-to-r from-amber-600 to-yellow-500 hover:from-amber-700 hover:to-yellow-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 transition-all duration-200"
-            >
-              <FiSave className="-ml-1 mr-2 h-5 w-5" />
-              {editMode ? "Update Token" : "Save Token"}
-            </button>
-            <button
-              onClick={handlePrint}
-              className="inline-flex items-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-gradient-to-r from-amber-600 to-yellow-500 hover:from-amber-700 hover:to-yellow-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 transition-all duration-200"
-            >
-              <FiPrinter className="-ml-1 mr-2 h-5 w-5" />
-              Print
-            </button>
+              <FiList className="w-6 h-6 text-amber-600" />
+            </motion.div>
+            <h3 className="text-xl font-semibold text-amber-900">
+              Token List
+            </h3>
           </div>
-        </form>
-      </div>
-
-      <div className="mt-8 bg-white rounded-xl shadow-sm p-6 border border-amber-100">
-        <div className="mb-6 flex justify-end">
           <div className="relative w-64">
             <input
               type="text"
@@ -747,6 +956,7 @@ const TokenPage = () => {
             <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
           </div>
         </div>
+
         {loading ? (
           <div className="flex justify-center py-12">
             <svg
@@ -808,8 +1018,8 @@ const TokenPage = () => {
             </div>
           </div>
         )}
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 };
 
