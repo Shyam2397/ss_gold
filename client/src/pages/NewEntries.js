@@ -482,7 +482,7 @@ const NewEntry = () => {
               onSubmit={handleSubmit}
               className="grid grid-cols-1 md:grid-cols-2 gap-6"
             >
-              <div className="space-y-4">
+              <div className="space-y-4 p-4 bg-amber-50 rounded-lg">
                 {renderMotionInput(
                   "Name", 
                   "name", 
@@ -499,7 +499,7 @@ const NewEntry = () => {
                 )}
               </div>
 
-              <div className="space-y-4">
+              <div className="space-y-4 p-4 bg-amber-50 rounded-lg">
                 {renderMotionInput(
                   "Phone Number", 
                   "phoneNumber", 
