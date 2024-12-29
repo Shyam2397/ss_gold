@@ -219,7 +219,79 @@ const NewEntry = () => {
     }
   };
 
-  // Animation variants for smoother transitions
+  // Enhanced page transition variants
+  const pageVariants = {
+    initial: { 
+      opacity: 0, 
+      x: '-5%',
+      transition: { 
+        duration: 0.4,
+        ease: 'easeInOut'
+      }
+    },
+    in: { 
+      opacity: 1, 
+      x: 0,
+      transition: { 
+        duration: 0.5,
+        ease: 'easeOut'
+      }
+    },
+    out: { 
+      opacity: 0, 
+      x: '5%',
+      transition: { 
+        duration: 0.4,
+        ease: 'easeInOut'
+      }
+    }
+  };
+
+  // Subtle form section variants
+  const formSectionVariants = {
+    hidden: { 
+      opacity: 0, 
+      y: 20,
+      scale: 0.98
+    },
+    visible: { 
+      opacity: 1, 
+      y: 0,
+      scale: 1,
+      transition: {
+        type: 'spring',
+        stiffness: 100,
+        damping: 10,
+        delay: 0.2
+      }
+    }
+  };
+
+  // Input field variants
+  const inputVariants = {
+    initial: { 
+      opacity: 0, 
+      x: -10
+    },
+    animate: { 
+      opacity: 1, 
+      x: 0,
+      transition: {
+        type: 'spring',
+        stiffness: 120,
+        damping: 10
+      }
+    },
+    focus: {
+      scale: 1.02,
+      transition: {
+        type: 'spring',
+        stiffness: 300
+      }
+    }
+  };
+
+  // Reintroduced animation variants
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
@@ -252,23 +324,28 @@ const NewEntry = () => {
     }
   };
 
-  const formVariants = {
-    initial: { opacity: 0, scale: 0.95 },
+  const headingIconVariants = {
+    initial: { 
+      scale: 0.8, 
+      opacity: 0,
+      rotate: -20 
+    },
     animate: { 
-      opacity: 1, 
-      scale: 1,
+      scale: 1, 
+      opacity: 1,
+      rotate: 0,
       transition: {
         type: "spring",
         stiffness: 300,
-        damping: 20
+        damping: 10
       }
     },
-    exit: { 
-      opacity: 0, 
-      scale: 0.95,
+    hover: {
+      scale: 1.1,
+      rotate: 15,
       transition: {
-        type: "tween",
-        duration: 0.2
+        type: "spring",
+        stiffness: 300
       }
     }
   };
@@ -310,30 +387,6 @@ const NewEntry = () => {
     }
   };
 
-  const inputVariants = {
-    initial: { 
-      opacity: 0, 
-      x: -20 
-    },
-    animate: { 
-      opacity: 1, 
-      x: 0,
-      transition: {
-        type: "spring",
-        stiffness: 300,
-        damping: 20
-      }
-    },
-    focus: {
-      scale: 1.02,
-      borderColor: "#F59E0B", // Tailwind amber-500
-      transition: {
-        type: "tween",
-        duration: 0.2
-      }
-    }
-  };
-
   const searchVariants = {
     initial: { opacity: 0, x: 20 },
     animate: { 
@@ -347,83 +400,17 @@ const NewEntry = () => {
     }
   };
 
-  const pageVariants = {
-    initial: { 
-      opacity: 0, 
-      x: '-10%',
-      transition: { 
-        duration: 0.3,
-        ease: 'easeInOut'
-      }
-    },
-    in: { 
-      opacity: 1, 
-      x: 0,
-      transition: { 
-        duration: 0.5,
-        ease: 'easeOut'
-      }
-    },
-    out: { 
-      opacity: 0, 
-      x: '10%',
-      transition: { 
-        duration: 0.3,
-        ease: 'easeInOut'
-      }
-    }
-  };
-
-  const componentVariants = {
-    hidden: { opacity: 0, scale: 0.95 },
-    visible: { 
-      opacity: 1, 
-      scale: 1,
-      transition: { 
-        duration: 0.3,
-        type: 'spring',
-        stiffness: 120,
-        damping: 10
-      }
-    }
-  };
-
-  const headingIconVariants = {
-    initial: { 
-      scale: 0.8, 
-      opacity: 0,
-      rotate: -20 
-    },
-    animate: { 
-      scale: 1, 
-      opacity: 1,
-      rotate: 0,
-      transition: {
-        type: "spring",
-        stiffness: 300,
-        damping: 10
-      }
-    },
-    hover: {
-      scale: 1.1,
-      rotate: 15,
-      transition: {
-        type: "spring",
-        stiffness: 300
-      }
-    }
-  };
-
   const renderMotionInput = (label, id, value, onChange, placeholder) => (
     <motion.div
       variants={inputVariants}
       initial="initial"
       animate="animate"
       whileFocus="focus"
+      className="relative"
     >
       <label
         htmlFor={id}
-        className="block text-sm font-medium text-amber-900 mb-1"
+        className="block text-sm font-medium text-amber-900 mb-2"
       >
         {label}
       </label>
@@ -451,14 +438,13 @@ const NewEntry = () => {
         <motion.div
           initial="hidden"
           animate="visible"
-          variants={componentVariants}
+          variants={formSectionVariants}
         >
-          {/* Form Section */}
           <motion.div 
-            variants={formVariants}
-            initial="initial"
-            animate="animate"
-            exit="exit"
+            variants={formSectionVariants}
+            initial="hidden"
+            animate="visible"
+            exit="hidden"
             className="bg-white rounded-xl shadow-sm p-6 border border-amber-100"
           >
             <div className="flex items-center justify-between mb-6">
@@ -482,7 +468,10 @@ const NewEntry = () => {
               onSubmit={handleSubmit}
               className="grid grid-cols-1 md:grid-cols-2 gap-6"
             >
-              <div className="space-y-4 p-4 bg-amber-50 rounded-lg">
+              <motion.div 
+                variants={formSectionVariants}
+                className="space-y-4 p-4 bg-amber-50 rounded-lg"
+              >
                 {renderMotionInput(
                   "Name", 
                   "name", 
@@ -497,9 +486,12 @@ const NewEntry = () => {
                   handleInputChange(setCode), 
                   "Enter code"
                 )}
-              </div>
+              </motion.div>
 
-              <div className="space-y-4 p-4 bg-amber-50 rounded-lg">
+              <motion.div 
+                variants={formSectionVariants}
+                className="space-y-4 p-4 bg-amber-50 rounded-lg"
+              >
                 {renderMotionInput(
                   "Phone Number", 
                   "phoneNumber", 
@@ -514,7 +506,7 @@ const NewEntry = () => {
                   handleInputChange(setPlace), 
                   "Enter place"
                 )}
-              </div>
+              </motion.div>
 
               <div className="md:col-span-2 flex justify-end space-x-4">
                 <motion.button
