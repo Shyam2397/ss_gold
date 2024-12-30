@@ -226,7 +226,7 @@ const TokenPage = () => {
   const generateTokenNumber = async () => {
     try {
       const response = await axios.get(
-        `${process.env.REACT_APP_API_URL}/generateTokenNo`
+        `${process.env.REACT_APP_API_URL}/tokens/generate`
       );
       setTokenNo(response.data.tokenNo);
     } catch (error) {
