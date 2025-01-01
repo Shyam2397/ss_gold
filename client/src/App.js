@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import Login from "./components/login/Login";
 import MainLayout from "./components/mainLayout/MainLayout";
 import Dashboard from "./pages/Dashboard/Dashboard";
-import NewEntries from "./pages/NewEntries";
+import NewEntries from "./components/NewEntries/NewEntries";
 import SkinTesting from "./pages/SkinTesting";
 import PhotoTesting from "./pages/PhotoTesting";
 import Token from "./pages/Token";
