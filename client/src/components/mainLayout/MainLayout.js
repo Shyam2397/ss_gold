@@ -27,18 +27,19 @@ const MainLayout = ({ setLoggedIn }) => {
         )}
       
 
-      <div className="flex-1 flex flex-col min-h-screen overflow-hidden">
+      <div className="flex-1 flex flex-col min-h-screen">
         <Navbar
           setLoggedIn={setLoggedIn}
           user={user}
           onToggleSidebar={toggleSidebar}
           isSidebarOpen={isSidebarOpen}
+          className="overflow-hidden"
         />
         
         {location.pathname === "/" && <LogoSection />}
         
         <motion.div 
-          className="flex-1 relative"
+          className="flex-1 relative overflow-y-auto"
           animate={{
             marginLeft: isSidebarOpen ? "0px" : "0px",
             width: "100%"
