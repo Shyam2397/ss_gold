@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiBell } from 'react-icons/fi';
+import { FiBell, FiTrash } from 'react-icons/fi';
 import axios from 'axios';
 
 const API_URL = 'http://localhost:5000';
@@ -58,6 +58,31 @@ const NotificationDropdown = () => {
     }
   }, [lastViewedActivityTime]);
 
+  const handleNewActivity = (newActivity) => {
+    setActivities((prevActivities) => [...prevActivities, newActivity]);
+    setNewActivitiesCount((prevCount) => prevCount + 1);
+  };
+
+  const clearNotifications = () => {
+    setActivities([]);
+    setNewActivitiesCount(0);
+  };
+
+  useEffect(() => {
+    const fetchNewActivities = async () => {
+      try {
+        const response = await axios.get(`${API_URL}/new-activities`);
+        const newActivities = response.data;
+        newActivities.forEach(handleNewActivity);
+      } catch (error) {
+        console.error('Error fetching new activities:', error);
+        // Optionally set a state to display an error message in the UI
+      }
+    };
+
+    fetchNewActivities();
+  }, []);
+
   useEffect(() => {
     fetchActivities();
     const intervalId = setInterval(fetchActivities, 10000);
@@ -94,26 +119,30 @@ const NotificationDropdown = () => {
     };
   }, [showActivities]);
 
-  const handleBellClick = () => {
-    setNewActivitiesCount(0);
-    setLastViewedActivityTime(new Date().getTime());
-    setShowActivities(!showActivities);
-  };
-
   return (
     <div className="relative">
       <motion.button
         ref={bellButtonRef}
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
-        onClick={handleBellClick}
-        className="ml-4 p-2 rounded-full text-amber-600 hover:text-amber-700 hover:bg-amber-50 focus:outline-none focus:ring-2 focus:ring-amber-500 relative"
+        className="p-2 rounded-full text-amber-600 hover:text-amber-700 hover:bg-amber-50 focus:outline-none focus:ring-2 focus:ring-amber-500 relative"
+        onClick={() => {
+          setShowActivities(!showActivities);
+          if (!showActivities) {
+            setLastViewedActivityTime(Date.now());
+            setNewActivitiesCount(0);
+          }
+        }}
       >
         <FiBell className="h-6 w-6" />
         {newActivitiesCount > 0 && (
-          <span className="absolute top-1 right-1 block h-2 w-2 rounded-full bg-red-400 ring-2 ring-white">
-            {newActivitiesCount > 9 ? '9+' : newActivitiesCount}
-          </span>
+          <motion.span
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            className="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-red-100 transform translate-x-1/2 -translate-y-1/2 bg-red-600 rounded-full"
+          >
+            {newActivitiesCount}
+          </motion.span>
         )}
       </motion.button>
 
@@ -121,34 +150,49 @@ const NotificationDropdown = () => {
         {showActivities && (
           <motion.div
             ref={activitiesRef}
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg ring-1 ring-black ring-opacity-5 z-50"
+            initial={{ opacity: 0, scale: 0.95, y: -20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: -20 }}
+            transition={{ type: "spring", bounce: 0.25 }}
+            className="origin-top-right absolute right-0 mt-2 w-80 rounded-lg shadow-lg bg-white ring-1 ring-black ring-opacity-5 divide-y divide-gray-100 focus:outline-none z-50"
           >
             <div className="p-4">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h3>
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Recent Activity</h3>
+                <button
+                  onClick={clearNotifications}
+                  className="text-red-600 hover:text-red-800 transition duration-200"
+                >
+                  <FiTrash className="h-5 w-5" />
+                </button>
+              </div>
               <div className="space-y-4">
-                {activities.map((activity, index) => (
-                  <motion.div
-                    key={index}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                    className="flex items-center space-x-4"
-                  >
-                    <div className={`p-2 rounded-lg bg-${activity.color}-50`}>
-                      {activity.icon === 'users' && <FiBell className="h-5 w-5 text-blue-500" />}
-                      {activity.icon === 'activity' && <FiBell className="h-5 w-5 text-purple-500" />}
-                      {activity.icon === 'camera' && <FiBell className="h-5 w-5 text-pink-500" />}
-                    </div>
-                    <div className="flex-grow">
-                      <p className="text-sm font-medium text-gray-900">{activity.title}</p>
-                      <p className="text-xs text-gray-500">{activity.subtitle}</p>
-                      <p className="text-xs text-gray-400">{activity.time}</p>
-                    </div>
-                  </motion.div>
-                ))}
+                {activities.length === 0 ? (
+                  <div className="text-gray-500 text-center py-4">
+                    No new activities. Waiting for updates...
+                  </div>
+                ) : (
+                  activities.map((activity, index) => (
+                    <motion.div
+                      key={index}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: index * 0.1 }}
+                      className="flex items-center space-x-4"
+                    >
+                      <div className={`p-2 rounded-lg bg-${activity.color}-50`}>
+                        {activity.icon === 'users' && <FiBell className="h-5 w-5 text-blue-500" />}
+                        {activity.icon === 'activity' && <FiBell className="h-5 w-5 text-purple-500" />}
+                        {activity.icon === 'camera' && <FiBell className="h-5 w-5 text-pink-500" />}
+                      </div>
+                      <div className="flex-grow">
+                        <p className="text-sm font-medium text-gray-900">{activity.title}</p>
+                        <p className="text-xs text-gray-500">{activity.subtitle}</p>
+                        <p className="text-xs text-gray-400">{activity.time}</p>
+                      </div>
+                    </motion.div>
+                  ))
+                )}
               </div>
             </div>
           </motion.div>

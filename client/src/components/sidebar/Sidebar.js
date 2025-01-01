@@ -58,7 +58,19 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
   ];
 
   return (
-    <div className={`h-screen bg-white border-r border-amber-100 shadow-sm w-64 flex-shrink-0 ${isOpen ? '' : 'hidden'}`}>
+    <motion.div
+      className="h-screen bg-white border-r border-gray-200 w-60 overflow-hidden"
+      initial={false}
+      animate={{
+        width: isOpen ? "240px" : "0px",
+      }}
+      transition={{
+        type: "spring",
+        stiffness: 100,
+        damping: 20,
+        mass: 0.5
+      }}
+    >
       <div className="flex flex-col h-full">
         {/* Main Menu */}
         <MenuSection title="Main Menu">
@@ -75,10 +87,10 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
 
         {/* Data Section */}
         <MenuSection title="Data Management">
-          <div className="px-4">
+          <div className="space-y-1">
             <button
               onClick={() => setIsDataOpen(!isDataOpen)}
-              className="flex items-center justify-between w-full py-2.5 text-gray-600 hover:text-amber-900 transition-colors duration-200"
+              className="w-full flex items-center justify-between px-4 py-2.5 text-gray-600 hover:bg-amber-50 hover:text-amber-900 rounded-lg transition-all duration-200"
             >
               <div className="flex items-center space-x-2">
                 <FiDatabase className="h-5 w-5" />
@@ -90,40 +102,46 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                 <FiChevronRight className="h-4 w-4" />
               )}
             </button>
-          </div>
 
-          <AnimatePresence>
-            {isDataOpen && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.2 }}
-                className="pl-4"
-              >
-                {dataMenuItems.map((item) => (
-                  <MenuItem
-                    key={item.path}
-                    icon={item.icon}
-                    label={item.label}
-                    to={item.path}
-                    isActive={isActive(item.path)}
-                  />
-                ))}
-              </motion.div>
-            )}
-          </AnimatePresence>
+            <AnimatePresence>
+              {isDataOpen && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{
+                    opacity: { duration: 0.2 },
+                    height: { duration: 0.3, ease: "easeInOut" }
+                  }}
+                >
+                  <div className="pl-4 space-y-1">
+                    {dataMenuItems.map((item) => (
+                      <MenuItem
+                        key={item.path}
+                        icon={item.icon}
+                        label={item.label}
+                        to={item.path}
+                        isActive={isActive(item.path)}
+                      />
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         </MenuSection>
 
         {/* Settings Section */}
-        <MenuSection title="Settings">
-          <MenuItem
-            icon={FiSettings}
-            label="Settings"
-            to="/settings"
-            isActive={isActive('/settings')}
-          />
-        </MenuSection>
+        <div className="mt-auto">
+          <MenuSection title="Settings">
+            <MenuItem
+              icon={FiSettings}
+              label="Settings"
+              to="/settings"
+              isActive={isActive('/settings')}
+            />
+          </MenuSection>
+        </div>
 
         {/* Version Info */}
         <div className="mt-auto p-4 border-t border-amber-100">
@@ -133,7 +151,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
           </div>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 };
 

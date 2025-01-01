@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { AnimatePresence, motion } from 'framer-motion';
+import { motion } from 'framer-motion';
 import Navbar from '../navbar/Navbar';
 import Sidebar from '../sidebar/Sidebar';
 import LogoSection from './LogoSection';
@@ -21,19 +21,11 @@ const MainLayout = ({ setLoggedIn }) => {
 
   return (
     <div className="flex h-screen bg-gray-50">
-      <AnimatePresence>
+      
         {isSidebarOpen && (
-          <motion.div
-            initial={{ x: -300 }}
-            animate={{ x: 0 }}
-            exit={{ x: -300 }}
-            transition={{ type: "spring", stiffness: 100, damping: 20 }}
-            className="fixed inset-y-0 left-0 z-50 lg:relative"
-          >
-            <Sidebar isOpen={isSidebarOpen} toggleSidebar={toggleSidebar} />
-          </motion.div>
+        <Sidebar isOpen={isSidebarOpen} toggleSidebar={toggleSidebar} />
         )}
-      </AnimatePresence>
+      
 
       <div className="flex-1 flex flex-col min-h-screen overflow-hidden">
         <Navbar
@@ -44,7 +36,22 @@ const MainLayout = ({ setLoggedIn }) => {
         />
         
         {location.pathname === "/" && <LogoSection />}
-        <MainContent />
+        
+        <motion.div 
+          className="flex-1 relative"
+          animate={{
+            marginLeft: isSidebarOpen ? "0px" : "0px",
+            width: "100%"
+          }}
+          transition={{
+            type: "spring",
+            stiffness: 100,
+            damping: 20,
+            mass: 0.5
+          }}
+        >
+          <MainContent key={location.pathname} />
+        </motion.div>
       </div>
     </div>
   );
