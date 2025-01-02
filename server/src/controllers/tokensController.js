@@ -1,6 +1,16 @@
 const db = require('../config/database');
 const { handleDatabaseError } = require('../middleware/errorHandler');
 
+// Add payment status column if it doesn't exist
+db.run(`
+  ALTER TABLE tokens 
+  ADD COLUMN isPaid INTEGER DEFAULT 0
+`, (err) => {
+  if (err && !err.message.includes('duplicate column')) {
+    console.error('Error adding isPaid column:', err);
+  }
+});
+
 const getAllTokens = (req, res) => {
   db.all("SELECT * FROM tokens ORDER BY id DESC", [], (err, rows) => {
     if (err) return handleDatabaseError(err, res);
@@ -22,7 +32,7 @@ const getTokenByNumber = (req, res) => {
 const createToken = (req, res) => {
   const { tokenNo, date, time, code, name, test, weight, sample, amount } = req.body;
   db.run(
-    "INSERT INTO tokens (tokenNo, date, time, code, name, test, weight, sample, amount) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    "INSERT INTO tokens (tokenNo, date, time, code, name, test, weight, sample, amount, isPaid) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0)",
     [tokenNo, date, time, code, name, test, weight, sample, amount],
     function (err) {
       if (err) return handleDatabaseError(err, res);
@@ -36,6 +46,18 @@ const updateToken = (req, res) => {
   db.run(
     "UPDATE tokens SET tokenNo = ?, date = ?, time = ?, code = ?, name = ?, test = ?, weight = ?, sample = ?, amount = ? WHERE id = ?",
     [tokenNo, date, time, code, name, test, weight, sample, amount, req.params.id],
+    function (err) {
+      if (err) return handleDatabaseError(err, res);
+      res.status(200).json({ updatedID: this.changes });
+    }
+  );
+};
+
+const updatePaymentStatus = (req, res) => {
+  const { isPaid } = req.body;
+  db.run(
+    "UPDATE tokens SET isPaid = ? WHERE id = ?",
+    [isPaid ? 1 : 0, req.params.id],
     function (err) {
       if (err) return handleDatabaseError(err, res);
       res.status(200).json({ updatedID: this.changes });
@@ -79,5 +101,6 @@ module.exports = {
   createToken,
   updateToken,
   deleteToken,
-  generateTokenNumber
+  generateTokenNumber,
+  updatePaymentStatus
 };

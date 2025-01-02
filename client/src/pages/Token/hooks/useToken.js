@@ -91,6 +91,22 @@ const useToken = () => {
     }
   };
 
+  const updatePaymentStatus = async (tokenId, isPaid) => {
+    try {
+      setLoading(true);
+      await axios.patch(`${API_URL}/tokens/${tokenId}/payment`, { isPaid });
+      setSuccess('Payment status updated successfully!');
+      await fetchTokens();
+      return true;
+    } catch (error) {
+      console.error('Error updating payment status:', error);
+      setError('Failed to update payment status');
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return {
     tokens,
     loading,
@@ -103,6 +119,7 @@ const useToken = () => {
     saveToken,
     deleteToken,
     fetchNameByCode,
+    updatePaymentStatus
   };
 };
 

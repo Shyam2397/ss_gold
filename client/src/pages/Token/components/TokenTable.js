@@ -1,8 +1,8 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { FiEdit2, FiTrash2 } from 'react-icons/fi';
+import { FiEdit2, FiTrash2, FiCheckCircle, FiXCircle } from 'react-icons/fi';
 
-const TokenTable = ({ tokens = [], onEdit, onDelete }) => {
+const TokenTable = ({ tokens = [], onEdit, onDelete, onPaymentStatusChange }) => {
   if (!tokens || tokens.length === 0) {
     return (
       <div className="text-center py-8 text-gray-500">
@@ -16,10 +16,11 @@ const TokenTable = ({ tokens = [], onEdit, onDelete }) => {
       <div className="overflow-x-auto">
         <div className="max-h-[400px] overflow-y-auto scrollbar-thin scrollbar-thumb-amber-500 scrollbar-track-amber-100">
           <table className="min-w-full divide-y divide-amber-200">
-            <thead className="bg-gradient-to-r from-amber-500 to-yellow-500 sticky top-0 z-10">
+            <thead className="bg-gradient-to-r from-amber-500 to-yellow-500 sticky top-0 z-10 whitespace-nowrap">
               <tr>
                 {[
                   "Actions",
+                  "Status",
                   "Token No",
                   "Date",
                   "Time",
@@ -28,7 +29,7 @@ const TokenTable = ({ tokens = [], onEdit, onDelete }) => {
                   "Test",
                   "Weight",
                   "Sample",
-                  "Amount",
+                  "Amount"
                 ].map((header) => (
                   <th
                     key={header}
@@ -61,6 +62,19 @@ const TokenTable = ({ tokens = [], onEdit, onDelete }) => {
                       >
                         <FiTrash2 className="h-5 w-5" />
                       </button>
+                    </div>
+                  </td>
+                  <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-900">
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={token.isPaid}
+                        onChange={() => onPaymentStatusChange(token.id, !token.isPaid)}
+                        className="h-4 w-4 text-amber-600 focus:ring-amber-500 border-gray-300 rounded cursor-pointer"
+                      />
+                      <span className={`ml-2 ${token.isPaid ? 'text-green-600' : 'text-red-600'}`}>
+                        {token.isPaid ? <FiCheckCircle className="text-green-600" /> : <FiXCircle className="text-red-600" />}
+                      </span>
                     </div>
                   </td>
                   <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-900">

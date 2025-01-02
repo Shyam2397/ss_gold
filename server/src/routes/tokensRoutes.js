@@ -6,7 +6,8 @@ const {
   createToken,
   updateToken,
   deleteToken,
-  generateTokenNumber
+  generateTokenNumber,
+  updatePaymentStatus
 } = require('../controllers/tokensController');
 
 router.get('/', getAllTokens);
@@ -15,5 +16,6 @@ router.get('/:tokenNo', getTokenByNumber);
 router.post('/', createToken);
 router.put('/:id', updateToken);
 router.delete('/:id', deleteToken);
+router.patch('/:id/payment', updatePaymentStatus);
 
 module.exports = router;

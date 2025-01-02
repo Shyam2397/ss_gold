@@ -69,7 +69,8 @@ const TokenPage = () => {
     generateTokenNumber,
     saveToken,
     deleteToken,
-    fetchNameByCode
+    fetchNameByCode,
+    updatePaymentStatus
   } = useToken();
 
   // Initial setup
@@ -253,6 +254,10 @@ const TokenPage = () => {
       console.error('Print error:', error);
       setError('Failed to print token');
     }
+  };
+
+  const handlePaymentStatusChange = async (tokenId, isPaid) => {
+    await updatePaymentStatus(tokenId, isPaid);
   };
 
   return (
@@ -475,6 +480,7 @@ const TokenPage = () => {
               tokens={filteredTokens}
               onEdit={handleEdit}
               onDelete={(id) => setDeleteConfirmation({ isOpen: true, tokenId: id })}
+              onPaymentStatusChange={handlePaymentStatusChange}
             />
           </div>
         )}
