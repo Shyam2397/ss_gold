@@ -7,7 +7,7 @@ import Dashboard from "./pages/Dashboard/Dashboard";
 import NewEntries from "./components/NewEntries/NewEntries";
 import SkinTesting from "./pages/SkinTesting";
 import PhotoTesting from "./pages/PhotoTesting";
-import Token from "./pages/Token";
+import Token from "./pages/Token/index";
 import CustomerDataPage from "./pages/CustomerData/CustomerDataPage";
 import Tokendata from "./pages/TokenData/TokenDataPage";
 import Skintestdata from "./pages/SkinTestData/SkinTestDataPage";
