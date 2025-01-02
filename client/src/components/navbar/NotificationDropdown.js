@@ -71,7 +71,7 @@ const NotificationDropdown = () => {
   useEffect(() => {
     const fetchNewActivities = async () => {
       try {
-        const response = await axios.get(`${API_URL}/new-activities`);
+        const response = await axios.get(`${API_URL}/tokens`);
         const newActivities = response.data;
         newActivities.forEach(handleNewActivity);
       } catch (error) {
