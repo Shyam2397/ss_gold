@@ -16,7 +16,7 @@ const TokenTable = ({ tokens = [], onEdit, onDelete, onPaymentStatusChange }) =>
       <div className="overflow-x-auto">
         <div className="max-h-[400px] overflow-y-auto scrollbar-thin scrollbar-thumb-amber-500 scrollbar-track-amber-100">
           <table className="min-w-full divide-y divide-amber-200">
-            <thead className="bg-gradient-to-r from-amber-500 to-yellow-500 sticky top-0 z-10 whitespace-nowrap">
+            <thead className="bg-gradient-to-r from-amber-500 to-yellow-500 sticky top-0 z-10">
               <tr>
                 {[
                   "Actions",
