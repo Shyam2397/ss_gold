@@ -1,6 +1,16 @@
 import React from 'react';
 import { Line } from 'react-chartjs-2';
-import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend } from 'chart.js';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler
+} from 'chart.js';
 
 // Register ChartJS components
 ChartJS.register(
@@ -10,7 +20,8 @@ ChartJS.register(
   LineElement,
   Title,
   Tooltip,
-  Legend
+  Legend,
+  Filler
 );
 
 const processMonthlyData = (tokens) => {
@@ -55,7 +66,10 @@ const MonthlyTestChart = ({ tokens }) => {
         data: processedData.map(([, data]) => data.skinTestCount),
         borderColor: 'rgb(212, 175, 55)',
         backgroundColor: 'rgba(212, 175, 55, 0.1)',
-        fill: true,
+        fill: {
+          target: 'origin',
+          above: 'rgba(212, 175, 55, 0.1)'
+        },
         tension: 0.4,
         borderWidth: 2,
         pointRadius: 0,
@@ -69,7 +83,10 @@ const MonthlyTestChart = ({ tokens }) => {
         data: processedData.map(([, data]) => data.photoTestCount),
         borderColor: 'rgb(184, 115, 51)',
         backgroundColor: 'rgba(184, 115, 51, 0.1)',
-        fill: true,
+        fill: {
+          target: 'origin',
+          above: 'rgba(184, 115, 51, 0.1)'
+        },
         tension: 0.4,
         borderWidth: 2,
         pointRadius: 0,
@@ -83,7 +100,10 @@ const MonthlyTestChart = ({ tokens }) => {
         data: processedData.map(([, data]) => data.totalAmount),
         borderColor: 'rgb(192, 192, 192)',
         backgroundColor: 'rgba(192, 192, 192, 0.1)',
-        fill: true,
+        fill: {
+          target: 'origin',
+          above: 'rgba(192, 192, 192, 0.1)'
+        },
         tension: 0.4,
         borderWidth: 2,
         pointRadius: 0,
