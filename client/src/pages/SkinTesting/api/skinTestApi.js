@@ -3,24 +3,24 @@ import axios from 'axios';
 const API_URL = process.env.REACT_APP_API_URL;
 
 export const fetchSkinTests = async () => {
-  const response = await axios.get(`${API_URL}/skin_tests`);
+  const response = await axios.get(`${API_URL}/skin-tests`);
   return response.data.data.sort((a, b) => parseFloat(b.tokenNo) - parseFloat(a.tokenNo));
 };
 
 export const createSkinTest = async (data) => {
-  return await axios.post(`${API_URL}/skin_tests`, data, {
+  return await axios.post(`${API_URL}/skin-tests`, data, {
     headers: { 'Content-Type': 'application/json' }
   });
 };
 
 export const updateSkinTest = async (tokenNo, data) => {
-  return await axios.put(`${API_URL}/skin_tests/${tokenNo}`, data, {
+  return await axios.put(`${API_URL}/skin-tests/${tokenNo}`, data, {
     headers: { 'Content-Type': 'application/json' }
   });
 };
 
 export const deleteSkinTest = async (tokenNo) => {
-  return await axios.delete(`${API_URL}/skin_tests/${tokenNo}`);
+  return await axios.delete(`${API_URL}/skin-tests/${tokenNo}`);
 };
 
 export const fetchTokenData = async (tokenNo) => {

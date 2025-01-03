@@ -13,7 +13,7 @@ const useSkinTests = () => {
     setLoading(true);
     try {
       const response = await axios.get(
-        process.env.REACT_APP_API_URL + "/skin_tests"
+        process.env.REACT_APP_API_URL + "/skin-tests"
       );
       const sortedData = response.data.data.sort(
         (a, b) => parseFloat(b.token_no) - parseFloat(a.token_no)
