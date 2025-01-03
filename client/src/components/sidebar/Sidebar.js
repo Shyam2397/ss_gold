@@ -9,9 +9,12 @@ import {
   FiDatabase,
   FiChevronDown,
   FiChevronRight,
-  FiSettings
+  FiSettings,
+  FiDollarSign,
 } from 'react-icons/fi';
 import { GiTestTubes } from 'react-icons/gi';
+import AddExpense from '../expenses/AddExpense';
+import MasterExpense from '../expenses/MasterExpense';
 
 const MenuItem = ({ icon: Icon, label, to, isActive, onClick }) => (
   <Link
@@ -40,6 +43,9 @@ const MenuSection = ({ title, children }) => (
 const Sidebar = ({ isOpen, toggleSidebar }) => {
   const location = useLocation();
   const [isDataOpen, setIsDataOpen] = useState(false);
+  const [isExpensesOpen, setIsExpensesOpen] = useState(false);
+  const [showAddExpense, setShowAddExpense] = useState(false);
+  const [showMasterExpense, setShowMasterExpense] = useState(false);
 
   const isActive = (path) => location.pathname === path;
 
@@ -55,6 +61,12 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
     { icon: FiDatabase, label: 'Customer Data', path: '/customer-data' },
     { icon: FiDatabase, label: 'Token Data', path: '/token-data' },
     { icon: FiDatabase, label: 'Skin Test Data', path: '/skintest-data' },
+  ];
+
+  const expenseMenuItems = [
+    { icon: FiDollarSign, label: 'Add Expense', onClick: () => setShowAddExpense(true) },
+    { icon: FiDollarSign, label: 'Master Expense', onClick: () => setShowMasterExpense(true) },
+    { icon: FiDollarSign, label: 'View Expenses', path: '/expenses' },
   ];
 
   return (
@@ -131,6 +143,57 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
           </div>
         </MenuSection>
 
+        {/* Expenses Section */}
+        <MenuSection title="Expenses">
+          <div className="space-y-1">
+            <button
+              onClick={() => setIsExpensesOpen(!isExpensesOpen)}
+              className="w-full flex items-center justify-between px-4 py-2.5 text-gray-600 hover:bg-amber-50 hover:text-amber-900 rounded-lg transition-all duration-200"
+            >
+              <div className="flex items-center space-x-2">
+                <FiDollarSign className="h-5 w-5" />
+                <span className="font-medium">Expenses</span>
+              </div>
+              {isExpensesOpen ? (
+                <FiChevronDown className="h-4 w-4" />
+              ) : (
+                <FiChevronRight className="h-4 w-4" />
+              )}
+            </button>
+            <AnimatePresence>
+              {isExpensesOpen && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="pl-4"
+                >
+                  {expenseMenuItems.map((item) => (
+                    item.path ? (
+                      <MenuItem
+                        key={item.path}
+                        icon={item.icon}
+                        label={item.label}
+                        to={item.path}
+                        isActive={isActive(item.path)}
+                      />
+                    ) : (
+                      <button
+                        key={item.label}
+                        onClick={item.onClick}
+                        className="w-full flex items-center space-x-2 px-4 py-2.5 text-gray-600 hover:bg-amber-50 hover:text-amber-900 rounded-lg transition-all duration-200"
+                      >
+                        <item.icon className="h-5 w-5" />
+                        <span className="font-medium">{item.label}</span>
+                      </button>
+                    )
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </MenuSection>
+
         {/* Settings Section */}
         <div className="mt-auto">
           <MenuSection title="Settings">
@@ -151,6 +214,8 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
           </div>
         </div>
       </div>
+      <AddExpense isOpen={showAddExpense} onClose={() => setShowAddExpense(false)} />
+      <MasterExpense isOpen={showMasterExpense} onClose={() => setShowMasterExpense(false)} />
     </motion.div>
   );
 };

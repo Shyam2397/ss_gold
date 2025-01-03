@@ -92,8 +92,63 @@ const resetSkinTestsTable = () => {
   });
 };
 
+const createExpenseMasterTable = () => {
+  return new Promise((resolve, reject) => {
+    const createTableSQL = `
+      CREATE TABLE IF NOT EXISTS expense_master (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        expense_name TEXT NOT NULL UNIQUE,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+      )
+    `;
+
+    db.run(createTableSQL, (err) => {
+      if (err) {
+        console.error('Error creating expense_master table:', err);
+        reject(err);
+      } else {
+        console.log('expense_master table created successfully');
+        resolve();
+      }
+    });
+  });
+};
+
+const createExpensesTable = () => {
+  return new Promise((resolve, reject) => {
+    const createTableSQL = `
+      CREATE TABLE IF NOT EXISTS expenses (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        date TEXT NOT NULL,
+        expense_type TEXT NOT NULL,
+        amount REAL NOT NULL,
+        paid_to TEXT,
+        pay_mode TEXT,
+        remarks TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      )
+    `;
+
+    db.run(createTableSQL, (err) => {
+      if (err) {
+        console.error('Error creating expenses table:', err);
+        reject(err);
+      } else {
+        console.log('expenses table created successfully');
+        resolve();
+      }
+    });
+  });
+};
+
 const initializeTables = async () => {
   try {
+    await createSkinTestsTable();
+    await createExpenseMasterTable();
+    await createExpensesTable();
+    console.log('All tables initialized successfully');
+
     // Create users table
     db.run(`
       CREATE TABLE IF NOT EXISTS users (
@@ -144,15 +199,15 @@ const initializeTables = async () => {
         amount TEXT
       )
     `);
-
-    await createSkinTestsTable();
-  } catch (err) {
-    // Silently handle errors
+  } catch (error) {
+    console.error('Error initializing tables:', error);
   }
 };
 
 module.exports = {
   createSkinTestsTable,
   resetSkinTestsTable,
+  createExpenseMasterTable,
+  createExpensesTable,
   initializeTables
 };

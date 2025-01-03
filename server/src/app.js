@@ -8,6 +8,8 @@ const authRoutes = require('./routes/authRoutes');
 const entriesRoutes = require('./routes/entriesRoutes');
 const tokensRoutes = require('./routes/tokensRoutes');
 const skinTestsRoutes = require('./routes/skinTestsRoutes');
+const expenseMasterRoutes = require('./routes/expenseMaster');
+const expensesRoutes = require('./routes/expensesRoutes');
 
 const app = express();
 const port = 5000;
@@ -23,10 +25,12 @@ initializeTables();
 app.use('/auth', authRoutes);
 app.use('/entries', entriesRoutes);
 app.use('/tokens', tokensRoutes);
-app.use('/skin_tests', skinTestsRoutes);
+app.use('/skin-tests', skinTestsRoutes);
+app.use('/api/expense-master', expenseMasterRoutes);
+app.use('/api/expenses', expensesRoutes);
 
 app.listen(port, () => {
-  // Server is running
+  console.log(`Server running on port ${port}`);
 });
 
 module.exports = app;
