@@ -6,18 +6,24 @@ import axios from 'axios';
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 const ViewExpense = ({ isOpen, onClose }) => {
-  const [expenses, setExpenses] = useState([]);
+  const [allExpenses, setAllExpenses] = useState([]);
+  const [filteredExpenses, setFilteredExpenses] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [editingExpense, setEditingExpense] = useState(null);
   const [deleteConfirmation, setDeleteConfirmation] = useState(null);
+  const [dateRange, setDateRange] = useState('Today');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
+  const [searchKeyword, setSearchKeyword] = useState('');
 
   // Fetch all expenses
   const fetchExpenses = async () => {
     try {
       setLoading(true);
       const response = await axios.get(`${API_BASE_URL}/api/expenses`);
-      setExpenses(response.data);
+      setAllExpenses(response.data);
+      setFilteredExpenses(response.data);
       setError(null);
     } catch (err) {
       console.error('Error fetching expenses:', err);
@@ -32,6 +38,54 @@ const ViewExpense = ({ isOpen, onClose }) => {
       fetchExpenses();
     }
   }, [isOpen]);
+
+  // Filter expenses whenever filter criteria changes
+  useEffect(() => {
+    let result = [...allExpenses];
+
+    if (dateRange === 'Today') {
+      const today = new Date();
+      result = result.filter((expense) => {
+        const expenseDate = new Date(expense.date);
+        return expenseDate.toDateString() === today.toDateString();
+      });
+    } else if (dateRange === 'Last 7 days') {
+      const last7Days = new Date();
+      last7Days.setDate(last7Days.getDate() - 7);
+      result = result.filter((expense) => {
+        const expenseDate = new Date(expense.date);
+        return expenseDate >= last7Days;
+      });
+    } else if (dateRange === 'Last 30 days') {
+      const last30Days = new Date();
+      last30Days.setDate(last30Days.getDate() - 30);
+      result = result.filter((expense) => {
+        const expenseDate = new Date(expense.date);
+        return expenseDate >= last30Days;
+      });
+    } else if (dateRange === 'Custom Range' && fromDate && toDate) {
+      result = result.filter((expense) => {
+        const expenseDate = new Date(expense.date);
+        const fromDateValue = new Date(fromDate);
+        const toDateValue = new Date(toDate);
+        return expenseDate >= fromDateValue && expenseDate <= toDateValue;
+      });
+    }
+
+    if (searchKeyword.trim()) {
+      result = result.filter((expense) => {
+        const searchTerm = searchKeyword.toLowerCase();
+        return (
+          expense.expense_type.toLowerCase().includes(searchTerm) ||
+          expense.paid_to.toLowerCase().includes(searchTerm) ||
+          expense.pay_mode.toLowerCase().includes(searchTerm) ||
+          expense.remarks.toLowerCase().includes(searchTerm)
+        );
+      });
+    }
+
+    setFilteredExpenses(result);
+  }, [dateRange, fromDate, toDate, searchKeyword, allExpenses]);
 
   // Handle delete confirmation
   const handleDeleteClick = (expense) => {
@@ -110,10 +164,53 @@ const ViewExpense = ({ isOpen, onClose }) => {
           {loading && <div className="text-center">Loading...</div>}
           {error && <div className="text-red-500 text-center mb-4">{error}</div>}
 
+          {/* Filter Controls */}
+          <div className="flex items-center gap-4 mb-4">
+            <div className="flex items-center gap-2">
+              <select 
+                value={dateRange}
+                onChange={(e) => setDateRange(e.target.value)}
+                className="border rounded px-2 py-1"
+              >
+                <option>Today</option>
+                <option>Last 7 days</option>
+                <option>Last 30 days</option>
+                <option>Custom Range</option>
+              </select>
+              <span>From</span>
+              <input 
+                type="date" 
+                value={fromDate}
+                onChange={(e) => setFromDate(e.target.value)}
+                className="border rounded px-2 py-1"
+                disabled={dateRange !== 'Custom Range'}
+              />
+
+              <span>To</span>
+              <input 
+                type="date"
+                value={toDate}
+                onChange={(e) => setToDate(e.target.value)}
+                className="border rounded px-2 py-1"
+                disabled={dateRange !== 'Custom Range'}
+              />
+            </div>
+
+            <div className="flex-1">
+              <input
+                type="text"
+                placeholder="Search keyword..."
+                value={searchKeyword}
+                onChange={(e) => setSearchKeyword(e.target.value)}
+                className="w-full border rounded px-3 py-1"
+              />
+            </div>
+          </div>
+
           {/* Expenses Table */}
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto" style={{ height: '300px', overflowY: 'auto' }}>
             <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+              <thead className="bg-gray-50 sticky top-0">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
@@ -125,10 +222,10 @@ const ViewExpense = ({ isOpen, onClose }) => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {expenses.map((expense) => (
+                {filteredExpenses.map((expense) => (
                   <tr key={expense.id}>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {new Date(expense.date).toLocaleDateString()}
+                      {new Date(expense.date).toLocaleDateString('en-GB')}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{expense.expense_type}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">₹{expense.amount}</td>
@@ -153,6 +250,9 @@ const ViewExpense = ({ isOpen, onClose }) => {
                 ))}
               </tbody>
             </table>
+          </div>
+          <div className="px-6 py-4 text-left text-black">
+            <strong>Total: </strong> ₹{filteredExpenses.reduce((total, expense) => total + expense.amount, 0)}
           </div>
         </div>
       </motion.div>
