@@ -15,6 +15,7 @@ import {
 import { GiTestTubes } from 'react-icons/gi';
 import AddExpense from '../expenses/AddExpense';
 import MasterExpense from '../expenses/MasterExpense';
+import ViewExpense from '../expenses/ViewExpense';
 
 const MenuItem = ({ icon: Icon, label, to, isActive, onClick }) => (
   <Link
@@ -46,6 +47,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
   const [isExpensesOpen, setIsExpensesOpen] = useState(false);
   const [showAddExpense, setShowAddExpense] = useState(false);
   const [showMasterExpense, setShowMasterExpense] = useState(false);
+  const [showViewExpense, setShowViewExpense] = useState(false);
 
   const isActive = (path) => location.pathname === path;
 
@@ -66,7 +68,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
   const expenseMenuItems = [
     { icon: FiDollarSign, label: 'Add Expense', onClick: () => setShowAddExpense(true) },
     { icon: FiDollarSign, label: 'Master Expense', onClick: () => setShowMasterExpense(true) },
-    { icon: FiDollarSign, label: 'View Expenses', path: '/expenses' },
+    { icon: FiDollarSign, label: 'View Expenses', onClick: () => setShowViewExpense(true) },
   ];
 
   return (
@@ -216,6 +218,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
       </div>
       <AddExpense isOpen={showAddExpense} onClose={() => setShowAddExpense(false)} />
       <MasterExpense isOpen={showMasterExpense} onClose={() => setShowMasterExpense(false)} />
+      <ViewExpense isOpen={showViewExpense} onClose={() => setShowViewExpense(false)} />
     </motion.div>
   );
 };
