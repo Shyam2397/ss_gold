@@ -12,6 +12,7 @@ import {
   FiSettings,
   FiDollarSign,
 } from 'react-icons/fi';
+import { GiGoldBar } from 'react-icons/gi';
 import { GiTestTubes } from 'react-icons/gi';
 import AddExpense from '../expenses/AddExpense';
 import MasterExpense from '../expenses/MasterExpense';
@@ -57,6 +58,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
     { icon: FiTag, label: 'Token', path: '/token' },
     { icon: GiTestTubes, label: 'Skin Testing', path: '/skin-testing' },
     { icon: FiCamera, label: 'Photo Testing', path: '/photo-testing' },
+    { icon: GiGoldBar, label: 'Pure Exchange', path: '/pure-exchange' },
   ];
 
   const dataMenuItems = [
@@ -219,6 +221,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
       <AddExpense isOpen={showAddExpense} onClose={() => setShowAddExpense(false)} />
       <MasterExpense isOpen={showMasterExpense} onClose={() => setShowMasterExpense(false)} />
       <ViewExpense isOpen={showViewExpense} onClose={() => setShowViewExpense(false)} />
+      <MenuItem icon={FiCamera} label="Pure Exchange" to="/pure-exchange" isActive={location.pathname === '/pure-exchange'} />
     </motion.div>
   );
 };
