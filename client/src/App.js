@@ -11,7 +11,8 @@ import Token from "./pages/Token/index";
 import CustomerDataPage from "./pages/CustomerData/CustomerDataPage";
 import Tokendata from "./pages/TokenData/TokenDataPage";
 import Skintestdata from "./pages/SkinTestData/SkinTestDataPage";
-import PureExchange from './pages/PureExchange';
+import PureExchange from './pages/PureExchange/PureExchange';
+import ExchangeDataPage from './pages/ExchangeData/ExchangeDataPage';
 
 const PageTransition = ({ children }) => {
   return (
@@ -72,6 +73,7 @@ const AnimatedRoutes = ({ loggedIn, setLoggedIn }) => {
           <Route path="/token-data" element={<PageTransition><Tokendata /></PageTransition>} />
           <Route path="/skintest-data" element={<PageTransition><Skintestdata /></PageTransition>} />
           <Route path="/pure-exchange" element={<PageTransition><PureExchange /></PageTransition>} />
+          <Route path="/exchange-data" element={<PageTransition><ExchangeDataPage /></PageTransition>} />
           {/* Add more routes here */}
         </Route>
       </Routes>

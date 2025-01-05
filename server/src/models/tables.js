@@ -142,11 +142,41 @@ const createExpensesTable = () => {
   });
 };
 
+const createPureExchangeTable = () => {
+  return new Promise((resolve, reject) => {
+    const createTableSQL = `
+      CREATE TABLE IF NOT EXISTS pure_exchange (
+        tokenNo TEXT PRIMARY KEY,
+        date TEXT,
+        time TEXT,
+        weight TEXT,
+        highest TEXT,
+        hWeight TEXT,
+        average TEXT,
+        aWeight TEXT,
+        goldFineness TEXT,
+        gWeight TEXT,
+        exGold TEXT,
+        exWeight TEXT
+      )
+    `;
+    
+    db.run(createTableSQL, (err) => {
+      if (err) {
+        reject(err);
+        return;
+      }
+      resolve();
+    });
+  });
+};
+
 const initializeTables = async () => {
   try {
     await createSkinTestsTable();
     await createExpenseMasterTable();
     await createExpensesTable();
+    await createPureExchangeTable();
     console.log('All tables initialized successfully');
 
     // Create users table
@@ -201,6 +231,7 @@ const initializeTables = async () => {
     `);
   } catch (error) {
     console.error('Error initializing tables:', error);
+    throw error;
   }
 };
 
@@ -209,5 +240,6 @@ module.exports = {
   resetSkinTestsTable,
   createExpenseMasterTable,
   createExpensesTable,
+  createPureExchangeTable,
   initializeTables
 };

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
     FiSave,
@@ -7,10 +7,13 @@ import {
     FiPlus,
 } from 'react-icons/fi';
 import { GiGoldBar } from 'react-icons/gi';
+import { createPureExchange, fetchPureExchanges } from './api/pureExchangeApi';
+import { fetchSkinTests } from '../SkinTesting/api/skinTestApi';
+
 
 const headingIconVariants = {
-    initial: { scale: 0.8, rotate: -180 },
-    animate: { scale: 1, rotate: 0, transition: { type: "spring" } },
+    initial: { rotate: 0 },
+    animate: { rotate: 0 },
     hover: { scale: 1.1, rotate: 5, transition: { duration: 0.2 } }
 };
 
@@ -20,18 +23,16 @@ const FormInput = ({ label, name, value, onChange, readOnly = false, className }
             <label className="block text-sm font-medium text-amber-900 mb-1">
                 {label}
             </label>
-            <div className="relative rounded-md shadow-sm">
-                <input
-                    type="text"
-                    name={name}
-                    value={value}
-                    onChange={onChange}
-                    readOnly={readOnly}
-                    className={`w-full pl-4 pr-10 py-2 rounded-lg border border-amber-200 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all duration-200 ${
-                        readOnly ? "bg-gray-50" : ""
-                    }`}
-                />
-            </div>
+            <input
+                type="text"
+                name={name}
+                value={value}
+                onChange={onChange}
+                readOnly={readOnly}
+                className={`w-full pl-4 pr-4 py-2 rounded-lg border border-amber-200 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all duration-200 ${
+                    readOnly ? 'bg-gray-50' : ''
+                }`}
+            />
         </div>
     );
 };
@@ -41,47 +42,133 @@ const PureExchange = () => {
     const [point, setPoint] = useState('');
     const [tableData, setTableData] = useState([]);
     const [error, setError] = useState('');
+    const [loading, setLoading] = useState(false);
 
-    const handleAdd = () => {
-        if (!tokenNo.trim()) {
+    useEffect(() => {
+        loadPureExchanges();
+    }, []);
+
+    const loadPureExchanges = async () => {
+        try {
+            const response = await fetchPureExchanges();
+            setTableData(response.map((item, index) => ({
+                ...item,
+                id: index + 1
+            })));
+        } catch (error) {
+            console.error('Error loading pure exchanges:', error);
+            setError('Error loading data');
+        }
+    };
+
+    const fetchSkinTestData = async (tokenNo) => {
+        try {
+            const response = await fetchSkinTests();
+            const skinTests = response;
+            const skinTest = skinTests.find(test => test.tokenNo === tokenNo);
+            
+            if (!skinTest) {
+                setError('Token number not found in skin testing data');
+                return null;
+            }
+            
+            return skinTest;
+        } catch (error) {
+            console.error('Error fetching skin test data:', error);
+            setError('Error fetching skin test data. Please try again.');
+            return null;
+        }
+    };
+
+    const handleAdd = async () => {
+        if (!tokenNo) {
             setError('Please enter a token number');
             return;
         }
-        setError('');
+
+        if (!point) {
+            setError('Please enter a point value');
+            return;
+        }
+
+        const tokenExists = tableData.some(row => row.tokenNo === tokenNo);
+
+        if (tokenExists) {
+            setError('Token number already exists.');
+            return;
+        }
+
+        // Fetch skin testing data
+        const skinTestData = await fetchSkinTestData(tokenNo);
+        
+        if (!skinTestData) {
+            return;
+        }
+
+        // Extract required values
+        const { weight, highest, average, gold_fineness } = skinTestData;
+
+        // Calculate values based on the logic
+        const hWeight = (parseFloat(weight) * parseFloat(highest)) / 100;
+        const aWeight = (parseFloat(weight) * parseFloat(average)) / 100;
+        const gWeight = (parseFloat(weight) * parseFloat(gold_fineness)) / 100;
+        const exGold = parseFloat(gold_fineness) - parseFloat(point);
+        const exWeight = ((parseFloat(weight) - 0.010) * exGold)/100;
+
         const newRow = {
             id: tableData.length + 1,
             tokenNo: tokenNo,
             date: new Date().toLocaleDateString(),
             time: new Date().toLocaleTimeString(),
-            weight: '',
-            highest: '',
-            hWeight: '',
-            average: '',
-            aWeight: '',
-            goldFineness: '',
-            gWeight: '',
-            exGold: '',
-            exWeight: ''
+            weight: parseFloat(weight).toFixed(3),
+            highest: parseFloat(highest).toFixed(2),
+            hWeight: hWeight.toFixed(3),
+            average: parseFloat(average).toFixed(2),
+            aWeight: aWeight.toFixed(3),
+            goldFineness: parseFloat(gold_fineness).toFixed(2),
+            gWeight: gWeight.toFixed(3),
+            exGold: parseFloat(exGold).toFixed(2),
+            exWeight: exWeight.toFixed(3)
         };
+
         setTableData([...tableData, newRow]);
         setTokenNo('');
-        setPoint('');
+        setError('');
     };
 
-    const handleSave = () => {
-        // Save logic here
-        console.log('Saving data:', tableData);
+    const handleSave = async () => {
+        try {
+            setLoading(true);
+            setError('');
+
+            // Prepare data for saving (excluding id field)
+            const dataToSave = tableData.map(({ id, ...rest }) => rest);
+
+            // Save each record
+            for (const record of dataToSave) {
+                await createPureExchange(record);
+            }
+
+            // Clear the table and show success message
+            setTableData([]);
+            setError('Data saved successfully!');
+        } catch (error) {
+            console.error('Error saving data:', error);
+            setError('Error saving data. Please try again.');
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handleReset = () => {
         setTokenNo('');
-        setPoint('');
         setTableData([]);
         setError('');
     };
 
     return (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+            
             {/* Form Section */}
             <div className="bg-white rounded-xl shadow-sm p-6 border border-amber-100">
                 <div className="flex items-center justify-between mb-6">
@@ -98,32 +185,34 @@ const PureExchange = () => {
                         <h2 className="text-2xl font-bold text-amber-900">Pure Exchange</h2>
                     </div>
                     {error && (
-                        <div className="p-2 bg-red-50 border-l-4 border-red-500 rounded-md">
-                            <div className="flex">
-                                <FiAlertCircle className="h-5 w-5 text-red-400" />
-                                <div className="ml-3">
-                                    <p className="text-sm text-red-700">{error}</p>
-                                </div>
-                            </div>
+                <div className={`p-1 rounded-md ${error.includes('successfully') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                    <div className="flex">
+                        <div className="flex-shrink-0">
+                            <FiAlertCircle className="h-5 w-5" />
                         </div>
-                    )}
+                        <div className="ml-3">
+                            <p className="text-sm font-medium">{error}</p>
+                        </div>
+                    </div>
+                </div>
+            )}
                 </div>
 
                 {/* Input Section */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-4 bg-amber-50 rounded-lg mb-6">
                     <div className="flex items-end space-x-4">
-                        <FormInput
+                    <FormInput
                             label="Token Number"
-                            name="tokenNo"
-                            value={tokenNo}
-                            onChange={(e) => setTokenNo(e.target.value)}
+                        name="tokenNo"
+                        value={tokenNo}
+                        onChange={(e) => setTokenNo(e.target.value)}
                             className="w-1/2"
-                        />
-                        <FormInput
-                            label="Point"
-                            name="point"
-                            value={point}
-                            onChange={(e) => setPoint(e.target.value)}
+                    />
+                    <FormInput
+                        label="Point"
+                        name="point"
+                        value={point}
+                        onChange={(e) => setPoint(e.target.value)}
                             className="w-1/2"
                         />
                         <button
@@ -138,11 +227,11 @@ const PureExchange = () => {
 
                 {/* Table Section */}
                 <div className="overflow-hidden rounded-lg border border-amber-100">
-                    <div className="overflow-x-auto">
+                <div className="overflow-x-auto">
                         <div className=" h-72 overflow-y-auto scrollbar-thin scrollbar-thumb-amber-500 scrollbar-track-amber-100">
-                            <table className="min-w-full divide-y divide-amber-200">
+                                <table className="min-w-full divide-y divide-amber-200">
                                 <thead className="bg-gradient-to-r from-amber-500 to-yellow-500 sticky top-0 z-10">
-                                    <tr>
+                                        <tr>
                                         {[
                                             'S.no', 'Token-no', 'Date', 'Time', 'weight',
                                             'highest', 'H.weight', 'average', 'A.weight',
@@ -150,13 +239,13 @@ const PureExchange = () => {
                                         ].map((header) => (
                                             <th
                                                 key={header}
-                                                className="px-6 py-2 text-left text-sm font-medium text-white uppercase tracking-wider"
+                                                className={`px-6 py-3 text-left text-sm font-medium text-white uppercase tracking-wider whitespace-nowrap ${header === 'ex.weight' ? 'sticky right-0 bg-gradient-to-r from-amber-500 to-yellow-500 shadow-[-4px_0_8px_-2px_rgba(0,0,0,0.1)]' : 'shadow-[-4px_0_8px_-2px_rgba(0,0,0,0.1)]'}`}
                                             >
                                                 {header}
                                             </th>
                                         ))}
-                                    </tr>
-                                </thead>
+                                        </tr>
+                                    </thead>
                                 <tbody className="bg-white divide-y divide-amber-100">
                                     {tableData.map((row, index) => (
                                         <motion.tr
@@ -177,11 +266,11 @@ const PureExchange = () => {
                                             <td className="px-6 py-3 whitespace-nowrap text-sm text-amber-700">{row.goldFineness}</td>
                                             <td className="px-6 py-3 whitespace-nowrap text-sm text-amber-700">{row.gWeight}</td>
                                             <td className="px-6 py-3 whitespace-nowrap text-sm text-amber-700">{row.exGold}</td>
-                                            <td className="px-6 py-3 whitespace-nowrap text-sm text-amber-700">{row.exWeight}</td>
+                                            <td className="px-6 py-3 whitespace-nowrap text-sm text-amber-700 sticky right-0 bg-white shadow-[-4px_0_8px_-2px_rgba(0,0,0,0.1)]">{row.exWeight}</td>
                                         </motion.tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                                        ))}
+                                    </tbody>
+                                </table>
                         </div>
                     </div>
                 </div>
@@ -197,10 +286,22 @@ const PureExchange = () => {
                     </button>
                     <button
                         onClick={handleSave}
+                        disabled={loading}
                         className="inline-flex items-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-gradient-to-r from-amber-600 to-yellow-500 hover:from-amber-700 hover:to-yellow-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 transition-all duration-200"
                     >
-                        <FiSave className="-ml-1 mr-2 h-5 w-5" />
-                        Save
+                        {loading ? (
+                            <div className="flex items-center justify-center">
+                                <div className="spinner-border animate-spin inline-block w-4 h-4 border-2 rounded-full text-amber-600" role="status">
+                                    <span className="sr-only">Loading...</span>
+                                </div>
+                                <span className="ml-2">Saving...</span>
+                            </div>
+                        ) : (
+                            <>
+                                <FiSave className="-ml-1 mr-2 h-5 w-5" />
+                                Save
+                            </>
+                        )}
                     </button>
                 </div>
             </div>

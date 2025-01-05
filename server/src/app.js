@@ -10,6 +10,7 @@ const tokensRoutes = require('./routes/tokensRoutes');
 const skinTestsRoutes = require('./routes/skinTestsRoutes');
 const expenseMasterRoutes = require('./routes/expenseMaster');
 const expensesRoutes = require('./routes/expensesRoutes');
+const pureExchangeRoutes = require('./routes/pureExchangeRoutes');
 
 const app = express();
 const port = 5000;
@@ -28,6 +29,7 @@ app.use('/tokens', tokensRoutes);
 app.use('/skin-tests', skinTestsRoutes);
 app.use('/api/expense-master', expenseMasterRoutes);
 app.use('/api/expenses', expensesRoutes);
+app.use('/pure-exchange', pureExchangeRoutes);
 
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);

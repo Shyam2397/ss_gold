@@ -65,6 +65,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
     { icon: FiDatabase, label: 'Customer Data', path: '/customer-data' },
     { icon: FiDatabase, label: 'Token Data', path: '/token-data' },
     { icon: FiDatabase, label: 'Skin Test Data', path: '/skintest-data' },
+    { icon: FiDatabase, label: 'Exchange Data', path: '/exchange-data' },
   ];
 
   const expenseMenuItems = [
