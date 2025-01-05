@@ -1,10 +1,7 @@
 import React from 'react';
-import { motion } from 'framer-motion';
 
 const StatCard = ({ icon: Icon, title, value, trend, color }) => (
-  <motion.div
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
+  <div
     className={`bg-white p-6 rounded-xl shadow-sm border border-${color}-100`}
   >
     <div className="flex items-center justify-between">
@@ -19,7 +16,7 @@ const StatCard = ({ icon: Icon, title, value, trend, color }) => (
     </div>
     <h3 className="mt-4 text-2xl font-bold text-gray-900">{value}</h3>
     <p className="mt-1 text-sm text-gray-500">{title}</p>
-  </motion.div>
+  </div>
 );
 
 export default StatCard;

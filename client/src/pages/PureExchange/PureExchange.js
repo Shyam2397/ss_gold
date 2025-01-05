@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
 import {
     FiSave,
     FiRotateCcw,
@@ -10,12 +9,6 @@ import { GiGoldBar } from 'react-icons/gi';
 import { createPureExchange, fetchPureExchanges } from './api/pureExchangeApi';
 import { fetchSkinTests } from '../SkinTesting/api/skinTestApi';
 
-
-const headingIconVariants = {
-    initial: { rotate: 0 },
-    animate: { rotate: 0 },
-    hover: { scale: 1.1, rotate: 5, transition: { duration: 0.2 } }
-};
 
 const FormInput = ({ label, name, value, onChange, readOnly = false, className }) => {
     return (
@@ -173,15 +166,11 @@ const PureExchange = () => {
             <div className="bg-white rounded-xl shadow-sm p-6 border border-amber-100">
                 <div className="flex items-center justify-between mb-6">
                     <div className="flex items-center">
-                        <motion.div
-                            variants={headingIconVariants}
-                            initial="initial"
-                            animate="animate"
-                            whileHover="hover"
+                        <div
                             className="mr-3"
                         >
                             <GiGoldBar className="w-8 h-8 text-amber-600" />
-                        </motion.div>
+                        </div>
                         <h2 className="text-2xl font-bold text-amber-900">Pure Exchange</h2>
                     </div>
                     {error && (
@@ -248,10 +237,8 @@ const PureExchange = () => {
                                     </thead>
                                 <tbody className="bg-white divide-y divide-amber-100">
                                     {tableData.map((row, index) => (
-                                        <motion.tr
+                                        <tr
                                             key={index}
-                                            initial={{ opacity: 0 }}
-                                            animate={{ opacity: 1 }}
                                             className="hover:bg-amber-50 transition-colors duration-200"
                                         >
                                             <td className="px-6 py-3 whitespace-nowrap text-sm text-amber-900">{row.id}</td>
@@ -267,7 +254,7 @@ const PureExchange = () => {
                                             <td className="px-6 py-3 whitespace-nowrap text-sm text-amber-700">{row.gWeight}</td>
                                             <td className="px-6 py-3 whitespace-nowrap text-sm text-amber-700">{row.exGold}</td>
                                             <td className="px-6 py-3 whitespace-nowrap text-sm text-amber-700 sticky right-0 bg-white shadow-[-4px_0_8px_-2px_rgba(0,0,0,0.1)]">{row.exWeight}</td>
-                                        </motion.tr>
+                                        </tr>
                                         ))}
                                     </tbody>
                                 </table>

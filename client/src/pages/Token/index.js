@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import { motion } from "framer-motion";
 import {
   FiUser,
   FiHash,
@@ -27,14 +26,6 @@ import useToken from './hooks/useToken';
 
 // Utils
 import { preloadImages, convertImageToBase64, generatePrintContent } from './utils/printUtils';
-
-// Animations
-import {
-  pageVariants,
-  componentVariants,
-  formVariants,
-  headingIconVariants
-} from './animations/variants';
 
 const TokenPage = () => {
   // Form state
@@ -261,181 +252,145 @@ const TokenPage = () => {
   };
 
   return (
-    <motion.div
-      initial="initial"
-      animate="in"
-      exit="out"
-      variants={pageVariants}
-      className="container mx-auto px-8 py-2"
-    >
-      <motion.div
-        initial="hidden"
-        animate="visible"
-        variants={componentVariants}
-      >
-        <motion.div 
-          variants={formVariants}
-          initial="initial"
-          animate="animate"
-          exit="exit"
-          className="bg-white rounded-xl shadow-sm p-6 border border-amber-100"
-        >
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center">
-              <motion.div
-                variants={headingIconVariants}
-                initial="initial"
-                animate="animate"
-                whileHover="hover"
-                className="mr-3"
-              >
-                <BsReceipt className="w-8 h-8 text-amber-600" />
-              </motion.div>
-              <h2 className="text-2xl font-bold text-amber-900">
-                {editMode ? "Edit Token" : "New Token"}
-              </h2>
-            </div>
-            {error && (
-              <div className="p-2 bg-red-50 border-l-4 border-red-500 rounded-md">
-                <div className="flex">
-                  <div className="ml-3">
-                    <p className="text-sm text-red-700">{error}</p>
-                  </div>
-                </div>
-              </div>
-            )}
-            {success && (
-              <div className="p-2 bg-green-50 border-l-4 border-green-500 rounded-md">
-                <div className="flex">
-                  <div className="ml-3">
-                    <p className="text-sm text-green-700">{success}</p>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-4 bg-amber-50 rounded-lg">
-              <FormField
-                label="Token No"
-                icon={FiHash}
-                value={tokenNo}
-                readOnly
-                required
-              />
-              <FormField
-                label="Date"
-                icon={FiCalendar}
-                value={date}
-                readOnly
-                required
-              />
-              <FormField
-                label="Time"
-                icon={FiClock}
-                value={time}
-                readOnly
-                required
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-4 bg-amber-50 rounded-lg">
-              <FormField
-                label="Code"
-                icon={FiHash}
-                value={code}
-                onChange={handleCodeChange}
-                required
-              />
-              <FormField
-                label="Name"
-                icon={FiUser}
-                value={name}
-                readOnly
-                required
-              />
-              <FormSelect
-                label="Test"
-                value={test}
-                onChange={(e) => setTest(e.target.value)}
-                options={["Skin Testing", "Photo Testing"]}
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-4 bg-amber-50 rounded-lg">
-              <FormField
-                label="Weight"
-                icon={FiPackage}
-                type="number"
-                step="0.001"
-                value={weight}
-                onChange={(e) => setWeight(e.target.value)}
-                required
-              />
-              <FormField
-                label="Sample"
-                icon={FiPackage}
-                value={sample}
-                onChange={(e) => setSample(e.target.value)}
-                required
-              />
-              <FormField
-                label="Amount"
-                icon={FiDollarSign}
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                required
-              />
-            </div>
-
-            <div className="flex justify-end space-x-4">
-              <button
-                type="button"
-                onClick={resetForm}
-                className="inline-flex items-center px-4 py-2 border border-amber-200 text-amber-700 rounded-lg hover:bg-amber-50 transition-all duration-200"
-              >
-                <FiRotateCcw className="-ml-1 mr-2 h-5 w-5" />
-                Reset
-              </button>
-              <button
-                type="submit"
-                className="inline-flex items-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-gradient-to-r from-amber-600 to-yellow-500 hover:from-amber-700 hover:to-yellow-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 transition-all duration-200"
-              >
-                <FiSave className="-ml-1 mr-2 h-5 w-5" />
-                {editMode ? "Update Token" : "Save Token"}
-              </button>
-              <button
-                type="button"
-                onClick={handlePrint}
-                className="inline-flex items-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-gradient-to-r from-amber-600 to-yellow-500 hover:from-amber-700 hover:to-yellow-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 transition-all duration-200"
-              >
-                <FiPrinter className="-ml-1 mr-2 h-5 w-5" />
-                Print
-              </button>
-            </div>
-          </form>
-        </motion.div>
-      </motion.div>
-
-      <motion.div
-        variants={formVariants}
-        initial="initial"
-        animate="animate"
-        exit="exit"
-        className="mt-8 bg-white rounded-xl shadow-sm p-6 border border-amber-100"
-      >
+    <div className="container mx-auto px-8 py-2">
+      <div className="bg-white rounded-xl shadow-sm p-6 border border-amber-100">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center">
-            <motion.div
-              variants={headingIconVariants}
-              initial="initial"
-              animate="animate"
-              whileHover="hover"
-              className="mr-3"
+            <div className="mr-3">
+              <BsReceipt className="w-8 h-8 text-amber-600" />
+            </div>
+            <h2 className="text-2xl font-bold text-amber-900">
+              {editMode ? "Edit Token" : "New Token"}
+            </h2>
+          </div>
+          {error && (
+            <div className="p-2 bg-red-50 border-l-4 border-red-500 rounded-md">
+              <div className="flex">
+                <div className="ml-3">
+                  <p className="text-sm text-red-700">{error}</p>
+                </div>
+              </div>
+            </div>
+          )}
+          {success && (
+            <div className="p-2 bg-green-50 border-l-4 border-green-500 rounded-md">
+              <div className="flex">
+                <div className="ml-3">
+                  <p className="text-sm text-green-700">{success}</p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-4 bg-amber-50 rounded-lg">
+            <FormField
+              label="Token No"
+              icon={FiHash}
+              value={tokenNo}
+              readOnly
+              required
+            />
+            <FormField
+              label="Date"
+              icon={FiCalendar}
+              value={date}
+              readOnly
+              required
+            />
+            <FormField
+              label="Time"
+              icon={FiClock}
+              value={time}
+              readOnly
+              required
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-4 bg-amber-50 rounded-lg">
+            <FormField
+              label="Code"
+              icon={FiHash}
+              value={code}
+              onChange={handleCodeChange}
+              required
+            />
+            <FormField
+              label="Name"
+              icon={FiUser}
+              value={name}
+              readOnly
+              required
+            />
+            <FormSelect
+              label="Test"
+              value={test}
+              onChange={(e) => setTest(e.target.value)}
+              options={["Skin Testing", "Photo Testing"]}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-4 bg-amber-50 rounded-lg">
+            <FormField
+              label="Weight"
+              icon={FiPackage}
+              type="number"
+              step="0.001"
+              value={weight}
+              onChange={(e) => setWeight(e.target.value)}
+              required
+            />
+            <FormField
+              label="Sample"
+              icon={FiPackage}
+              value={sample}
+              onChange={(e) => setSample(e.target.value)}
+              required
+            />
+            <FormField
+              label="Amount"
+              icon={FiDollarSign}
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              required
+            />
+          </div>
+
+          <div className="flex justify-end space-x-4">
+            <button
+              type="button"
+              onClick={resetForm}
+              className="inline-flex items-center px-4 py-2 border border-amber-200 text-amber-700 rounded-lg hover:bg-amber-50 transition-all duration-200"
             >
+              <FiRotateCcw className="-ml-1 mr-2 h-5 w-5" />
+              Reset
+            </button>
+            <button
+              type="submit"
+              className="inline-flex items-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-gradient-to-r from-amber-600 to-yellow-500 hover:from-amber-700 hover:to-yellow-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 transition-all duration-200"
+            >
+              <FiSave className="-ml-1 mr-2 h-5 w-5" />
+              {editMode ? "Update Token" : "Save Token"}
+            </button>
+            <button
+              type="button"
+              onClick={handlePrint}
+              className="inline-flex items-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-gradient-to-r from-amber-600 to-yellow-500 hover:from-amber-700 hover:to-yellow-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 transition-all duration-200"
+            >
+              <FiPrinter className="-ml-1 mr-2 h-5 w-5" />
+              Print
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <div className="mt-8 bg-white rounded-xl shadow-sm p-6 border border-amber-100">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center">
+            <div className="mr-3">
               <FiList className="w-6 h-6 text-amber-600" />
-            </motion.div>
+            </div>
             <h3 className="text-xl font-semibold text-amber-900">
               Token List
             </h3>
@@ -484,7 +439,7 @@ const TokenPage = () => {
             />
           </div>
         )}
-      </motion.div>
+      </div>
 
       {deleteConfirmation.isOpen && (
         <DeleteConfirmationModal
@@ -492,7 +447,7 @@ const TokenPage = () => {
           onConfirm={handleConfirmDelete}
         />
       )}
-    </motion.div>
+    </div>
   );
 };
 

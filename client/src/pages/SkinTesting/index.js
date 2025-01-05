@@ -9,14 +9,12 @@ import {
   FiList
 } from 'react-icons/fi';
 import { GiTestTubes } from 'react-icons/gi';
-import { motion } from 'framer-motion';
 
 import FormInput from './components/FormInput';
 import TableRow from './components/TableRow';
 import LoadingSpinner from './components/LoadingSpinner';
 import useSkinTest from './hooks/useSkinTest';
 import { initialFormData } from './constants/initialState';
-import { headingIconVariants } from '../Token/animations/variants';
 
 const SkinTesting = () => {
   const {
@@ -97,16 +95,9 @@ const SkinTesting = () => {
       <div className="bg-white rounded-xl shadow-sm p-6 border border-amber-100">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center">
-          <motion.div
-                variants={headingIconVariants}
-                initial="initial"
-                animate="animate"
-                whileHover="hover"
-                className="mr-3"
-              >
-                <GiTestTubes className="w-8 h-8 text-amber-600 mr-3" />
-              </motion.div>
-            
+            <div className="mr-3">
+              <GiTestTubes className="w-8 h-8 text-amber-600 mr-3" />
+            </div>
             <h2 className="text-2xl font-bold text-amber-900">Skin Testing</h2>
           </div>
           {error && (
@@ -233,16 +224,10 @@ const SkinTesting = () => {
       {/* Test Results Table */}
       <div className="mt-8 bg-white rounded-xl shadow-sm p-6 border border-amber-100">
         <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center">
-            <motion.div
-              variants={headingIconVariants}
-              initial="initial"
-              animate="animate"
-              whileHover="hover"
-              className="mr-3"
-            >
+          <div className="flex items-center">
+            <div className="mr-3">
               <FiList className="w-6 h-6 text-amber-600" />
-            </motion.div>
+            </div>
             <h3 className="text-xl font-semibold text-amber-900">
               Skin Test List
             </h3>

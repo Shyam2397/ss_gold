@@ -1,5 +1,4 @@
 import React from 'react';
-import { motion } from 'framer-motion';
 import { FiLogOut } from 'react-icons/fi';
 
 const UserMenu = ({ user, setLoggedIn }) => {
@@ -21,14 +20,12 @@ const UserMenu = ({ user, setLoggedIn }) => {
         </span>
       </div>
 
-      <motion.button
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
+      <button
         onClick={handleLogout}
         className="ml-4 p-2 rounded-full text-amber-600 hover:text-amber-700 hover:bg-amber-50 focus:outline-none focus:ring-2 focus:ring-amber-500"
       >
         <FiLogOut className="h-5 w-5" />
-      </motion.button>
+      </button>
     </div>
   );
 };

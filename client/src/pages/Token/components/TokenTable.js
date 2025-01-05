@@ -1,5 +1,4 @@
 import React from 'react';
-import { motion } from 'framer-motion';
 import { FiEdit2, FiTrash2, FiCheckCircle, FiXCircle } from 'react-icons/fi';
 
 const TokenTable = ({ tokens = [], onEdit, onDelete, onPaymentStatusChange }) => {
@@ -42,23 +41,21 @@ const TokenTable = ({ tokens = [], onEdit, onDelete, onPaymentStatusChange }) =>
             </thead>
             <tbody className="bg-white divide-y divide-amber-100">
               {tokens.map((token) => (
-                <motion.tr
+                <tr
                   key={token.id}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="hover:bg-amber-50 transition-colors duration-200"
+                  className="hover:bg-amber-50"
                 >
                   <td className="px-6 py-3 whitespace-nowrap">
                     <div className="flex space-x-2">
                       <button
                         onClick={() => onEdit(token)}
-                        className="text-amber-600 hover:text-amber-900 transition-colors duration-200"
+                        className="text-amber-600 hover:text-amber-900"
                       >
                         <FiEdit2 className="h-5 w-5" />
                       </button>
                       <button
                         onClick={() => onDelete(token.id)}
-                        className="text-red-600 hover:text-red-900 transition-colors duration-200"
+                        className="text-red-600 hover:text-red-900"
                       >
                         <FiTrash2 className="h-5 w-5" />
                       </button>
@@ -104,7 +101,7 @@ const TokenTable = ({ tokens = [], onEdit, onDelete, onPaymentStatusChange }) =>
                   <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-900">
                     {token.amount}
                   </td>
-                </motion.tr>
+                </tr>
               ))}
             </tbody>
           </table>

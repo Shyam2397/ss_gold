@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
 import {
   FiHome,
   FiUsers,
@@ -75,19 +74,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
   ];
 
   return (
-    <motion.div
-      className="h-screen bg-white border-r border-gray-200 w-60 overflow-hidden"
-      initial={false}
-      animate={{
-        width: isOpen ? "240px" : "0px",
-      }}
-      transition={{
-        type: "spring",
-        stiffness: 100,
-        damping: 20,
-        mass: 0.5
-      }}
-    >
+    <div className="h-screen bg-white border-r border-gray-200 w-60 overflow-hidden">
       <div className="flex flex-col h-full">
         {/* Main Menu */}
         <MenuSection title="Main Menu">
@@ -120,31 +107,19 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
               )}
             </button>
 
-            <AnimatePresence>
-              {isDataOpen && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  exit={{ opacity: 0, height: 0 }}
-                  transition={{
-                    opacity: { duration: 0.2 },
-                    height: { duration: 0.3, ease: "easeInOut" }
-                  }}
-                >
-                  <div className="pl-4 space-y-1">
-                    {dataMenuItems.map((item) => (
-                      <MenuItem
-                        key={item.path}
-                        icon={item.icon}
-                        label={item.label}
-                        to={item.path}
-                        isActive={isActive(item.path)}
-                      />
-                    ))}
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+            {isDataOpen && (
+              <div className="pl-4 space-y-1">
+                {dataMenuItems.map((item) => (
+                  <MenuItem
+                    key={item.path}
+                    icon={item.icon}
+                    label={item.label}
+                    to={item.path}
+                    isActive={isActive(item.path)}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         </MenuSection>
 
@@ -165,37 +140,30 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                 <FiChevronRight className="h-4 w-4" />
               )}
             </button>
-            <AnimatePresence>
-              {isExpensesOpen && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="pl-4"
-                >
-                  {expenseMenuItems.map((item) => (
-                    item.path ? (
-                      <MenuItem
-                        key={item.path}
-                        icon={item.icon}
-                        label={item.label}
-                        to={item.path}
-                        isActive={isActive(item.path)}
-                      />
-                    ) : (
-                      <button
-                        key={item.label}
-                        onClick={item.onClick}
-                        className="w-full flex items-center space-x-2 px-4 py-2.5 text-gray-600 hover:bg-amber-50 hover:text-amber-900 rounded-lg transition-all duration-200"
-                      >
-                        <item.icon className="h-5 w-5" />
-                        <span className="font-medium">{item.label}</span>
-                      </button>
-                    )
-                  ))}
-                </motion.div>
-              )}
-            </AnimatePresence>
+            {isExpensesOpen && (
+              <div className="pl-4">
+                {expenseMenuItems.map((item) => (
+                  item.path ? (
+                    <MenuItem
+                      key={item.path}
+                      icon={item.icon}
+                      label={item.label}
+                      to={item.path}
+                      isActive={isActive(item.path)}
+                    />
+                  ) : (
+                    <button
+                      key={item.label}
+                      onClick={item.onClick}
+                      className="w-full flex items-center space-x-2 px-4 py-2.5 text-gray-600 hover:bg-amber-50 hover:text-amber-900 rounded-lg transition-all duration-200"
+                    >
+                      <item.icon className="h-5 w-5" />
+                      <span className="font-medium">{item.label}</span>
+                    </button>
+                  )
+                ))}
+              </div>
+            )}
           </div>
         </MenuSection>
 
@@ -223,7 +191,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
       <MasterExpense isOpen={showMasterExpense} onClose={() => setShowMasterExpense(false)} />
       <ViewExpense isOpen={showViewExpense} onClose={() => setShowViewExpense(false)} />
       <MenuItem icon={FiCamera} label="Pure Exchange" to="/pure-exchange" isActive={location.pathname === '/pure-exchange'} />
-    </motion.div>
+    </div>
   );
 };
 

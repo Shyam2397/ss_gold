@@ -1,5 +1,4 @@
 import React from 'react';
-import { motion } from 'framer-motion';
 import { FiTrash2 } from 'react-icons/fi';
 
 const CustomerDataTable = ({ entries, onDelete }) => {
@@ -19,11 +18,8 @@ const CustomerDataTable = ({ entries, onDelete }) => {
             </thead>
             <tbody className="text-sm">
               {entries.map((entry, index) => (
-                <motion.tr
+                <tr
                   key={entry.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.1 }}
                   className="border-b border-amber-100 hover:bg-amber-50 transition-colors duration-200"
                 >
                   <td className="px-6 py-3 whitespace-nowrap font-medium">
@@ -38,16 +34,14 @@ const CustomerDataTable = ({ entries, onDelete }) => {
                   <td className="px-6 py-3 whitespace-nowrap hidden sm:table-cell">{entry.code}</td>
                   <td className="px-6 py-3 whitespace-nowrap hidden sm:table-cell">{entry.place}</td>
                   <td className="px-6 py-3 whitespace-nowrap">
-                    <motion.button
-                      whileHover={{ scale: 1.1 }}
-                      whileTap={{ scale: 0.9 }}
+                    <button
                       onClick={() => onDelete(entry.id)}
                       className="text-red-500 hover:text-red-700 transition-colors duration-200"
                     >
                       <FiTrash2 className="h-5 w-5" />
-                    </motion.button>
+                    </button>
                   </td>
-                </motion.tr>
+                </tr>
               ))}
             </tbody>
           </table>

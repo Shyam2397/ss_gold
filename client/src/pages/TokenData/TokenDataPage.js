@@ -1,5 +1,4 @@
 import React from 'react';
-import { motion } from 'framer-motion';
 import { FiAlertCircle, FiX } from 'react-icons/fi';
 
 import useTokens from './hooks/useTokens';
@@ -21,10 +20,7 @@ const TokenDataPage = () => {
   } = useTokens();
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
+    <div
       className="p-8 bg-gradient-to-br from-[#F9F3F1] to-[#FFF8F0] shadow-xl rounded-2xl max-w-full h-full text-[#391145]"
     >
       <div className="flex flex-col sm:flex-row justify-between items-center mb-6 pb-4 border-b-4 border-[#D3B04D]">
@@ -35,14 +31,12 @@ const TokenDataPage = () => {
       </div>
 
       {error && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
+        <div
           className="mb-6 p-4 bg-red-100 border-l-4 border-red-500 text-red-700 rounded-r flex items-center space-x-2"
         >
           <FiAlertCircle className="h-5 w-5" />
           <span>{error}</span>
-        </motion.div>
+        </div>
       )}
 
       <div className="mb-6 bg-white p-6 rounded-xl shadow-md">
@@ -59,15 +53,13 @@ const TokenDataPage = () => {
               onChange={(e) => setToDate(e.target.value)}
             />
           </div>
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
+          <button
             onClick={clearDates}
             className="flex items-center justify-center gap-2 px-4 py-2 text-red-600 hover:text-red-700 transition-colors duration-200"
           >
             <FiX className="h-5 w-5" />
             Clear Dates
-          </motion.button>
+          </button>
         </div>
       </div>
 
@@ -76,7 +68,7 @@ const TokenDataPage = () => {
         loading={loading} 
         onDelete={deleteToken} 
       />
-    </motion.div>
+    </div>
   );
 };
 

@@ -10,33 +10,25 @@ const LoginInput = ({
   placeholder, 
   icon: Icon 
 }) => (
-  <motion.div
-    initial={{ x: -20, opacity: 0 }}
-    animate={{ x: 0, opacity: 1 }}
-    transition={{ duration: 0.3 }}
+  <div
+    className="relative"
   >
-    <label htmlFor={id} className="sr-only">{placeholder}</label>
-    <div className="relative">
-      <motion.div 
-        className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"
-        whileHover={{ scale: 1.1 }}
-      >
-        <Icon className="h-5 w-5 text-amber-500" />
-      </motion.div>
-      <motion.input
-        whileFocus={{ scale: 1.01 }}
-        transition={{ type: "spring", stiffness: 300, damping: 20 }}
-        id={id}
-        name={id}
-        type={type}
-        required
-        value={value}
-        onChange={onChange}
-        className="appearance-none relative block w-full pl-10 pr-3 py-2 border border-amber-200 rounded-lg placeholder-gray-400 text-white focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 sm:text-sm transition-all duration-200"
-        placeholder={placeholder}
-      />
+    <div 
+      className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"
+    >
+      <Icon className="h-5 w-5 text-amber-500" />
     </div>
-  </motion.div>
+    <input
+      id={id}
+      name={id}
+      type={type}
+      required
+      value={value}
+      onChange={onChange}
+      className="appearance-none relative block w-full pl-10 pr-3 py-2 border border-amber-200 rounded-lg placeholder-gray-400 text-white focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 sm:text-sm transition-all duration-200"
+      placeholder={placeholder}
+    />
+  </div>
 );
 
 const LoginForm = ({ 
@@ -49,12 +41,9 @@ const LoginForm = ({
   onSubmit 
 }) => {
   return (
-    <motion.form 
+    <form 
       className="mt-8 space-y-6" 
       onSubmit={onSubmit}
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, delay: 0.2 }}
     >
       <div className="space-y-4">
         <LoginInput
@@ -110,7 +99,7 @@ const LoginForm = ({
           )}
         </motion.button>
       </div>
-    </motion.form>
+    </form>
   );
 };
 

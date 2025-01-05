@@ -1,10 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { motion } from 'framer-motion';
 import CustomerForm from './CustomerForm';
 import CustomerList from './CustomerList';
 import DeleteConfirmationModal from './DeleteConfirmationModal';
-import { pageVariants } from './animations';
 
 const NewEntries = () => {
   const [code, setCode] = useState("");
@@ -219,56 +217,44 @@ const NewEntries = () => {
   };
 
   return (
-    <motion.div
-      initial="initial"
-      animate="in"
-      exit="out"
-      variants={pageVariants}
-      style={{ width: '100%', height: '100%' }}
-    >
-      <div className="container mx-auto px-8 py-2">
-        {/* Error/Success Messages */}
-        {(error || success) && (
-          <div className={`mb-4 p-4 rounded-lg ${error ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
-            {error || success}
-          </div>
-        )}
+    <div className="container mx-auto px-8 py-2">
+  
+      {/* Customer Form */}
+      <CustomerForm
+        editMode={editMode}
+        loading={loading}
+        name={name}
+        code={code}
+        phoneNumber={phoneNumber}
+        place={place}
+        handleInputChange={handleInputChange}
+        handleSubmit={handleSubmit}
+        resetForm={resetForm}
+        setName={setName}
+        setCode={setCode}
+        setPhoneNumber={setPhoneNumber}
+        setPlace={setPlace}
+        error={error}
+        success={success}
+      />
 
-        {/* Customer Form */}
-        <CustomerForm
-          editMode={editMode}
-          loading={loading}
-          name={name}
-          code={code}
-          phoneNumber={phoneNumber}
-          place={place}
-          handleInputChange={handleInputChange}
-          handleSubmit={handleSubmit}
-          resetForm={resetForm}
-          setName={setName}
-          setCode={setCode}
-          setPhoneNumber={setPhoneNumber}
-          setPlace={setPlace}
-        />
+      {/* Customer List */}
+      <CustomerList
+        loading={loading}
+        customers={filteredCustomers}
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        handleEdit={handleEdit}
+        confirmDelete={confirmDelete}
+      />
 
-        {/* Customer List */}
-        <CustomerList
-          loading={loading}
-          customers={filteredCustomers}
-          searchQuery={searchQuery}
-          setSearchQuery={setSearchQuery}
-          handleEdit={handleEdit}
-          confirmDelete={confirmDelete}
-        />
-
-        {/* Delete Confirmation Modal */}
-        <DeleteConfirmationModal
-          isOpen={deleteConfirmation.isOpen}
-          onCancel={cancelDelete}
-          onConfirm={proceedDelete}
-        />
-      </div>
-    </motion.div>
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmationModal
+        isOpen={deleteConfirmation.isOpen}
+        onCancel={cancelDelete}
+        onConfirm={proceedDelete}
+      />
+    </div>
   );
 };
 

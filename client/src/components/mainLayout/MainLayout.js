@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import Navbar from '../navbar/Navbar';
 import Sidebar from '../sidebar/Sidebar';
 import LogoSection from './LogoSection';
@@ -38,21 +37,12 @@ const MainLayout = ({ setLoggedIn }) => {
         
         {location.pathname === "/" && <LogoSection />}
         
-        <motion.div 
-          className="flex-1 relative overflow-y-auto"
-          animate={{
-            marginLeft: isSidebarOpen ? "0px" : "0px",
-            width: "100%"
-          }}
-          transition={{
-            type: "spring",
-            stiffness: 100,
-            damping: 20,
-            mass: 0.5
-          }}
-        >
-          <MainContent key={location.pathname} />
-        </motion.div>
+        <div className="flex-1 relative overflow-y-auto">
+          {/* Removed motion.div for layout transition */}
+          <div className="flex-1 relative overflow-y-auto">
+            <MainContent key={location.pathname} />
+          </div>
+        </div>
       </div>
     </div>
   );

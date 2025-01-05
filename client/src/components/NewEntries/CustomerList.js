@@ -1,8 +1,6 @@
 import React from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { FiSearch, FiEdit2, FiTrash2 } from 'react-icons/fi';
 import { BsQrCode } from 'react-icons/bs';
-import { buttonVariants, deleteButtonVariants, containerVariants, itemVariants, headingIconVariants } from './animations';
 import LoadingSpinner from './LoadingSpinner';
 
 const CustomerList = ({
@@ -14,23 +12,14 @@ const CustomerList = ({
   confirmDelete
 }) => {
   return (
-    <motion.div 
-      variants={containerVariants}
-      initial="hidden"
-      animate="visible"
+    <div 
       className="mt-4 bg-white rounded-xl shadow-sm p-6 border border-amber-100"
     >
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center">
-          <motion.div
-            variants={headingIconVariants}
-            initial="initial"
-            animate="animate"
-            whileHover="hover"
-            className="mr-3"
-          >
+          <div className="mr-3">
             <BsQrCode className="w-6 h-6 text-amber-600" />
-          </motion.div>
+          </div>
           <h3 className="text-xl font-semibold text-amber-900">
             Customer List
           </h3>
@@ -64,55 +53,40 @@ const CustomerList = ({
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-amber-100">
-                  <AnimatePresence>
-                    {customers.map((customer, index) => (
-                      <motion.tr
-                        key={customer.id}
-                        variants={itemVariants}
-                        initial="hidden"
-                        animate="visible"
-                        exit="exit"
-                        transition={{ delay: index * 0.1 }}
-                        className="hover:bg-amber-50 transition-colors duration-200"
-                      >
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-amber-900">{customer.code}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{customer.name}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{customer.phoneNumber}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{customer.place}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2 flex items-center">
-                          <motion.button
-                            onClick={() => handleEdit(customer)}
-                            variants={buttonVariants}
-                            initial="initial"
-                            whileHover="hover"
-                            whileTap="tap"
-                            className="text-amber-600 hover:text-amber-900 transition-colors duration-200 p-1 rounded-full hover:bg-amber-100"
-                            title="Edit Customer"
-                          >
-                            <FiEdit2 className="w-5 h-5" />
-                          </motion.button>
-                          <motion.button
-                            onClick={() => confirmDelete(customer.id)}
-                            variants={deleteButtonVariants}
-                            initial="initial"
-                            whileHover="hover"
-                            whileTap="tap"
-                            className="text-red-600 hover:text-red-900 transition-colors duration-200 p-1 rounded-full hover:bg-red-100"
-                            title="Delete Customer"
-                          >
-                            <FiTrash2 className="w-5 h-5" />
-                          </motion.button>
-                        </td>
-                      </motion.tr>
-                    ))}
-                  </AnimatePresence>
+                  {customers.map((customer, index) => (
+                    <tr
+                      key={customer.id}
+                      className="hover:bg-amber-50 transition-colors duration-200"
+                    >
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-amber-900">{customer.code}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{customer.name}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{customer.phoneNumber}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{customer.place}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2 flex items-center">
+                        <button
+                          onClick={() => handleEdit(customer)}
+                          className="text-amber-600 hover:text-amber-900 transition-colors duration-200 p-1 rounded-full hover:bg-amber-100"
+                          title="Edit Customer"
+                        >
+                          <FiEdit2 className="w-5 h-5" />
+                        </button>
+                        <button
+                          onClick={() => confirmDelete(customer.id)}
+                          className="text-red-600 hover:text-red-900 transition-colors duration-200 p-1 rounded-full hover:bg-red-100"
+                          title="Delete Customer"
+                        >
+                          <FiTrash2 className="w-5 h-5" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
           </div>
         </div>
       )}
-    </motion.div>
+    </div>
   );
 };
 

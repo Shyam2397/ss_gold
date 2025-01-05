@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
 import axios from 'axios';
 import { 
   FiUsers, 
@@ -26,9 +25,7 @@ ChartJS.register(
 const API_URL = 'http://localhost:5000';
 
 const StatCard = ({ icon: Icon, title, value, trend, color }) => (
-  <motion.div
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
+  <div
     className={`bg-white p-6 rounded-xl shadow-sm border border-${color}-100`}
   >
     <div className="flex items-center justify-between">
@@ -43,7 +40,7 @@ const StatCard = ({ icon: Icon, title, value, trend, color }) => (
     </div>
     <h3 className="mt-4 text-2xl font-bold text-gray-900">{value}</h3>
     <p className="mt-1 text-sm text-gray-500">{title}</p>
-  </motion.div>
+  </div>
 );
 
 const MonthlyTestChart = ({ tokens }) => {
@@ -543,11 +540,8 @@ const Dashboard = () => {
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         {stats.map((stat, index) => (
-          <motion.div
+          <div
             key={index}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.1 }}
           >
             <StatCard 
               icon={stat.icon}
@@ -556,7 +550,7 @@ const Dashboard = () => {
               trend={stat.trend}
               color={stat.color}
             />
-          </motion.div>
+          </div>
         ))}
       </div>
 

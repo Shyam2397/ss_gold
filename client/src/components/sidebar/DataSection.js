@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FiDatabase, 
   FiChevronDown, 
@@ -27,27 +26,20 @@ const DataSection = ({ isActive, dataMenuItems }) => {
         )}
       </button>
 
-      <AnimatePresence>
-        {isDataOpen && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.2 }}
-            className="pl-4"
-          >
-            {dataMenuItems.map((item) => (
-              <MenuItem
-                key={item.path}
-                icon={item.icon}
-                label={item.label}
-                to={item.path}
-                isActive={isActive(item.path)}
-              />
-            ))}
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Removed AnimatePresence and motion.div for dropdown */}
+      {isDataOpen && (
+        <div className="pl-4">
+          {dataMenuItems.map((item) => (
+            <MenuItem
+              key={item.path}
+              icon={item.icon}
+              label={item.label}
+              to={item.path}
+              isActive={isActive(item.path)}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 };
