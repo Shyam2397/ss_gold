@@ -20,28 +20,24 @@ const MainLayout = ({ setLoggedIn }) => {
 
   return (
     <div className="flex h-screen bg-gray-50">
-      
+      <div className={`transition-all duration-300 ease-in-out ${isSidebarOpen ? 'w-64' : 'w-0'}`}>
         {isSidebarOpen && (
-        <Sidebar isOpen={isSidebarOpen} toggleSidebar={toggleSidebar} />
+          <Sidebar isOpen={isSidebarOpen} toggleSidebar={toggleSidebar} />
         )}
-      
+      </div>
 
-      <div className="flex-1 flex flex-col min-h-screen">
+      <div className="flex-1 flex flex-col overflow-hidden">
         <Navbar
           setLoggedIn={setLoggedIn}
           user={user}
           onToggleSidebar={toggleSidebar}
           isSidebarOpen={isSidebarOpen}
-          className="overflow-hidden"
         />
         
         {location.pathname === "/" && <LogoSection />}
         
-        <div className="flex-1 relative overflow-y-auto">
-          {/* Removed motion.div for layout transition */}
-          <div className="flex-1 relative overflow-y-auto">
-            <MainContent key={location.pathname} />
-          </div>
+        <div className="flex-1 overflow-auto">
+          <MainContent key={location.pathname} />
         </div>
       </div>
     </div>

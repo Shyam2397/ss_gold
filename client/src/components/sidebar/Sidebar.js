@@ -74,7 +74,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
   ];
 
   return (
-    <div className="h-screen bg-white border-r border-gray-200 w-60 overflow-hidden">
+    <div className="h-screen bg-white border-r border-gray-200 w-64 overflow-hidden">
       <div className="flex flex-col h-full">
         {/* Main Menu */}
         <MenuSection title="Main Menu">
