@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
     FiSave,
     FiRotateCcw,
@@ -6,7 +6,7 @@ import {
     FiPlus,
 } from 'react-icons/fi';
 import { GiGoldBar } from 'react-icons/gi';
-import { createPureExchange, fetchPureExchanges } from './api/pureExchangeApi';
+import { createPureExchange, checkPureExchangeExists } from './api/pureExchangeApi';
 import { fetchSkinTests } from '../SkinTesting/api/skinTestApi';
 
 
@@ -32,27 +32,10 @@ const FormInput = ({ label, name, value, onChange, readOnly = false, className }
 
 const PureExchange = () => {
     const [tokenNo, setTokenNo] = useState('');
-    const [point, setPoint] = useState('');
+    const [point, setPoint] = useState('0.20');
     const [tableData, setTableData] = useState([]);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
-
-    useEffect(() => {
-        loadPureExchanges();
-    }, []);
-
-    const loadPureExchanges = async () => {
-        try {
-            const response = await fetchPureExchanges();
-            setTableData(response.map((item, index) => ({
-                ...item,
-                id: index + 1
-            })));
-        } catch (error) {
-            console.error('Error loading pure exchanges:', error);
-            setError('Error loading data');
-        }
-    };
 
     const fetchSkinTestData = async (tokenNo) => {
         try {
@@ -137,12 +120,21 @@ const PureExchange = () => {
             // Prepare data for saving (excluding id field)
             const dataToSave = tableData.map(({ id, ...rest }) => rest);
 
+            // Check each record for existing tokens
+            for (const record of dataToSave) {
+                const exists = await checkPureExchangeExists(record.tokenNo);
+                if (exists) {
+                    setError(`Token ${record.tokenNo} already exists in the database`);
+                    return;
+                }
+            }
+
             // Save each record
             for (const record of dataToSave) {
                 await createPureExchange(record);
             }
 
-            // Clear the table and show success message
+            // Clear the table after successful save
             setTableData([]);
             setError('Data saved successfully!');
         } catch (error) {
@@ -155,6 +147,7 @@ const PureExchange = () => {
 
     const handleReset = () => {
         setTokenNo('');
+        setPoint('0.20');
         setTableData([]);
         setError('');
     };
@@ -216,8 +209,9 @@ const PureExchange = () => {
 
                 {/* Table Section */}
                 <div className="overflow-hidden rounded-lg border border-amber-100">
-                <div className="overflow-x-auto">
-                        <div className=" h-72 overflow-y-auto scrollbar-thin scrollbar-thumb-amber-500 scrollbar-track-amber-100">
+                    <div className="overflow-x-auto">
+                        <div className="flex flex-col h-72">
+                            <div className="flex-grow overflow-y-auto scrollbar-thin scrollbar-thumb-amber-500 scrollbar-track-amber-100">
                                 <table className="min-w-full divide-y divide-amber-200">
                                 <thead className="bg-gradient-to-r from-amber-500 to-yellow-500 sticky top-0 z-10">
                                         <tr>
@@ -258,6 +252,19 @@ const PureExchange = () => {
                                         ))}
                                     </tbody>
                                 </table>
+                            </div>
+                            <div className="sticky bottom-0 w-full bg-amber-50 border-t border-amber-200">
+                                <table className="min-w-full">
+                                    <tfoot>
+                                        <tr>
+                                            <td colSpan="12" className="px-6 py-3 text-right font-semibold text-amber-900">Total Exchange Weight:</td>
+                                            <td className="px-6 py-3 whitespace-nowrap text-sm font-bold text-amber-900 sticky right-0 bg-amber-50 shadow-[-4px_0_8px_-2px_rgba(0,0,0,0.1)]">
+                                                {(parseFloat(tableData.reduce((total, row) => total + parseFloat(row.exWeight), 0).toFixed(2)) || 0).toFixed(3)}
+                                            </td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 </div>

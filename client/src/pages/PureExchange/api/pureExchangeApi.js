@@ -22,3 +22,15 @@ export const updatePureExchange = async (tokenNo, data) => {
 export const deletePureExchange = async (tokenNo) => {
   return await axios.delete(`${API_URL}/pure-exchange/${tokenNo}`);
 };
+
+export const checkPureExchangeExists = async (tokenNo) => {
+  try {
+    const response = await axios.get(`${API_URL}/pure-exchange/${tokenNo}`);
+    return response.data.exists || false;
+  } catch (error) {
+    if (error.response && error.response.status === 404) {
+      return false;
+    }
+    throw error;
+  }
+};
