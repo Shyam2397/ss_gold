@@ -64,17 +64,17 @@ const ExchangeTable = ({ exchanges, loading, onDelete, onEdit }) => {
                 <table className="min-w-full divide-y divide-amber-100">
                   <thead className="sticky top-0 z-10">
                     <tr className="bg-gradient-to-r from-[#DD845A] to-[#D3B04D]">
+                      <th className="px-6 py-4 text-center text-sm font-semibold text-white first:rounded-tl-lg">
+                        Actions
+                      </th>
                       {columns.map((column) => (
                         <th
                           key={column}
-                          className={`px-6 py-4 text-sm font-semibold text-white first:rounded-tl-lg last:rounded-tr-lg whitespace-nowrap ${getColumnAlignment(column)}`}
+                          className={`px-6 py-4 text-sm font-semibold text-white last:rounded-tr-lg whitespace-nowrap ${getColumnAlignment(column)}`}
                         >
                           {column.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
                         </th>
                       ))}
-                      <th className="px-6 py-4 text-center text-sm font-semibold text-white">
-                        Actions
-                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-amber-100">
@@ -83,14 +83,6 @@ const ExchangeTable = ({ exchanges, loading, onDelete, onEdit }) => {
                         key={exchange.token_no || index}
                         className="hover:bg-amber-50 transition-colors duration-200"
                       >
-                        {columns.map((column) => (
-                          <td
-                            key={column}
-                            className={`px-6 py-3 text-sm whitespace-nowrap ${getColumnAlignment(column)} text-gray-700`}
-                          >
-                            {formatValue(exchange[column], column)}
-                          </td>
-                        ))}
                         <td className="px-6 py-3 text-center">
                           <div className="flex justify-center space-x-2">
                             <button
@@ -109,6 +101,14 @@ const ExchangeTable = ({ exchanges, loading, onDelete, onEdit }) => {
                             </button>
                           </div>
                         </td>
+                        {columns.map((column) => (
+                          <td
+                            key={column}
+                            className={`px-6 py-3 text-sm whitespace-nowrap ${getColumnAlignment(column)} text-gray-700`}
+                          >
+                            {formatValue(exchange[column], column)}
+                          </td>
+                        ))}
                       </tr>
                     ))}
                   </tbody>
