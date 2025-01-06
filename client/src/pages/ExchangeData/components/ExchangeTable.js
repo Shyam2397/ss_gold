@@ -1,5 +1,5 @@
 import React from 'react';
-import { FiLoader, FiTrash2, FiEdit } from 'react-icons/fi';
+import { FiLoader, FiTrash2 } from 'react-icons/fi';
 
 const getColumnAlignment = (key) => {
   const numericColumns = ['amount', 'rate', 'quantity', 'token_no'];
@@ -35,7 +35,7 @@ const filterColumns = (obj) => {
   return Object.keys(obj).filter(key => !excludedColumns.includes(key));
 };
 
-const ExchangeTable = ({ exchanges, loading, onDelete, onEdit }) => {
+const ExchangeTable = ({ exchanges, loading, onDelete }) => {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -78,20 +78,13 @@ const ExchangeTable = ({ exchanges, loading, onDelete, onEdit }) => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-amber-100">
-                    {exchanges.map((exchange, index) => (
+                    {[...exchanges].reverse().map((exchange, index) => (
                       <tr
                         key={exchange.token_no || index}
                         className="hover:bg-amber-50 transition-colors duration-200"
                       >
                         <td className="px-6 py-3 text-center">
                           <div className="flex justify-center space-x-2">
-                            <button
-                              onClick={() => onEdit(exchange)}
-                              className="text-blue-600 hover:text-blue-800 transition-colors"
-                              title="Edit Exchange"
-                            >
-                              <FiEdit className="h-5 w-5" />
-                            </button>
                             <button
                               onClick={() => onDelete(exchange.token_no)}
                               className="text-red-500 hover:text-red-700 transition-colors"
