@@ -9,16 +9,28 @@ const useExchanges = () => {
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
 
-  const fetchExchanges = async () => {
+  const fetchExchanges = useCallback(async () => {
     setLoading(true);
     try {
       const response = await axios.get(
         `${process.env.REACT_APP_API_URL}/pure-exchange`
       );
       const exchangeData = response.data.data || [];
-      const sortedExchanges = exchangeData.sort(
-        (a, b) => new Date(b.date) - new Date(a.date)
-      );
+      
+      // Parse dates and sort
+      const sortedExchanges = exchangeData.sort((a, b) => {
+        // First try to parse using the parseDate function
+        let dateA = parseDate(a.date);
+        let dateB = parseDate(b.date);
+        
+        // If parsing failed, try direct Date conversion
+        if (!dateA) dateA = new Date(a.date);
+        if (!dateB) dateB = new Date(b.date);
+        
+        // Compare timestamps
+        return dateB.getTime() - dateA.getTime();
+      });
+      
       setExchanges(sortedExchanges);
       setError("");
     } catch (error) {
@@ -27,35 +39,46 @@ const useExchanges = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   const parseDate = (dateStr) => {
     if (!dateStr) return null;
-    let parsedDate = new Date(dateStr);
-    if (!isNaN(parsedDate)) return parsedDate;
     
     const formats = [
+      // DD/MM/YYYY
       /^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/,
+      // YYYY-MM-DD
       /^(\d{4})-(\d{2})-(\d{2})$/,
+      // DD/MM/YY
       /^(\d{1,2})[/-](\d{1,2})[/-](\d{2})$/
     ];
     
     for (const regex of formats) {
       const match = dateStr.match(regex);
       if (match) {
+        const [, first, second, third] = match;
         let year, month, day;
-        if (match[3].length === 4) {
-          year = match[3];
-          month = match[2];
-          day = match[1];
+        
+        if (third.length === 4) {
+          // DD/MM/YYYY format
+          year = third;
+          month = second;
+          day = first;
+        } else if (first.length === 4) {
+          // YYYY-MM-DD format
+          year = first;
+          month = second;
+          day = third;
         } else {
-          year = match[3].length === 2 ? 
-            (parseInt(match[3]) > 50 ? '19' : '20') + match[3] : 
-            match[3];
-          month = match[1];
-          day = match[2];
+          // DD/MM/YY format
+          year = (parseInt(third) > 50 ? '19' : '20') + third;
+          month = second;
+          day = first;
         }
-        return new Date(year, month - 1, day);
+        
+        // Create date object and set hours to noon to avoid timezone issues
+        const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), 12, 0, 0);
+        return date;
       }
     }
     return null;
@@ -63,7 +86,7 @@ const useExchanges = () => {
 
   useEffect(() => {
     fetchExchanges();
-  }, []);
+  }, [fetchExchanges]);
 
   useEffect(() => {
     let filtered = [...exchanges];
@@ -93,11 +116,27 @@ const useExchanges = () => {
 
   const deleteExchange = async (tokenNo) => {
     try {
-      await axios.delete(`${process.env.REACT_APP_API_URL}/pure-exchange/${tokenNo}`);
-      await fetchExchanges();
+      if (!tokenNo) {
+        throw new Error('Invalid token number');
+      }
+
+      const response = await axios.delete(`${process.env.REACT_APP_API_URL}/pure-exchange/${tokenNo}`);
+      
+      if (response.status === 200) {
+        await fetchExchanges();
+        return true;
+      } else {
+        throw new Error(response.data?.message || 'Failed to delete exchange');
+      }
     } catch (error) {
       console.error("Error deleting exchange:", error);
-      setError("Failed to delete exchange. Please try again.");
+      if (error.response?.status === 404) {
+        throw new Error(`Exchange with token ${tokenNo} not found`);
+      } else if (error.response?.data?.message) {
+        throw new Error(error.response.data.message);
+      } else {
+        throw new Error(error.message || 'Failed to delete exchange. Please try again.');
+      }
     }
   };
 
