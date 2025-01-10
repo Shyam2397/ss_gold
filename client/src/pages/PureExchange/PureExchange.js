@@ -8,7 +8,7 @@ import {
 import { GiGoldBar } from 'react-icons/gi';
 import { createPureExchange, checkPureExchangeExists } from './api/pureExchangeApi';
 import { fetchSkinTests } from '../SkinTesting/api/skinTestApi';
-
+import ThermalPrinter from './ThermalPrinter';
 
 const FormInput = ({ label, name, value, onChange, readOnly = false, className }) => {
     return (
@@ -37,6 +37,14 @@ const PureExchange = () => {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
 
+    // Function to set error with auto-clear timeout
+    const setErrorWithTimeout = (message) => {
+        setError(message);
+        setTimeout(() => {
+            setError('');
+        }, 3000); // Clear after 3 seconds
+    };
+
     const fetchSkinTestData = async (tokenNo) => {
         try {
             const response = await fetchSkinTests();
@@ -44,33 +52,33 @@ const PureExchange = () => {
             const skinTest = skinTests.find(test => test.tokenNo === tokenNo);
             
             if (!skinTest) {
-                setError('Token number not found in skin testing data');
+                setErrorWithTimeout('Token number not found in skin testing data');
                 return null;
             }
             
             return skinTest;
         } catch (error) {
             console.error('Error fetching skin test data:', error);
-            setError('Error fetching skin test data. Please try again.');
+            setErrorWithTimeout('Error fetching skin test data. Please try again.');
             return null;
         }
     };
 
     const handleAdd = async () => {
         if (!tokenNo) {
-            setError('Please enter a token number');
+            setErrorWithTimeout('Please enter a token number');
             return;
         }
 
         if (!point) {
-            setError('Please enter a point value');
+            setErrorWithTimeout('Please enter a point value');
             return;
         }
 
         const tokenExists = tableData.some(row => row.tokenNo === tokenNo);
 
         if (tokenExists) {
-            setError('Token number already exists.');
+            setErrorWithTimeout('Token number already exists.');
             return;
         }
 
@@ -82,7 +90,7 @@ const PureExchange = () => {
         }
 
         // Extract required values
-        const { weight, highest, average, gold_fineness } = skinTestData;
+        const { weight, highest, average, gold_fineness, name } = skinTestData;
 
         // Calculate values based on the logic
         const hWeight = (parseFloat(weight) * parseFloat(highest)) / 100;
@@ -94,7 +102,8 @@ const PureExchange = () => {
         const newRow = {
             id: tableData.length + 1,
             tokenNo: tokenNo,
-            date: new Date().toLocaleDateString(),
+            name: name, 
+            date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\/+/g, '-'),
             time: new Date().toLocaleTimeString(),
             weight: parseFloat(weight).toFixed(3),
             highest: parseFloat(highest).toFixed(2),
@@ -114,6 +123,11 @@ const PureExchange = () => {
 
     const handleSave = async () => {
         try {
+            if (tableData.length === 0) {
+                setErrorWithTimeout('Please add at least one entry before saving.');
+                return;
+            }
+
             setLoading(true);
             setError('');
 
@@ -124,7 +138,8 @@ const PureExchange = () => {
             for (const record of dataToSave) {
                 const exists = await checkPureExchangeExists(record.tokenNo);
                 if (exists) {
-                    setError(`Token ${record.tokenNo} already exists in the database`);
+                    setErrorWithTimeout(`Token ${record.tokenNo} already exists in the database`);
+                    setLoading(false);
                     return;
                 }
             }
@@ -136,10 +151,10 @@ const PureExchange = () => {
 
             // Clear the table after successful save
             setTableData([]);
-            setError('Data saved successfully!');
+            setErrorWithTimeout('Data saved successfully!');
         } catch (error) {
             console.error('Error saving data:', error);
-            setError('Error saving data. Please try again.');
+            setErrorWithTimeout('Error saving data. Please try again.');
         } finally {
             setLoading(false);
         }
@@ -181,7 +196,7 @@ const PureExchange = () => {
                 </div>
 
                 {/* Input Section */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-4 bg-amber-50 rounded-lg mb-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-4 bg-amber-50 rounded-lg mb-4">
                     <div className="flex items-end space-x-4">
                     <FormInput
                             label="Token Number"
@@ -210,19 +225,21 @@ const PureExchange = () => {
                 {/* Table Section */}
                 <div className="overflow-hidden rounded-lg border border-amber-100">
                     <div className="overflow-x-auto">
-                        <div className="flex flex-col h-72">
+                        <div className="flex flex-col h-[270px]">
                             <div className="flex-grow overflow-y-auto scrollbar-thin scrollbar-thumb-amber-500 scrollbar-track-amber-100">
                                 <table className="min-w-full divide-y divide-amber-200">
                                 <thead className="bg-gradient-to-r from-amber-500 to-yellow-500 sticky top-0 z-10">
                                         <tr>
                                         {[
-                                            'S.no', 'Token-no', 'Date', 'Time', 'weight',
+                                            'S.no', 'Token-no', 'Name', 'Date', 'Time', 'weight',
                                             'highest', 'H.weight', 'average', 'A.weight',
                                             'Gold-fineness', 'G.weight', 'ex-gold', 'ex.weight'
                                         ].map((header) => (
                                             <th
                                                 key={header}
-                                                className={`px-6 py-3 text-left text-sm font-medium text-white uppercase tracking-wider whitespace-nowrap ${header === 'ex.weight' ? 'sticky right-0 bg-gradient-to-r from-amber-500 to-yellow-500 shadow-[-4px_0_8px_-2px_rgba(0,0,0,0.1)]' : 'shadow-[-4px_0_8px_-2px_rgba(0,0,0,0.1)]'}`}
+                                                className={`px-6 py-3 text-left text-sm font-medium text-white uppercase tracking-wider whitespace-nowrap ${
+                                                    header === 'Name' ? 'hidden' : ''
+                                                } ${header === 'ex.weight' ? 'sticky right-0 bg-gradient-to-r from-amber-500 to-yellow-500 shadow-[-4px_0_8px_-2px_rgba(0,0,0,0.1)]' : 'shadow-[-4px_0_8px_-2px_rgba(0,0,0,0.1)]'}`}
                                             >
                                                 {header}
                                             </th>
@@ -237,6 +254,7 @@ const PureExchange = () => {
                                         >
                                             <td className="px-6 py-3 whitespace-nowrap text-sm text-amber-900">{row.id}</td>
                                             <td className="px-6 py-3 whitespace-nowrap text-sm font-medium text-amber-900">{row.tokenNo}</td>
+                                            <td className="hidden px-6 py-3 whitespace-nowrap text-sm text-amber-700">{row.name}</td>
                                             <td className="px-6 py-3 whitespace-nowrap text-sm text-amber-700">{row.date}</td>
                                             <td className="px-6 py-3 whitespace-nowrap text-sm text-amber-700">{row.time}</td>
                                             <td className="px-6 py-3 whitespace-nowrap text-sm text-amber-700">{row.weight}</td>
@@ -259,7 +277,13 @@ const PureExchange = () => {
                                         <tr>
                                             <td colSpan="12" className="px-6 py-3 text-right font-semibold text-amber-900">Total Exchange Weight:</td>
                                             <td className="px-6 py-3 whitespace-nowrap text-sm font-bold text-amber-900 sticky right-0 bg-amber-50 shadow-[-4px_0_8px_-2px_rgba(0,0,0,0.1)]">
-                                                {(parseFloat(tableData.reduce((total, row) => total + parseFloat(row.exWeight), 0).toFixed(2)) || 0).toFixed(3)}
+                                                {tableData.length > 0 ? 
+                                                    (tableData.reduce((total, row) => {
+                                                        const weight = parseFloat(row.weight);
+                                                        const exGold = parseFloat(row.exGold);
+                                                        return total + ((weight - 0.010) * exGold / 100);
+                                                    }, 0).toFixed(2) + '0') 
+                                                    : '0.000'}
                                             </td>
                                         </tr>
                                     </tfoot>
@@ -297,6 +321,14 @@ const PureExchange = () => {
                             </>
                         )}
                     </button>
+                    <ThermalPrinter data={{
+                        tokenNo: tableData.map(row => row.tokenNo),
+                        date: tableData.map(row => row.date),
+                        time: tableData.map(row => row.time),
+                        name: tableData.map(row => row.name),
+                        weight: tableData.map(row => row.weight),
+                        exGold: tableData.map(row => row.exGold),
+                    }} />
                 </div>
             </div>
         </div>
