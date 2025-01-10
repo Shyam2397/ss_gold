@@ -1,5 +1,6 @@
-import React from 'react';
-import { FiLoader, FiTrash2, FiAlertTriangle, FiX } from 'react-icons/fi';
+import React, { useState } from 'react';
+import { FiLoader, FiTrash2, FiAlertTriangle, FiX, FiEdit2 } from 'react-icons/fi';
+import EditExchangeModal from './EditExchangeModal';
 
 const ConfirmDialog = ({ isOpen, onClose, onConfirm, tokenNo, isDeleting }) => {
   // Handle escape key for closing dialog
@@ -63,29 +64,14 @@ const ConfirmDialog = ({ isOpen, onClose, onConfirm, tokenNo, isDeleting }) => {
             <button
               onClick={onClose}
               disabled={isDeleting}
-              className={`
-                px-4 py-2 rounded-md border border-gray-300
-                text-gray-700 bg-white
-                hover:bg-gray-50 hover:text-gray-900
-                focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500
-                transition-colors duration-200
-                ${isDeleting ? 'opacity-50 cursor-not-allowed' : ''}
-              `}
+              className={`px-4 py-2 rounded-md border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 transition-colors duration-200 ${isDeleting ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               Cancel
             </button>
             <button
               onClick={onConfirm}
               disabled={isDeleting}
-              className={`
-                px-4 py-2 rounded-md
-                text-white bg-red-500
-                hover:bg-red-600
-                focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500
-                transition-colors duration-200
-                flex items-center space-x-2
-                ${isDeleting ? 'opacity-80 cursor-not-allowed' : ''}
-              `}
+              className={`px-4 py-2 rounded-md text-white bg-red-500 hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors duration-200 flex items-center space-x-2 ${isDeleting ? 'opacity-80 cursor-not-allowed' : ''}`}
             >
               {isDeleting ? (
                 <>
@@ -174,10 +160,7 @@ const getColumnAlignment = (key) => {
 };
 
 const getTokenNumber = (exchange) => {
-  const tokenValue = exchange.tokenNo || exchange.token_no || '';
-  // Remove any non-digit characters and parse as integer
-  const tokenNumber = parseInt(tokenValue.toString().replace(/\D/g, ''));
-  return isNaN(tokenNumber) ? 0 : tokenNumber;
+  return exchange.tokenNo || '';
 };
 
 const formatValue = (value, key) => {
@@ -205,7 +188,19 @@ const filterColumns = (obj) => {
   return Object.keys(obj).filter(key => !excludedColumns.includes(key));
 };
 
-const ExchangeTable = ({ exchanges, loading, onDelete }) => {
+const ExchangeTable = ({ exchanges, loading, onDelete, onUpdate }) => {
+  const [selectedExchange, setSelectedExchange] = useState(null);
+  const columns = exchanges.length > 0 ? filterColumns(exchanges[0]) : [];
+  
+  const handleEdit = (exchange) => {
+    setSelectedExchange(exchange);
+  };
+
+  const handleSave = async (updatedData) => {
+    await onUpdate(selectedExchange.tokenNo, updatedData);
+    setSelectedExchange(null);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -222,16 +217,12 @@ const ExchangeTable = ({ exchanges, loading, onDelete }) => {
     );
   }
 
-  // Sort exchanges by token number in descending order
+  // Sort exchanges by token number
   const sortedExchanges = [...exchanges].sort((a, b) => {
     const tokenA = getTokenNumber(a);
     const tokenB = getTokenNumber(b);
-
-    if (tokenA === tokenB) return 0;
-    return tokenA > tokenB ? -1 : 1;
+    return tokenA.localeCompare(tokenB);
   });
-
-  const columns = filterColumns(exchanges[0]);
 
   return (
     <div className="h-full bg-white rounded-xl shadow-lg overflow-hidden">
@@ -259,15 +250,19 @@ const ExchangeTable = ({ exchanges, loading, onDelete }) => {
                   <tbody className="divide-y divide-amber-100">
                     {sortedExchanges.map((exchange, index) => (
                       <tr
-                        key={exchange.token_no || index}
-                        className="hover:bg-amber-50 transition-colors duration-200"
+                        key={exchange.id}
+                        className="hover:bg-amber-50"
                       >
                         <td className="px-6 py-3 text-center">
                           <div className="flex justify-center space-x-2">
-                            <DeleteButton 
-                              onDelete={onDelete} 
-                              tokenNo={exchange.tokenNo || exchange.token_no} 
-                            />
+                            <button
+                              onClick={() => handleEdit(exchange)}
+                              className="text-amber-600 hover:text-amber-800 transition-colors"
+                              title="Edit"
+                            >
+                              <FiEdit2 className="h-5 w-5" />
+                            </button>
+                            <DeleteButton onDelete={onDelete} tokenNo={getTokenNumber(exchange)} />
                           </div>
                         </td>
                         {columns.map((column) => (
@@ -287,6 +282,13 @@ const ExchangeTable = ({ exchanges, loading, onDelete }) => {
           </div>
         </div>
       </div>
+      {selectedExchange && (
+        <EditExchangeModal
+          exchange={selectedExchange}
+          onClose={() => setSelectedExchange(null)}
+          onSave={handleSave}
+        />
+      )}
     </div>
   );
 };

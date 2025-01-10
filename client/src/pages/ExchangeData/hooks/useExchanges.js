@@ -8,6 +8,15 @@ const useExchanges = () => {
   const [error, setError] = useState("");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
+
+  // Function to set messages with timeout
+  const setMessageWithTimeout = (setterFunction, message) => {
+    setterFunction(message);
+    setTimeout(() => {
+      setterFunction("");
+    }, 3000);
+  };
 
   const fetchExchanges = useCallback(async () => {
     setLoading(true);
@@ -115,28 +124,40 @@ const useExchanges = () => {
   }, [exchanges, fromDate, toDate]);
 
   const deleteExchange = async (tokenNo) => {
+    setLoading(true);
     try {
       if (!tokenNo) {
-        throw new Error('Invalid token number');
+        setMessageWithTimeout(setError, 'Invalid token number');
+        return false;
       }
 
       const response = await axios.delete(`${process.env.REACT_APP_API_URL}/pure-exchange/${tokenNo}`);
       
-      if (response.status === 200) {
-        await fetchExchanges();
+      if (response.data?.message) {
+        // Update local state
+        const updatedExchanges = exchanges.filter(exchange => exchange.tokenNo !== tokenNo);
+        setExchanges(updatedExchanges);
+        setFilteredExchanges(prev => prev.filter(exchange => exchange.tokenNo !== tokenNo));
+        
+        setMessageWithTimeout(setSuccessMessage, response.data.message);
         return true;
-      } else {
-        throw new Error(response.data?.message || 'Failed to delete exchange');
       }
+      
+      throw new Error('Failed to delete exchange');
     } catch (error) {
       console.error("Error deleting exchange:", error);
+      let errorMessage = 'Failed to delete exchange. Please try again.';
+      
       if (error.response?.status === 404) {
-        throw new Error(`Exchange with token ${tokenNo} not found`);
-      } else if (error.response?.data?.message) {
-        throw new Error(error.response.data.message);
-      } else {
-        throw new Error(error.message || 'Failed to delete exchange. Please try again.');
+        errorMessage = `Exchange with token ${tokenNo} not found`;
+      } else if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
       }
+      
+      setMessageWithTimeout(setError, errorMessage);
+      return false;
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -145,17 +166,50 @@ const useExchanges = () => {
     setToDate("");
   }, []);
 
+  const updateExchange = async (tokenNo, updatedData) => {
+    setLoading(true);
+    try {
+      await axios.put(
+        `${process.env.REACT_APP_API_URL}/pure-exchange/${tokenNo}`,
+        updatedData
+      );
+      
+      // Update local state
+      const updatedExchanges = exchanges.map(exchange => 
+        exchange.tokenNo === tokenNo ? { ...exchange, ...updatedData } : exchange
+      );
+      setExchanges(updatedExchanges);
+      
+      // Update filtered exchanges if needed
+      setFilteredExchanges(prev => 
+        prev.map(exchange => 
+          exchange.tokenNo === tokenNo ? { ...exchange, ...updatedData } : exchange
+        )
+      );
+
+      setMessageWithTimeout(setSuccessMessage, "Exchange updated successfully!");
+    } catch (error) {
+      console.error("Error updating exchange:", error);
+      setMessageWithTimeout(setError, "Failed to update exchange. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return {
     exchanges,
     filteredExchanges,
     loading,
     error,
+    successMessage,
     fromDate,
     toDate,
     setFromDate,
     setToDate,
     clearDates,
-    deleteExchange
+    deleteExchange,
+    updateExchange,
+    fetchExchanges
   };
 };
 

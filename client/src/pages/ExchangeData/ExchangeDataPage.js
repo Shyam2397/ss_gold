@@ -1,5 +1,5 @@
 import React from 'react';
-import { FiAlertCircle, FiX } from 'react-icons/fi';
+import { FiAlertCircle } from 'react-icons/fi';
 
 import useExchanges from './hooks/useExchanges';
 import DateInput from './components/DateInput';
@@ -11,12 +11,14 @@ const ExchangeDataPage = () => {
     filteredExchanges,
     loading,
     error,
+    successMessage,
     fromDate,
     toDate,
     setFromDate,
     setToDate,
     clearDates,
-    deleteExchange
+    deleteExchange,
+    updateExchange
   } = useExchanges();
 
   return (
@@ -27,17 +29,25 @@ const ExchangeDataPage = () => {
         <h1 className="text-4xl font-bold mb-4 sm:mb-0 bg-clip-text text-transparent bg-gradient-to-r from-[#391145] to-[#D3B04D]">
           Exchange Data
         </h1>
-        <ExportButton data={filteredExchanges} />
-      </div>
-
-      {error && (
+        {error && (
         <div
-          className="mb-6 p-4 bg-red-100 border-l-4 border-red-500 text-red-700 rounded-r flex items-center space-x-2"
+          className=" p-1 bg-red-100 border-l-4 border-red-500 text-red-700 rounded-r flex items-center space-x-2"
         >
           <FiAlertCircle className="h-5 w-5" />
           <span>{error}</span>
         </div>
       )}
+
+      {successMessage && (
+        <div
+          className=" p-1 bg-green-100 border-l-4 border-green-500 text-green-700 rounded-r flex items-center space-x-2"
+        >
+          <FiAlertCircle className="h-5 w-5" />
+          <span>{successMessage}</span>
+        </div>
+      )}
+        <ExportButton data={filteredExchanges} />
+      </div>
 
       <div className="mb-6 bg-white p-6 rounded-xl shadow-md">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
@@ -53,21 +63,23 @@ const ExchangeDataPage = () => {
               onChange={(e) => setToDate(e)}
             />
           </div>
-          <button
-            onClick={clearDates}
-            className="flex items-center justify-center gap-2 px-4 py-2 text-red-600 hover:text-red-700 transition-colors duration-200"
-          >
-            <FiX className="h-5 w-5" />
-            Clear Dates
-          </button>
+          <div className="flex items-center space-x-4 pl-10">
+            <button
+              onClick={clearDates}
+              className="px-4 py-2 text-sm text-amber-600 hover:text-amber-800 transition-colors"
+            >
+              Clear Dates
+            </button>
+          </div>
         </div>
       </div>
 
-      <div className="flex-1 min-h-0">
-        <ExchangeTable 
-          exchanges={filteredExchanges} 
-          loading={loading} 
-          onDelete={deleteExchange} 
+      <div className="flex-grow overflow-hidden">
+        <ExchangeTable
+          exchanges={filteredExchanges}
+          loading={loading}
+          onDelete={deleteExchange}
+          onUpdate={updateExchange}
         />
       </div>
     </div>
