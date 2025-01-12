@@ -168,11 +168,11 @@ const PureExchange = () => {
     };
 
     return (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
             
             {/* Form Section */}
-            <div className="bg-white rounded-xl shadow-sm p-6 border border-amber-100">
-                <div className="flex items-center justify-between mb-6">
+            <div className="bg-white rounded-xl shadow-sm p-4 border border-amber-100">
+                <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center">
                         <div
                             className="mr-3"
@@ -203,14 +203,14 @@ const PureExchange = () => {
                         name="tokenNo"
                         value={tokenNo}
                         onChange={(e) => setTokenNo(e.target.value)}
-                            className="w-1/2"
+                            className="w-3/4"
                     />
                     <FormInput
                         label="Point"
                         name="point"
                         value={point}
                         onChange={(e) => setPoint(e.target.value)}
-                            className="w-1/2"
+                            className=" w-2/4"
                         />
                         <button
                             onClick={handleAdd}
@@ -225,7 +225,7 @@ const PureExchange = () => {
                 {/* Table Section */}
                 <div className="overflow-hidden rounded-lg border border-amber-100">
                     <div className="overflow-x-auto">
-                        <div className="flex flex-col h-[270px]">
+                        <div className="flex flex-col h-[250px]">
                             <div className="flex-grow overflow-y-auto scrollbar-thin scrollbar-thumb-amber-500 scrollbar-track-amber-100">
                                 <table className="min-w-full divide-y divide-amber-200">
                                 <thead className="bg-gradient-to-r from-amber-500 to-yellow-500 sticky top-0 z-10">
