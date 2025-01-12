@@ -176,7 +176,7 @@ const MasterExpense = ({ isOpen, onClose }) => {
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
-                  className="p-2 bg-green-100 border border-green-400 text-green-700 rounded flex items-center gap-2"
+                  className="p-1 bg-green-100 border border-green-400 text-green-700 rounded flex items-center gap-2"
                 >
                   <FiAlertCircle className="w-5 h-5 flex-shrink-0" />
                   <span>{successMessage}</span>

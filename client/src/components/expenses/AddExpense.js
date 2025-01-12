@@ -1,19 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { format } from 'date-fns';
 import { FiX } from 'react-icons/fi';
 import axios from 'axios';
+import { format } from 'date-fns';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 const AddExpense = ({ isOpen, onClose }) => {
-  const [formData, setFormData] = useState({
+  const initialFormData = {
     date: format(new Date(), 'yyyy-MM-dd'),
     expenseType: '',
     amount: '',
     paidTo: '',
     payMode: '',
     remarks: ''
-  });
+  };
+
+  const [formData, setFormData] = useState(initialFormData);
 
   const [expenseTypes, setExpenseTypes] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -36,6 +38,14 @@ const AddExpense = ({ isOpen, onClose }) => {
 
   useEffect(() => {
     if (isOpen) {
+      setFormData({
+        date: format(new Date(), 'yyyy-MM-dd'),
+        expenseType: '',
+        amount: '',
+        paidTo: '',
+        payMode: '',
+        remarks: ''
+      });
       fetchExpenseTypes();
     }
   }, [isOpen]);
@@ -61,6 +71,7 @@ const AddExpense = ({ isOpen, onClose }) => {
         remarks: formData.remarks
       };
       await axios.post(`${API_BASE_URL}/api/expenses`, expenseData);
+      setFormData(initialFormData); // Reset form data after successful submission
       onClose();
     } catch (err) {
       console.error('Error submitting expense:', err);
@@ -71,6 +82,50 @@ const AddExpense = ({ isOpen, onClose }) => {
   };
 
   if (!isOpen) return null;
+
+  if (loading) {
+    return (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 bg-black bg-opacity-25 backdrop-blur-sm flex items-center justify-center z-50"
+      >
+        <motion.div
+          initial={{ scale: 0.95, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          exit={{ scale: 0.95, opacity: 0 }}
+          className="bg-white rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden"
+        >
+          <div className="p-6 text-center">
+            <div>Loading...</div>
+          </div>
+        </motion.div>
+      </motion.div>
+    );
+  }
+
+  if (error) {
+    return (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 bg-black bg-opacity-25 backdrop-blur-sm flex items-center justify-center z-50"
+      >
+        <motion.div
+          initial={{ scale: 0.95, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          exit={{ scale: 0.95, opacity: 0 }}
+          className="bg-white rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden"
+        >
+          <div className="p-6 text-center">
+            <div>Error: {error}</div>
+          </div>
+        </motion.div>
+      </motion.div>
+    );
+  }
 
   return (
     <motion.div

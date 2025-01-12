@@ -269,18 +269,18 @@ const ViewExpense = ({ isOpen, onClose }) => {
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.95, opacity: 0 }}
-            className="bg-white rounded-lg p-6 w-full max-w-md"
+            className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden"
           >
-            <h3 className="text-lg font-medium mb-4">Edit Expense</h3>
+            <div className="px-5 py-2 border-b border-gray-300 flex justify-between items-center bg-gradient-to-r from-yellow-400 to-yellow-500"><h3 className="text-lg font-medium">Edit Expense</h3></div>
             <form onSubmit={handleUpdate}>
-              <div className="space-y-4">
+              <div className="px-4 pt-4 space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Date</label>
                   <input
                     type="date"
                     value={editingExpense.date}
                     onChange={(e) => setEditingExpense({ ...editingExpense, date: e.target.value })}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-yellow-500 focus:ring-yellow-500"
+                    className="p-1 mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-yellow-500 focus:ring-yellow-500"
                     required
                   />
                 </div>
@@ -290,7 +290,7 @@ const ViewExpense = ({ isOpen, onClose }) => {
                     type="number"
                     value={editingExpense.amount}
                     onChange={(e) => setEditingExpense({ ...editingExpense, amount: e.target.value })}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-yellow-500 focus:ring-yellow-500"
+                    className="p-1 mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-yellow-500 focus:ring-yellow-500"
                     required
                   />
                 </div>
@@ -300,7 +300,7 @@ const ViewExpense = ({ isOpen, onClose }) => {
                     type="text"
                     value={editingExpense.paid_to}
                     onChange={(e) => setEditingExpense({ ...editingExpense, paid_to: e.target.value })}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-yellow-500 focus:ring-yellow-500"
+                    className="p-1 mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-yellow-500 focus:ring-yellow-500"
                   />
                 </div>
                 <div>
@@ -308,7 +308,7 @@ const ViewExpense = ({ isOpen, onClose }) => {
                   <select
                     value={editingExpense.pay_mode}
                     onChange={(e) => setEditingExpense({ ...editingExpense, pay_mode: e.target.value })}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-yellow-500 focus:ring-yellow-500"
+                    className="p-1 mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-yellow-500 focus:ring-yellow-500"
                     required
                   >
                     <option value="">Select</option>
@@ -324,12 +324,12 @@ const ViewExpense = ({ isOpen, onClose }) => {
                   <textarea
                     value={editingExpense.remarks}
                     onChange={(e) => setEditingExpense({ ...editingExpense, remarks: e.target.value })}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-yellow-500 focus:ring-yellow-500"
+                    className="p-1 mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-yellow-500 focus:ring-yellow-500"
                     rows="2"
                   />
                 </div>
               </div>
-              <div className="mt-5 flex justify-end space-x-3">
+              <div className="my-4 mx-4 flex justify-end space-x-3">
                 <button
                   type="button"
                   onClick={() => setEditingExpense(null)}
