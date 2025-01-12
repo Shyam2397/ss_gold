@@ -10,18 +10,20 @@ import {
   FiChevronRight,
   FiSettings,
   FiDollarSign,
+  FiBook,
 } from 'react-icons/fi';
 import { GiGoldBar } from 'react-icons/gi';
 import { GiTestTubes } from 'react-icons/gi';
 import AddExpense from '../expenses/AddExpense';
 import MasterExpense from '../expenses/MasterExpense';
 import ViewExpense from '../expenses/ViewExpense';
+import CashBook from '../cashbook/CashBook';
 
 const MenuItem = ({ icon: Icon, label, to, isActive, onClick }) => (
   <Link
     to={to}
     onClick={onClick}
-    className={`flex items-center space-x-2 px-4 py-2.5 rounded-lg transition-all duration-200 ${
+    className={`flex items-center space-x-2 px-4 py-1 rounded-lg transition-all duration-200 ${
       isActive
         ? 'bg-amber-100 text-amber-900'
         : 'text-gray-600 hover:bg-amber-50 hover:text-amber-900'
@@ -33,8 +35,8 @@ const MenuItem = ({ icon: Icon, label, to, isActive, onClick }) => (
 );
 
 const MenuSection = ({ title, children }) => (
-  <div className="py-4">
-    <h3 className="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+  <div className="py-1.5">
+    <h3 className="px-4 py-0.5 text-xs font-semibold text-gray-400 uppercase tracking-wider">
       {title}
     </h3>
     <nav className="space-y-1">{children}</nav>
@@ -48,6 +50,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
   const [showAddExpense, setShowAddExpense] = useState(false);
   const [showMasterExpense, setShowMasterExpense] = useState(false);
   const [showViewExpense, setShowViewExpense] = useState(false);
+  const [showCashBook, setShowCashBook] = useState(false);
 
   const isActive = (path) => location.pathname === path;
 
@@ -71,6 +74,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
     { icon: FiDollarSign, label: 'Add Expense', onClick: () => setShowAddExpense(true) },
     { icon: FiDollarSign, label: 'Master Expense', onClick: () => setShowMasterExpense(true) },
     { icon: FiDollarSign, label: 'View Expenses', onClick: () => setShowViewExpense(true) },
+    { icon: FiBook, label: 'Cash Book', onClick: () => setShowCashBook(true) },
   ];
 
   return (
@@ -94,7 +98,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
           <div className="space-y-1">
             <button
               onClick={() => setIsDataOpen(!isDataOpen)}
-              className="w-full flex items-center justify-between px-4 py-2.5 text-gray-600 hover:bg-amber-50 hover:text-amber-900 rounded-lg transition-all duration-200"
+              className="w-full flex items-center justify-between px-4 py-1 text-gray-600 hover:bg-amber-50 hover:text-amber-900 rounded-lg transition-all duration-200"
             >
               <div className="flex items-center space-x-2">
                 <FiDatabase className="h-5 w-5" />
@@ -128,7 +132,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
           <div className="space-y-1">
             <button
               onClick={() => setIsExpensesOpen(!isExpensesOpen)}
-              className="w-full flex items-center justify-between px-4 py-2.5 text-gray-600 hover:bg-amber-50 hover:text-amber-900 rounded-lg transition-all duration-200"
+              className="w-full flex items-center justify-between px-4 py-1 text-gray-600 hover:bg-amber-50 hover:text-amber-900 rounded-lg transition-all duration-200"
             >
               <div className="flex items-center space-x-2">
                 <FiDollarSign className="h-5 w-5" />
@@ -155,7 +159,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                     <button
                       key={item.label}
                       onClick={item.onClick}
-                      className="w-full flex items-center space-x-2 px-4 py-2.5 text-gray-600 hover:bg-amber-50 hover:text-amber-900 rounded-lg transition-all duration-200"
+                      className="w-full flex items-center space-x-2 px-4 py-1 text-gray-600 hover:bg-amber-50 hover:text-amber-900 rounded-lg transition-all duration-200"
                     >
                       <item.icon className="h-5 w-5" />
                       <span className="font-medium">{item.label}</span>
@@ -180,7 +184,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
         </div>
 
         {/* Version Info */}
-        <div className="mt-auto p-4 border-t border-amber-100">
+        <div className="mt-auto px-4 py-2 border-t border-amber-100">
           <div className="text-xs text-gray-500">
             <p>Version 1.0.0</p>
             <p className="mt-1"> 2024 SS Gold</p>
@@ -190,6 +194,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
       <AddExpense isOpen={showAddExpense} onClose={() => setShowAddExpense(false)} />
       <MasterExpense isOpen={showMasterExpense} onClose={() => setShowMasterExpense(false)} />
       <ViewExpense isOpen={showViewExpense} onClose={() => setShowViewExpense(false)} />
+      <CashBook isOpen={showCashBook} onClose={() => setShowCashBook(false)} />
       <MenuItem icon={FiCamera} label="Pure Exchange" to="/pure-exchange" isActive={location.pathname === '/pure-exchange'} />
     </div>
   );
