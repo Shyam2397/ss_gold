@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Search, RotateCcw, ArrowUpDown, FileSpreadsheet, Printer, Mail, X, ChevronDown } from 'lucide-react';
+import { Search, RotateCcw, ArrowUpDown, FileSpreadsheet, Printer, Mail, X } from 'lucide-react';
+import CashAdjustment from './CashAdjustment';
 
 function CashBook({ isOpen, onClose }) {
   const [dateRange, setDateRange] = useState({
@@ -7,7 +8,7 @@ function CashBook({ isOpen, onClose }) {
     to: '2025-01-04'
   });
 
-  const [transactions] = useState([
+  const [transactions, setTransactions] = useState([
     {
       id: 1,
       date: '2025-01-12',
@@ -33,6 +34,7 @@ function CashBook({ isOpen, onClose }) {
     netFlow: 0
   });
   const [activeTab, setActiveTab] = useState('categorywise');
+  const [showAdjustment, setShowAdjustment] = useState(false);
 
   useEffect(() => {
     const filtered = transactions.filter(transaction => {
@@ -97,6 +99,22 @@ function CashBook({ isOpen, onClose }) {
       default:
         break;
     }
+  };
+
+  const handleAdjustmentSave = (adjustmentData) => {
+    // Convert adjustment to transaction format
+    const transaction = {
+      id: Date.now(),
+      date: adjustmentData.date,
+      particulars: adjustmentData.remarks || 'Cash Adjustment',
+      type: adjustmentData.type === 'credit' ? 'Income' : 'Expense',
+      debit: adjustmentData.type === 'debit' ? adjustmentData.amount : 0,
+      credit: adjustmentData.type === 'credit' ? adjustmentData.amount : 0,
+      isAdjustment: true
+    };
+
+    setTransactions(prev => [...prev, transaction]);
+    setShowAdjustment(false);
   };
 
   if (!isOpen) return null;
@@ -170,7 +188,10 @@ function CashBook({ isOpen, onClose }) {
               </div>
 
               <div className="ml-auto">
-                <button className="bg-amber-500 hover:bg-amber-600 text-white px-4 py-1.5 rounded-lg flex items-center gap-2 text-sm font-medium transition-colors">
+                <button 
+                  onClick={() => setShowAdjustment(true)}
+                  className="bg-amber-500 hover:bg-amber-600 text-white px-4 py-1.5 rounded-lg flex items-center gap-2 text-sm font-medium transition-colors"
+                >
                   <ArrowUpDown size={16} />
                   Cash Adjustments
                 </button>
@@ -345,6 +366,11 @@ function CashBook({ isOpen, onClose }) {
           </div>
         </div>
       </div>
+      <CashAdjustment 
+        isOpen={showAdjustment}
+        onClose={() => setShowAdjustment(false)}
+        onSave={handleAdjustmentSave}
+      />
     </div>
   );
 }
