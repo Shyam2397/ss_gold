@@ -20,12 +20,14 @@ const MainLayout = ({ setLoggedIn }) => {
 
   return (
     <div className="flex h-screen bg-gray-50">
-      <div className={`transition-all duration-300 ease-in-out ${isSidebarOpen ? 'w-64' : 'w-0'}`}>
-        {isSidebarOpen && (
-          <Sidebar isOpen={isSidebarOpen} toggleSidebar={toggleSidebar} />
-        )}
-      </div>
+      {/* Sidebar */}
+      <Sidebar 
+        open={isSidebarOpen} 
+        setOpen={setIsSidebarOpen}
+        animate={true}
+      />
 
+      {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         <Navbar
           setLoggedIn={setLoggedIn}
