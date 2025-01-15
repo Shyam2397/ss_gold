@@ -11,6 +11,7 @@
     "axios": "^1.7.9",
     "blueimp-load-image": "^5.16.0",
     "body-parser": "^1.20.2",
+    "browser-image-compression": "^2.0.2",
     "chart.js": "^4.4.7",
     "clsx": "^2.1.1",
     "cors": "^2.8.5",
@@ -38,10 +39,11 @@
     "xlsx": "^0.18.5"
   },
   "scripts": {
-    "start": "react-scripts start",
+    "start": "set \"GENERATE_SOURCEMAP=false\" && react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "analyze": "source-map-explorer 'build/static/js/*.js'"
   },
   "eslintConfig": {
     "extends": [
@@ -62,6 +64,7 @@
     ]
   },
   "devDependencies": {
-    "concurrently": "^8.2.2"
+    "concurrently": "^8.2.2",
+    "source-map-explorer": "^2.5.3"
   }
 }
