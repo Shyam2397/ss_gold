@@ -11,7 +11,25 @@ root.render(
   </React.StrictMode>
 );
 
-// If you want to start measuring performance in your app, pass a function
-// to log results (for example: reportWebVitals(console.log))
-// or send to an analytics endpoint. Learn more: https://bit.ly/CRA-vitals
-reportWebVitals();
+// Performance monitoring
+reportWebVitals(metric => {
+  // Log performance metrics
+  console.log(metric);
+  
+  // You can send metrics to your analytics service here
+  if (metric.name === 'FCP') {
+    console.log('First Contentful Paint:', metric.value);
+  }
+  if (metric.name === 'LCP') {
+    console.log('Largest Contentful Paint:', metric.value);
+  }
+  if (metric.name === 'CLS') {
+    console.log('Cumulative Layout Shift:', metric.value);
+  }
+  if (metric.name === 'FID') {
+    console.log('First Input Delay:', metric.value);
+  }
+  if (metric.name === 'TTFB') {
+    console.log('Time to First Byte:', metric.value);
+  }
+});

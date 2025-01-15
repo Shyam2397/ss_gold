@@ -1,95 +1,66 @@
-import React, { Suspense } from "react";
-import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom";
-import Login from "./components/login/Login";
-import MainLayout from "./components/mainLayout/MainLayout";
+import React, { Suspense, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
+import Login from './components/login/Login';
+import MainLayout from './components/mainLayout/MainLayout';
+import LoadingSpinner from './components/common/LoadingSpinner';
+import ErrorBoundary from './components/common/ErrorBoundary';
+import { routes, preloadRoute } from './routes';
 
-// Lazy load all route components
-const Dashboard = React.lazy(() => import("./pages/Dashboard/Dashboard"));
-const NewEntries = React.lazy(() => import("./components/NewEntries/NewEntries"));
-const SkinTesting = React.lazy(() => import("./pages/SkinTesting"));
-const PhotoTesting = React.lazy(() => import("./pages/PhotoTesting"));
-const Token = React.lazy(() => import("./pages/Token/index"));
-const CustomerDataPage = React.lazy(() => import("./pages/CustomerData/CustomerDataPage"));
-const Tokendata = React.lazy(() => import("./pages/TokenData/TokenDataPage"));
-const Skintestdata = React.lazy(() => import("./pages/SkinTestData/SkinTestDataPage"));
-const PureExchange = React.lazy(() => import('./pages/PureExchange/PureExchange'));
-const ExchangeDataPage = React.lazy(() => import('./pages/ExchangeData/ExchangeDataPage'));
+// Prefetch component for route preloading
+const PreFetchComponent = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
 
-// Loading fallback component
-const LoadingFallback = () => (
-  <div className="flex items-center justify-center min-h-screen">
-    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-500"></div>
-  </div>
-);
+  useEffect(() => {
+    // Preload the next possible routes based on current location
+    routes.forEach(route => {
+      if (route.path !== location.pathname) {
+        const link = document.createElement('link');
+        link.rel = 'prefetch';
+        link.href = route.path;
+        document.head.appendChild(link);
+        
+        // Also preload the component
+        preloadRoute(route.path);
+      }
+    });
+  }, [location]);
+
+  return null;
+};
 
 const AppRoutes = ({ loggedIn, setLoggedIn }) => {
   const location = useLocation();
-  
+
   return (
-    <Routes location={location} key={location.pathname}>
-      <Route
-        path="/"
-        element={
-          loggedIn ? (
-            <MainLayout setLoggedIn={setLoggedIn} />
-          ) : (
-            <Login setLoggedIn={setLoggedIn} />
-          )
-        }
-      >
-        <Route path="/dashboard" element={
-          <Suspense fallback={<LoadingFallback />}>
-            <Dashboard />
-          </Suspense>
-        } />
-        <Route path="/entries" element={
-          <Suspense fallback={<LoadingFallback />}>
-            <NewEntries />
-          </Suspense>
-        } />
-        <Route path="/token" element={
-          <Suspense fallback={<LoadingFallback />}>
-            <Token />
-          </Suspense>
-        } />
-        <Route path="/skin-testing" element={
-          <Suspense fallback={<LoadingFallback />}>
-            <SkinTesting />
-          </Suspense>
-        } />
-        <Route path="/photo-testing" element={
-          <Suspense fallback={<LoadingFallback />}>
-            <PhotoTesting />
-          </Suspense>
-        } />
-        <Route path="/customer-data" element={
-          <Suspense fallback={<LoadingFallback />}>
-            <CustomerDataPage />
-          </Suspense>
-        } />
-        <Route path="/token-data" element={
-          <Suspense fallback={<LoadingFallback />}>
-            <Tokendata />
-          </Suspense>
-        } />
-        <Route path="/skintest-data" element={
-          <Suspense fallback={<LoadingFallback />}>
-            <Skintestdata />
-          </Suspense>
-        } />
-        <Route path="/pure-exchange" element={
-          <Suspense fallback={<LoadingFallback />}>
-            <PureExchange />
-          </Suspense>
-        } />
-        <Route path="/exchange-data" element={
-          <Suspense fallback={<LoadingFallback />}>
-            <ExchangeDataPage />
-          </Suspense>
-        } />
-        {/* Add more routes here */}
-      </Route>
-    </Routes>
+    <ErrorBoundary>
+      <Routes location={location} key={location.pathname}>
+        <Route
+          path="/"
+          element={
+            loggedIn ? (
+              <MainLayout setLoggedIn={setLoggedIn} />
+            ) : (
+              <Login setLoggedIn={setLoggedIn} />
+            )
+          }
+        >
+          {routes.map(({ path, component: Component }) => (
+            <Route
+              key={path}
+              path={path}
+              element={
+                <ErrorBoundary>
+                  <Suspense fallback={<LoadingSpinner />}>
+                    <Component />
+                  </Suspense>
+                </ErrorBoundary>
+              }
+            />
+          ))}
+        </Route>
+      </Routes>
+    </ErrorBoundary>
   );
 };
 
@@ -98,6 +69,7 @@ function App() {
 
   return (
     <Router>
+      <PreFetchComponent />
       <AppRoutes loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
     </Router>
   );
