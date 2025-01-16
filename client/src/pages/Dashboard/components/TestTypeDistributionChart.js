@@ -5,7 +5,7 @@ import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 // Register ChartJS components
 ChartJS.register(ArcElement, Tooltip, Legend);
 
-const TestTypeDistributionChart = ({ tokens, entries }) => {
+const TestTypeDistributionChart = ({ tokens, entries, width }) => {
   // Calculate test type distribution
   const testTypeDistribution = {
     'Skin Testing': 0,
@@ -50,18 +50,10 @@ const TestTypeDistributionChart = ({ tokens, entries }) => {
     maintainAspectRatio: false,
     plugins: {
       legend: {
-        position: 'bottom',
-        labels: {
-          boxWidth: 10,
-          boxHeight: 10,
-          usePointStyle: true,
-          pointStyle: 'circle',
-          color: '#4B5563',
-          padding: 15,
-          font: {
-            size: 12
-          }
-        }
+        position: 'top',
+      },
+      title: {
+        display: false
       },
       tooltip: {
         callbacks: {
@@ -77,7 +69,7 @@ const TestTypeDistributionChart = ({ tokens, entries }) => {
   };
 
   return (
-    <div className="h-[350px] w-full">
+    <div style={{ width: '100%', height: '100%' }}>
       <Pie data={chartData} options={chartOptions} />
     </div>
   );

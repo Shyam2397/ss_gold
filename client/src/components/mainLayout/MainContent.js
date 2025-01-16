@@ -8,11 +8,11 @@ const MainContent = () => {
   const location = useLocation();
   
   return (
-    <main className="h-full bg-gradient-to-br from-amber-50 to-yellow-100">
+    <main className="flex-1 min-h-screen bg-gradient-to-br from-amber-50 to-yellow-100 overflow-auto">
       <AnimatePresence mode="wait">
         <CurveTransition key={location.pathname} />
       </AnimatePresence>
-      <div className="container mx-auto py-6">
+      <div className="container mx-auto h-full">
         <Outlet />
       </div>
     </main>

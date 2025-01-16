@@ -50,137 +50,66 @@ const processMonthlyData = (tokens) => {
     monthlyData[monthKey].totalAmount += (token.amount || 0);
   });
   
-  return Object.entries(monthlyData)
-    .sort((a, b) => a[0].localeCompare(b[0]))
-    .slice(-6);
+  return monthlyData;
 };
 
-const MonthlyTestChart = ({ tokens }) => {
-  const processedData = processMonthlyData(tokens);
+const MonthlyTestChart = ({ tokens, width }) => {
+  const monthlyData = processMonthlyData(tokens);
+  const months = Object.keys(monthlyData).sort();
   
   const chartData = {
-    labels: processedData.map(([month]) => month),
+    labels: months,
     datasets: [
       {
-        label: 'Skin Test Count',
-        data: processedData.map(([, data]) => data.skinTestCount),
+        label: 'Skin Tests',
+        data: months.map(month => monthlyData[month].skinTestCount),
         borderColor: 'rgb(212, 175, 55)',
-        backgroundColor: 'rgba(212, 175, 55, 0.1)',
-        fill: {
-          target: 'origin',
-          above: 'rgba(212, 175, 55, 0.1)'
-        },
-        tension: 0.4,
-        borderWidth: 2,
-        pointRadius: 0,
-        pointHoverRadius: 4,
-        pointHoverBackgroundColor: 'rgb(212, 175, 55)',
-        pointHoverBorderColor: 'white',
-        pointHoverBorderWidth: 2
+        backgroundColor: 'rgba(212, 175, 55, 0.5)',
+        tension: 0.4
       },
       {
-        label: 'Photo Test Count',
-        data: processedData.map(([, data]) => data.photoTestCount),
+        label: 'Photo Tests',
+        data: months.map(month => monthlyData[month].photoTestCount),
         borderColor: 'rgb(184, 115, 51)',
-        backgroundColor: 'rgba(184, 115, 51, 0.1)',
-        fill: {
-          target: 'origin',
-          above: 'rgba(184, 115, 51, 0.1)'
-        },
-        tension: 0.4,
-        borderWidth: 2,
-        pointRadius: 0,
-        pointHoverRadius: 4,
-        pointHoverBackgroundColor: 'rgb(184, 115, 51)',
-        pointHoverBorderColor: 'white',
-        pointHoverBorderWidth: 2
-      },
-      {
-        label: 'Total Amount',
-        data: processedData.map(([, data]) => data.totalAmount),
-        borderColor: 'rgb(192, 192, 192)',
-        backgroundColor: 'rgba(192, 192, 192, 0.1)',
-        fill: {
-          target: 'origin',
-          above: 'rgba(192, 192, 192, 0.1)'
-        },
-        tension: 0.4,
-        borderWidth: 2,
-        pointRadius: 0,
-        pointHoverRadius: 4,
-        pointHoverBackgroundColor: 'rgb(192, 192, 192)',
-        pointHoverBorderColor: 'white',
-        pointHoverBorderWidth: 2
+        backgroundColor: 'rgba(184, 115, 51, 0.5)',
+        tension: 0.4
       }
     ]
   };
-  
+
   const chartOptions = {
     responsive: true,
     maintainAspectRatio: false,
     interaction: {
-      mode: 'nearest',
-      axis: 'x',
-      intersect: false
+      mode: 'index',
+      intersect: false,
+    },
+    plugins: {
+      legend: {
+        position: 'top',
+      },
+      title: {
+        display: false
+      }
     },
     scales: {
       y: {
         beginAtZero: true,
         grid: {
-          color: 'rgba(0, 0, 0, 0.04)',
-          drawBorder: false
-        },
-        ticks: {
-          color: '#6B7280',
-          padding: 10,
-          font: {
-            size: 11
-          }
-        },
-        border: {
-          display: false
+          drawBorder: false,
+          color: 'rgba(0, 0, 0, 0.1)'
         }
       },
       x: {
         grid: {
           display: false
-        },
-        ticks: {
-          color: '#6B7280',
-          padding: 10,
-          font: {
-            size: 11
-          }
-        },
-        border: {
-          display: false
         }
-      }
-    },
-    plugins: {
-      legend: {
-        position: 'top',
-        align: 'end',
-        labels: {
-          boxWidth: 10,
-          boxHeight: 10,
-          borderRadius: 5,
-          useBorderRadius: true,
-          color: '#4B5563',
-          padding: 15,
-          font: {
-            size: 12
-          }
-        }
-      },
-      title: {
-        display: false
       }
     }
   };
 
   return (
-    <div className="h-[350px] w-full">
+    <div style={{ width: '100%', height: '100%' }}>
       <Line data={chartData} options={chartOptions} />
     </div>
   );

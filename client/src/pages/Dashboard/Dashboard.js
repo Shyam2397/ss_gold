@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { 
   FiUsers, 
@@ -8,6 +8,10 @@ import {
 } from 'react-icons/fi';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, PointElement, LineElement, Title, Tooltip, Legend, ArcElement } from 'chart.js';
 import { Pie, Line } from 'react-chartjs-2';
+import toast, { Toaster } from 'react-hot-toast';
+import { format } from 'date-fns';
+
+const API_URL = 'http://localhost:5000';
 
 // Register ChartJS components
 ChartJS.register(
@@ -22,28 +26,29 @@ ChartJS.register(
   Legend
 );
 
-const API_URL = 'http://localhost:5000';
+const StatCard = ({ icon: Icon, title, value, trend, color }) => {
+  const trendClass = trend > 0 ? 'text-green-500' : 'text-red-500';
+  const trendAnimation = trend > 0 ? 'animate-bounce' : 'animate-pulse';
 
-const StatCard = ({ icon: Icon, title, value, trend, color }) => (
-  <div
-    className={`bg-white p-6 rounded-xl shadow-sm border border-${color}-100`}
-  >
-    <div className="flex items-center justify-between">
-      <div className={`p-2 rounded-lg bg-${color}-50`}>
-        <Icon className={`h-6 w-6 text-${color}-500`} />
+  return (
+    <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 transition-all duration-300 hover:shadow-lg">
+      <div className="flex items-center justify-between">
+        <div className={`p-2 rounded-lg bg-${color}-50`}>
+          <Icon className={`h-6 w-6 text-${color}-500`} />
+        </div>
+        {trend && (
+          <span className={`text-sm font-medium ${trendClass} ${trendAnimation}`}>
+            {trend > 0 ? '+' : ''}{trend}%
+          </span>
+        )}
       </div>
-      {trend && (
-        <span className={`text-sm font-medium ${trend > 0 ? 'text-green-500' : 'text-red-500'}`}>
-          {trend > 0 ? '+' : ''}{trend}%
-        </span>
-      )}
+      <h3 className="mt-4 text-2xl font-bold text-gray-900">{value}</h3>
+      <p className="mt-1 text-sm text-gray-500">{title}</p>
     </div>
-    <h3 className="mt-4 text-2xl font-bold text-gray-900">{value}</h3>
-    <p className="mt-1 text-sm text-gray-500">{title}</p>
-  </div>
-);
+  );
+};
 
-const MonthlyTestChart = ({ tokens }) => {
+const MonthlyTestChart = ({ tokens, width }) => {
   // Process tokens data to get monthly counts and amounts
   const processMonthlyData = (tokens) => {
     // Create a map to store monthly data
@@ -237,7 +242,7 @@ const MonthlyTestChart = ({ tokens }) => {
   );
 };
 
-const TestTypeDistributionChart = ({ tokens, entries }) => {
+const TestTypeDistributionChart = ({ tokens, entries, width }) => {
   // Process tokens to get test type distribution
   const processTestTypeDistribution = (tokens) => {
     const testTypeCounts = {
@@ -463,102 +468,130 @@ const TestTypeDistributionChart = ({ tokens, entries }) => {
   );
 };
 
+const ActivityFeed = ({ activities }) => (
+  <div className="bg-white p-6 rounded-xl shadow-sm">
+    <h2 className="text-lg font-semibold mb-4">Recent Activity</h2>
+    <div className="space-y-4">
+      {activities.map((activity, index) => (
+        <div key={index} className="flex items-start space-x-3 p-3 hover:bg-gray-50 rounded-lg transition-colors">
+          <div className={`p-2 rounded-full ${activity.iconBg}`}>
+            {activity.icon}
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-medium text-gray-900">{activity.message}</p>
+            <p className="text-xs text-gray-500">{format(new Date(activity.timestamp), 'MMM d, yyyy HH:mm')}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+);
+
 const Dashboard = () => {
-  const [stats, setStats] = useState([
-    { icon: FiUsers, title: 'Total Customers', value: '0', trend: 0, color: 'amber' },
-    { icon: FiTag, title: 'Active Tokens', value: '0', trend: 0, color: 'amber' },
-    { icon: FiActivity, title: 'Active Skin Testing', value: '0', trend: 0, color: 'amber' },
-    { icon: FiCamera, title: 'Active Photo Testing', value: '0', trend: 0, color: 'amber' },
-  ]);
-  const [tokens, setTokens] = useState([]);
-  const [entries, setEntries] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [data, setData] = useState(null);
+  const [activities, setActivities] = useState([]);
+  const containerRef = useRef(null);
+  const [containerWidth, setContainerWidth] = useState(0);
 
   useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        setLoading(true);
-        
-        // Fetch total customers
-        const customersResponse = await axios.get(`${API_URL}/entries`);
-        const totalCustomers = customersResponse.data.length;
-        setEntries(customersResponse.data);
-        
-        // Fetch tokens
-        const tokensResponse = await axios.get(`${API_URL}/tokens`);
-        const activeTokens = tokensResponse.data.length;
-        setTokens(tokensResponse.data);
-        
-        // Count active skin testing and photo testing from tokens
-        const activeSkinTests = tokensResponse.data.filter(token => token.test === 'Skin Testing').length;
-        const activePhotoTests = tokensResponse.data.filter(token => token.test === 'Photo Testing').length;
-        
-        // Update stats
-        setStats([
-          { icon: FiUsers, title: 'Total Customers', value: totalCustomers.toString(), trend: null, color: 'amber' },
-          { icon: FiTag, title: 'Active Tokens', value: activeTokens.toString(), trend: null, color: 'amber' },
-          { icon: FiActivity, title: 'Active Skin Testing', value: activeSkinTests.toString(), trend: null, color: 'amber' },
-          { icon: FiCamera, title: 'Active Photo Testing', value: activePhotoTests.toString(), trend: null, color: 'amber' },
-        ]);
-
-        setError(null);
-      } catch (err) {
-        console.error('Error fetching dashboard data:', err);
-        setError('Failed to fetch dashboard data');
-      } finally {
-        setLoading(false);
+    const updateWidth = () => {
+      if (containerRef.current) {
+        setContainerWidth(containerRef.current.offsetWidth);
       }
     };
 
-    fetchDashboardData();
+    updateWidth();
+    window.addEventListener('resize', updateWidth);
+
+    return () => window.removeEventListener('resize', updateWidth);
   }, []);
 
-  if (loading) {
-    return (
-      <div className="p-6">
-        <div className="text-center">Loading dashboard data...</div>
-      </div>
-    );
-  }
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        // Fetch entries
+        const entriesResponse = await axios.get(`${API_URL}/entries`);
+        const entries = entriesResponse.data;
 
-  if (error) {
-    return (
-      <div className="p-6">
-        <div className="text-red-500 text-center">{error}</div>
-      </div>
-    );
-  }
+        // Fetch tokens
+        const tokensResponse = await axios.get(`${API_URL}/tokens`);
+        const tokens = tokensResponse.data;
+
+        // Calculate stats
+        const totalUsers = entries.length;
+        const totalTests = tokens.length;
+        const activeTests = tokens.filter(token => !token.completed).length;
+
+        setData({
+          totalUsers,
+          totalTests,
+          activeTests,
+          tokens,
+          entries
+        });
+
+        toast.success('Dashboard data updated successfully');
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        toast.error('Failed to fetch dashboard data');
+      }
+    };
+
+    fetchData();
+
+    // Mock activity feed updates
+    const mockActivities = [
+      {
+        message: 'New test result uploaded',
+        timestamp: new Date(),
+        icon: <FiCamera className="text-blue-500" />,
+        iconBg: 'bg-blue-100'
+      },
+      {
+        message: 'Customer profile updated',
+        timestamp: new Date(Date.now() - 3600000), // 1 hour ago
+        icon: <FiUsers className="text-green-500" />,
+        iconBg: 'bg-green-100'
+      },
+      {
+        message: 'New test scheduled',
+        timestamp: new Date(Date.now() - 7200000), // 2 hours ago
+        icon: <FiTag className="text-yellow-500" />,
+        iconBg: 'bg-yellow-100'
+      }
+    ];
+    setActivities(mockActivities);
+  }, []);
+
+  const stats = [
+    { icon: FiUsers, title: 'Total Users', value: data?.totalUsers || 0, trend: 12, color: 'blue' },
+    { icon: FiTag, title: 'Total Tests', value: data?.totalTests || 0, trend: 8, color: 'green' },
+    { icon: FiActivity, title: 'Active Tests', value: data?.activeTests || 0, trend: -5, color: 'yellow' }
+  ];
 
   return (
-    <div className="p-6">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard Overview</h1>
-        <p className="text-sm text-gray-500">Welcome back! Here's what's happening today.</p>
-      </div>
-
+    <div ref={containerRef} className="min-h-screen p-6">
+      <Toaster position="top-right" />
+      
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
         {stats.map((stat, index) => (
-          <div
-            key={index}
-          >
-            <StatCard 
-              icon={stat.icon}
-              title={stat.title}
-              value={stat.value}
-              trend={stat.trend}
-              color={stat.color}
-            />
-          </div>
+          <StatCard key={index} {...stat} />
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Chart Sections */}
-        <MonthlyTestChart tokens={tokens} />
-        <TestTypeDistributionChart tokens={tokens} entries={entries} />
+      {/* Charts Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <div>
+          {data && <MonthlyTestChart tokens={data.tokens} width={containerWidth / 2} />}
+        </div>
+        <div>
+          {data && <TestTypeDistributionChart tokens={data.tokens} entries={data.entries} width={containerWidth / 2} />}
+        </div>
       </div>
+
+      {/* Activity Feed */}
+      <ActivityFeed activities={activities} />
     </div>
   );
 };
