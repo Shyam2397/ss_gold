@@ -56,26 +56,26 @@ const DashboardCard = ({ title, value, trend, icon: Icon, description, sparkline
       {/* Card content */}
       <div className="p-4 relative">
         <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-2 min-w-0 flex-1">
             <motion.div
               initial={{ scale: 1 }}
               animate={{ scale: isHovered ? 1.1 : 1 }}
               transition={{ duration: 0.2 }}
             >
               {Icon && (
-                <div className="p-1.5 rounded-lg bg-yellow-50">
+                <div className="p-1.5 rounded-lg bg-yellow-50 shrink-0">
                   <Icon className={`w-5 h-5 ${iconClassName}`} />
                 </div>
               )}
             </motion.div>
-            <h3 className="text-gray-600 text-xl whitespace-nowrap font-medium max-w-[100px]">{title}</h3>
+            <h3 className="text-gray-600 text-base sm:text-xl font-medium truncate overflow-hidden flex-1">{title}</h3>
           </div>
           
           {/* Trend indicator */}
           <motion.div
             className={`flex items-center px-2 py-0.5 rounded-full ${
               isPositive ? 'bg-yellow-50' : 'bg-red-50'
-            }`}
+            } ml-2 shrink-0`}
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.1 }}
@@ -105,10 +105,10 @@ const DashboardCard = ({ title, value, trend, icon: Icon, description, sparkline
         </div>
 
         {/* Value, description and sparkline */}
-        <div className="space-y-1">
-          <div className="flex items-center justify-between">
+        <div className="space-y-1 sm:space-y-2">
+          <div className="flex items-center justify-between flex-wrap sm:flex-nowrap gap-2">
             <motion.div
-              className={`text-2xl font-bold ${valueClassName}`}
+              className={`text-xl sm:text-2xl font-bold ${valueClassName}`}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
@@ -131,7 +131,7 @@ const DashboardCard = ({ title, value, trend, icon: Icon, description, sparkline
             </AnimatePresence>
           </div>
           <motion.p 
-            className="text-xs text-gray-500 truncate"
+            className="text-xs sm:text-sm text-gray-500 truncate max-w-full sm:max-w-[90%]"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.3 }}
@@ -265,31 +265,163 @@ function Dashboard() {
         setExpenses(expensesRes.data);
         
         // Update sparkline data
+        const last7Days = Array.from({length: 7}, (_, i) => {
+          const date = new Date();
+          date.setDate(date.getDate() - i);
+          return date.toLocaleDateString();
+        }).reverse();
+
+        // Helper function to calculate trend
+        const calculateTrend = (currentValue, previousValue) => {
+          return previousValue ? ((currentValue - previousValue) / previousValue) * 100 : 0;
+        };
+
+        // Calculate current and previous period values for trends
+        const currentMonth = new Date().getMonth();
+        const currentMonthRevenue = tokens
+          .filter(token => new Date(token.date).getMonth() === currentMonth)
+          .reduce((sum, token) => sum + (token.totalAmount || 0), 0);
+        
+        const lastMonthRevenue = tokens
+          .filter(token => new Date(token.date).getMonth() === currentMonth - 1)
+          .reduce((sum, token) => sum + (token.totalAmount || 0), 0);
+
+        const revenueGrowth = lastMonthRevenue ? 
+          ((currentMonthRevenue - lastMonthRevenue) / lastMonthRevenue) * 100 : 0;
+
+        // Calculate month-over-month growth for expenses, net profit, and profit margin
+        const currentMonthExpenses = expenses
+          .filter(expense => new Date(expense.date).getMonth() === currentMonth)
+          .reduce((sum, expense) => sum + expense.amount, 0);
+        
+        const lastMonthExpenses = expenses
+          .filter(expense => new Date(expense.date).getMonth() === currentMonth - 1)
+          .reduce((sum, expense) => sum + expense.amount, 0);
+
+        const expensesGrowth = lastMonthExpenses ? 
+          ((currentMonthExpenses - lastMonthExpenses) / lastMonthExpenses) * 100 : 0;
+
+        const currentMonthProfit = currentMonthRevenue - currentMonthExpenses;
+        const lastMonthProfit = lastMonthRevenue - lastMonthExpenses;
+        const profitGrowth = lastMonthProfit ? 
+          ((currentMonthProfit - lastMonthProfit) / lastMonthProfit) * 100 : 0;
+
+        const currentMonthMargin = currentMonthRevenue ? (currentMonthProfit / currentMonthRevenue) * 100 : 0;
+        const lastMonthMargin = lastMonthRevenue ? (lastMonthProfit / lastMonthRevenue) * 100 : 0;
+        const marginGrowth = lastMonthMargin ? 
+          ((currentMonthMargin - lastMonthMargin) / lastMonthMargin) * 100 : 0;
+
+        // Calculate customer trends
+        const currentPeriodCustomers = entriesData.filter(entry => 
+          new Date(entry.createdAt).getMonth() === currentMonth).length;
+        
+        const previousPeriodCustomers = entriesData.filter(entry => 
+          new Date(entry.createdAt).getMonth() === currentMonth - 1).length;
+
+        const customersTrend = calculateTrend(currentPeriodCustomers, previousPeriodCustomers);
+
+        // Calculate token trends
+        const currentPeriodTokens = processedTokens.filter(token => 
+          new Date(token.date).getMonth() === currentMonth).length;
+        
+        const previousPeriodTokens = processedTokens.filter(token => 
+          new Date(token.date).getMonth() === currentMonth - 1).length;
+
+        const tokensTrend = calculateTrend(currentPeriodTokens, previousPeriodTokens);
+
+        // Calculate exchange trends
+        const currentPeriodExchanges = exchangesData.filter(exchange => 
+          new Date(exchange.date.split('-').reverse().join('-')).getMonth() === currentMonth).length;
+        
+        const previousPeriodExchanges = exchangesData.filter(exchange => 
+          new Date(exchange.date.split('-').reverse().join('-')).getMonth() === currentMonth - 1).length;
+
+        const exchangesTrend = calculateTrend(currentPeriodExchanges, previousPeriodExchanges);
+
+        // Calculate exchange weight trends
+        const currentPeriodWeight = filteredExchanges
+          .filter(exchange => new Date(exchange.date.split('-').reverse().join('-')).getMonth() === currentMonth)
+          .reduce((sum, exchange) => sum + parseFloat(exchange.weight || '0'), 0);
+        
+        const previousPeriodWeight = filteredExchanges
+          .filter(exchange => new Date(exchange.date.split('-').reverse().join('-')).getMonth() === currentMonth - 1)
+          .reduce((sum, exchange) => sum + parseFloat(exchange.weight || '0'), 0);
+
+        const weightTrend = calculateTrend(currentPeriodWeight, previousPeriodWeight);
+
+        // Update sparkline data with proper calculations
         setSparklineData({
-          revenue: processedTokens.slice(-7).map(token => ({ 
-            value: token.totalAmount || 0,
-            date: new Date(token.date).toLocaleDateString()
+          revenue: last7Days.map(date => {
+            const dayTokens = processedTokens.filter(token => 
+              new Date(token.date).toLocaleDateString() === date);
+            return {
+              value: dayTokens.reduce((sum, token) => sum + (token.totalAmount || 0), 0),
+              date
+            };
+          }),
+          expenses: last7Days.map(date => {
+            const dayExpenses = expensesRes.data.filter(expense => 
+              new Date(expense.date).toLocaleDateString() === date);
+            return {
+              value: dayExpenses.reduce((sum, expense) => sum + expense.amount, 0),
+              date
+            };
+          }),
+          profit: last7Days.map(date => {
+            const dayRevenue = processedTokens
+              .filter(token => new Date(token.date).toLocaleDateString() === date)
+              .reduce((sum, token) => sum + (token.totalAmount || 0), 0);
+            const dayExpenses = expensesRes.data
+              .filter(expense => new Date(expense.date).toLocaleDateString() === date)
+              .reduce((sum, expense) => sum + expense.amount, 0);
+            return {
+              value: dayRevenue - dayExpenses,
+              date
+            };
+          }),
+          margin: last7Days.map(date => {
+            const dayRevenue = processedTokens
+              .filter(token => new Date(token.date).toLocaleDateString() === date)
+              .reduce((sum, token) => sum + (token.totalAmount || 0), 0);
+            const dayExpenses = expensesRes.data
+              .filter(expense => new Date(expense.date).toLocaleDateString() === date)
+              .reduce((sum, expense) => sum + expense.amount, 0);
+            const dayProfit = dayRevenue - dayExpenses;
+            return {
+              value: dayRevenue ? (dayProfit / dayRevenue) * 100 : 0,
+              date
+            };
+          }),
+          customers: last7Days.map(date => ({
+            value: entriesData.filter(entry => 
+              new Date(entry.createdAt).toLocaleDateString() <= date).length,
+            date
           })),
-          expenses: expensesRes.data.slice(-7).map(expense => ({ 
-            value: expense.amount,
-            date: new Date(expense.date).toLocaleDateString()
+          skinTests: last7Days.map(date => ({
+            value: processedTokens
+              .filter(token => 
+                new Date(token.date).toLocaleDateString() <= date && 
+                token.test === 'Skin Testing'
+              ).length,
+            date
           })),
-          customers: entriesData.slice(-7).map((_, index, array) => ({ 
-            value: array.slice(0, index + 1).length,
-            date: new Date(array[index].createdAt).toLocaleDateString()
+          photoTests: last7Days.map(date => ({
+            value: processedTokens
+              .filter(token => 
+                new Date(token.date).toLocaleDateString() <= date && 
+                token.test === 'Photo Testing'
+              ).length,
+            date
           })),
-          skinTests: processedTokens.slice(-7).map((_, index, array) => ({
-            value: array.slice(0, index + 1).filter(token => token.test === 'Skin Testing').length,
-            date: new Date(array[index].date).toLocaleDateString()
-          })),
-          photoTests: processedTokens.slice(-7).map((_, index, array) => ({
-            value: array.slice(0, index + 1).filter(token => token.test === 'Photo Testing').length,
-            date: new Date(array[index].date).toLocaleDateString()
-          })),
-          weights: processedTokens.slice(-7).map(token => ({
-            value: parseFloat(token.weight || '0'),
-            date: new Date(token.date).toLocaleDateString()
-          }))
+          weights: last7Days.map(date => {
+            const dayExchanges = exchangesData.filter(exchange => 
+              new Date(exchange.date.split('-').reverse().join('-')).toLocaleDateString() === date);
+            return {
+              value: dayExchanges.reduce((sum, exchange) => 
+                sum + parseFloat(exchange.weight || '0'), 0),
+              date
+            };
+          })
         });
 
         // Calculate today's total
@@ -346,8 +478,10 @@ function Dashboard() {
   const netProfit = totalRevenue - totalExpenses;
   const profitMargin = totalRevenue ? ((netProfit / totalRevenue) * 100).toFixed(2) : 0;
 
-  // Calculate month-over-month growth for trend
+  // Calculate month-over-month growth for trends
   const currentMonth = new Date().getMonth();
+  
+  // Revenue trend calculation
   const currentMonthRevenue = tokens
     .filter(token => new Date(token.date).getMonth() === currentMonth)
     .reduce((sum, token) => sum + (token.totalAmount || 0), 0);
@@ -358,6 +492,72 @@ function Dashboard() {
 
   const revenueGrowth = lastMonthRevenue ? 
     ((currentMonthRevenue - lastMonthRevenue) / lastMonthRevenue) * 100 : 0;
+
+  // Expenses trend calculation
+  const currentMonthExpenses = expenses
+    .filter(expense => new Date(expense.date).getMonth() === currentMonth)
+    .reduce((sum, expense) => sum + expense.amount, 0);
+  
+  const lastMonthExpenses = expenses
+    .filter(expense => new Date(expense.date).getMonth() === currentMonth - 1)
+    .reduce((sum, expense) => sum + expense.amount, 0);
+
+  const expensesGrowth = lastMonthExpenses ? 
+    ((currentMonthExpenses - lastMonthExpenses) / lastMonthExpenses) * 100 : 0;
+
+  // Net Profit trend calculation
+  const currentMonthProfit = currentMonthRevenue - currentMonthExpenses;
+  const lastMonthProfit = lastMonthRevenue - lastMonthExpenses;
+  const profitGrowth = lastMonthProfit ? 
+    ((currentMonthProfit - lastMonthProfit) / lastMonthProfit) * 100 : 0;
+
+  // Profit Margin trend calculation
+  const currentMonthMargin = currentMonthRevenue ? (currentMonthProfit / currentMonthRevenue) * 100 : 0;
+  const lastMonthMargin = lastMonthRevenue ? (lastMonthProfit / lastMonthRevenue) * 100 : 0;
+  const marginGrowth = lastMonthMargin ? 
+    ((currentMonthMargin - lastMonthMargin) / lastMonthMargin) * 100 : 0;
+
+  // Customer trends
+  const currentPeriodCustomers = entries.filter(entry => 
+    new Date(entry.createdAt).getMonth() === currentMonth).length;
+  
+  const previousPeriodCustomers = entries.filter(entry => 
+    new Date(entry.createdAt).getMonth() === currentMonth - 1).length;
+
+  const customersTrend = previousPeriodCustomers ? 
+    ((currentPeriodCustomers - previousPeriodCustomers) / previousPeriodCustomers) * 100 : 0;
+
+  // Token trends
+  const currentPeriodTokens = tokens.filter(token => 
+    new Date(token.date).getMonth() === currentMonth).length;
+  
+  const previousPeriodTokens = tokens.filter(token => 
+    new Date(token.date).getMonth() === currentMonth - 1).length;
+
+  const tokensTrend = previousPeriodTokens ? 
+    ((currentPeriodTokens - previousPeriodTokens) / previousPeriodTokens) * 100 : 0;
+
+  // Exchange trends
+  const currentPeriodExchanges = exchanges.filter(exchange => 
+    new Date(exchange.date.split('-').reverse().join('-')).getMonth() === currentMonth).length;
+  
+  const previousPeriodExchanges = exchanges.filter(exchange => 
+    new Date(exchange.date.split('-').reverse().join('-')).getMonth() === currentMonth - 1).length;
+
+  const exchangesTrend = previousPeriodExchanges ? 
+    ((currentPeriodExchanges - previousPeriodExchanges) / previousPeriodExchanges) * 100 : 0;
+
+  // Weight trends
+  const currentPeriodWeight = exchanges
+    .filter(exchange => new Date(exchange.date.split('-').reverse().join('-')).getMonth() === currentMonth)
+    .reduce((sum, exchange) => sum + parseFloat(exchange.weight || '0'), 0);
+  
+  const previousPeriodWeight = exchanges
+    .filter(exchange => new Date(exchange.date.split('-').reverse().join('-')).getMonth() === currentMonth - 1)
+    .reduce((sum, exchange) => sum + parseFloat(exchange.weight || '0'), 0);
+
+  const weightTrend = previousPeriodWeight ? 
+    ((currentPeriodWeight - previousPeriodWeight) / previousPeriodWeight) * 100 : 0;
 
   if (loading) {
     return (
@@ -438,7 +638,7 @@ function Dashboard() {
         <DashboardCard 
           title="Total Expenses" 
           value={`₹${totalExpenses.toLocaleString()}`}
-          trend={-5.2}
+          trend={expensesGrowth}
           icon={ScaleIcon}
           description="Total expenses this month"
           sparklineData={sparklineData.expenses}
@@ -449,7 +649,7 @@ function Dashboard() {
         <DashboardCard 
           title="Net Profit" 
           value={`₹${netProfit.toLocaleString()}`}
-          trend={8.7}
+          trend={profitGrowth}
           icon={ReceiptPercentIcon}
           description="Net profit this month"
           sparklineData={sparklineData.profit}
@@ -460,7 +660,7 @@ function Dashboard() {
         <DashboardCard 
           title="Profit Margin" 
           value={`${profitMargin}%`}
-          trend={1.5}
+          trend={marginGrowth}
           icon={UserGroupIcon}
           description="Current profit margin"
           sparklineData={sparklineData.margin}
@@ -471,7 +671,7 @@ function Dashboard() {
         <DashboardCard 
           title="Customers" 
           value={metrics.totalCustomers.toString()}
-          trend={2.5}
+          trend={customersTrend}
           icon={UserGroupIcon}
           description="Total number of customers"
           sparklineData={sparklineData.customers}
@@ -500,7 +700,7 @@ function Dashboard() {
               </div>
             </div>
           }
-          trend={4.3}
+          trend={tokensTrend}
           icon={BeakerIcon}
           description="Test-wise token breakdown"
           sparklineData={sparklineData.skinTests}
@@ -511,7 +711,7 @@ function Dashboard() {
         <DashboardCard 
           title="Total Exchange" 
           value={metrics.totalExchanges.toString()}
-          trend={1.8}
+          trend={exchangesTrend}
           icon={ScaleIcon}
           description="Total number of exchanges"
           sparklineData={sparklineData.weights}
@@ -527,7 +727,7 @@ function Dashboard() {
               <span>ExWeight: {(metrics.totalExWeight || 0).toFixed(3)} g</span>
             </div>
           }
-          trend={3.2}
+          trend={weightTrend}
           icon={ArrowsRightLeftIcon}
           description="Exchange weights breakdown"
           sparklineData={sparklineData.weights}
