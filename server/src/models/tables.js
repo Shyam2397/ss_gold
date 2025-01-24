@@ -1,237 +1,249 @@
-const db = require('../config/database');
+const { pool } = require('../config/database');
 
-const createSkinTestsTable = () => {
-  return new Promise((resolve, reject) => {
-    const createTableSQL = `
-      CREATE TABLE IF NOT EXISTS skin_tests (
-        tokenNo TEXT PRIMARY KEY,
-        date TEXT,
-        time TEXT,
-        name TEXT,
-        weight TEXT,
-        sample TEXT,
-        highest TEXT,
-        average TEXT,
-        gold_fineness TEXT,
-        karat TEXT,
-        silver TEXT,
-        copper TEXT,
-        zinc TEXT,
-        cadmium TEXT,
-        nickel TEXT,
-        tungsten TEXT,
-        iridium TEXT,
-        ruthenium TEXT,
-        osmium TEXT,
-        rhodium TEXT,
-        rhenium TEXT,
-        indium TEXT,
-        titanium TEXT,
-        palladium TEXT,
-        platinum TEXT,
-        others TEXT,
-        remarks TEXT,
-        code TEXT
-      )
-    `;
+const createSkinTestsTable = async () => {
+  const createTableSQL = `
+    CREATE TABLE IF NOT EXISTS skin_tests (
+      tokenNo TEXT PRIMARY KEY,
+      date TEXT,
+      time TEXT,
+      name TEXT,
+      weight TEXT,
+      sample TEXT,
+      highest TEXT,
+      average TEXT,
+      gold_fineness TEXT,
+      karat TEXT,
+      silver TEXT,
+      copper TEXT,
+      zinc TEXT,
+      cadmium TEXT,
+      nickel TEXT,
+      tungsten TEXT,
+      iridium TEXT,
+      ruthenium TEXT,
+      osmium TEXT,
+      rhodium TEXT,
+      rhenium TEXT,
+      indium TEXT,
+      titanium TEXT,
+      palladium TEXT,
+      platinum TEXT,
+      others TEXT,
+      remarks TEXT,
+      code TEXT
+    )
+  `;
+  
+  try {
+    await pool.query(createTableSQL);
+  } catch (err) {
+    throw err;
+  }
+};
+
+const resetSkinTestsTable = async () => {
+  const createTableSQL = `
+    CREATE TABLE IF NOT EXISTS skin_tests (
+      tokenNo TEXT PRIMARY KEY,
+      date TEXT,
+      time TEXT,
+      name TEXT,
+      weight TEXT,
+      sample TEXT,
+      highest TEXT,
+      average TEXT,
+      gold_fineness TEXT,
+      karat TEXT,
+      silver TEXT,
+      copper TEXT,
+      zinc TEXT,
+      cadmium TEXT,
+      nickel TEXT,
+      tungsten TEXT,
+      iridium TEXT,
+      ruthenium TEXT,
+      osmium TEXT,
+      rhodium TEXT,
+      rhenium TEXT,
+      indium TEXT,
+      titanium TEXT,
+      palladium TEXT,
+      platinum TEXT,
+      others TEXT,
+      remarks TEXT,
+      code TEXT
+    )
+  `;
+  
+  try {
+    await pool.query('DROP TABLE IF EXISTS skin_tests');
+    await pool.query(createTableSQL);
+  } catch (err) {
+    throw err;
+  }
+};
+
+const createExpenseMasterTable = async () => {
+  const createTableSQL = `
+    CREATE TABLE IF NOT EXISTS expense_master (
+      id SERIAL PRIMARY KEY,
+      expense_name TEXT NOT NULL UNIQUE,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )
+  `;
+
+  try {
+    await pool.query(createTableSQL);
+    console.log('expense_master table created successfully');
+  } catch (err) {
+    console.error('Error creating expense_master table:', err);
+    throw err;
+  }
+};
+
+const createExpensesTable = async () => {
+  const createTableSQL = `
+    CREATE TABLE IF NOT EXISTS expenses (
+      id SERIAL PRIMARY KEY,
+      date TEXT NOT NULL,
+      expense_type TEXT NOT NULL,
+      amount DECIMAL(10,2) NOT NULL,
+      paid_to TEXT,
+      pay_mode TEXT,
+      remarks TEXT,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )
+  `;
+
+  try {
+    await pool.query(createTableSQL);
+    console.log('expenses table created successfully');
+  } catch (err) {
+    console.error('Error creating expenses table:', err);
+    throw err;
+  }
+};
+
+const createPureExchangeTable = async () => {
+  const createTableSQL = `
+    CREATE TABLE IF NOT EXISTS pure_exchange (
+      tokenNo TEXT PRIMARY KEY,
+      date TEXT,
+      time TEXT,
+      weight TEXT,
+      highest TEXT,
+      hWeight TEXT,
+      average TEXT,
+      aWeight TEXT,
+      goldFineness TEXT,
+      gWeight TEXT,
+      exGold TEXT,
+      exWeight TEXT
+    )
+  `;
+  
+  try {
+    await pool.query(createTableSQL);
+  } catch (err) {
+    throw err;
+  }
+};
+
+const createUsersTable = async () => {
+  const createTableSQL = `
+    CREATE TABLE IF NOT EXISTS users (
+      id SERIAL PRIMARY KEY,
+      username VARCHAR(50) UNIQUE NOT NULL,
+      password VARCHAR(255) NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `;
+  
+  try {
+    await pool.query(createTableSQL);
     
-    db.run(createTableSQL, (err) => {
-      if (err) {
-        reject(err);
-        return;
-      }
-      resolve();
-    });
-  });
-};
-
-const resetSkinTestsTable = () => {
-  return new Promise((resolve, reject) => {
-    const createTableSQL = `
-      CREATE TABLE IF NOT EXISTS skin_tests (
-        tokenNo TEXT PRIMARY KEY,
-        date TEXT,
-        time TEXT,
-        name TEXT,
-        weight TEXT,
-        sample TEXT,
-        highest TEXT,
-        average TEXT,
-        gold_fineness TEXT,
-        karat TEXT,
-        silver TEXT,
-        copper TEXT,
-        zinc TEXT,
-        cadmium TEXT,
-        nickel TEXT,
-        tungsten TEXT,
-        iridium TEXT,
-        ruthenium TEXT,
-        osmium TEXT,
-        rhodium TEXT,
-        rhenium TEXT,
-        indium TEXT,
-        titanium TEXT,
-        palladium TEXT,
-        platinum TEXT,
-        others TEXT,
-        remarks TEXT,
-        code TEXT
-      )
-    `;
-    db.serialize(() => {
-      db.run("DROP TABLE IF EXISTS skin_tests")
-        .run(createTableSQL, (err) => {
-          if (err) {
-            reject(err);
-            return;
-          }
-          resolve();
-        });
-    });
-  });
-};
-
-const createExpenseMasterTable = () => {
-  return new Promise((resolve, reject) => {
-    const createTableSQL = `
-      CREATE TABLE IF NOT EXISTS expense_master (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        expense_name TEXT NOT NULL UNIQUE,
-        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-        updated_at TEXT DEFAULT CURRENT_TIMESTAMP
-      )
-    `;
-
-    db.run(createTableSQL, (err) => {
-      if (err) {
-        console.error('Error creating expense_master table:', err);
-        reject(err);
-      } else {
-        console.log('expense_master table created successfully');
-        resolve();
-      }
-    });
-  });
-};
-
-const createExpensesTable = () => {
-  return new Promise((resolve, reject) => {
-    const createTableSQL = `
-      CREATE TABLE IF NOT EXISTS expenses (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        date TEXT NOT NULL,
-        expense_type TEXT NOT NULL,
-        amount REAL NOT NULL,
-        paid_to TEXT,
-        pay_mode TEXT,
-        remarks TEXT,
-        created_at TEXT DEFAULT CURRENT_TIMESTAMP
-      )
-    `;
-
-    db.run(createTableSQL, (err) => {
-      if (err) {
-        console.error('Error creating expenses table:', err);
-        reject(err);
-      } else {
-        console.log('expenses table created successfully');
-        resolve();
-      }
-    });
-  });
-};
-
-const createPureExchangeTable = () => {
-  return new Promise((resolve, reject) => {
-    const createTableSQL = `
-      CREATE TABLE IF NOT EXISTS pure_exchange (
-        tokenNo TEXT PRIMARY KEY,
-        date TEXT,
-        time TEXT,
-        weight TEXT,
-        highest TEXT,
-        hWeight TEXT,
-        average TEXT,
-        aWeight TEXT,
-        goldFineness TEXT,
-        gWeight TEXT,
-        exGold TEXT,
-        exWeight TEXT
-      )
-    `;
+    // Check if admin user exists
+    const adminCheck = await pool.query(
+      "SELECT * FROM users WHERE username = 'admin'"
+    );
     
-    db.run(createTableSQL, (err) => {
-      if (err) {
-        reject(err);
-        return;
-      }
-      resolve();
-    });
-  });
+    // If admin doesn't exist, create it
+    if (adminCheck.rows.length === 0) {
+      const bcrypt = require('bcrypt');
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash('admin123', salt);
+      
+      await pool.query(
+        "INSERT INTO users (username, password) VALUES ($1, $2)",
+        ['admin', hashedPassword]
+      );
+      console.log(' Admin user created');
+    }
+  } catch (err) {
+    console.error('Error creating users table:', err);
+    throw err;
+  }
+};
+
+const createEntriesTable = async () => {
+  const createTableSQL = `
+    CREATE TABLE IF NOT EXISTS entries (
+      id SERIAL PRIMARY KEY,
+      code VARCHAR(50) UNIQUE NOT NULL,
+      name VARCHAR(100) NOT NULL,
+      phoneNumber VARCHAR(20) UNIQUE NOT NULL,
+      place VARCHAR(100) NOT NULL,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )
+  `;
+  
+  try {
+    await pool.query(createTableSQL);
+    console.log(' Entries table created successfully');
+  } catch (err) {
+    console.error('Error creating entries table:', err);
+    throw err;
+  }
+};
+
+const createTokensTable = async () => {
+  const createTableSQL = `
+    CREATE TABLE IF NOT EXISTS tokens (
+      id SERIAL PRIMARY KEY,
+      tokenNo TEXT UNIQUE,
+      date TEXT,
+      time TEXT,
+      code TEXT,
+      name TEXT,
+      test TEXT,
+      weight TEXT,
+      sample TEXT,
+      amount TEXT
+    )
+  `;
+  
+  try {
+    await pool.query(createTableSQL);
+  } catch (err) {
+    throw err;
+  }
 };
 
 const initializeTables = async () => {
   try {
+    await createUsersTable();
     await createSkinTestsTable();
     await createExpenseMasterTable();
     await createExpensesTable();
     await createPureExchangeTable();
-    console.log('All tables initialized successfully');
-
-    // Create users table
-    db.run(`
-      CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        username TEXT UNIQUE NOT NULL,
-        password TEXT NOT NULL
-      )
-    `);
-
-    // Create default admin user if no users exist
-    db.get("SELECT COUNT(*) as count FROM users", [], (err, row) => {
-      if (!err && row.count === 0) {
-        db.run(
-          "INSERT INTO users (username, password) VALUES (?, ?)",
-          ["admin", "admin123"],
-          (err) => {
-            if (err) {
-              console.error("Failed to create default admin user:", err);
-            }
-          }
-        );
-      }
-    });
-
-    // Create entries table
-    db.run(`
-      CREATE TABLE IF NOT EXISTS entries (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        phoneNumber TEXT NOT NULL,
-        code TEXT NOT NULL,
-        place TEXT NOT NULL
-      )
-    `);
-
-    // Create tokens table
-    db.run(`
-      CREATE TABLE IF NOT EXISTS tokens (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        tokenNo TEXT UNIQUE,
-        date TEXT,
-        time TEXT,
-        code TEXT,
-        name TEXT,
-        test TEXT,
-        weight TEXT,
-        sample TEXT,
-        amount TEXT
-      )
-    `);
-  } catch (error) {
-    console.error('Error initializing tables:', error);
-    throw error;
+    await createTokensTable();
+    await createEntriesTable();
+    console.log(' All tables initialized successfully');
+  } catch (err) {
+    console.error('Error initializing tables:', err);
+    throw err;
   }
 };
 
@@ -241,5 +253,8 @@ module.exports = {
   createExpenseMasterTable,
   createExpensesTable,
   createPureExchangeTable,
+  createTokensTable,
+  createEntriesTable,
+  createUsersTable,
   initializeTables
 };

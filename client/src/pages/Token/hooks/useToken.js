@@ -83,7 +83,7 @@ const useToken = () => {
   const fetchNameByCode = async (code) => {
     try {
       const response = await axios.get(`${API_URL}/entries/${code}`);
-      return response.data.name || 'Not Found';
+      return response.data.data?.name || 'Not Found';
     } catch (error) {
       console.error('Error fetching name by code:', error);
       setError('Failed to fetch name');

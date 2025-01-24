@@ -1,42 +1,48 @@
-const db = require('../config/database');
+const pool = require('../config/database');
 const { handleDatabaseError } = require('../middleware/errorHandler');
 const { resetSkinTestsTable } = require('../models/tables');
 
-const getAllSkinTests = (req, res) => {
-  db.all("SELECT * FROM skin_tests ORDER BY tokenNo DESC", [], (err, rows) => {
-    if (err) return handleDatabaseError(err, res);
+const getAllSkinTests = async (req, res) => {
+  try {
+    const skinTestsResult = await pool.query(
+      "SELECT * FROM skin_tests ORDER BY tokenNo DESC"
+    );
     
-    const processedRows = rows.map(row => {
-      return new Promise((resolve, reject) => {
-        db.get("SELECT phoneNumber FROM entries WHERE code = ?", [row.code], (err, entryRow) => {
-          if (err) {
-            resolve({ ...row, phoneNumber: null });
-          } else {
-            resolve({ 
-              ...row, 
-              phoneNumber: entryRow ? entryRow.phoneNumber : null 
-            });
-          }
-        });
-      });
-    });
-
-    Promise.all(processedRows)
-      .then(finalRows => {
-        res.json({ data: finalRows });
+    const processedRows = await Promise.all(
+      skinTestsResult.rows.map(async (row) => {
+        try {
+          const entryResult = await pool.query(
+            "SELECT phoneNumber FROM entries WHERE code = $1",
+            [row.code]
+          );
+          return {
+            ...row,
+            phoneNumber: entryResult.rows[0]?.phoneNumber || null
+          };
+        } catch (err) {
+          return { ...row, phoneNumber: null };
+        }
       })
-      .catch(error => {
-        return res.status(500).json({ error: 'Failed to process skin tests' });
-      });
-  });
+    );
+
+    res.json({ data: processedRows });
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to process skin tests' });
+  }
 };
 
-const createSkinTest = (req, res) => {
+const createSkinTest = async (req, res) => {
   const data = req.body;
   
-  db.get("SELECT tokenNo FROM skin_tests WHERE tokenNo = ?", [data.tokenNo], (err, row) => {
-    if (err) return handleDatabaseError(err, res);
-    if (row) return res.status(400).json({ error: "Token number already exists" });
+  try {
+    const tokenCheck = await pool.query(
+      "SELECT tokenNo FROM skin_tests WHERE tokenNo = $1",
+      [data.tokenNo]
+    );
+    
+    if (tokenCheck.rows.length > 0) {
+      return res.status(400).json({ error: "Token number already exists" });
+    }
 
     const processedData = Object.entries(data).reduce((acc, [key, value]) => {
       acc[key] = String(value || (key === 'weight' || key.includes('_') ? '0' : ''));
@@ -52,17 +58,18 @@ const createSkinTest = (req, res) => {
       'others', 'remarks', 'code'
     ];
 
-    const sql = `INSERT INTO skin_tests (${columns.join(', ')}) VALUES (${columns.map(() => '?').join(', ')})`;
+    const placeholders = columns.map((_, i) => `$${i + 1}`).join(', ');
+    const sql = `INSERT INTO skin_tests (${columns.join(', ')}) VALUES (${placeholders}) RETURNING *`;
     const params = columns.map(col => processedData[col]);
 
-    db.run(sql, params, function (err) {
-      if (err) return handleDatabaseError(err, res);
-      res.json({ message: "Success", data: processedData, id: this.lastID });
-    });
-  });
+    const result = await pool.query(sql, params);
+    res.json({ message: "Success", data: result.rows[0] });
+  } catch (err) {
+    return handleDatabaseError(err, res);
+  }
 };
 
-const updateSkinTest = (req, res) => {
+const updateSkinTest = async (req, res) => {
   const data = req.body;
   const columns = [
     'date', 'time', 'name', 'weight', 'sample', 'highest',
@@ -72,48 +79,65 @@ const updateSkinTest = (req, res) => {
     'titanium', 'palladium', 'platinum', 'others', 'remarks', 'code'
   ];
 
-  const sql = `UPDATE skin_tests SET ${columns.map(col => `${col} = ?`).join(', ')} WHERE tokenNo = ?`;
-  const params = [...columns.map(col => data[col]), req.params.tokenNo];
+  try {
+    const sql = `
+      UPDATE skin_tests 
+      SET ${columns.map((col, i) => `${col} = $${i + 1}`).join(', ')} 
+      WHERE tokenNo = $${columns.length + 1}
+      RETURNING *
+    `;
+    const params = [...columns.map(col => data[col]), req.params.tokenNo];
 
-  db.run(sql, params, function (err) {
-    if (err) return handleDatabaseError(err, res);
-    res.json({ message: "Success", data: data, changes: this.changes });
-  });
+    const result = await pool.query(sql, params);
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: "Skin test not found" });
+    }
+    res.json({ message: "Success", data: result.rows[0] });
+  } catch (err) {
+    return handleDatabaseError(err, res);
+  }
 };
 
-const deleteSkinTest = (req, res) => {
-  db.run("DELETE FROM skin_tests WHERE tokenNo = ?", req.params.tokenNo, function (err) {
-    if (err) return handleDatabaseError(err, res);
-    res.json({ message: "Deleted", changes: this.changes });
-  });
+const deleteSkinTest = async (req, res) => {
+  try {
+    const result = await pool.query(
+      "DELETE FROM skin_tests WHERE tokenNo = $1 RETURNING *",
+      [req.params.tokenNo]
+    );
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: "Skin test not found" });
+    }
+    res.json({ message: "Deleted", data: result.rows[0] });
+  } catch (err) {
+    return handleDatabaseError(err, res);
+  }
 };
 
-const getPhoneNumberByCode = (req, res) => {
+const getPhoneNumberByCode = async (req, res) => {
   const { code } = req.params;
   
-  db.get(
-    "SELECT phoneNumber FROM entries WHERE code = ?",
-    [code],
-    (err, row) => {
-      if (err) {
-        return handleDatabaseError(err, res, "Failed to retrieve phone number");
-      }
-      
-      if (!row) {
-        return res.status(404).json({ error: "No phone number found for the provided code" });
-      }
-      
-      res.status(200).json({ phoneNumber: row.phoneNumber });
+  try {
+    const result = await pool.query(
+      "SELECT phoneNumber FROM entries WHERE code = $1",
+      [code]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Code not found" });
     }
-  );
+    
+    res.json({ phoneNumber: result.rows[0].phoneNumber });
+  } catch (err) {
+    return handleDatabaseError(err, res, "Failed to retrieve phone number");
+  }
 };
 
 const resetSkinTests = async (req, res) => {
   try {
     await resetSkinTestsTable();
-    res.json({ message: "Table reset successfully" });
+    res.json({ message: "Skin tests table has been reset" });
   } catch (err) {
-    handleDatabaseError(err, res, "Failed to reset table");
+    return handleDatabaseError(err, res, "Failed to reset skin tests table");
   }
 };
 

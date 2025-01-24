@@ -1,17 +1,16 @@
-const db = require('../config/database');
+const pool = require('../config/database');
 
-const getAllPureExchanges = (req, res) => {
+const getAllPureExchanges = async (req, res) => {
   const sql = 'SELECT * FROM pure_exchange';
-  db.all(sql, [], (err, rows) => {
-    if (err) {
-      res.status(500).json({ error: err.message });
-      return;
-    }
-    res.json({ data: rows });
-  });
+  try {
+    const result = await pool.query(sql);
+    res.json({ data: result.rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 };
 
-const createPureExchange = (req, res) => {
+const createPureExchange = async (req, res) => {
   const {
     tokenNo,
     date,
@@ -31,7 +30,8 @@ const createPureExchange = (req, res) => {
     INSERT INTO pure_exchange (
       tokenNo, date, time, weight, highest, hWeight,
       average, aWeight, goldFineness, gWeight, exGold, exWeight
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+    RETURNING *
   `;
 
   const params = [
@@ -39,19 +39,18 @@ const createPureExchange = (req, res) => {
     average, aWeight, goldFineness, gWeight, exGold, exWeight
   ];
 
-  db.run(sql, params, function(err) {
-    if (err) {
-      res.status(500).json({ error: err.message });
-      return;
-    }
+  try {
+    const result = await pool.query(sql, params);
     res.json({
       message: 'Pure exchange entry created successfully',
-      data: { id: this.lastID }
+      data: result.rows[0]
     });
-  });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 };
 
-const updatePureExchange = (req, res) => {
+const updatePureExchange = async (req, res) => {
   const tokenNo = req.params.tokenNo;
   const {
     date,
@@ -69,18 +68,19 @@ const updatePureExchange = (req, res) => {
 
   const sql = `
     UPDATE pure_exchange SET
-      date = ?,
-      time = ?,
-      weight = ?,
-      highest = ?,
-      hWeight = ?,
-      average = ?,
-      aWeight = ?,
-      goldFineness = ?,
-      gWeight = ?,
-      exGold = ?,
-      exWeight = ?
-    WHERE tokenNo = ?
+      date = $1,
+      time = $2,
+      weight = $3,
+      highest = $4,
+      hWeight = $5,
+      average = $6,
+      aWeight = $7,
+      goldFineness = $8,
+      gWeight = $9,
+      exGold = $10,
+      exWeight = $11
+    WHERE tokenNo = $12
+    RETURNING *
   `;
 
   const params = [
@@ -89,40 +89,36 @@ const updatePureExchange = (req, res) => {
     exGold, exWeight, tokenNo
   ];
 
-  db.run(sql, params, function(err) {
-    if (err) {
-      res.status(500).json({ error: err.message });
-      return;
-    }
-    if (this.changes === 0) {
-      res.status(404).json({ error: 'Pure exchange entry not found' });
-      return;
+  try {
+    const result = await pool.query(sql, params);
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Pure exchange entry not found' });
     }
     res.json({
       message: 'Pure exchange entry updated successfully',
-      changes: this.changes
+      data: result.rows[0]
     });
-  });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 };
 
-const deletePureExchange = (req, res) => {
+const deletePureExchange = async (req, res) => {
   const tokenNo = req.params.tokenNo;
-  const sql = 'DELETE FROM pure_exchange WHERE tokenNo = ?';
+  const sql = 'DELETE FROM pure_exchange WHERE tokenNo = $1 RETURNING *';
   
-  db.run(sql, tokenNo, function(err) {
-    if (err) {
-      res.status(500).json({ error: err.message });
-      return;
-    }
-    if (this.changes === 0) {
-      res.status(404).json({ error: 'Pure exchange entry not found' });
-      return;
+  try {
+    const result = await pool.query(sql, [tokenNo]);
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Pure exchange entry not found' });
     }
     res.json({
       message: 'Pure exchange entry deleted successfully',
-      changes: this.changes
+      data: result.rows[0]
     });
-  });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 };
 
 module.exports = {

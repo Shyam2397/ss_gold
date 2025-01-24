@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-
-import { loginUser } from '../../services/authService';
+import { loginUser, isAuthenticated } from '../../services/authService';
 import LoginHeader from './LoginHeader';
 import LoginForm from './LoginForm';
 
@@ -12,23 +11,48 @@ const Login = ({ setLoggedIn }) => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
+  // Check if user is already logged in
+  useEffect(() => {
+    if (isAuthenticated()) {
+      navigate('/dashboard');
+    }
+  }, [navigate]);
+
+  const validateForm = () => {
+    if (!username || username.length < 3) {
+      setError('Username must be at least 3 characters long');
+      return false;
+    }
+    if (!password || password.length < 6) {
+      setError('Password must be at least 6 characters long');
+      return false;
+    }
+    return true;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+
+    // Validate form
+    if (!validateForm()) {
+      return;
+    }
+
     setLoading(true);
 
     try {
       const result = await loginUser(username, password);
       
       if (result.success) {
-        localStorage.setItem('isLoggedIn', 'true');
         setLoggedIn(true);
         navigate('/dashboard');
       } else {
         setError(result.error);
       }
     } catch (err) {
-      setError('An unexpected error occurred');
+      setError('An unexpected error occurred. Please try again.');
+      console.error('Login error:', err);
     } finally {
       setLoading(false);
     }
@@ -43,8 +67,14 @@ const Login = ({ setLoggedIn }) => {
           password={password}
           error={error}
           loading={loading}
-          onUsernameChange={(e) => setUsername(e.target.value)}
-          onPasswordChange={(e) => setPassword(e.target.value)}
+          onUsernameChange={(e) => {
+            setUsername(e.target.value);
+            setError('');
+          }}
+          onPasswordChange={(e) => {
+            setPassword(e.target.value);
+            setError('');
+          }}
           onSubmit={handleSubmit}
         />
       </div>

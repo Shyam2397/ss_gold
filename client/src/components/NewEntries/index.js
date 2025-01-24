@@ -4,6 +4,13 @@ import CustomerForm from './CustomerForm';
 import CustomerList from './CustomerList';
 import DeleteConfirmationModal from './DeleteConfirmationModal';
 
+// Get the current port from the window location or use default ports
+
+
+const API_URL = process.env.REACT_APP_API_URL
+// Add axios default configuration
+axios.defaults.baseURL = API_URL;
+
 const NewEntries = () => {
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
@@ -59,48 +66,49 @@ const NewEntries = () => {
       .includes(searchQuery.toLowerCase())
   );
 
+  // Validate form data
+  const validateForm = () => {
+    if (!code || code.trim().length === 0) {
+      setError("Customer code is required");
+      return false;
+    }
+
+    if (!name || name.trim().length === 0) {
+      setError("Customer name is required");
+      return false;
+    }
+
+    if (!phoneNumber || phoneNumber.trim().length === 0) {
+      setError("Phone number is required");
+      return false;
+    }
+
+    // Phone number validation (allow only numbers and optional +)
+    const phoneRegex = /^\+?\d{10,12}$/;
+    if (!phoneRegex.test(phoneNumber)) {
+      setError("Invalid phone number format. Please enter 10-12 digits with optional + prefix");
+      return false;
+    }
+
+    if (!place || place.trim().length === 0) {
+      setError("Place is required");
+      return false;
+    }
+
+    return true;
+  };
+
   // Fetch all customers
   const fetchCustomers = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(
-        `${process.env.REACT_APP_API_URL}/entries`
-      );
-      setCustomers(response.data);
+      const response = await axios.get('/entries');
+      setCustomers(response.data || []);
     } catch (err) {
-      setError("Error fetching customers");
       console.error("Error fetching customers:", err);
+      setError(err.response?.data?.error || "Error fetching customers");
     } finally {
       setLoading(false);
-    }
-  };
-
-  const checkDuplicates = async (code, phoneNumber, id = null) => {
-    try {
-      const response = await axios.get(
-        `${process.env.REACT_APP_API_URL}/entries`
-      );
-      const existingCustomers = response.data;
-
-      const duplicateCode = existingCustomers.find(
-        (customer) => customer.code === code && customer.id !== id
-      );
-
-      const duplicatePhone = existingCustomers.find(
-        (customer) => customer.phoneNumber === phoneNumber && customer.id !== id
-      );
-
-      if (duplicateCode) {
-        throw new Error("Customer code already exists");
-      }
-
-      if (duplicatePhone) {
-        throw new Error("Phone number already exists");
-      }
-
-      return true;
-    } catch (error) {
-      throw error;
     }
   };
 
@@ -109,38 +117,44 @@ const NewEntries = () => {
     e.preventDefault();
     setError("");
     setSuccess("");
+
+    // Validate form
+    if (!validateForm()) {
+      return;
+    }
+
     setLoading(true);
 
     const customerData = {
-      code,
-      name,
-      phoneNumber,
-      place,
+      code: code.trim(),
+      name: name.trim(),
+      phoneNumber: phoneNumber.trim(),
+      place: place.trim(),
     };
 
     try {
-      await checkDuplicates(code, phoneNumber, editMode ? editId : null);
-
       if (editMode) {
-        await axios.put(
-          `${process.env.REACT_APP_API_URL}/entries/${editId}`,
-          customerData
-        );
-        setSuccess("Customer updated successfully!");
+        const response = await axios.put(`/entries/${editId}`, customerData);
+        if (response.data.success) {
+          setSuccess(response.data.message || "Customer updated successfully!");
+          resetForm();
+          fetchCustomers();
+        } else {
+          setError(response.data.error || "Failed to update customer");
+        }
       } else {
-        await axios.post(
-          `${process.env.REACT_APP_API_URL}/entries`,
-          customerData
-        );
-        setSuccess("Customer added successfully!");
+        const response = await axios.post('/entries', customerData);
+        if (response.data.success) {
+          setSuccess(response.data.message || "Customer added successfully!");
+          resetForm();
+          fetchCustomers();
+        } else {
+          setError(response.data.error || "Failed to add customer");
+        }
       }
-      resetForm();
-      fetchCustomers();
     } catch (err) {
-      setError(
-        err.message || err.response?.data?.error || "Error saving customer"
-      );
       console.error("Error saving customer:", err);
+      setError(err.response?.data?.error || "Error saving customer");
     } finally {
       setLoading(false);
     }
@@ -180,14 +194,17 @@ const NewEntries = () => {
 
     try {
       setLoading(true);
-      await axios.delete(
-        `${process.env.REACT_APP_API_URL}/entries/${deleteConfirmation.customerId}`
-      );
-      setSuccess("Customer deleted successfully!");
-      fetchCustomers();
+      const response = await axios.delete(`/entries/${deleteConfirmation.customerId}`);
+      
+      if (response.data.success) {
+        setSuccess(response.data.message || "Customer deleted successfully!");
+        fetchCustomers();
+      } else {
+        setError(response.data.error || "Failed to delete customer");
+      }
     } catch (err) {
-      setError("Error deleting customer");
       console.error("Error deleting customer:", err);
+      setError(err.response?.data?.error || "Error deleting customer");
     } finally {
       setDeleteConfirmation({
         isOpen: false,
@@ -218,7 +235,6 @@ const NewEntries = () => {
 
   return (
     <div className="container mx-auto px-8 py-2">
-  
       {/* Customer Form */}
       <CustomerForm
         editMode={editMode}
