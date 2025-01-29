@@ -12,6 +12,8 @@ import {
   FiDollarSign,
   FiBook,
   FiLogOut,
+  FiMenu,
+  FiX,
 } from 'react-icons/fi';
 import { GiGoldBar } from 'react-icons/gi';
 import { GiTestTubes } from 'react-icons/gi';
@@ -20,7 +22,6 @@ import MasterExpense from '../expenses/MasterExpense';
 import ViewExpense from '../expenses/ViewExpense';
 import CashBook from '../cashbook/CashBook';
 import { AnimatePresence, motion } from "framer-motion";
-import { IconMenu2, IconX } from "@tabler/icons-react";
 import { cn } from "../../lib/utils";
 import Logo from '../../asset/logo.png';
 
@@ -283,7 +284,7 @@ const Sidebar = ({ open = true, setOpen, animate = true, user, setLoggedIn }) =>
           onClick={() => setOpen(!open)}
           className="p-2 rounded-lg bg-white shadow-lg hover:bg-gray-50"
         >
-          <IconMenu2 className="h-6 w-6 text-gray-600" />
+          <FiMenu className="h-6 w-6 text-gray-600" />
         </button>
       </div>
 
@@ -325,7 +326,7 @@ const Sidebar = ({ open = true, setOpen, animate = true, user, setLoggedIn }) =>
                   onClick={() => setOpen(false)}
                   className="ml-auto p-2 rounded-lg hover:bg-gray-100"
                 >
-                  <IconX className="h-6 w-6 text-gray-600" />
+                  <FiX className="h-6 w-6 text-gray-600" />
                 </button>
               </div>
 

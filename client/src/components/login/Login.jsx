@@ -59,8 +59,8 @@ const Login = ({ setLoggedIn }) => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-amber-50 to-yellow-100 px-4">
-      <div className="max-w-md w-full space-y-8 bg-white p-8 rounded-2xl shadow-lg">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-amber-50 to-yellow-100 px-6 py-12 sm:px-12">
+      <div className="max-w-xl w-full space-y-10 bg-white p-10 rounded-3xl shadow-2xl">
         <LoginHeader />
         <LoginForm 
           username={username}

@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
-import * as XLSX from 'xlsx';
+import { useState, useEffect, useCallback } from "react";
+import axios from "axios";
+import { exportToExcel } from '../../../utils/excelExport';
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -36,12 +36,9 @@ const useCustomerData = () => {
     }
   }, []);
 
-  const exportToExcel = useCallback(() => {
-    const worksheet = XLSX.utils.json_to_sheet(entries);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Customer Data");
-    XLSX.writeFile(workbook, "customer_data.xlsx");
-  }, [entries]);
+  const handleExport = async (data) => {
+    await exportToExcel(data, "Customer Data", "customer_data.xlsx");
+  };
 
   useEffect(() => {
     fetchEntries();
@@ -53,7 +50,7 @@ const useCustomerData = () => {
     loading,
     fetchEntries,
     deleteEntry,
-    exportToExcel,
+    exportToExcel: handleExport,
     setError
   };
 };
