@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 
+const API_URL = import.meta.env.VITE_API_URL;
+
 const useExchanges = () => {
   const [exchanges, setExchanges] = useState([]);
   const [filteredExchanges, setFilteredExchanges] = useState([]);
@@ -22,7 +24,7 @@ const useExchanges = () => {
     setLoading(true);
     try {
       const response = await axios.get(
-        `${process.env.REACT_APP_API_URL}/pure-exchange`
+        `${API_URL}/pure-exchange`
       );
       const exchangeData = response.data.data || [];
       
@@ -131,7 +133,7 @@ const useExchanges = () => {
         return false;
       }
 
-      const response = await axios.delete(`${process.env.REACT_APP_API_URL}/pure-exchange/${tokenNo}`);
+      const response = await axios.delete(`${API_URL}/pure-exchange/${tokenNo}`);
       
       if (response.data?.message) {
         // Update local state
@@ -170,7 +172,7 @@ const useExchanges = () => {
     setLoading(true);
     try {
       await axios.put(
-        `${process.env.REACT_APP_API_URL}/pure-exchange/${tokenNo}`,
+        `${API_URL}/pure-exchange/${tokenNo}`,
         updatedData
       );
       

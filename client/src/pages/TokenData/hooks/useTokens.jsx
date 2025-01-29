@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 
+const API_URL = import.meta.env.VITE_API_URL;
+
 const useTokens = () => {
   const [tokens, setTokens] = useState([]);
   const [filteredTokens, setFilteredTokens] = useState([]);
@@ -13,7 +15,7 @@ const useTokens = () => {
     setLoading(true);
     try {
       const response = await axios.get(
-        `${process.env.REACT_APP_API_URL}/tokens`
+        `${API_URL}/tokens` 
       );
       const sortedTokens = response.data.sort(
         (a, b) => parseFloat(b.token_no) - parseFloat(a.token_no)
@@ -100,7 +102,7 @@ const useTokens = () => {
 
   const deleteToken = async (tokenId) => {
     try {
-      await axios.delete(`${process.env.REACT_APP_API_URL}/tokens/${tokenId}`);
+      await axios.delete(`${API_URL}/tokens/${tokenId}`);
       const updatedTokens = tokens.filter((token) => token.id !== tokenId);
       setTokens(updatedTokens);
       setError("");

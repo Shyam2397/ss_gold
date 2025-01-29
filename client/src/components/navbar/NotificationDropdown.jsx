@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { FiBell, FiTrash } from 'react-icons/fi';
 import axios from 'axios';
 
-const API_URL = 'http://localhost:5000';
+const API_URL = import.meta.env.VITE_API_URL;
 
 const NotificationDropdown = () => {
   const [showActivities, setShowActivities] = useState(false);

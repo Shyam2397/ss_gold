@@ -5,9 +5,7 @@ import CustomerList from './CustomerList';
 import DeleteConfirmationModal from './DeleteConfirmationModal';
 
 // Get the current port from the window location or use default ports
-
-
-const API_URL = process.env.REACT_APP_API_URL
+const API_URL = import.meta.env.VITE_API_URL;
 // Add axios default configuration
 axios.defaults.baseURL = API_URL;
 

@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 
+const API_URL = import.meta.env.VITE_API_URL;
+
 const useSkinTests = () => {
   const [skinTests, setSkinTests] = useState([]);
   const [filteredTests, setFilteredTests] = useState([]);
@@ -13,7 +15,7 @@ const useSkinTests = () => {
     setLoading(true);
     try {
       const response = await axios.get(
-        process.env.REACT_APP_API_URL + "/skin-tests"
+        `${API_URL}/skin-tests`
       );
       const sortedData = response.data.data.sort(
         (a, b) => parseFloat(b.token_no) - parseFloat(a.token_no)

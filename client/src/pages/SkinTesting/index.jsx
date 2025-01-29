@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import debounce from 'lodash.debounce';
+import debounce from 'lodash/debounce';
 import {
   FiSearch,
   FiSave,
