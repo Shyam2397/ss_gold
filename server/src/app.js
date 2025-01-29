@@ -14,7 +14,7 @@ const expensesRoutes = require('./routes/expensesRoutes');
 const pureExchangeRoutes = require('./routes/pureExchangeRoutes');
 
 const app = express();
-const port = process.env.PORT || 8080;
+const port = process.env.PORT;
 
 // Middleware
 app.use(cors());
@@ -66,7 +66,7 @@ const startServer = async () => {
     app.use('/api/expenses', expensesRoutes);
     app.use('/pure-exchange', pureExchangeRoutes);
 
-    app.listen(port, () => {
+    const server = app.listen(port, () => {
       console.log(`Server is running on port ${port}`);
       console.log(`Health check available at http://localhost:${port}/health`);
       
@@ -74,29 +74,20 @@ const startServer = async () => {
         console.log(`Development mode: Detailed error messages enabled`);
       }
     });
+
+    return server;
   } catch (error) {
     console.error('Error starting server:', error);
-    process.exit(1);
+    throw error;
   }
 };
 
-// Handle graceful shutdown
-process.on('SIGTERM', async () => {
-  console.log('SIGTERM signal received. Closing HTTP server...');
-  await pool.end();
-  process.exit(0);
-});
-
-process.on('SIGINT', async () => {
-  console.log('SIGINT signal received. Closing HTTP server...');
-  await pool.end();
-  process.exit(0);
-});
-
 // Start the server
-startServer().catch(err => {
-  console.error('Failed to start server:', err);
-  process.exit(1);
-});
+if (require.main === module) {
+  startServer().catch(err => {
+    console.error('Failed to start server:', err);
+    process.exit(1);
+  });
+}
 
 module.exports = { app, startServer };

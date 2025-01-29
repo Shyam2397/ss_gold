@@ -162,6 +162,7 @@ const createUsersTable = async () => {
   
   try {
     await pool.query(createTableSQL);
+    console.log('Users table check completed');
     
     // Check if admin user exists
     const adminCheck = await pool.query(
@@ -178,11 +179,17 @@ const createUsersTable = async () => {
         "INSERT INTO users (username, password) VALUES ($1, $2)",
         ['admin', hashedPassword]
       );
-      console.log(' Admin user created');
+      console.log('Admin user created');
+    } else {
+      console.log('Admin user already exists');
     }
   } catch (err) {
-    console.error('Error creating users table:', err);
-    throw err;
+    // If error is not about duplicate admin user, rethrow it
+    if (err.code !== '23505' || !err.detail.includes('(username)=(admin)')) {
+      console.error('Error creating users table:', err);
+      throw err;
+    }
+    console.log('Admin user already exists');
   }
 };
 
