@@ -30,25 +30,25 @@ const MenuItem = ({ icon: Icon, label, to, isActive, onClick }) => (
     to={to}
     onClick={onClick}
     className={cn(
-      "flex items-center h-12 px-5 rounded-lg transition-all duration-200",
+      "flex items-center h-12 px-5 rounded-xl transition-all duration-200",
       "relative group",
       isActive
         ? "bg-amber-100 text-amber-900"
         : "text-gray-600 hover:bg-amber-50 hover:text-amber-900"
     )}
   >
-    <div className="flex items-center justify-center w-5">
+    <div className="flex items-center justify-center w-5 pl-1">
       <Icon className={cn("h-7 w-7 flex-shrink-0", isActive && "text-amber-600")} />
     </div>
     {label && (
-      <span className="font-medium text-lg ml-3 whitespace-nowrap">{label}</span>
+      <span className="font-medium text-xl ml-4 whitespace-nowrap">{label}</span>
     )}
   </Link>
 );
 
 const MenuSection = ({ children }) => (
   <div className="py-1.5">
-    <nav className="space-y-1 ml-2">{children}</nav>
+    <nav className="space-y-1 px-3.5">{children}</nav>
   </div>
 );
 
@@ -100,17 +100,17 @@ const Sidebar = ({ open = true, setOpen, animate = true, user, setLoggedIn }) =>
           open ? "w-80" : "w-20"
         )}
         animate={{
-          width: animate ? (open ? "320px" : "85px") : "320px",
+          width: animate ? (open ? "320px" : "95px") : "320px",
         }}
         onMouseEnter={() => animate && setOpen(true)}
         onMouseLeave={() => animate && setOpen(false)}
       >
         {/* Logo Section */}
         <div className="flex items-center h-20 px-4 border-b border-amber-100 flex-shrink-0">
-          <div className="flex items-center overflow-hidden">
-            <img src={Logo} alt="SS Gold" className="h-10 w-12 flex-shrink-0" />
+          <div className="flex items-center align-middle overflow-hidden">
+            <img src={Logo} alt="SS Gold" className="h-11 w-13 flex-shrink-0" />
             {open && (
-              <span className="ml-3 pt-0.5 text-4xl font-bold text-amber-900 truncate">
+              <span className="ml-3 pt-0.5 text-5xl font-bold text-amber-900 truncate">
                 SS Gold
               </span>
             )}
@@ -147,10 +147,10 @@ const Sidebar = ({ open = true, setOpen, animate = true, user, setLoggedIn }) =>
                     )}
                   >
                     <div className="flex items-center">
-                      <div className="flex items-center justify-center w-5">
+                      <div className="flex items-center justify-center w-5 pl-1">
                         <FiDatabase className="h-7 w-7 flex-shrink-0" />
                       </div>
-                      {open && <span className="font-medium text-lg ml-3">Data</span>}
+                      {open && <span className="font-medium text-xl ml-4">Data</span>}
                     </div>
                     {open && (
                       <div className="ml-2">
@@ -192,10 +192,10 @@ const Sidebar = ({ open = true, setOpen, animate = true, user, setLoggedIn }) =>
                   )}
                 >
                   <div className="flex items-center">
-                    <div className="flex items-center justify-center w-5">
+                    <div className="flex items-center justify-center w-5 pl-1">
                       <FiDollarSign className="h-7 w-7 flex-shrink-0" />
                     </div>
-                    {open && <span className="font-medium text-lg ml-3">Expenses</span>}
+                    {open && <span className="font-medium text-xl ml-4">Expenses</span>}
                   </div>
                   {open && (
                     <div className="ml-2">
@@ -248,7 +248,7 @@ const Sidebar = ({ open = true, setOpen, animate = true, user, setLoggedIn }) =>
                       />
                     </div>
                     {open && (
-                      <span className="font-medium text-lg ml-3 truncate">
+                      <span className="font-medium text-xl ml-3 truncate">
                         {user?.name || 'User'}
                       </span>
                     )}
@@ -267,7 +267,7 @@ const Sidebar = ({ open = true, setOpen, animate = true, user, setLoggedIn }) =>
           </div>
 
           {/* Fixed Logout Button */}
-          <div className="border-t border-amber-100 flex-shrink-0 mt-0.5 ml-2">
+          <div className="border-t border-amber-100 flex-shrink-0 mt-0.5 px-3.5 py-1">
             <MenuItem
               icon={FiLogOut}
               label={open ? "Logout" : ""}
