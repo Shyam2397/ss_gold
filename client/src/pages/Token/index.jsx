@@ -10,7 +10,8 @@ import {
   FiSave,
   FiRotateCcw,
   FiPrinter,
-  FiList
+  FiList,
+  FiClipboard
 } from "react-icons/fi";
 import { BsReceipt } from "react-icons/bs";
 import logoPath from '../../assets/logo.png';
@@ -284,13 +285,16 @@ const TokenPage = () => {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-4 sm:p-6 bg-amber-50 rounded-lg">
+          <div 
+            className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-5 p-5 sm:p-6 bg-amber-50 rounded-xl border border-amber-100 shadow-md"
+          >
             <FormField
               label="Token No"
               icon={FiHash}
               value={tokenNo}
               readOnly
               required
+              size="lg"
             />
             <FormField
               label="Date"
@@ -298,6 +302,7 @@ const TokenPage = () => {
               value={date}
               readOnly
               required
+              size="lg"
             />
             <FormField
               label="Time"
@@ -305,16 +310,15 @@ const TokenPage = () => {
               value={time}
               readOnly
               required
+              size="lg"
             />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-4 sm:p-6 bg-amber-50 rounded-lg">
             <FormField
               label="Code"
               icon={FiHash}
               value={code}
               onChange={handleCodeChange}
               required
+              size="lg"
             />
             <FormField
               label="Name"
@@ -322,16 +326,16 @@ const TokenPage = () => {
               value={name}
               readOnly
               required
+              size="lg"
             />
             <FormSelect
               label="Test"
+              icon={FiClipboard}
               value={test}
               onChange={(e) => setTest(e.target.value)}
               options={["Skin Testing", "Photo Testing"]}
+              size="lg"
             />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-4 sm:p-6 bg-amber-50 rounded-lg">
             <FormField
               label="Weight"
               icon={FiPackage}
@@ -340,6 +344,7 @@ const TokenPage = () => {
               value={weight}
               onChange={(e) => setWeight(e.target.value)}
               required
+              size="lg"
             />
             <FormField
               label="Sample"
@@ -347,6 +352,7 @@ const TokenPage = () => {
               value={sample}
               onChange={(e) => setSample(e.target.value)}
               required
+              size="lg"
             />
             <FormField
               label="Amount"
@@ -354,6 +360,7 @@ const TokenPage = () => {
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               required
+              size="lg"
             />
           </div>
 
