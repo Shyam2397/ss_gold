@@ -23,7 +23,7 @@ const CustomerForm = ({
     <div className="relative">
       <label
         htmlFor={id}
-        className="block text-sm font-medium text-amber-900 mb-2"
+        className="block text-base font-medium text-amber-900 mb-3"
       >
         {label}
       </label>
@@ -33,7 +33,7 @@ const CustomerForm = ({
         value={value}
         onChange={onChange}
         placeholder={placeholder}
-        className="w-full pl-4 pr-10 py-2 rounded-lg border border-amber-200 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all duration-200"
+        className="w-full pl-4 sm:pl-5 pr-8 sm:pr-12 py-2.5 sm:py-3 text-base sm:text-lg rounded-xl border-2 border-amber-200 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all duration-200"
         required
       />
     </div>
@@ -41,34 +41,34 @@ const CustomerForm = ({
 
   return (
     <div
-      className="bg-white rounded-xl shadow-sm p-6 border border-amber-100"
+      className="bg-white rounded-xl shadow-sm p-4 sm:p-6 md:p-8 border border-amber-100"
     >
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 sm:mb-8 gap-4">
         <div className="flex items-center">
-          <div className="mr-3">
-            <MdPersonAdd className="w-8 h-8 text-amber-600" />
+          <div className="mr-3 sm:mr-4">
+            <MdPersonAdd className="w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 text-amber-600" />
           </div>
-          <h2 className="text-2xl font-bold text-amber-900">
+          <h2 className="text-2xl sm:text-2xl md:text-3xl font-bold text-amber-900">
             {editMode ? "Edit Customer" : "New Customer"}
           </h2>
         </div>
         {/* Error/Success Messages */}
         {(error || success) && (
-          <div className={`p-1 rounded-lg ${error ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}> 
-          <div className="flex items-center">
-          <FiAlertCircle className="h-5 w-5 text-red-400 mr-3" />
-          {error || success}
-          </div>
+          <div className={`p-1 px-4 rounded-xl ${error ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'} text-base sm:text-lg`}> 
+            <div className="flex items-center">
+              <FiAlertCircle className="h-5 w-5 sm:h-6 sm:w-6 text-red-400 mr-2 sm:mr-3" />
+              {error || success}
+            </div>
           </div>
         )}
       </div>
 
       <form
         onSubmit={handleSubmit}
-        className="grid grid-cols-1 md:grid-cols-2 gap-6"
+        className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6"
       >
         <div 
-          className="space-y-4 p-4 bg-amber-50 rounded-lg"
+          className="space-y-4 sm:space-y-6 p-4 sm:p-6 bg-amber-50 rounded-xl"
         >
           {renderInput(
             "Name", 
@@ -87,7 +87,7 @@ const CustomerForm = ({
         </div>
 
         <div 
-          className="space-y-4 p-4 bg-amber-50 rounded-lg"
+          className="space-y-4 sm:space-y-6 p-4 sm:p-6 bg-amber-50 rounded-xl"
         >
           {renderInput(
             "Phone Number", 
@@ -105,41 +105,20 @@ const CustomerForm = ({
           )}
         </div>
 
-        <div className="md:col-span-2 flex justify-end space-x-4">
+        <div className="col-span-1 lg:col-span-2 flex flex-col sm:flex-row justify-end space-y-3 sm:space-y-0 sm:space-x-4 mt-4 sm:mt-6">
           <button
             type="button"
             onClick={resetForm}
-            className="px-4 py-2 border border-amber-200 text-amber-700 rounded-lg hover:bg-amber-50 transition-all duration-200"
+            className="w-full sm:w-auto px-4 sm:px-6 py-2.5 sm:py-3 text-base sm:text-lg font-medium text-amber-700 bg-amber-100 rounded-xl hover:bg-amber-200 transition-colors duration-200"
           >
             Reset
           </button>
           <button
             type="submit"
             disabled={loading}
-            className="px-4 py-2 bg-gradient-to-r from-amber-600 to-yellow-500 text-white rounded-lg hover:from-amber-700 hover:to-yellow-600 transition-all duration-200 transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+            className="w-full sm:w-auto px-4 sm:px-6 py-2.5 sm:py-3 text-base sm:text-lg font-medium text-white bg-amber-600 rounded-xl hover:bg-amber-700 transition-colors duration-200 disabled:opacity-50"
           >
-            {loading ? (
-              <svg className="animate-spin h-5 w-5 mr-2" viewBox="0 0 24 24">
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                  fill="none"
-                />
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                />
-              </svg>
-            ) : editMode ? (
-              "Update Customer"
-            ) : (
-              "Add Customer"
-            )}
+            {loading ? "Saving..." : editMode ? "Update" : "Save"}
           </button>
         </div>
       </form>
