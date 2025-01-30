@@ -10,16 +10,19 @@ const FormField = ({
   required = false,
   step,
 }) => (
-  <div className="form-control w-full">
-    <label className="block text-sm font-medium text-amber-900 mb-1">
-      {label}
-    </label>
-    <div className="relative rounded-md shadow-sm">
+  <div className="space-y-2 sm:space-y-3">
+    <label 
+      className="text-base sm:text-lg font-medium text-amber-900 flex items-center"
+    >
       {Icon && (
-        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-          <Icon className="h-5 w-5 text-amber-400" />
-        </div>
+        <span className="mr-2 sm:mr-3">
+          <Icon className="h-5 w-5 sm:h-6 sm:w-6 text-amber-600" />
+        </span>
       )}
+      {label}
+      {required && <span className="text-red-500 ml-1">*</span>}
+    </label>
+    <div className="relative">
       <input
         type={type}
         value={value}
@@ -27,11 +30,7 @@ const FormField = ({
         readOnly={readOnly}
         required={required}
         step={step}
-        className={`w-full ${
-          Icon ? "pl-10" : "pl-4"
-        } pr-4 py-2 rounded-lg border border-amber-200 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all duration-200 ${
-          readOnly ? "bg-amber-50" : ""
-        }`}
+        className="block w-full pl-4 sm:pl-5 pr-10 sm:pr-12 py-2.5 sm:py-3 text-base sm:text-lg rounded-xl border-2 border-amber-200 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all duration-200 text-amber-800"
       />
     </div>
   </div>

@@ -107,8 +107,8 @@ const TokenPage = () => {
       .join("-");
     const formattedTime = currentDate.toLocaleTimeString("en-US", {
       hour: "2-digit",
-      minute: "2-digit",
-    });
+        minute: "2-digit",
+      });
     setDate(formattedDate);
     setTime(formattedTime);
   };
@@ -254,12 +254,12 @@ const TokenPage = () => {
   return (
     <div className="container mx-auto px-8 py-2">
       <div className="bg-white rounded-xl shadow-sm p-6 border border-amber-100">
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-6 sm:mb-8">
           <div className="flex items-center">
-            <div className="mr-3">
-              <BsReceipt className="w-8 h-8 text-amber-600" />
+            <div className="mr-4 sm:mr-6">
+              <BsReceipt className="w-8 h-8 sm:w-10 sm:h-10 text-amber-600" />
             </div>
-            <h2 className="text-2xl font-bold text-amber-900">
+            <h2 className="text-2xl sm:text-3xl font-bold text-amber-900">
               {editMode ? "Edit Token" : "New Token"}
             </h2>
           </div>
@@ -284,7 +284,7 @@ const TokenPage = () => {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-4 bg-amber-50 rounded-lg">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-4 sm:p-6 bg-amber-50 rounded-lg">
             <FormField
               label="Token No"
               icon={FiHash}
@@ -308,7 +308,7 @@ const TokenPage = () => {
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-4 bg-amber-50 rounded-lg">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-4 sm:p-6 bg-amber-50 rounded-lg">
             <FormField
               label="Code"
               icon={FiHash}
@@ -331,7 +331,7 @@ const TokenPage = () => {
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-4 bg-amber-50 rounded-lg">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-4 sm:p-6 bg-amber-50 rounded-lg">
             <FormField
               label="Weight"
               icon={FiPackage}
@@ -357,28 +357,28 @@ const TokenPage = () => {
             />
           </div>
 
-          <div className="flex justify-end space-x-4">
+          <div className="flex justify-end space-x-4 sm:space-x-6">
             <button
               type="button"
               onClick={resetForm}
-              className="inline-flex items-center px-4 py-2 border border-amber-200 text-amber-700 rounded-lg hover:bg-amber-50 transition-all duration-200"
+              className="inline-flex items-center px-4 sm:px-6 py-2 border border-amber-200 text-amber-700 rounded-lg hover:bg-amber-50 transition-all duration-200"
             >
-              <FiRotateCcw className="-ml-1 mr-2 h-5 w-5" />
+              <FiRotateCcw className="-ml-1 mr-2 h-5 w-5 sm:h-6 sm:w-6" />
               Reset
             </button>
             <button
               type="submit"
-              className="inline-flex items-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-gradient-to-r from-amber-600 to-yellow-500 hover:from-amber-700 hover:to-yellow-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 transition-all duration-200"
+              className="inline-flex items-center px-4 sm:px-6 py-2 border border-transparent rounded-lg shadow-sm text-sm sm:text-base font-medium text-white bg-gradient-to-r from-amber-600 to-yellow-500 hover:from-amber-700 hover:to-yellow-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 transition-all duration-200"
             >
-              <FiSave className="-ml-1 mr-2 h-5 w-5" />
+              <FiSave className="-ml-1 mr-2 h-5 w-5 sm:h-6 sm:w-6" />
               {editMode ? "Update Token" : "Save Token"}
             </button>
             <button
               type="button"
               onClick={handlePrint}
-              className="inline-flex items-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-gradient-to-r from-amber-600 to-yellow-500 hover:from-amber-700 hover:to-yellow-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 transition-all duration-200"
+              className="inline-flex items-center px-4 sm:px-6 py-2 border border-transparent rounded-lg shadow-sm text-sm sm:text-base font-medium text-white bg-gradient-to-r from-amber-600 to-yellow-500 hover:from-amber-700 hover:to-yellow-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 transition-all duration-200"
             >
-              <FiPrinter className="-ml-1 mr-2 h-5 w-5" />
+              <FiPrinter className="-ml-1 mr-2 h-5 w-5 sm:h-6 sm:w-6" />
               Print
             </button>
           </div>
@@ -386,22 +386,22 @@ const TokenPage = () => {
       </div>
 
       <div className="mt-8 bg-white rounded-xl shadow-sm p-6 border border-amber-100">
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-6 sm:mb-8">
           <div className="flex items-center">
-            <div className="mr-3">
-              <FiList className="w-6 h-6 text-amber-600" />
+            <div className="mr-4 sm:mr-6">
+              <FiList className="w-6 h-6 sm:w-8 sm:h-8 text-amber-600" />
             </div>
-            <h3 className="text-xl font-semibold text-amber-900">
+            <h3 className="text-xl sm:text-2xl font-bold text-amber-900">
               Token List
             </h3>
           </div>
-          <div className="relative w-64">
+          <div className="relative w-64 sm:w-80">
             <input
               type="text"
               placeholder="Search tokens..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 rounded-lg border border-amber-200 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all duration-200"
+              className="w-full pl-10 pr-4 py-2 sm:py-3 rounded-lg border border-amber-200 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all duration-200"
             />
             <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
           </div>

@@ -10,102 +10,83 @@ const TokenTable = ({ tokens = [], onEdit, onDelete, onPaymentStatusChange }) =>
     );
   }
 
+  const columns = [
+    "Status",
+    "Token No",
+    "Date",
+    "Time",
+    "Code",
+    "Name",
+    "Test",
+    "Weight",
+    "Sample",
+    "Amount"
+  ];
+
   return (
-    <div className="overflow-hidden rounded-lg border border-amber-100">
-      <div className="overflow-x-auto">
-        <div className="max-h-[400px] overflow-y-auto scrollbar-thin scrollbar-thumb-amber-500 scrollbar-track-amber-100">
-          <table className="min-w-full divide-y divide-amber-200">
-            <thead className="bg-gradient-to-r from-amber-500 to-yellow-500 sticky top-0 z-10">
-              <tr>
-                {[
-                  "Actions",
-                  "Status",
-                  "Token No",
-                  "Date",
-                  "Time",
-                  "Code",
-                  "Name",
-                  "Test",
-                  "Weight",
-                  "Sample",
-                  "Amount"
-                ].map((header) => (
-                  <th
-                    key={header}
-                    className="px-6 py-2 text-left text-sm font-medium text-white uppercase tracking-wider"
-                  >
-                    {header}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-amber-100">
-              {tokens.map((token) => (
-                <tr
-                  key={token.id}
-                  className="hover:bg-amber-50"
+    <div className="overflow-x-auto rounded-xl border-2 border-amber-100">
+      <div className="max-h-[400px] sm:max-h-[500px] md:max-h-[600px] overflow-y-auto scrollbar-thin scrollbar-thumb-amber-500 scrollbar-track-amber-100">
+        <table className="min-w-full divide-y divide-amber-200">
+          <thead className="bg-gradient-to-r from-amber-500 to-yellow-500 sticky top-0 z-10">
+            <tr>
+              {columns.map((column) => (
+                <th
+                  key={column}
+                  className="px-4 sm:px-6 md:px-8 py-3 sm:py-4 text-left text-sm sm:text-base font-semibold text-white uppercase tracking-wider"
                 >
-                  <td className="px-6 py-3 whitespace-nowrap">
-                    <div className="flex space-x-2">
-                      <button
-                        onClick={() => onEdit(token)}
-                        className="text-amber-600 hover:text-amber-900"
-                      >
-                        <FiEdit2 className="h-5 w-5" />
-                      </button>
-                      <button
-                        onClick={() => onDelete(token.id)}
-                        className="text-red-600 hover:text-red-900"
-                      >
-                        <FiTrash2 className="h-5 w-5" />
-                      </button>
-                    </div>
-                  </td>
-                  <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-900">
-                    <div className="flex items-center">
-                      <input
-                        type="checkbox"
-                        checked={token.isPaid}
-                        onChange={() => onPaymentStatusChange(token.id, !token.isPaid)}
-                        className="h-4 w-4 text-amber-600 focus:ring-amber-500 border-gray-300 rounded cursor-pointer"
-                      />
-                      <span className={`ml-2 ${token.isPaid ? 'text-green-600' : 'text-red-600'}`}>
-                        {token.isPaid ? <FiCheckCircle className="text-green-600" /> : <FiXCircle className="text-red-600" />}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-900">
-                    {token.tokenNo}
-                  </td>
-                  <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-900">
-                    {token.date}
-                  </td>
-                  <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-900">
-                    {token.time}
-                  </td>
-                  <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-900">
-                    {token.code}
-                  </td>
-                  <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-900">
-                    {token.name}
-                  </td>
-                  <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-900">
-                    {token.test}
-                  </td>
-                  <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-900">
-                    {token.weight}
-                  </td>
-                  <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-900">
-                    {token.sample}
-                  </td>
-                  <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-900">
-                    {token.amount}
-                  </td>
-                </tr>
+                  {column}
+                </th>
               ))}
-            </tbody>
-          </table>
-        </div>
+              <th className="px-4 sm:px-6 md:px-8 py-3 sm:py-4 text-left text-sm sm:text-base font-semibold text-white uppercase tracking-wider">
+                Actions
+              </th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-amber-100">
+            {tokens.map((token, index) => (
+              <tr
+                key={index}
+                className="hover:bg-amber-50 transition-colors duration-200"
+              >
+                {columns.map((column) => (
+                  <td
+                    key={column}
+                    className="px-4 sm:px-6 md:px-8 py-3 sm:py-4 md:py-5 whitespace-nowrap text-base sm:text-lg text-gray-900"
+                  >
+                    {token[column.toLowerCase().replace(/\s/g, '')]}
+                  </td>
+                ))}
+                <td className="px-4 sm:px-6 md:px-8 py-3 sm:py-4 md:py-5 whitespace-nowrap text-base sm:text-lg font-medium space-x-2 sm:space-x-4 flex items-center">
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={token.isPaid}
+                      onChange={() => onPaymentStatusChange(token.id, !token.isPaid)}
+                      className="h-5 w-5 text-amber-600 focus:ring-amber-500 border-gray-300 rounded cursor-pointer"
+                    />
+                    <span className={`ml-2 ${token.isPaid ? 'text-green-600' : 'text-red-600'}`}>
+                      {token.isPaid ? <FiCheckCircle className="text-green-600" /> : <FiXCircle className="text-red-600" />}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => onEdit(token)}
+                    className="text-amber-600 hover:text-amber-900 transition-colors duration-200 p-1.5 sm:p-2 rounded-full hover:bg-amber-100"
+                    title="Edit Token"
+                  >
+                    <FiEdit2 className="w-6 h-6 sm:w-7 sm:h-7" />
+                  </button>
+                  <button
+                    onClick={() => onDelete(token.id)}
+                    className="text-red-600 hover:text-red-900 transition-colors duration-200 p-1.5 sm:p-2 rounded-full hover:bg-red-100"
+                    title="Delete Token"
+                  >
+                    <FiTrash2 className="w-6 h-6 sm:w-7 sm:h-7" />
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );
