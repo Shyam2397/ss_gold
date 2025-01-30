@@ -1,87 +1,50 @@
 import React from 'react';
-import { FiEdit2, FiTrash2, FiMessageSquare } from 'react-icons/fi';
+import { FiEdit2, FiTrash2, FiPrinter } from 'react-icons/fi';
 
-const TableRow = ({ test, onEdit, onDelete }) => {
-  const handleWhatsAppShare = () => {
-    const message = `
-Token No: ${test.tokenNo}
-Name: ${test.name}
-Date: ${test.date}
-Time: ${test.time}
-Weight: ${test.weight}
-Sample: ${test.sample}
-Gold Fineness: ${test.gold_fineness}%
-Karat: ${test.karat}
-Remarks: ${test.remarks}`;
-
-    const encodedMessage = encodeURIComponent(message);
-    let phoneNumber = test.phoneNumber?.replace(/\\D/g, '') || '';
-
-    // Handle Indian phone numbers
-    if (phoneNumber) {
-      // Remove leading zeros if any
-      phoneNumber = phoneNumber.replace(/^0+/, '');
-
-      // If number starts with 91, make sure it's not duplicated
-      if (phoneNumber.startsWith('91')) {
-        phoneNumber = phoneNumber.substring(2);
-      }
-
-      // Check if it's a valid Indian mobile number (10 digits)
-      if (phoneNumber.length === 10) {
-        phoneNumber = '91' + phoneNumber;
-      } else {
-        alert('Invalid phone number format. Please ensure it is a 10-digit Indian mobile number.');
-        return;
-      }
-    } else {
-      alert('No phone number available for this entry');
-      return;
-    }
-
-    window.open(`https://wa.me/${phoneNumber}?text=${encodedMessage}`, '_blank');
-  };
-
+const TableRow = ({ 
+  rowData, 
+  onEdit, 
+  onDelete, 
+  onPrint, 
+  columns 
+}) => {
   return (
-    <tr
-      className="hover:bg-amber-50 transition-colors duration-200"
+    <tr 
+      className="hover:bg-amber-50 transition-colors duration-200 group"
     >
-      <td className="px-6 py-4 whitespace-nowrap">
-        <div className="flex space-x-2">
-          <button
-            onClick={() => onEdit(test)}
-            className="text-amber-600 hover:text-amber-900 transition-colors duration-200"
+      <td className="px-3 sm:px-4 md:px-6 py-2 sm:py-3 whitespace-nowrap text-xs sm:text-sm font-medium text-amber-900">
+        <div className="flex space-x-1.5 sm:space-x-2">
+          <button 
+            onClick={() => onEdit(rowData)}
+            className="text-amber-600 hover:text-amber-900 transition-colors duration-200 p-1 sm:p-1.5 rounded-full hover:bg-amber-100"
+            title="Edit Test"
           >
-            <FiEdit2 className="h-5 w-5" />
+            <FiEdit2 className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
-          <button
-            onClick={() => onDelete(test.tokenNo)}
-            className="text-red-600 hover:text-red-900 transition-colors duration-200"
+          <button 
+            onClick={() => onDelete(rowData.id)}
+            className="text-red-600 hover:text-red-900 transition-colors duration-200 p-1 sm:p-1.5 rounded-full hover:bg-red-100"
+            title="Delete Test"
           >
-            <FiTrash2 className="h-5 w-5" />
+            <FiTrash2 className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
-          <button
-            onClick={handleWhatsAppShare}
-            className="text-green-600 hover:text-green-900 transition-colors duration-200"
-            title="Share via WhatsApp"
+          <button 
+            onClick={() => onPrint(rowData)}
+            className="text-green-600 hover:text-green-900 transition-colors duration-200 p-1 sm:p-1.5 rounded-full hover:bg-green-100"
+            title="Print Test"
           >
-            <FiMessageSquare className="h-5 w-5" />
+            <FiPrinter className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
         </div>
       </td>
-      {Object.keys(test)
-        .filter((key) => !["code", "phoneNumber"].includes(key))
-        .map((key) => (
-          <td
-            key={key}
-            className="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
-          >
-            {test[key]}
-          </td>
-        ))}
-      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-        {test.phoneNumber || "N/A"}
-      </td>
+      {columns.map((column) => (
+        <td 
+          key={column} 
+          className="px-3 sm:px-4 md:px-6 py-2 sm:py-3 whitespace-nowrap text-xs sm:text-sm text-gray-900"
+        >
+          {rowData[column.toLowerCase().replace(/\s/g, '')]}
+        </td>
+      ))}
     </tr>
   );
 };

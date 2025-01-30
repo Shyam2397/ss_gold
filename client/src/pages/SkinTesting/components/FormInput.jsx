@@ -1,31 +1,67 @@
 import React from 'react';
-import { metalFields } from '../constants/initialState';
+import { FiAlertCircle } from 'react-icons/fi';
 
-const FormInput = ({ label, name, value, onChange, readOnly = false }) => {
-  const isMetalField = metalFields.includes(name);
+const FormInput = ({
+  label,
+  name,
+  value,
+  onChange,
+  type = 'text',
+  placeholder = '',
+  error = '',
+  readOnly = false,
+  size = 'base'
+}) => {
+  const sizeClasses = {
+    sm: 'py-1.5 text-sm',
+    base: 'py-2 sm:py-2.5 text-sm sm:text-base',
+    lg: 'py-2.5 sm:py-3 text-base sm:text-lg'
+  };
 
   return (
-    <div className="form-control w-full">
-      <label className="block text-sm font-medium text-amber-900 mb-1">
+    <div className="space-y-1.5 sm:space-y-2">
+      <label 
+        htmlFor={name} 
+        className="text-sm sm:text-base font-medium text-amber-900 flex items-center"
+      >
         {label.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
+        {error && <span className="text-red-500 ml-1.5"><FiAlertCircle className="inline h-4 w-4" /></span>}
       </label>
-      <div className="relative rounded-md shadow-sm">
+      <div className="relative">
         <input
-          type="text"
+          type={type}
+          id={name}
           name={name}
           value={value}
           onChange={onChange}
+          placeholder={placeholder}
           readOnly={readOnly}
-          className={`w-full pl-4 pr-10 py-2 rounded-lg border border-amber-200 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all duration-200 ${
-            readOnly ? "bg-gray-50" : ""
-          } ${isMetalField ? "bg-amber-50" : ""}`}
+          className={`
+            block w-full 
+            pl-3 sm:pl-4 
+            pr-8 sm:pr-10 
+            ${sizeClasses[size]} 
+            rounded-lg 
+            border border-amber-200 
+            focus:ring-1 focus:ring-amber-500 
+            focus:border-amber-500 
+            transition-all duration-200
+            text-amber-800
+            ${readOnly ? 'bg-amber-50 cursor-not-allowed' : ''}
+          `}
         />
-        {isMetalField && (
-          <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-            <span className="text-gray-500 sm:text-sm">%</span>
+        {error && (
+          <div className="absolute inset-y-0 right-0 pr-2 flex items-center pointer-events-none">
+            <FiAlertCircle className="h-4 w-4 text-red-500" />
           </div>
         )}
       </div>
+      {error && (
+        <p className="mt-1 text-xs text-red-600 flex items-center">
+          <FiAlertCircle className="mr-1.5 h-3 w-3" />
+          {error}
+        </p>
+      )}
     </div>
   );
 };
