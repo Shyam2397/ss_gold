@@ -1,6 +1,6 @@
 import React from 'react';
 import { MdPersonAdd } from 'react-icons/md';
-import { FiAlertCircle } from 'react-icons/fi';
+import { FiAlertCircle, FiUser, FiHash, FiPhone, FiMapPin } from 'react-icons/fi';
 
 const CustomerForm = ({
   editMode,
@@ -19,12 +19,13 @@ const CustomerForm = ({
   setPhoneNumber,
   setPlace
 }) => {
-  const renderInput = (label, id, value, onChange, placeholder) => (
+  const renderInput = (label, id, value, onChange, placeholder, icon = FiUser) => (
     <div className="relative">
       <label
         htmlFor={id}
-        className="block text-base font-medium text-amber-900 mb-3"
+        className="text-base font-medium text-amber-900 mb-3 flex items-center"
       >
+        {React.createElement(icon, { className: "h-5 w-5 sm:h-6 sm:w-6 text-amber-600 mr-2 sm:mr-3" })}
         {label}
       </label>
       <input
@@ -75,14 +76,16 @@ const CustomerForm = ({
             "name", 
             name, 
             handleInputChange(setName), 
-            "Enter name"
+            "Enter name",
+            FiUser
           )}
           {renderInput(
             "Code", 
             "code", 
             code, 
             handleInputChange(setCode), 
-            "Enter code"
+            "Enter code",
+            FiHash
           )}
         </div>
 
@@ -94,14 +97,16 @@ const CustomerForm = ({
             "phoneNumber", 
             phoneNumber, 
             handleInputChange(setPhoneNumber), 
-            "Enter phone number"
+            "Enter phone number",
+            FiPhone
           )}
           {renderInput(
             "Place", 
             "place", 
             place, 
             handleInputChange(setPlace), 
-            "Enter place"
+            "Enter place",
+            FiMapPin
           )}
         </div>
 
