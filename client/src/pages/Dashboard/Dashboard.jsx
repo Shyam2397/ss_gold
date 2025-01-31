@@ -221,10 +221,10 @@ function Dashboard() {
     const fetchDashboardData = async () => {
       try {
         const [tokensRes, expensesRes, entriesRes, exchangesRes] = await Promise.all([
-          axios.get('http://localhost:5000/tokens'),
-          axios.get('http://localhost:5000/api/expenses'),
-          axios.get('http://localhost:5000/entries'),
-          axios.get('http://localhost:5000/pure-exchange')
+          axios.get(`${import.meta.env.VITE_API_URL}/tokens`),
+          axios.get(`${import.meta.env.VITE_API_URL}/api/expenses`),
+          axios.get(`${import.meta.env.VITE_API_URL}/entries`),
+          axios.get(`${import.meta.env.VITE_API_URL}/pure-exchange`)
         ]);
 
         const tokenData = tokensRes.data;
