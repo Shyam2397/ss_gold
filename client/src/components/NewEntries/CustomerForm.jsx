@@ -23,7 +23,7 @@ const CustomerForm = ({
     <div className="relative">
       <label
         htmlFor={id}
-        className="text-base font-medium text-amber-900 mb-3 flex items-center"
+        className="text-lg font-medium text-amber-900 mb-3 flex items-center"
       >
         {React.createElement(icon, { className: "h-5 w-5 sm:h-6 sm:w-6 text-amber-600 mr-2 sm:mr-3" })}
         {label}
@@ -34,7 +34,7 @@ const CustomerForm = ({
         value={value}
         onChange={onChange}
         placeholder={placeholder}
-        className="w-full pl-4 sm:pl-5 pr-8 sm:pr-12 py-2.5 sm:py-3 text-base sm:text-lg rounded-xl border-2 border-amber-200 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all duration-200"
+        className="w-full pl-4 sm:pl-5 pr-8 sm:pr-12 py-2 sm:py-2.5 text-base sm:text-lg rounded-xl border-2 border-amber-200 focus:ring-2 font-medium focus:ring-amber-500 focus:border-amber-500 text-amber-900 transition-all duration-200"
         required
       />
     </div>

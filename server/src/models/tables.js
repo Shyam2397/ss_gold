@@ -199,7 +199,7 @@ const createEntriesTable = async () => {
       id SERIAL PRIMARY KEY,
       code VARCHAR(50) UNIQUE NOT NULL,
       name VARCHAR(100) NOT NULL,
-      phoneNumber VARCHAR(20) UNIQUE NOT NULL,
+      phone_number VARCHAR(20) UNIQUE NOT NULL,
       place VARCHAR(100) NOT NULL,
       created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
@@ -208,7 +208,7 @@ const createEntriesTable = async () => {
   
   try {
     await pool.query(createTableSQL);
-    console.log(' Entries table created successfully');
+    console.log('Entries table created successfully');
   } catch (err) {
     console.error('Error creating entries table:', err);
     throw err;

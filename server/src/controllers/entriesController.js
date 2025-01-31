@@ -111,15 +111,13 @@ const createEntry = async (req, res) => {
     }
 
     const result = await pool.query(
-      `INSERT INTO entries (code, name, phone_number, place) 
-       VALUES ($1, $2, $3, $4) 
-       RETURNING id, code, name, phone_number as "phoneNumber", place, created_at, updated_at`,
+      "INSERT INTO entries (code, name, phone_number, place) VALUES ($1, $2, $3, $4) RETURNING id, code, name, phone_number as \"phoneNumber\", place, created_at, updated_at",
       [code, name, phoneNumber, place]
     );
 
     res.status(201).json({
       success: true,
-      message: "Entry created successfully",
+      message: "Customer added successfully",
       data: result.rows[0]
     });
   } catch (err) {
