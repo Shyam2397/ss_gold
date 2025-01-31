@@ -6,7 +6,15 @@ import {
   FiRotateCcw,
   FiPrinter,
   FiAlertCircle,
-  FiList
+  FiList,
+  FiHash,
+  FiCalendar,
+  FiClock,
+  FiUser,
+  FiPackage,
+  FiPercent,
+  FiStar,
+  FiMessageSquare
 } from 'react-icons/fi';
 import { GiTestTubes } from 'react-icons/gi';
 
@@ -101,6 +109,21 @@ const SkinTesting = () => {
     sample: '',
   };
 
+  const getFieldIcon = (key) => {
+    const iconMap = {
+      tokenNo: FiHash,
+      date: FiCalendar,
+      time: FiClock,
+      name: FiUser,
+      weight: FiPackage,
+      sample: FiPackage,
+      gold_fineness: FiPercent,
+      karat: FiStar,
+      remarks: FiMessageSquare
+    };
+    return iconMap[key.toLowerCase()] || null;
+  };
+
   return (
     <div className="container mx-auto px-4 sm:px-6 md:px-8 py-4 sm:py-6 md:py-8">
       {/* Form Section */}
@@ -140,6 +163,7 @@ const SkinTesting = () => {
                 name={key}
                 value={formData[key] || ''}
                 onChange={handleChange}
+                icon={getFieldIcon(key)}
                 size={index < 3 ? "base" : "base"}
               />
             ))}
@@ -169,6 +193,7 @@ const SkinTesting = () => {
                   name={key}
                   value={formData[key]}
                   onChange={handleChange}
+                  icon={getFieldIcon(key)}
                   size="lg"
                 />
               ))}

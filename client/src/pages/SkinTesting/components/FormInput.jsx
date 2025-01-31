@@ -10,12 +10,13 @@ const FormInput = ({
   placeholder = '',
   error = '',
   readOnly = false,
-  size = 'base'
+  size = 'base',
+  icon = null
 }) => {
   const sizeClasses = {
     sm: 'py-1.5 text-sm',
-    base: 'py-2 sm:py-2.5 text-sm sm:text-base',
-    lg: 'py-2.5 sm:py-3 text-base sm:text-lg'
+    base: 'py-1.5 sm:py-2.5 text-sm sm:text-base',
+    lg: 'py-1.5 sm:py-2.5 text-base sm:text-lg'
   };
 
   return (
@@ -24,6 +25,9 @@ const FormInput = ({
         htmlFor={name} 
         className="text-sm sm:text-base font-medium text-amber-900 flex items-center"
       >
+        {icon && React.createElement(icon, { 
+          className: "h-4 w-4 sm:h-5 sm:w-5 text-amber-600 mr-2 sm:mr-3" 
+        })}
         {label.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
         {error && <span className="text-red-500 ml-1.5"><FiAlertCircle className="inline h-4 w-4" /></span>}
       </label>
