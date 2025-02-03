@@ -1,4 +1,4 @@
-const pool = require('../config/database');
+const { pool } = require('../config/database');
 
 const getAllPureExchanges = async (req, res) => {
   const sql = 'SELECT * FROM pure_exchange';

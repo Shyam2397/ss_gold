@@ -1,4 +1,4 @@
-const pool = require('../config/database');
+const { pool } = require('../config/database');
 
 // Create a new expense type
 const createExpenseType = (req, res) => {
