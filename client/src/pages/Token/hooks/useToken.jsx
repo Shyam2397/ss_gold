@@ -39,10 +39,14 @@ const useToken = () => {
   const generateTokenNumber = useCallback(async () => {
     try {
       const response = await axios.get(`${API_URL}/tokens/generate`);
+      if (response.data.error) {
+        setError(response.data.error);
+        return null;
+      }
       return response.data.tokenNo;
     } catch (error) {
       console.error('Error generating token number:', error);
-      setError('Failed to generate token number');
+      setError(error.response?.data?.error || 'Failed to generate token number');
       return null;
     }
   }, []);

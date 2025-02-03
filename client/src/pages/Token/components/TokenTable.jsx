@@ -1,6 +1,30 @@
 import React from 'react';
 import { FiEdit2, FiTrash2, FiCheckCircle, FiXCircle } from 'react-icons/fi';
 
+const formatDateToIST = (dateString) => {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  
+  // Manually format to DD-MM-YYYY
+  const day = date.getDate().toString().padStart(2, '0');
+  const month = (date.getMonth() + 1).toString().padStart(2, '0');
+  const year = date.getFullYear();
+  
+  return `${day}-${month}-${year}`;
+};
+
+const formatTimeToIST = (timeString) => {
+  if (!timeString) return '';
+  const [hours, minutes] = timeString.split(':');
+  const date = new Date();
+  date.setHours(parseInt(hours), parseInt(minutes));
+  return date.toLocaleTimeString('en-IN', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true
+  });
+};
+
 const TokenTable = ({ tokens = [], onEdit, onDelete, onPaymentStatusChange }) => {
   if (!tokens || tokens.length === 0) {
     return (
@@ -11,7 +35,6 @@ const TokenTable = ({ tokens = [], onEdit, onDelete, onPaymentStatusChange }) =>
   }
 
   const columns = [
-    "Status",
     "Token No",
     "Date",
     "Time",
@@ -26,20 +49,20 @@ const TokenTable = ({ tokens = [], onEdit, onDelete, onPaymentStatusChange }) =>
   return (
     <div className="overflow-x-auto rounded-xl border-2 border-amber-100">
       <div className="max-h-[400px] sm:max-h-[500px] md:max-h-[600px] overflow-y-auto scrollbar-thin scrollbar-thumb-amber-500 scrollbar-track-amber-100">
-        <table className="min-w-full divide-y divide-amber-200">
+        <table className="w-full table-fixed divide-y divide-amber-200">
           <thead className="bg-gradient-to-r from-amber-500 to-yellow-500 sticky top-0 z-10">
             <tr>
+              <th className="w-[150px] px-2 py-3 text-center text-sm font-semibold text-white uppercase tracking-wider">
+                Actions
+              </th>
               {columns.map((column) => (
                 <th
                   key={column}
-                  className="px-4 sm:px-6 md:px-8 py-3 sm:py-4 text-left text-sm sm:text-base font-semibold text-white uppercase tracking-wider"
+                  className="px-2 py-3 text-center text-sm font-semibold text-white uppercase tracking-wider"
                 >
                   {column}
                 </th>
               ))}
-              <th className="px-4 sm:px-6 md:px-8 py-3 sm:py-4 text-left text-sm sm:text-base font-semibold text-white uppercase tracking-wider">
-                Actions
-              </th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-amber-100">
@@ -48,15 +71,7 @@ const TokenTable = ({ tokens = [], onEdit, onDelete, onPaymentStatusChange }) =>
                 key={index}
                 className="hover:bg-amber-50 transition-colors duration-200"
               >
-                {columns.map((column) => (
-                  <td
-                    key={column}
-                    className="px-4 sm:px-6 md:px-8 py-3 sm:py-4 md:py-5 whitespace-nowrap text-base sm:text-lg text-gray-900"
-                  >
-                    {token[column.toLowerCase().replace(/\s/g, '')]}
-                  </td>
-                ))}
-                <td className="px-4 sm:px-6 md:px-8 py-3 sm:py-4 md:py-5 whitespace-nowrap text-base sm:text-lg font-medium space-x-2 sm:space-x-4 flex items-center">
+                <td className="w-[150px] px-2 py-3 whitespace-nowrap text-base font-medium flex items-center">
                   <div className="flex items-center">
                     <input
                       type="checkbox"
@@ -64,25 +79,49 @@ const TokenTable = ({ tokens = [], onEdit, onDelete, onPaymentStatusChange }) =>
                       onChange={() => onPaymentStatusChange(token.id, !token.isPaid)}
                       className="h-5 w-5 text-amber-600 focus:ring-amber-500 border-gray-300 rounded cursor-pointer"
                     />
-                    <span className={`ml-2 ${token.isPaid ? 'text-green-600' : 'text-red-600'}`}>
-                      {token.isPaid ? <FiCheckCircle className="text-green-600" /> : <FiXCircle className="text-red-600" />}
+                    <span className={`ml-3 ${token.isPaid ? 'text-green-600' : 'text-red-600'}`}>
+                      {token.isPaid ? <FiCheckCircle className="text-green-600 w-5 h-5" /> : <FiXCircle className="text-red-600 w-5 h-5" />}
                     </span>
                   </div>
-                  <button
-                    onClick={() => onEdit(token)}
-                    className="text-amber-600 hover:text-amber-900 transition-colors duration-200 p-1.5 sm:p-2 rounded-full hover:bg-amber-100"
-                    title="Edit Token"
-                  >
-                    <FiEdit2 className="w-6 h-6 sm:w-7 sm:h-7" />
-                  </button>
-                  <button
-                    onClick={() => onDelete(token.id)}
-                    className="text-red-600 hover:text-red-900 transition-colors duration-200 p-1.5 sm:p-2 rounded-full hover:bg-red-100"
-                    title="Delete Token"
-                  >
-                    <FiTrash2 className="w-6 h-6 sm:w-7 sm:h-7" />
-                  </button>
+                    <button
+                      onClick={() => onEdit(token)}
+                    className="text-amber-600 hover:text-amber-900 transition-colors duration-200 p-2 rounded-full hover:bg-amber-100 ml-3"
+                      title="Edit Token"
+                    >
+                      <FiEdit2 className="w-5 h-5" />
+                    </button>
+                    <button
+                      onClick={() => onDelete(token.id)}
+                      className="text-red-600 hover:text-red-900 transition-colors duration-200 p-2 rounded-full hover:bg-red-100"
+                      title="Delete Token"
+                    >
+                      <FiTrash2 className="w-5 h-5" />
+                    </button>
                 </td>
+                {columns.map((column) => {
+                  let displayValue = token[column.toLowerCase().replace(/\s/g, '')];
+                  
+                  // Special handling for Token No column
+                  if (column === 'Token No') {
+                    displayValue = token.tokenno || token.tokenNo || token['token no'] || 'N/A';
+                  }
+                  
+                  // Format date and time
+                  if (column === 'Date') {
+                    displayValue = formatDateToIST(displayValue);
+                  } else if (column === 'Time') {
+                    displayValue = formatTimeToIST(displayValue);
+                  }
+                  
+                  return (
+                    <td
+                      key={column}
+                      className="px-2 py-3 whitespace-nowrap text-base text-gray-900 truncate"
+                    >
+                      {displayValue}
+                    </td>
+                  );
+                })}
               </tr>
             ))}
           </tbody>

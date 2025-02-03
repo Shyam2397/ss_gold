@@ -30,7 +30,7 @@ const FormField = ({
         readOnly={readOnly}
         required={required}
         step={step}
-        className="block w-full pl-10 sm:pl-12 pr-5 sm:pr-6 py-2.5 sm:py-2.5 text-sm sm:text-base rounded-lg border border-amber-200 focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition-all duration-200 text-amber-800"
+        className="block w-full pl-6 sm:pl-8 pr-5 sm:pr-6 py-2.5 sm:py-2.5 text-sm sm:text-base rounded-lg border border-amber-200 focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition-all duration-200 text-amber-800"
       />
     </div>
   </div>

@@ -102,14 +102,18 @@ const TokenPage = () => {
 
   const getCurrentDateTime = () => {
     const currentDate = new Date();
-    const formattedDate = currentDate
-      .toLocaleDateString("en-GB")
-      .split("/")
-      .join("-");
-    const formattedTime = currentDate.toLocaleTimeString("en-US", {
-      hour: "2-digit",
-        minute: "2-digit",
-      });
+    
+    // Date formatting similar to TokenTable
+    const day = currentDate.getDate().toString().padStart(2, '0');
+    const month = (currentDate.getMonth() + 1).toString().padStart(2, '0');
+    const year = currentDate.getFullYear();
+    const formattedDate = `${day}-${month}-${year}`;
+
+    // Time formatting with leading zeros
+    const hours = currentDate.getHours().toString().padStart(2, '0');
+    const minutes = currentDate.getMinutes().toString().padStart(2, '0');
+    const formattedTime = `${hours}:${minutes}`;
+
     setDate(formattedDate);
     setTime(formattedTime);
   };
@@ -150,10 +154,13 @@ const TokenPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    console.log('Form Validation Started');
     if (!validateForm()) {
+      console.error('Form Validation Failed');
       return;
     }
 
+    console.log('Preparing Token Data');
     const tokenData = {
       tokenNo,
       date,
@@ -166,12 +173,31 @@ const TokenPage = () => {
       amount,
     };
 
-    const success = await saveToken(tokenData, editId);
-    
-    if (success) {
-      setEditMode(false);
-      resetForm();
-      generateTokenNumber().then(setTokenNo);
+    console.log('Edit Mode:', editMode);
+    console.log('Edit ID:', editId);
+    console.log('Token Data:', JSON.stringify(tokenData, null, 2));
+
+    try {
+      // If in edit mode but no editId, reset edit mode
+      if (editMode && !editId) {
+        console.warn('Edit mode is on but no edit ID found. Switching to create mode.');
+        setEditMode(false);
+      }
+
+      const success = await saveToken(tokenData, editMode ? editId : null);
+      
+      if (success) {
+        console.log('Token Save Successful');
+        setEditMode(false);
+        resetForm();
+        await generateTokenNumber().then(setTokenNo);
+      } else {
+        console.error('Token Save Failed');
+        setError('Failed to save token. Please try again.');
+      }
+    } catch (error) {
+      console.error('Unexpected Error in Token Save:', error);
+      setError(`Unexpected error: ${error.message}`);
     }
   };
 
@@ -180,8 +206,20 @@ const TokenPage = () => {
     setEditId(token.id);
     setCode(token.code);
     setTokenNo(token.tokenNo);
-    setDate(token.date);
-    setTime(token.time);
+    
+    // Ensure consistent date formatting
+    const editDate = new Date(token.date);
+    const day = editDate.getDate().toString().padStart(2, '0');
+    const month = (editDate.getMonth() + 1).toString().padStart(2, '0');
+    const year = editDate.getFullYear();
+    const formattedDate = `${day}-${month}-${year}`;
+    setDate(formattedDate);
+
+    // Ensure consistent time formatting
+    const [hours, minutes] = token.time.split(':');
+    const formattedTime = `${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}`;
+    setTime(formattedTime);
+
     setName(token.name);
     setTest(token.test);
     setWeight(token.weight);
