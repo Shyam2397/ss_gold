@@ -216,25 +216,42 @@ const createEntriesTable = async () => {
 };
 
 const createTokensTable = async () => {
-  const createTableSQL = `
-    CREATE TABLE IF NOT EXISTS tokens (
-      id SERIAL PRIMARY KEY,
-      tokenNo TEXT UNIQUE,
-      date TEXT,
-      time TEXT,
-      code TEXT,
-      name TEXT,
-      test TEXT,
-      weight TEXT,
-      sample TEXT,
-      amount TEXT
-    )
-  `;
-  
+  const client = await pool.connect();
   try {
-    await pool.query(createTableSQL);
+    await client.query('BEGIN');
+
+    // Drop existing sequence and table if they exist
+    await client.query(`
+      DROP SEQUENCE IF EXISTS tokens_id_seq CASCADE;
+      DROP TABLE IF EXISTS tokens CASCADE;
+    `);
+
+    // Create the table with the correct schema
+    const createTableSQL = `
+      CREATE TABLE tokens (
+        id SERIAL PRIMARY KEY,
+        token_no VARCHAR(10) UNIQUE NOT NULL,
+        date DATE,
+        time TIME,
+        code VARCHAR(50),
+        name VARCHAR(100),
+        test VARCHAR(100),
+        weight DECIMAL(10,2),
+        sample VARCHAR(100),
+        amount DECIMAL(10,2),
+        is_paid INTEGER DEFAULT 0
+      )
+    `;
+    
+    await client.query(createTableSQL);
+    await client.query('COMMIT');
+    console.log('Tokens table created successfully');
   } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Error creating tokens table:', err);
     throw err;
+  } finally {
+    client.release();
   }
 };
 
@@ -245,7 +262,6 @@ const initializeTables = async () => {
     await createExpenseMasterTable();
     await createExpensesTable();
     await createPureExchangeTable();
-    await createTokensTable();
     await createEntriesTable();
     console.log(' All tables initialized successfully');
   } catch (err) {
