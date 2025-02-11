@@ -30,7 +30,7 @@ const MenuItem = ({ icon: Icon, label, to, isActive, onClick }) => (
     to={to}
     onClick={onClick}
     className={cn(
-      "flex items-center h-12 px-5 rounded-xl transition-all duration-200",
+      "flex items-center h-8 px-2 rounded-xl transition-all duration-200",
       "relative group",
       isActive
         ? "bg-amber-100 text-amber-900"
@@ -38,16 +38,16 @@ const MenuItem = ({ icon: Icon, label, to, isActive, onClick }) => (
     )}
   >
     <div className="flex items-center justify-center w-5 pl-1">
-      <Icon className={cn("h-7 w-7 flex-shrink-0", isActive && "text-amber-600")} />
+      <Icon className={cn("h-5 w-5 flex-shrink-0", isActive && "text-amber-600")} />
     </div>
     {label && (
-      <span className="font-medium text-xl ml-4 whitespace-nowrap">{label}</span>
+      <span className="font-medium text-md ml-3 whitespace-nowrap">{label}</span>
     )}
   </Link>
 );
 
 const MenuSection = ({ children }) => (
-  <div className="py-1.5">
+  <div className="py-0.5">
     <nav className="space-y-1 px-3.5">{children}</nav>
   </div>
 );
@@ -100,7 +100,7 @@ const Sidebar = ({ open = true, setOpen, animate = true, user, setLoggedIn }) =>
           open ? "w-80" : "w-20"
         )}
         animate={{
-          width: animate ? (open ? "320px" : "95px") : "320px",
+          width: animate ? (open ? "260px" : "70px") : "260px",
         }}
         onMouseEnter={() => animate && setOpen(true)}
         onMouseLeave={() => animate && setOpen(false)}
@@ -108,9 +108,9 @@ const Sidebar = ({ open = true, setOpen, animate = true, user, setLoggedIn }) =>
         {/* Logo Section */}
         <div className="flex items-center h-20 px-4 border-b border-amber-100 flex-shrink-0">
           <div className="flex items-center align-middle overflow-hidden">
-            <img src={Logo} alt="SS Gold" className="h-11 w-13 flex-shrink-0" />
+            <img src={Logo} alt="SS Gold" className="h-8 w-9 flex-shrink-0" />
             {open && (
-              <span className="ml-3 pt-0.5 text-5xl font-bold text-amber-900 truncate">
+              <span className="ml-3 pt-1 text-3xl font-bold text-amber-900 truncate">
                 SS Gold
               </span>
             )}
@@ -141,30 +141,30 @@ const Sidebar = ({ open = true, setOpen, animate = true, user, setLoggedIn }) =>
                   <button
                     onClick={() => setIsDataOpen(!isDataOpen)}
                     className={cn(
-                      "w-full flex items-center justify-between h-12 px-5",
+                      "w-full flex items-center justify-between h-8 px-2",
                       "text-gray-600 hover:bg-amber-50 hover:text-amber-900",
                       "rounded-lg transition-all duration-200"
                     )}
                   >
                     <div className="flex items-center">
                       <div className="flex items-center justify-center w-5 pl-1">
-                        <FiDatabase className="h-7 w-7 flex-shrink-0" />
+                        <FiDatabase className="h-5 w-5 flex-shrink-0" />
                       </div>
-                      {open && <span className="font-medium text-xl ml-4">Data</span>}
+                      {open && <span className="font-medium text-md ml-3">Data</span>}
                     </div>
                     {open && (
                       <div className="ml-2">
                         {isDataOpen ? (
-                          <FiChevronDown className="h-6 w-6" />
+                          <FiChevronDown className="h-5 w-5" />
                         ) : (
-                          <FiChevronRight className="h-6 w-6" />
+                          <FiChevronRight className="h-5 w-5" />
                         )}
                       </div>
                     )}
                   </button>
 
                   {isDataOpen && open && (
-                    <div className="pl-4 space-y-1">
+                    <div className="pl-4">
                       {dataMenuItems.map((item) => (
                         <MenuItem
                           key={item.path}
@@ -186,23 +186,23 @@ const Sidebar = ({ open = true, setOpen, animate = true, user, setLoggedIn }) =>
                 <button
                   onClick={() => setIsExpensesOpen(!isExpensesOpen)}
                   className={cn(
-                    "w-full flex items-center justify-between h-12 px-5",
+                    "w-full flex items-center justify-between h-8 px-2",
                     "text-gray-600 hover:bg-amber-50 hover:text-amber-900",
                     "rounded-lg transition-all duration-200"
                   )}
                 >
                   <div className="flex items-center">
                     <div className="flex items-center justify-center w-5 pl-1">
-                      <FiDollarSign className="h-7 w-7 flex-shrink-0" />
+                      <FiDollarSign className="h-5 w-5 flex-shrink-0" />
                     </div>
-                    {open && <span className="font-medium text-xl ml-4">Expenses</span>}
+                    {open && <span className="font-medium text-md ml-3">Expenses</span>}
                   </div>
                   {open && (
                     <div className="ml-2">
                       {isExpensesOpen ? (
-                        <FiChevronDown className="h-6 w-6" />
+                        <FiChevronDown className="h-5 w-5" />
                       ) : (
-                        <FiChevronRight className="h-6 w-6" />
+                        <FiChevronRight className="h-5 w-5" />
                       )}
                     </div>
                   )}
@@ -214,15 +214,15 @@ const Sidebar = ({ open = true, setOpen, animate = true, user, setLoggedIn }) =>
                         key={item.label}
                         onClick={item.onClick}
                         className={cn(
-                          "w-full flex items-center h-12 px-5",
+                          "w-full flex items-center h-8 px-2",
                           "text-gray-600 hover:bg-amber-50 hover:text-amber-900",
                           "rounded-lg transition-all duration-200"
                         )}
                       >
                         <div className="flex items-center justify-center w-5">
-                          <item.icon className="h-7 w-7 flex-shrink-0" />
+                          <item.icon className="h-5 w-5 flex-shrink-0" />
                         </div>
-                        <span className="font-medium text-lg ml-3">{item.label}</span>
+                        <span className="font-medium text-md ml-3">{item.label}</span>
                       </button>
                     ))}
                   </div>
@@ -235,20 +235,20 @@ const Sidebar = ({ open = true, setOpen, animate = true, user, setLoggedIn }) =>
               <MenuSection>
                 {/* User Profile */}
                 <div className={cn(
-                  "flex items-center h-12 px-5 rounded-lg",
+                  "flex items-center h-8 px-2 rounded-lg",
                   "text-gray-600 hover:bg-amber-50 hover:text-amber-900",
                   "transition-all duration-200"
                 )}>
                   <div className="flex items-center overflow-hidden">
                     <div className="flex items-center justify-center w-5 flex-shrink-0">
                       <img
-                        className="h-7 w-7 rounded-full object-cover border border-amber-200"
+                        className="h-5 w-5 rounded-full object-cover border border-amber-200"
                         src={user?.profileImage || 'https://via.placeholder.com/40'}
                         alt="User"
                       />
                     </div>
                     {open && (
-                      <span className="font-medium text-xl ml-3 truncate">
+                      <span className="font-medium text-md ml-3 truncate">
                         {user?.name || 'User'}
                       </span>
                     )}
@@ -354,26 +354,26 @@ const Sidebar = ({ open = true, setOpen, animate = true, user, setLoggedIn }) =>
                       <button
                         onClick={() => setIsDataOpen(!isDataOpen)}
                         className={cn(
-                          "w-full flex items-center justify-between h-12 px-5",
+                          "w-full flex items-center justify-between h-8 px-2",
                           "text-gray-600 hover:bg-amber-50 hover:text-amber-900",
                           "rounded-lg transition-all duration-200"
                         )}
                       >
                         <div className="flex items-center">
                           <div className="flex items-center justify-center w-5">
-                            <FiDatabase className="h-7 w-7 flex-shrink-0" />
+                            <FiDatabase className="h-5 w-5 flex-shrink-0" />
                           </div>
-                          <span className="font-medium text-lg ml-3">Data</span>
+                          <span className="font-medium text-md ml-3">Data</span>
                         </div>
                         {isDataOpen ? (
-                          <FiChevronDown className="h-6 w-6" />
+                          <FiChevronDown className="h-5 w-5" />
                         ) : (
-                          <FiChevronRight className="h-6 w-6" />
+                          <FiChevronRight className="h-5 w-5" />
                         )}
                       </button>
 
                       {isDataOpen && (
-                        <div className="pl-4 space-y-1">
+                        <div className="pl-4 space-y-1">      
                           {dataMenuItems.map((item) => (
                             <MenuItem
                               key={item.path}
@@ -395,21 +395,21 @@ const Sidebar = ({ open = true, setOpen, animate = true, user, setLoggedIn }) =>
                       <button
                         onClick={() => setIsExpensesOpen(!isExpensesOpen)}
                         className={cn(
-                          "w-full flex items-center justify-between h-12 px-5",
+                          "w-full flex items-center justify-between h-8 px-2",
                           "text-gray-600 hover:bg-amber-50 hover:text-amber-900",
                           "rounded-lg transition-all duration-200"
                         )}
                       >
                         <div className="flex items-center">
                           <div className="flex items-center justify-center w-5">
-                            <FiDollarSign className="h-7 w-7 flex-shrink-0" />
-                          </div>
-                          <span className="font-medium text-lg ml-3">Expenses</span>
+                            <FiDollarSign className="h-5 w-5 flex-shrink-0" />
+                          </div>  
+                          <span className="font-medium text-md ml-3">Expenses</span>
                         </div>
                         {isExpensesOpen ? (
-                          <FiChevronDown className="h-6 w-6" />
+                          <FiChevronDown className="h-5 w-5" />
                         ) : (
-                          <FiChevronRight className="h-6 w-6" />
+                          <FiChevronRight className="h-5 w-5" />
                         )}
                       </button>
                       {isExpensesOpen && (
@@ -422,15 +422,15 @@ const Sidebar = ({ open = true, setOpen, animate = true, user, setLoggedIn }) =>
                                 setOpen(false);
                               }}
                               className={cn(
-                                "w-full flex items-center h-12 px-5",
+                                "w-full flex items-center h-8 px-2",
                                 "text-gray-600 hover:bg-amber-50 hover:text-amber-900",
                                 "rounded-lg transition-all duration-200"
                               )}
                             >
                               <div className="flex items-center justify-center w-5">
-                                <item.icon className="h-7 w-7 flex-shrink-0" />
+                                <item.icon className="h-5 w-5 flex-shrink-0" />
                               </div>
-                              <span className="font-medium text-lg ml-3">{item.label}</span>
+                              <span className="font-medium text-md ml-3">{item.label}</span>
                             </button>
                           ))}
                         </div>
@@ -442,15 +442,15 @@ const Sidebar = ({ open = true, setOpen, animate = true, user, setLoggedIn }) =>
                   <div>
                     <MenuSection>
                       {/* User Profile */}
-                      <div className="flex items-center h-12 px-5 rounded-lg text-gray-600">
+                      <div className="flex items-center h-8 px-2 rounded-lg text-gray-600">
                         <div className="flex items-center justify-center w-5 flex-shrink-0">
                           <img
-                            className="h-7 w-7 rounded-full object-cover border border-amber-200"
+                            className="h-5 w-5 rounded-full object-cover border border-amber-200"
                             src={user?.profileImage || 'https://via.placeholder.com/40'}
                             alt="User"
                           />
                         </div>
-                        <span className="font-medium text-lg ml-3 truncate">
+                        <span className="font-medium text-md ml-3 truncate">
                           {user?.name || 'User'}
                         </span>
                       </div>
