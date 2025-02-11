@@ -5,17 +5,19 @@ const { handleDatabaseError } = require('../middleware/errorHandler');
 const initializeTable = async () => {
   try {
     await pool.query(`
-      DO $$ 
-      BEGIN 
-        IF NOT EXISTS (
-          SELECT 1 
-          FROM information_schema.columns 
-          WHERE table_name = 'tokens' 
-          AND column_name = 'is_paid'
-        ) THEN 
-          ALTER TABLE tokens ADD COLUMN is_paid INTEGER DEFAULT 0;
-        END IF;
-      END $$;
+      CREATE TABLE IF NOT EXISTS tokens (
+        id SERIAL PRIMARY KEY,
+        token_no VARCHAR(50) UNIQUE NOT NULL,
+        date DATE,
+        time TIME,
+        code VARCHAR(50),
+        name VARCHAR(100),
+        test VARCHAR(100),
+        weight DECIMAL(10, 2),
+        sample VARCHAR(100),
+        amount DECIMAL(10, 2),
+        is_paid INTEGER DEFAULT 0
+      );
     `);
     console.log('Tokens table initialized successfully');
   } catch (err) {
