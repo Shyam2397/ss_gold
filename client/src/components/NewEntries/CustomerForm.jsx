@@ -23,9 +23,9 @@ const CustomerForm = ({
     <div className="relative">
       <label
         htmlFor={id}
-        className="text-lg font-medium text-amber-900 mb-3 flex items-center"
+        className="text-sm font-medium text-amber-900 mb-1 flex items-center"
       >
-        {React.createElement(icon, { className: "h-5 w-5 sm:h-6 sm:w-6 text-amber-600 mr-2 sm:mr-3" })}
+        {React.createElement(icon, { className: "h-3.5 w-3.5 text-amber-600 mr-1.5" })}
         {label}
       </label>
       <input
@@ -34,30 +34,25 @@ const CustomerForm = ({
         value={value}
         onChange={onChange}
         placeholder={placeholder}
-        className="w-full pl-4 sm:pl-5 pr-8 sm:pr-12 py-2 sm:py-2.5 text-base sm:text-lg rounded-xl border-2 border-amber-200 focus:ring-2 font-medium focus:ring-amber-500 focus:border-amber-500 text-amber-900 transition-all duration-200"
+        className="w-full px-2 py-1.5 text-sm rounded border border-amber-200 focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition-all text-amber-900"
         required
       />
     </div>
   );
 
   return (
-    <div
-      className="bg-white rounded-xl shadow-sm p-4 sm:p-6 md:p-8 border border-amber-100"
-    >
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 sm:mb-8 gap-4">
+    <div className="bg-white rounded-2xl p-3 border border-amber-100">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-3 gap-2">
         <div className="flex items-center">
-          <div className="mr-3 sm:mr-4">
-            <MdPersonAdd className="w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 text-amber-600" />
-          </div>
-          <h2 className="text-2xl sm:text-2xl md:text-3xl font-bold text-amber-900">
+          <MdPersonAdd className="w-5 h-5 text-amber-600 mr-2" />
+          <h2 className="text-lg font-bold text-amber-900">
             {editMode ? "Edit Customer" : "New Customer"}
           </h2>
         </div>
-        {/* Error/Success Messages */}
         {(error || success) && (
-          <div className={`p-1 px-4 rounded-xl ${error ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'} text-base sm:text-lg`}> 
+          <div className={`px-2 py-0.5 rounded ${error ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'} text-xs`}> 
             <div className="flex items-center">
-              <FiAlertCircle className="h-5 w-5 sm:h-6 sm:w-6 text-red-400 mr-2 sm:mr-3" />
+              <FiAlertCircle className="h-3.5 w-3.5 mr-1.5" />
               {error || success}
             </div>
           </div>
@@ -66,11 +61,9 @@ const CustomerForm = ({
 
       <form
         onSubmit={handleSubmit}
-        className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6"
+        className="grid grid-cols-1 lg:grid-cols-2 gap-3"
       >
-        <div 
-          className="space-y-4 sm:space-y-6 p-4 sm:p-6 bg-amber-50 rounded-xl"
-        >
+        <div className="space-y-2 p-2 bg-amber-50/30 rounded">
           {renderInput(
             "Name", 
             "name", 
@@ -89,9 +82,7 @@ const CustomerForm = ({
           )}
         </div>
 
-        <div 
-          className="space-y-4 sm:space-y-6 p-4 sm:p-6 bg-amber-50 rounded-xl"
-        >
+        <div className="space-y-2 p-2 bg-amber-50/30 rounded">
           {renderInput(
             "Phone Number", 
             "phoneNumber", 
@@ -110,18 +101,18 @@ const CustomerForm = ({
           )}
         </div>
 
-        <div className="col-span-1 lg:col-span-2 flex flex-col sm:flex-row justify-end space-y-3 sm:space-y-0 sm:space-x-4 mt-4 sm:mt-6">
+        <div className="col-span-1 lg:col-span-2 flex flex-col sm:flex-row justify-end space-y-1 sm:space-y-0 sm:space-x-2 mt-2">
           <button
             type="button"
             onClick={resetForm}
-            className="w-full sm:w-auto px-4 sm:px-6 py-2.5 sm:py-3 text-base sm:text-lg font-medium text-amber-700 bg-amber-100 rounded-xl hover:bg-amber-200 transition-colors duration-200"
+            className="px-3 py-1.5 text-xs font-medium text-amber-700 bg-amber-50 rounded hover:bg-amber-100 transition-colors"
           >
             Reset
           </button>
           <button
             type="submit"
             disabled={loading}
-            className="w-full sm:w-auto px-4 sm:px-6 py-2.5 sm:py-3 text-base sm:text-lg font-medium text-white bg-amber-600 rounded-xl hover:bg-amber-700 transition-colors duration-200 disabled:opacity-50"
+            className="px-3 py-1.5 text-xs font-medium text-white bg-amber-600 rounded hover:bg-amber-700 transition-colors disabled:opacity-50"
           >
             {loading ? "Saving..." : editMode ? "Update" : "Save"}
           </button>

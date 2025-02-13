@@ -232,7 +232,7 @@ const NewEntries = () => {
   };
 
   return (
-    <div className="container mx-auto px-8 py-2">
+    <div className="container mx-auto px-8 py-5">
       {/* Customer Form */}
       <CustomerForm
         editMode={editMode}
