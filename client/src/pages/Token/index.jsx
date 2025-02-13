@@ -213,7 +213,6 @@ const TokenPage = () => {
     const month = (editDate.getMonth() + 1).toString().padStart(2, '0');
     const year = editDate.getFullYear();
     const formattedDate = `${day}-${month}-${year}`;
-    setDate(formattedDate);
 
     // Ensure consistent time formatting
     const [hours, minutes] = token.time.split(':');
@@ -291,40 +290,38 @@ const TokenPage = () => {
   };
 
   return (
-    <div className="container mx-auto px-8 py-2">
-      <div className="bg-white rounded-xl shadow-sm p-6 border border-amber-100">
-        <div className="flex items-center justify-between mb-6 sm:mb-8">
+    <div className="container mx-auto px-4 py-3">
+      <div className="bg-white rounded-xl shadow-sm p-4 border border-amber-100">
+        <div className="flex items-center justify-between mb-4">
           <div className="flex items-center">
-            <div className="mr-4 sm:mr-6">
-              <BsReceipt className="w-8 h-8 sm:w-10 sm:h-10 text-amber-600" />
-            </div>
-            <h2 className="text-2xl sm:text-3xl font-bold text-amber-900">
+            <BsReceipt className="w-6 h-6 text-amber-600 mr-3" />
+            <h2 className="text-xl font-bold text-amber-900">
               {editMode ? "Edit Token" : "New Token"}
             </h2>
           </div>
           {error && (
-            <div className="p-2 bg-red-50 border-l-4 border-red-500 rounded-md">
+            <div className="p-1.5 bg-red-50 border-l-3 border-red-500 rounded">
               <div className="flex">
-                <div className="ml-3">
-                  <p className="text-sm text-red-700">{error}</p>
+                <div className="ml-2">
+                  <p className="text-xs text-red-700">{error}</p>
                 </div>
               </div>
             </div>
           )}
           {success && (
-            <div className="p-2 bg-green-50 border-l-4 border-green-500 rounded-md">
+            <div className="p-1.5 bg-green-50 border-l-3 border-green-500 rounded">
               <div className="flex">
-                <div className="ml-3">
-                  <p className="text-sm text-green-700">{success}</p>
+                <div className="ml-2">
+                  <p className="text-xs text-green-700">{success}</p>
                 </div>
               </div>
             </div>
           )}
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div 
-            className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-5 p-5 sm:p-6 bg-amber-50 rounded-xl border border-amber-100 shadow-md"
+            className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 gap-3 p-3 bg-amber-50/50 rounded-lg border border-amber-100"
           >
             <FormField
               label="Token No"
@@ -402,60 +399,58 @@ const TokenPage = () => {
             />
           </div>
 
-          <div className="flex justify-end space-x-4 sm:space-x-6">
+          <div className="flex justify-end space-x-3">
             <button
               type="button"
               onClick={resetForm}
-              className="inline-flex items-center px-4 sm:px-6 py-2 border border-amber-200 text-amber-700 rounded-lg hover:bg-amber-50 transition-all duration-200"
+              className="inline-flex items-center px-3 py-1.5 border border-amber-200 text-amber-700 rounded hover:bg-amber-50 transition-all text-sm"
             >
-              <FiRotateCcw className="-ml-1 mr-2 h-5 w-5 sm:h-6 sm:w-6" />
+              <FiRotateCcw className="mr-1.5 h-4 w-4" />
               Reset
             </button>
             <button
               type="submit"
-              className="inline-flex items-center px-4 sm:px-6 py-2 border border-transparent rounded-lg shadow-sm text-sm sm:text-base font-medium text-white bg-gradient-to-r from-amber-600 to-yellow-500 hover:from-amber-700 hover:to-yellow-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 transition-all duration-200"
+              className="inline-flex items-center px-3 py-1.5 rounded text-sm font-medium text-white bg-amber-600 hover:bg-amber-700 focus:ring-1 focus:ring-amber-500 transition-all"
             >
-              <FiSave className="-ml-1 mr-2 h-5 w-5 sm:h-6 sm:w-6" />
+              <FiSave className="mr-1.5 h-4 w-4" />
               {editMode ? "Update Token" : "Save Token"}
             </button>
             <button
               type="button"
               onClick={handlePrint}
-              className="inline-flex items-center px-4 sm:px-6 py-2 border border-transparent rounded-lg shadow-sm text-sm sm:text-base font-medium text-white bg-gradient-to-r from-amber-600 to-yellow-500 hover:from-amber-700 hover:to-yellow-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 transition-all duration-200"
+              className="inline-flex items-center px-3 py-1.5 rounded text-sm font-medium text-white bg-amber-600 hover:bg-amber-700 focus:ring-1 focus:ring-amber-500 transition-all"
             >
-              <FiPrinter className="-ml-1 mr-2 h-5 w-5 sm:h-6 sm:w-6" />
+              <FiPrinter className="mr-1.5 h-4 w-4" />
               Print
             </button>
           </div>
         </form>
       </div>
 
-      <div className="mt-8 bg-white rounded-xl shadow-sm p-6 border border-amber-100">
-        <div className="flex items-center justify-between mb-6 sm:mb-8">
+      <div className="mt-6 bg-white rounded-xl shadow-sm p-4 border border-amber-100">
+        <div className="flex items-center justify-between mb-4">
           <div className="flex items-center">
-            <div className="mr-4 sm:mr-6">
-              <FiList className="w-6 h-6 sm:w-8 sm:h-8 text-amber-600" />
-            </div>
-            <h3 className="text-xl sm:text-2xl font-bold text-amber-900">
+            <FiList className="w-5 h-5 text-amber-600 mr-2" />
+            <h3 className="text-lg font-bold text-amber-900">
               Token List
             </h3>
           </div>
-          <div className="relative w-64 sm:w-80">
+          <div className="relative w-64">
             <input
               type="text"
               placeholder="Search tokens..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 sm:py-3 rounded-lg border border-amber-200 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all duration-200"
+              className="w-full pl-8 pr-3 py-1.5 rounded border border-amber-200 focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition-all text-sm"
             />
-            <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+            <FiSearch className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
           </div>
         </div>
 
         {loading ? (
-          <div className="flex justify-center py-12">
+          <div className="flex justify-center py-8">
             <svg
-              className="animate-spin h-8 w-8 text-amber-600"
+              className="animate-spin h-6 w-6 text-amber-600"
               viewBox="0 0 24 24"
             >
               <circle

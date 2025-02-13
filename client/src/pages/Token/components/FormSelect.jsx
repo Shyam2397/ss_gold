@@ -12,29 +12,28 @@ const FormSelect = ({
   error,
   icon = FiClipboard
 }) => (
-  <div className="space-y-2 sm:space-y-3">
+  <div className="space-y-1.5">
     <label 
       htmlFor={id} 
-      className="text-base sm:text-lg font-medium text-amber-900 flex items-center"
+      className="text-sm font-medium text-amber-900 flex items-center"
     >
       {icon && (
-        <span className="mr-2 sm:mr-3">
+        <span className="mr-1.5">
           {React.createElement(icon, { 
-            className: "h-5 w-5 sm:h-6 sm:w-6 text-amber-600" 
+            className: "h-4 w-4 text-amber-600" 
           })}
         </span>
       )}
       {label}
-      {required && <span className="text-red-500 ml-1">*</span>}
+      {required && <span className="text-red-500 ml-0.5 text-[10px]">*</span>}
     </label>
     <div className="relative">
       <select
         id={id}
-        name={id}
         value={value}
         onChange={onChange}
         required={required}
-        className="block w-full pl-5 sm:pl-6 pr-12 sm:pr-14 py-2.5 sm:py-2.5 text-base sm:text-lg rounded-lg border border-amber-200 focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition-all duration-200 appearance-none text-amber-800"
+        className="block w-full pl-2.5 pr-8 py-1.5 text-sm rounded border border-amber-200 focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition-all appearance-none text-amber-800 bg-white"
       >
         {placeholder && (
           <option value="" disabled>
@@ -45,19 +44,19 @@ const FormSelect = ({
           <option 
             key={option} 
             value={option}
-            className="text-base sm:text-lg"
+            className="text-sm"
           >
             {option}
           </option>
         ))}
       </select>
-      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
-        <FiChevronDown className="h-5 w-5 sm:h-6 sm:w-6 text-amber-500" />
+      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
+        <FiChevronDown className="h-4 w-4 text-amber-500" />
       </div>
     </div>
     {error && (
-      <p className="mt-1.5 text-base sm:text-lg text-red-600 flex items-center">
-        <FiAlertCircle className="mr-2 h-5 w-5 sm:h-6 sm:w-6" />
+      <p className="mt-1 text-xs text-red-600 flex items-center">
+        <FiAlertCircle className="mr-1 h-3.5 w-3.5" />
         {error}
       </p>
     )}
