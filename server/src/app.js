@@ -51,11 +51,9 @@ const startServer = async () => {
   try {
     // Test database connection
     await pool.query('SELECT NOW()');
-    console.log('Successfully connected to PostgreSQL database');
 
     // Initialize database tables
     await initializeTables();
-    console.log('Database tables initialized successfully');
 
     // Routes
     app.use('/auth', authRoutes);
@@ -67,9 +65,6 @@ const startServer = async () => {
     app.use('/pure-exchange', pureExchangeRoutes);
 
     const server = app.listen(port, () => {
-      console.log(`Server is running on port ${port}`);
-      console.log(`Health check available at http://localhost:${port}/health`);
-      
       if (process.env.NODE_ENV === 'development') {
         console.log(`Development mode: Detailed error messages enabled`);
       }

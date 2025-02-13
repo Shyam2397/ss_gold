@@ -19,7 +19,6 @@ const initializeTable = async () => {
         is_paid INTEGER DEFAULT 0
       );
     `);
-    console.log('Tokens table initialized successfully');
   } catch (err) {
     console.error('Error initializing tokens table:', err);
     throw err;

@@ -4,34 +4,27 @@ const { resetSkinTestsTable } = require('../models/tables');
 
 const getAllSkinTests = async (req, res) => {
   try {
-    console.log('Fetching skin tests - Start');
     const skinTestsResult = await pool.query(
       "SELECT * FROM skin_tests ORDER BY tokenNo DESC"
     );
-    console.log('Skin tests query executed successfully');
-    console.log('Number of skin tests found:', skinTestsResult.rows.length);
     
     const processedRows = await Promise.all(
       skinTestsResult.rows.map(async (row) => {
         try {
-          console.log('Processing row:', row.tokenNo);
           const entryResult = await pool.query(
             "SELECT phoneNumber FROM entries WHERE code = $1",
             [row.code]
           );
-          console.log('Entry query for row executed successfully');
           return {
             ...row,
             phoneNumber: entryResult.rows[0]?.phoneNumber || null
           };
         } catch (err) {
-          console.error('Error processing individual row:', err);
           return { ...row, phoneNumber: null };
         }
       })
     );
 
-    console.log('All rows processed successfully');
     res.json({ data: processedRows });
   } catch (error) {
     console.error('Detailed error in getAllSkinTests:', error);

@@ -16,7 +16,6 @@ const getAllEntries = async (req, res) => {
     }
 
     const result = await pool.query(query, params);
-    console.log('Entries result:', result.rows);
 
     if ((code || phoneNumber) && result.rows.length === 0) {
       return res.status(404).json({
@@ -59,18 +58,9 @@ const getEntryByCode = async (req, res) => {
 
 const createEntry = async (req, res) => {
   try {
-    console.log('Request body:', req.body);
     const { code, name, phoneNumber, place } = req.body;
 
-    console.log('Extracted fields:', { code, name, phoneNumber, place });
-
     if (!code || !name || !phoneNumber || !place) {
-      console.log('Missing fields:', {
-        code: !code,
-        name: !name,
-        phoneNumber: !phoneNumber,
-        place: !place
-      });
       return res.status(400).json({
         success: false,
         error: "All fields are required"
@@ -79,7 +69,6 @@ const createEntry = async (req, res) => {
 
     const phoneRegex = /^\+?\d{10,12}$/;
     if (!phoneRegex.test(phoneNumber)) {
-      console.log('Invalid phone number format:', phoneNumber);
       return res.status(400).json({
         success: false,
         error: "Invalid phone number format. Please enter 10-12 digits with optional + prefix"

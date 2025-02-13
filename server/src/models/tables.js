@@ -95,7 +95,6 @@ const createExpenseMasterTable = async () => {
 
   try {
     await pool.query(createTableSQL);
-    console.log('expense_master table created successfully');
   } catch (err) {
     console.error('Error creating expense_master table:', err);
     throw err;
@@ -118,7 +117,6 @@ const createExpensesTable = async () => {
 
   try {
     await pool.query(createTableSQL);
-    console.log('expenses table created successfully');
   } catch (err) {
     console.error('Error creating expenses table:', err);
     throw err;
@@ -162,7 +160,6 @@ const createUsersTable = async () => {
   
   try {
     await pool.query(createTableSQL);
-    console.log('Users table check completed');
     
     // Check if admin user exists
     const adminCheck = await pool.query(
@@ -179,9 +176,6 @@ const createUsersTable = async () => {
         "INSERT INTO users (username, password) VALUES ($1, $2)",
         ['admin', hashedPassword]
       );
-      console.log('Admin user created');
-    } else {
-      console.log('Admin user already exists');
     }
   } catch (err) {
     // If error is not about duplicate admin user, rethrow it
@@ -189,7 +183,6 @@ const createUsersTable = async () => {
       console.error('Error creating users table:', err);
       throw err;
     }
-    console.log('Admin user already exists');
   }
 };
 
@@ -208,7 +201,6 @@ const createEntriesTable = async () => {
   
   try {
     await pool.query(createTableSQL);
-    console.log('Entries table created successfully');
   } catch (err) {
     console.error('Error creating entries table:', err);
     throw err;
@@ -245,7 +237,6 @@ const createTokensTable = async () => {
     
     await client.query(createTableSQL);
     await client.query('COMMIT');
-    console.log('Tokens table created successfully');
   } catch (err) {
     await client.query('ROLLBACK');
     console.error('Error creating tokens table:', err);
@@ -263,7 +254,6 @@ const initializeTables = async () => {
     await createExpensesTable();
     await createPureExchangeTable();
     await createEntriesTable();
-    console.log(' All tables initialized successfully');
   } catch (err) {
     console.error('Error initializing tables:', err);
     throw err;

@@ -7,7 +7,6 @@ const checkDatabaseConnection = async () => {
     );
     return result.rows[0].exists;
   } catch (err) {
-    console.error('Error checking database connection:', err);
     throw err;
   }
 };
@@ -17,7 +16,6 @@ const listUsers = async () => {
     const result = await pool.query("SELECT username FROM users");
     return result.rows;
   } catch (err) {
-    console.error('Error listing users:', err);
     throw err;
   }
 };
@@ -30,7 +28,6 @@ const checkTableExists = async (tableName) => {
     );
     return result.rows[0].exists;
   } catch (err) {
-    console.error(`Error checking if table ${tableName} exists:`, err);
     throw err;
   }
 };
@@ -45,7 +42,6 @@ const getTableInfo = async (tableName) => {
     `, [tableName]);
     return result.rows;
   } catch (err) {
-    console.error(`Error getting table info for ${tableName}:`, err);
     throw err;
   }
 };
@@ -58,7 +54,6 @@ const runMigration = async (migrationQuery, params = []) => {
     await client.query('COMMIT');
   } catch (err) {
     await client.query('ROLLBACK');
-    console.error('Error running migration:', err);
     throw err;
   } finally {
     client.release();
@@ -85,7 +80,6 @@ const healthCheck = async () => {
       timestamp: new Date().toISOString()
     };
   } catch (err) {
-    console.error('Database health check failed:', err);
     throw err;
   }
 };

@@ -6,22 +6,15 @@ const PORT = process.env.PORT;
 let server;
 
 const shutdown = async (signal) => {
-  console.log(`\n${signal} received. Starting graceful shutdown...`);
-  
   try {
     // Close server first
     if (server) {
-      console.log('→ Closing HTTP server...');
       await new Promise((resolve) => server.close(resolve));
-      console.log('✓ HTTP server closed');
     }
 
     // Close database connections
-    console.log('→ Closing database connections...');
     await pool.end();
-    console.log('✓ Database connections closed');
 
-    console.log('✓ Graceful shutdown completed');
     process.exit(0);
   } catch (error) {
     console.error('Error during shutdown:', error);
