@@ -116,7 +116,7 @@ const TokenTable = ({ tokens = [], onEdit, onDelete, onPaymentStatusChange }) =>
                   return (
                     <td
                       key={column}
-                      className="px-2 py-2 whitespace-nowrap text-center text-xs text-gray-900 truncate align-middle"
+                      className="px-2 py-2 whitespace-nowrap text-center text-xs text-amber-900 truncate align-middle"
                     >
                       {displayValue}
                     </td>
