@@ -53,43 +53,79 @@ export const useSkinTest = () => {
     updateFormData(name, value);
 
     if (name === 'tokenNo' && value) {
+      setLoading(true);
       try {
+        // Fetch token data
         const response = await fetchTokenData(value);
-        if (response.data.data) {
+        
+        if (response.data.success && response.data.data) {
           const { date, time, name, weight, sample, code } = response.data.data;
+          
+          // Update form with token data
           setFormData((prevFormData) => ({
             ...prevFormData,
-            date,
-            time,
-            name,
-            weight,
-            sample,
-            code,
+            date: date || '',
+            time: time || '',
+            name: name || '',
+            weight: weight ? parseFloat(weight).toFixed(3) : '',
+            sample: sample || '',
+            code: code || '',
             tokenNo: value,
           }));
 
-          const phoneNumber = await fetchPhoneNumber(code);
-          if (phoneNumber) {
-            setFormData((prevFormData) => ({
-              ...prevFormData,
-              phoneNumber,
-            }));
+          // If we have a code, fetch phone number
+          if (code) {
+            try {
+              const phoneNumber = await fetchPhoneNumber(code);
+              if (phoneNumber) {
+                setFormData((prevFormData) => ({
+                  ...prevFormData,
+                  phoneNumber,
+                }));
+              }
+            } catch (phoneErr) {
+              console.error('Failed to fetch phone number:', phoneErr);
+            }
           }
         } else {
-          setError('No token data found for the entered token number.');
+          setError(response.data.message || 'No token data found.');
+          clearFormFields();
         }
       } catch (err) {
+        console.error('Token fetch error:', err);
         if (err.response?.status === 404) {
           setError('Token number not found.');
         } else {
-          setError('Failed to fetch token data. Please try again later.');
+          setError('Failed to fetch token data. Please try again.');
         }
+        clearFormFields();
+      } finally {
+        setLoading(false);
       }
     }
   };
 
+  const clearFormFields = () => {
+    setFormData((prevFormData) => ({
+      ...prevFormData,
+      date: '',
+      time: '',
+      name: '',
+      weight: '',
+      sample: '',
+      code: '',
+      phoneNumber: '',
+    }));
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
+    
+    // Prevent token number changes during editing
+    if (isEditing && name === 'tokenNo') {
+      return;
+    }
+    
     if (error) setError('');
     updateFormData(name, value);
   };
@@ -101,10 +137,18 @@ export const useSkinTest = () => {
     const processedData = processFormData(formData);
 
     try {
+      setLoading(true);
       if (isEditing) {
-        await updateSkinTest(processedData.tokenNo, processedData);
+        // During edit, ensure we're using the original token number
+        await updateSkinTest(formData.tokenNo, processedData);
         setIsEditing(false);
       } else {
+        // Check for duplicate token number during creation
+        const exists = skinTests.some(test => test.tokenNo === processedData.tokenNo);
+        if (exists) {
+          setError('Token number already exists');
+          return;
+        }
         await createSkinTest(processedData);
       }
       await loadSkinTests();
@@ -113,28 +157,81 @@ export const useSkinTest = () => {
       setSum(0);
     } catch (err) {
       console.error('Error details:', err.response?.data || err.message);
-      if (err.response?.data?.error === 'Token number already exists') {
-        setError('Token number already exists');
-      } else {
-        setError(err.response?.data?.error || 'Failed to submit form');
-      }
+      setError(err.response?.data?.message || 'Failed to submit form');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleEdit = (test) => {
-    setFormData(test);
-    setIsEditing(true);
-    const newSum = calculateSum(test);
-    setSum(newSum);
+  const handleEdit = async (test) => {
+    try {
+      setLoading(true);
+      setError('');
+      
+      // For editing, we'll use the test data directly since it's already complete
+      const editData = {
+        ...test,
+        // Ensure weight is formatted correctly
+        weight: test.weight ? parseFloat(test.weight).toFixed(3) : '',
+      };
+
+      // If we have a code, fetch latest phone number
+      if (editData.code) {
+        try {
+          const phoneNumber = await fetchPhoneNumber(editData.code);
+          if (phoneNumber) {
+            editData.phoneNumber = phoneNumber;
+          }
+        } catch (phoneErr) {
+          console.error('Failed to fetch phone number during edit:', phoneErr);
+          // Don't block edit if phone number fetch fails
+        }
+      }
+
+      setFormData(editData);
+      setIsEditing(true);
+      const newSum = calculateSum(editData);
+      setSum(newSum);
+    } catch (err) {
+      console.error('Error during edit:', err);
+      setError('Failed to prepare data for editing. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleDelete = async (tokenNo) => {
+    if (!tokenNo) {
+      setError('Invalid token number for deletion');
+      return;
+    }
+
     try {
-      await deleteSkinTest(tokenNo);
-      await loadSkinTests();
+      setLoading(true);
+      setError('');
+
+      // Confirm deletion
+      if (!window.confirm('Are you sure you want to delete this skin test?')) {
+        return;
+      }
+
+      const response = await deleteSkinTest(tokenNo);
+      
+      if (response.data?.success) {
+        // Clear form if we're editing the same token that's being deleted
+        if (isEditing && formData.tokenNo === tokenNo) {
+          handleReset();
+        }
+        
+        await loadSkinTests();
+      } else {
+        throw new Error(response.data?.message || 'Failed to delete skin test');
+      }
     } catch (err) {
-      console.error('Error details:', err.response?.data || err.message);
-      setError(err.response?.data?.error || 'Failed to delete skin test');
+      console.error('Error during deletion:', err);
+      setError(err.response?.data?.message || 'Failed to delete skin test. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 

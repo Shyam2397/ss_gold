@@ -14,13 +14,29 @@ export const createSkinTest = async (data) => {
 };
 
 export const updateSkinTest = async (tokenNo, data) => {
-  return await axios.put(`${API_URL}/skin-tests/${tokenNo}`, data, {
-    headers: { 'Content-Type': 'application/json' }
-  });
+  try {
+    const response = await axios.put(`${API_URL}/skin-tests/${tokenNo}`, data, {
+      headers: { 'Content-Type': 'application/json' }
+    });
+    return response;
+  } catch (error) {
+    if (error.response?.status === 404) {
+      throw new Error('Skin test not found');
+    }
+    throw error;
+  }
 };
 
 export const deleteSkinTest = async (tokenNo) => {
-  return await axios.delete(`${API_URL}/skin-tests/${tokenNo}`);
+  try {
+    const response = await axios.delete(`${API_URL}/skin-tests/${tokenNo}`);
+    return response;
+  } catch (error) {
+    if (error.response?.status === 404) {
+      throw new Error('Skin test not found');
+    }
+    throw error;
+  }
 };
 
 export const fetchTokenData = async (tokenNo) => {

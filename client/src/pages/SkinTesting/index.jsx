@@ -162,19 +162,25 @@ const SkinTesting = () => {
                 label={key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
                 name={key}
                 value={formData[key] || ''}
-                onChange={handleChange}
+                onChange={key === 'tokenNo' ? handleTokenChange : handleChange}
                 icon={getFieldIcon(key)}
                 size="base"
+                readOnly={key !== 'tokenNo' && loading}
+                placeholder={key === 'tokenNo' ? 'Enter token number' : ''}
               />
             ))}
           </div>
 
           {/* Test Results */}
           <div 
-            className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-7 xl:grid-cols-8 2xl:grid-cols-9 gap-2"
+            className={`grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-7 xl:grid-cols-8 2xl:grid-cols-9 gap-2 ${loading ? 'opacity-50' : ''}`}
           >
             {Object.keys(formData)
-              .filter(key => !['tokenNo', 'date', 'time', 'name', 'weight', 'sample', 'code'].includes(key))
+              .filter(key => 
+                !['tokenNo', 'date', 'time', 'name', 'weight', 'sample', 'code', 'phoneNumber'].includes(key) && 
+                !Object.keys(customerFields).includes(key) && 
+                !Object.keys(tokenFields).includes(key)
+              )
               .map((key) => (
                 <FormInput
                   key={key}
@@ -184,6 +190,7 @@ const SkinTesting = () => {
                   onChange={handleChange}
                   icon={getFieldIcon(key)}
                   size="base"
+                  readOnly={loading}
                 />
               ))}
           </div>

@@ -83,23 +83,37 @@ const getTokenByNumber = async (req, res) => {
       "SELECT * FROM tokens WHERE token_no = $1",
       [req.params.tokenNo]
     );
+
+    if (!result.rows || result.rows.length === 0) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Token not found' 
+      });
+    }
+
     // Transform to camelCase for frontend
+    const row = result.rows[0];
     const transformedRow = {
-      id: result.rows[0].id,
-      tokenNo: result.rows[0].token_no,
-      date: result.rows[0].date,
-      time: result.rows[0].time,
-      code: result.rows[0].code,
-      name: result.rows[0].name,
-      test: result.rows[0].test,
-      weight: result.rows[0].weight,
-      sample: result.rows[0].sample,
-      amount: result.rows[0].amount,
-      isPaid: result.rows[0].is_paid
+      id: row.id,
+      tokenNo: row.token_no,
+      date: row.date,
+      time: row.time,
+      code: row.code,
+      name: row.name,
+      test: row.test,
+      weight: row.weight,
+      sample: row.sample,
+      amount: row.amount,
+      isPaid: row.is_paid
     };
-    res.json({ data: transformedRow });
+
+    res.json({ 
+      success: true,
+      data: transformedRow 
+    });
   } catch (err) {
-    return handleDatabaseError(err, res);
+    console.error('Database error:', err);
+    handleDatabaseError(err, res);
   }
 };
 
@@ -138,8 +152,26 @@ const createToken = async (req, res) => {
 
 const updateToken = async (req, res) => {
   const { tokenNo, date, time, code, name, test, weight, sample, amount } = req.body;
+  const client = await pool.connect();
+  
   try {
-    const result = await pool.query(
+    await client.query('BEGIN');
+
+    // Check if the token number exists for any other record
+    const duplicateCheck = await client.query(
+      'SELECT id FROM tokens WHERE token_no = $1 AND id != $2',
+      [tokenNo, req.params.id]
+    );
+
+    if (duplicateCheck.rows.length > 0) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ 
+        success: false,
+        error: "Token number already exists" 
+      });
+    }
+
+    const result = await client.query(
       `UPDATE tokens 
        SET token_no = $1, date = $2, time = $3, code = $4, name = $5, 
            test = $6, weight = $7, sample = $8, amount = $9 
@@ -147,9 +179,17 @@ const updateToken = async (req, res) => {
        RETURNING id, token_no, date, time, code, name, test, weight, sample, amount, is_paid`,
       [tokenNo, date, time, code, name, test, weight, sample, amount, req.params.id]
     );
+
     if (result.rowCount === 0) {
-      return res.status(404).json({ error: "Token not found" });
+      await client.query('ROLLBACK');
+      return res.status(404).json({ 
+        success: false,
+        error: "Token not found" 
+      });
     }
+
+    await client.query('COMMIT');
+
     // Transform to camelCase for frontend
     const transformedRow = {
       id: result.rows[0].id,
@@ -164,9 +204,17 @@ const updateToken = async (req, res) => {
       amount: result.rows[0].amount,
       isPaid: result.rows[0].is_paid
     };
-    res.status(200).json(transformedRow);
+
+    res.status(200).json({
+      success: true,
+      data: transformedRow
+    });
   } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Error updating token:', err);
     return handleDatabaseError(err, res);
+  } finally {
+    client.release();
   }
 };
 
