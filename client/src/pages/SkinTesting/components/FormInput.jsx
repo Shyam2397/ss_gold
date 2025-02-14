@@ -14,22 +14,22 @@ const FormInput = ({
   icon = null
 }) => {
   const sizeClasses = {
-    sm: 'py-1.5 text-sm',
-    base: 'py-1.5 sm:py-2.5 text-sm sm:text-base',
-    lg: 'py-1.5 sm:py-2.5 text-base sm:text-lg'
+    sm: 'py-1.5 text-xs',
+    base: 'py-1.5 text-sm',
+    lg: 'py-1.5 text-sm'
   };
 
   return (
-    <div className="space-y-1.5 sm:space-y-2">
+    <div className="space-y-1.5">
       <label 
         htmlFor={name} 
-        className="text-sm sm:text-base font-medium text-amber-900 flex items-center"
+        className="text-sm font-medium text-amber-900 flex items-center"
       >
         {icon && React.createElement(icon, { 
-          className: "h-4 w-4 sm:h-5 sm:w-5 text-amber-600 mr-2 sm:mr-3" 
+          className: "h-4 w-4 text-amber-600 mr-1.5" 
         })}
         {label.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
-        {error && <span className="text-red-500 ml-1.5"><FiAlertCircle className="inline h-4 w-4" /></span>}
+        {error && <span className="text-red-500 ml-0.5"><FiAlertCircle className="inline h-3.5 w-3.5" /></span>}
       </label>
       <div className="relative">
         <input
@@ -42,30 +42,19 @@ const FormInput = ({
           readOnly={readOnly}
           className={`
             block w-full 
-            pl-3 sm:pl-4 
-            pr-8 sm:pr-10 
+            px-2.5
             ${sizeClasses[size]} 
-            rounded-lg 
+            rounded 
             border border-amber-200 
             focus:ring-1 focus:ring-amber-500 
             focus:border-amber-500 
-            transition-all duration-200
+            transition-all
             text-amber-800
-            ${readOnly ? 'bg-amber-50 cursor-not-allowed' : ''}
+            ${readOnly ? 'bg-gray-50' : ''}
+            ${error ? 'border-red-500' : ''}
           `}
         />
-        {error && (
-          <div className="absolute inset-y-0 right-0 pr-2 flex items-center pointer-events-none">
-            <FiAlertCircle className="h-4 w-4 text-red-500" />
-          </div>
-        )}
       </div>
-      {error && (
-        <p className="mt-1 text-xs text-red-600 flex items-center">
-          <FiAlertCircle className="mr-1.5 h-3 w-3" />
-          {error}
-        </p>
-      )}
     </div>
   );
 };
