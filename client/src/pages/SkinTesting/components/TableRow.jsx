@@ -1,11 +1,11 @@
 import React from 'react';
-import { FiEdit2, FiTrash2, FiPrinter } from 'react-icons/fi';
+import { FiEdit2, FiTrash2 } from 'react-icons/fi';
+import { formatDateForDisplay, formatTimeForDisplay } from '../utils/validation';
 
 const TableRow = ({ 
   rowData, 
   onEdit, 
   onDelete, 
-  onPrint, 
   columns 
 }) => {
   return (
@@ -26,50 +26,30 @@ const TableRow = ({
           >
             <FiTrash2 className="w-3.5 h-3.5" />
           </button>
-          <button 
-            onClick={() => onPrint(rowData)}
-            className="text-green-600 hover:text-green-900 p-1 rounded hover:bg-green-50"
-            title="Print Test"
-          >
-            <FiPrinter className="w-3.5 h-3.5" />
-          </button>
         </div>
       </td>
       {columns.map((column) => {
-        let displayValue = rowData[column.toLowerCase().replace(/\s/g, '')];
+        const key = column.toLowerCase().replace(/\s/g, '');
+        let displayValue = rowData[key];
         
         // Format specific columns
-        if (column === 'Weight') {
+        if (key === 'date') {
+          displayValue = formatDateForDisplay(displayValue);
+        } else if (key === 'time') {
+          displayValue = formatTimeForDisplay(displayValue);
+        } else if (key === 'weight') {
           displayValue = parseFloat(displayValue).toFixed(3);
-        } else if (column === 'Date') {
-          const date = new Date(displayValue);
-          const day = date.getDate().toString().padStart(2, '0');
-          const month = (date.getMonth() + 1).toString().padStart(2, '0');
-          const year = date.getFullYear();
-          displayValue = `${day}-${month}-${year}`;
-        } else if (column === 'Time') {
-          const [hours, minutes] = displayValue.split(':');
-          const date = new Date();
-          date.setHours(parseInt(hours), parseInt(minutes));
-          displayValue = date.toLocaleTimeString('en-IN', {
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: true
-          });
         }
 
         return (
-          <td 
-            key={column} 
-            className={`px-2 py-2 text-center text-xs text-gray-900 align-middle overflow-hidden ${
-              column === 'weight' ? 'w-[100px]' : 
-              column === 'tokenNo' ? 'w-[100px]' : 
-              column === 'date' ? 'w-[100px]' : 
-              column === 'time' ? 'w-[100px]' : 
-              column === 'name' ? 'w-[150px]' : 
-              'min-w-[100px]'
-            }`}
-          >
+          <td key={column} className={`px-2 py-2 text-center text-xs text-gray-900 align-middle overflow-hidden ${
+            column === 'weight' ? 'w-[100px]' : 
+            column === 'tokenNo' ? 'w-[100px]' : 
+            column === 'date' ? 'w-[100px]' : 
+            column === 'time' ? 'w-[100px]' : 
+            column === 'name' ? 'w-[150px]' : 
+            'min-w-[100px]'
+          }`}>
             <div className="truncate" title={displayValue}>
               {displayValue}
             </div>

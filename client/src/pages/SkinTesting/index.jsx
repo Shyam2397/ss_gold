@@ -23,6 +23,7 @@ import TableRow from './components/TableRow';
 import LoadingSpinner from './components/LoadingSpinner';
 import useSkinTest from './hooks/useSkinTest';
 import { initialFormData } from './constants/initialState';
+import { formatDateForInput, formatTimeForInput } from './utils/validation';
 
 const SkinTesting = () => {
   const {
@@ -156,24 +157,39 @@ const SkinTesting = () => {
                 'name', 'weight', 'sample'
               ];
               return order.indexOf(a) - order.indexOf(b);
-            }).map((key) => (
-              <FormInput
-                key={key}
-                label={key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
-                name={key}
-                value={formData[key] || ''}
-                onChange={key === 'tokenNo' ? handleTokenChange : handleChange}
-                icon={getFieldIcon(key)}
-                size="base"
-                readOnly={isEditing && key === 'tokenNo'}
-                placeholder={key === 'tokenNo' ? 'Enter token number' : ''}
-              />
-            ))}
+            }).map((key) => {
+              let inputValue = formData[key] || '';
+              let inputType = 'text';
+              
+              // Format date and time for input fields
+              if (key === 'date') {
+                inputType = 'date';
+                inputValue = formatDateForInput(inputValue);
+              } else if (key === 'time') {
+                inputType = 'time';
+                inputValue = formatTimeForInput(inputValue);
+              }
+
+              return (
+                <FormInput
+                  key={key}
+                  label={key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
+                  name={key}
+                  value={inputValue}
+                  onChange={key === 'tokenNo' ? handleTokenChange : handleChange}
+                  icon={getFieldIcon(key)}
+                  size="base"
+                  readOnly={isEditing && key === 'tokenNo'}
+                  placeholder={key === 'tokenNo' ? 'Enter token number' : ''}
+                  type={inputType}
+                />
+              );
+            })}
           </div>
 
           {/* Test Results */}
           <div 
-            className={`grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-7 xl:grid-cols-8 2xl:grid-cols-9 gap-2 ${loading ? 'opacity-50' : ''}`}
+            className={`grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-7 xl:grid-cols-8 2xl:grid-cols-9 gap-4 ${loading ? 'opacity-50' : ''}`}
           >
             {Object.keys(formData)
               .filter(key => {

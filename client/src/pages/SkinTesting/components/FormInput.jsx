@@ -11,50 +11,49 @@ const FormInput = ({
   error = '',
   readOnly = false,
   size = 'base',
-  icon = null
+  icon: Icon = null
 }) => {
-  const sizeClasses = {
-    sm: 'py-1.5 text-xs',
-    base: 'py-1.5 text-sm',
-    lg: 'py-1.5 text-sm'
-  };
+  const baseClasses = `
+    w-full
+    rounded-md
+    border
+    border-amber-200
+    bg-white
+    pl-10
+    shadow-sm
+    focus:border-amber-500
+    focus:outline-none
+    focus:ring-1
+    focus:ring-amber-500
+    ${readOnly ? 'bg-gray-50' : ''}
+    ${size === 'base' ? 'py-2 text-sm' : 'py-1 text-xs'}
+    ${error ? 'border-red-500' : ''}
+    text-amber-900
+  `;
 
   return (
-    <div className="space-y-1.5">
-      <label 
-        htmlFor={name} 
-        className="text-sm font-medium text-amber-900 flex items-center"
+    <div className="relative rounded-md shadow-sm">
+      <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+        {Icon && <Icon className={`${size === 'base' ? 'h-5 w-5' : 'h-4 w-4'} text-amber-600`} aria-hidden="true" />}
+      </div>
+      <input
+        type={type}
+        name={name}
+        id={name}
+        value={value}
+        onChange={onChange}
+        className={baseClasses}
+        placeholder={placeholder}
+        readOnly={readOnly}
+        aria-label={label.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
+      />
+      <label
+        htmlFor={name}
+        className="absolute -top-2 left-2 -mt-px inline-block bg-white px-1 text-xs font-medium text-amber-900"
       >
-        {icon && React.createElement(icon, { 
-          className: "h-4 w-4 text-amber-600 mr-1.5" 
-        })}
         {label.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
         {error && <span className="text-red-500 ml-0.5"><FiAlertCircle className="inline h-3.5 w-3.5" /></span>}
       </label>
-      <div className="relative">
-        <input
-          type={type}
-          id={name}
-          name={name}
-          value={value}
-          onChange={onChange}
-          placeholder={placeholder}
-          readOnly={readOnly}
-          className={`
-            block w-full 
-            px-2.5
-            ${sizeClasses[size]} 
-            rounded 
-            border border-amber-200 
-            focus:ring-1 focus:ring-amber-500 
-            focus:border-amber-500 
-            transition-all
-            text-amber-800
-            ${readOnly ? 'bg-gray-50' : ''}
-            ${error ? 'border-red-500' : ''}
-          `}
-        />
-      </div>
     </div>
   );
 };

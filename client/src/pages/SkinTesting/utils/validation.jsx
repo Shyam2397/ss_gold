@@ -57,7 +57,7 @@ export const processFormData = (formData) => {
   const processed = {
     tokenNo: (formData.tokenNo || formData.tokenno || '').trim(),
     date: (formData.date || '').trim(),
-    time: (formData.time || '').trim(),
+    time: formatTimeForInput(formData.time || '').trim(),
     name: (formData.name || '').trim(),
     weight: formData.weight ? parseFloat(formData.weight) : 0,
     sample: (formData.sample || '').trim(),
@@ -101,4 +101,77 @@ export const processFormData = (formData) => {
   });
 
   return processed;
+};
+
+// Date formatting utilities
+export const formatDateForDisplay = (dateStr) => {
+  if (!dateStr) return '';
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return dateStr;
+  const day = date.getDate().toString().padStart(2, '0');
+  const month = (date.getMonth() + 1).toString().padStart(2, '0');
+  const year = date.getFullYear();
+  return `${day}-${month}-${year}`;
+};
+
+export const formatTimeForDisplay = (timeStr) => {
+  if (!timeStr) return '';
+  
+  // Extract hours and minutes
+  let hours = 0;
+  let minutes = 0;
+  
+  if (timeStr.includes('T')) {
+    // Handle ISO datetime string
+    const date = new Date(timeStr);
+    if (!isNaN(date.getTime())) {
+      hours = date.getHours();
+      minutes = date.getMinutes();
+    }
+  } else {
+    // Handle HH:mm or HH:mm:ss format
+    const [h, m] = timeStr.split(':');
+    hours = parseInt(h);
+    minutes = parseInt(m);
+  }
+
+  // Convert to 12-hour format
+  const period = hours >= 12 ? 'PM' : 'AM';
+  hours = hours % 12;
+  hours = hours ? hours : 12; // Convert 0 to 12
+
+  // Format the time
+  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')} ${period}`;
+};
+
+export const formatDateForInput = (dateStr) => {
+  if (!dateStr) return '';
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return dateStr;
+  return date.toISOString().split('T')[0];
+};
+
+export const formatTimeForInput = (timeStr) => {
+  if (!timeStr) return '';
+  
+  // If it's already in HH:mm format, convert to 24-hour for input
+  if (/^\d{1,2}:\d{2}\s?(?:AM|PM)$/i.test(timeStr)) {
+    const [time, period] = timeStr.split(/\s+/);
+    let [hours, minutes] = time.split(':').map(Number);
+    
+    if (period.toUpperCase() === 'PM' && hours !== 12) {
+      hours += 12;
+    } else if (period.toUpperCase() === 'AM' && hours === 12) {
+      hours = 0;
+    }
+    
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+  }
+  
+  // If it's in HH:mm:ss format, remove seconds
+  if (/^\d{2}:\d{2}:\d{2}$/.test(timeStr)) {
+    return timeStr.substring(0, 5);
+  }
+  
+  return timeStr;
 };
