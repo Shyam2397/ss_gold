@@ -28,12 +28,30 @@ export const updateSkinTest = async (tokenNo, data) => {
 };
 
 export const deleteSkinTest = async (tokenNo) => {
+  if (!tokenNo) {
+    throw new Error('Token number is required for deletion');
+  }
+
   try {
     const response = await axios.delete(`${API_URL}/skin-tests/${tokenNo}`);
-    return response;
+    
+    // The server returns { message: 'Deleted' } on success
+    if (response.data?.message === 'Deleted') {
+      return {
+        data: {
+          success: true,
+          message: 'Skin test deleted successfully'
+        }
+      };
+    }
+
+    // If we get here, something unexpected happened
+    throw new Error(response.data?.message || 'Unexpected response from server');
   } catch (error) {
     if (error.response?.status === 404) {
       throw new Error('Skin test not found');
+    } else if (error.response?.status === 401 || error.response?.status === 403) {
+      throw new Error('Not authorized to delete this skin test');
     }
     throw error;
   }
