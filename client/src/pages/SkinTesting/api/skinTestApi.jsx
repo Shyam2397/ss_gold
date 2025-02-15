@@ -15,15 +15,35 @@ export const createSkinTest = async (data) => {
 
 export const updateSkinTest = async (tokenNo, data) => {
   try {
+    console.log('Making update request:', {
+      url: `${API_URL}/skin-tests/${tokenNo}`,
+      data: data
+    });
+
     const response = await axios.put(`${API_URL}/skin-tests/${tokenNo}`, data, {
       headers: { 'Content-Type': 'application/json' }
     });
-    return response;
+
+    console.log('Update response:', response.data);
+    return response.data;
   } catch (error) {
+    console.error('Update API error:', {
+      status: error.response?.status,
+      data: error.response?.data,
+      message: error.message
+    });
+
     if (error.response?.status === 404) {
       throw new Error('Skin test not found');
     }
-    throw error;
+
+    // Throw a more specific error message
+    throw new Error(
+      error.response?.data?.error || 
+      error.response?.data?.message || 
+      error.message || 
+      'Failed to update skin test'
+    );
   }
 };
 

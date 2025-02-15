@@ -76,6 +76,18 @@ const createSkinTest = async (req, res) => {
 
 const updateSkinTest = async (req, res) => {
   const data = req.body;
+  const { tokenNo } = req.params;
+  
+  console.log('Update request received:', {
+    tokenNo: tokenNo,
+    bodyData: data
+  });
+
+  if (!tokenNo) {
+    console.error('Token number missing in params');
+    return res.status(400).json({ error: "Token number is required in URL" });
+  }
+
   const columns = [
     'date', 'time', 'name', 'weight', 'sample', 'highest',
     'average', 'gold_fineness', 'karat', 'silver', 'copper',
@@ -85,21 +97,57 @@ const updateSkinTest = async (req, res) => {
   ];
 
   try {
+    // First check if the record exists
+    const checkResult = await pool.query(
+      'SELECT tokenNo FROM skin_tests WHERE tokenNo = $1',
+      [tokenNo]
+    );
+
+    if (checkResult.rows.length === 0) {
+      console.log('No record found for tokenNo:', tokenNo);
+      return res.status(404).json({ error: "Skin test not found" });
+    }
+
     const sql = `
       UPDATE skin_tests 
       SET ${columns.map((col, i) => `${col} = $${i + 1}`).join(', ')} 
       WHERE tokenNo = $${columns.length + 1}
       RETURNING *
     `;
-    const params = [...columns.map(col => data[col]), req.params.tokenNo];
+    const params = [...columns.map(col => data[col] || null), tokenNo];
+    
+    console.log('Executing SQL:', {
+      sql: sql,
+      params: params
+    });
 
     const result = await pool.query(sql, params);
+    
     if (result.rowCount === 0) {
-      return res.status(404).json({ error: "Skin test not found" });
+      console.log('No rows updated for tokenNo:', tokenNo);
+      return res.status(404).json({ error: "Failed to update skin test" });
     }
+
+    console.log('Update successful:', result.rows[0]);
     res.json({ message: "Success", data: result.rows[0] });
   } catch (err) {
-    return handleDatabaseError(err, res);
+    console.error('Update error:', {
+      error: err.message,
+      code: err.code,
+      detail: err.detail,
+      stack: err.stack,
+      data: data,
+      tokenNo: tokenNo
+    });
+    
+    if (err.code === '22P02') {
+      return res.status(400).json({ 
+        error: "Invalid data format",
+        detail: "One or more fields contain invalid data types"
+      });
+    }
+    
+    return handleDatabaseError(err, res, "Failed to update skin test");
   }
 };
 

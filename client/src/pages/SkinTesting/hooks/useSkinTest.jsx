@@ -132,17 +132,40 @@ export const useSkinTest = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!validateForm(formData, setError)) return;
-
-    const processedData = processFormData(formData);
+    if (!validateForm(formData, setError, isEditing)) return;
 
     try {
       setLoading(true);
       if (isEditing) {
+        // Ensure we have the tokenNo
+        if (!formData.tokenNo) {
+          throw new Error('Token number is required for updating');
+        }
+
+        console.log('Updating skin test:', {
+          tokenNo: formData.tokenNo,
+          formData: formData
+        });
+
         // During edit, ensure we're using the original token number
-        await updateSkinTest(formData.tokenNo, processedData);
+        const processedData = processFormData({
+          ...formData,
+          tokenNo: formData.tokenNo // Ensure tokenNo is preserved
+        });
+
+        console.log('Processed data for update:', processedData);
+
+        const response = await updateSkinTest(processedData.tokenNo, processedData);
+        console.log('Update successful:', response);
+        
         setIsEditing(false);
+        await loadSkinTests();
+        setFormData(initialFormData);
+        setError('');
+        setSum(0);
       } else {
+        // For new entries, process the data normally
+        const processedData = processFormData(formData);
         // Check for duplicate token number during creation
         const exists = skinTests.some(test => test.tokenNo === processedData.tokenNo);
         if (exists) {
@@ -150,14 +173,23 @@ export const useSkinTest = () => {
           return;
         }
         await createSkinTest(processedData);
+        await loadSkinTests();
+        setFormData(initialFormData);
+        setError('');
+        setSum(0);
       }
-      await loadSkinTests();
-      setFormData(initialFormData);
-      setError('');
-      setSum(0);
     } catch (err) {
-      console.error('Error details:', err.response?.data || err.message);
-      setError(err.response?.data?.message || 'Failed to submit form');
+      console.error('Submit error details:', {
+        error: err.message,
+        response: err.response?.data,
+        status: err.response?.status,
+        formData: formData,
+        isEditing: isEditing
+      });
+
+      // Set a more user-friendly error message
+      const errorMessage = err.message || 'Failed to submit form';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -168,12 +200,24 @@ export const useSkinTest = () => {
       setLoading(true);
       setError('');
       
+      // Get tokenNo from either camelCase or lowercase version
+      const tokenNo = test.tokenNo || test.tokenno;
+      
+      // Ensure we have the tokenNo
+      if (!tokenNo) {
+        console.error('Missing token number in test data:', test);
+        throw new Error('Token number is required for editing');
+      }
+      
       // For editing, we'll use the test data directly since it's already complete
       const editData = {
         ...test,
+        tokenNo: tokenNo, // Use the found tokenNo
         // Ensure weight is formatted correctly
         weight: test.weight ? parseFloat(test.weight).toFixed(3) : '',
       };
+
+      console.log('Edit data prepared:', editData);
 
       // If we have a code, fetch latest phone number
       if (editData.code) {

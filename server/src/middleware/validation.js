@@ -19,12 +19,21 @@ const validateExpense = (req, res, next) => {
 };
 
 const validateSkinTest = (req, res, next) => {
-  const { tokenNo, date, name } = req.body;
-
-  if (!tokenNo || !date || !name) {
+  const { date, name } = req.body;
+  const isUpdate = req.method === 'PUT';
+  
+  // For update operations, tokenNo comes from URL params
+  if (!isUpdate && !req.body.tokenNo) {
     return res.status(400).json({
       error: 'Missing required fields',
-      detail: 'tokenNo, date, and name are required'
+      detail: 'tokenNo is required for creating new skin tests'
+    });
+  }
+
+  if (!date || !name) {
+    return res.status(400).json({
+      error: 'Missing required fields',
+      detail: 'date and name are required'
     });
   }
 
