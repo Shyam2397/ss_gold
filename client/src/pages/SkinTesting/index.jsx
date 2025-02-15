@@ -146,8 +146,8 @@ const SkinTesting = () => {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Customer and Token Information */}
-          <div 
+          {/* Customer and Token Fields */}
+          <div
             className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3 p-4 bg-amber-50 rounded-lg border border-amber-100 shadow-sm"
           >
             {[...Object.keys(customerFields), ...Object.keys(tokenFields)].sort((a, b) => {
@@ -165,7 +165,7 @@ const SkinTesting = () => {
                 onChange={key === 'tokenNo' ? handleTokenChange : handleChange}
                 icon={getFieldIcon(key)}
                 size="base"
-                readOnly={key !== 'tokenNo' && loading}
+                readOnly={isEditing && key === 'tokenNo'}
                 placeholder={key === 'tokenNo' ? 'Enter token number' : ''}
               />
             ))}
@@ -176,15 +176,20 @@ const SkinTesting = () => {
             className={`grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-7 xl:grid-cols-8 2xl:grid-cols-9 gap-2 ${loading ? 'opacity-50' : ''}`}
           >
             {Object.keys(formData)
-              .filter(key => 
-                !['tokenNo', 'date', 'time', 'name', 'weight', 'sample', 'code', 'phoneNumber'].includes(key) && 
-                !Object.keys(customerFields).includes(key) && 
-                !Object.keys(tokenFields).includes(key)
-              )
+              .filter(key => {
+                const excludedFields = [
+                  'tokenNo', 'tokenno', // Exclude both cases of token number
+                  'date', 'time', 'name', 'weight', 
+                  'sample', 'code', 'phoneNumber'
+                ];
+                return !excludedFields.includes(key) && 
+                  !Object.keys(customerFields).includes(key) && 
+                  !Object.keys(tokenFields).includes(key);
+              })
               .map((key) => (
                 <FormInput
                   key={key}
-                  label={key}
+                  label={key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
                   name={key}
                   value={formData[key]}
                   onChange={handleChange}
