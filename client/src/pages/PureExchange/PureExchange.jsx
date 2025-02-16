@@ -250,7 +250,7 @@ const PureExchange = () => {
                                         ].map((header) => (
                                             <th
                                                 key={header}
-                                                className={`px-6 py-3 text-left text-sm font-medium text-white uppercase tracking-wider whitespace-nowrap ${
+                                                className={`px-6 py-3 text-center text-sm font-medium text-white uppercase tracking-wider whitespace-nowrap ${
                                                     header === 'Name' ? 'hidden' : ''
                                                 } ${header === 'ex.weight' ? 'sticky right-0 bg-gradient-to-r from-amber-500 to-yellow-500 shadow-[-4px_0_8px_-2px_rgba(0,0,0,0.1)]' : 'shadow-[-4px_0_8px_-2px_rgba(0,0,0,0.1)]'}`}
                                             >
@@ -265,20 +265,20 @@ const PureExchange = () => {
                                             key={index}
                                             className="hover:bg-amber-50 transition-colors duration-200"
                                         >
-                                            <td className="px-6 py-3 whitespace-nowrap text-sm text-amber-900">{row.id}</td>
-                                            <td className="px-6 py-3 whitespace-nowrap text-sm font-medium text-amber-900">{row.tokenNo}</td>
+                                            <td className="px-6 py-3 whitespace-nowrap text-sm text-amber-900 text-center">{row.id}</td>
+                                            <td className="px-6 py-3 whitespace-nowrap text-sm font-medium text-amber-900 text-center">{row.tokenNo}</td>
                                             <td className="hidden px-6 py-3 whitespace-nowrap text-sm text-amber-700">{row.name}</td>
-                                            <td className="px-6 py-3 whitespace-nowrap text-sm text-amber-700">{row.date}</td>
-                                            <td className="px-6 py-3 whitespace-nowrap text-sm text-amber-700">{row.time}</td>
-                                            <td className="px-6 py-3 whitespace-nowrap text-sm text-amber-700">{row.weight}</td>
-                                            <td className="px-6 py-3 whitespace-nowrap text-sm text-amber-700">{row.highest}</td>
-                                            <td className="px-6 py-3 whitespace-nowrap text-sm text-amber-700">{row.hWeight}</td>
-                                            <td className="px-6 py-3 whitespace-nowrap text-sm text-amber-700">{row.average}</td>
-                                            <td className="px-6 py-3 whitespace-nowrap text-sm text-amber-700">{row.aWeight}</td>
-                                            <td className="px-6 py-3 whitespace-nowrap text-sm text-amber-700">{row.goldFineness}</td>
-                                            <td className="px-6 py-3 whitespace-nowrap text-sm text-amber-700">{row.gWeight}</td>
-                                            <td className="px-6 py-3 whitespace-nowrap text-sm text-amber-700">{row.exGold}</td>
-                                            <td className="px-6 py-3 whitespace-nowrap text-sm text-amber-700 sticky right-0 bg-white shadow-[-4px_0_8px_-2px_rgba(0,0,0,0.1)]">{row.exWeight}</td>
+                                            <td className="px-6 py-3 whitespace-nowrap text-sm text-amber-700 text-center">{row.date}</td>
+                                            <td className="px-6 py-3 whitespace-nowrap text-sm text-amber-700 text-center">{row.time}</td>
+                                            <td className="px-6 py-3 whitespace-nowrap text-sm text-amber-700 text-center">{row.weight}</td>
+                                            <td className="px-6 py-3 whitespace-nowrap text-sm text-amber-700 text-center">{row.highest}</td>
+                                            <td className="px-6 py-3 whitespace-nowrap text-sm text-amber-700 text-center">{row.hWeight}</td>
+                                            <td className="px-6 py-3 whitespace-nowrap text-sm text-amber-700 text-center">{row.average}</td>
+                                            <td className="px-6 py-3 whitespace-nowrap text-sm text-amber-700 text-center">{row.aWeight}</td>
+                                            <td className="px-6 py-3 whitespace-nowrap text-sm text-amber-700 text-center">{row.goldFineness}</td>
+                                            <td className="px-6 py-3 whitespace-nowrap text-sm text-amber-700 text-center">{row.gWeight}</td>
+                                            <td className="px-6 py-3 whitespace-nowrap text-sm text-amber-700 text-center">{row.exGold}</td>
+                                            <td className="px-6 py-3 whitespace-nowrap text-sm text-amber-700 sticky right-0 bg-white shadow-[-4px_0_8px_-2px_rgba(0,0,0,0.1)] text-center">{row.exWeight}</td>
                                         </tr>
                                         ))}
                                     </tbody>
