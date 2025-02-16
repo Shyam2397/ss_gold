@@ -126,20 +126,29 @@ const useExchanges = () => {
   }, [exchanges, fromDate, toDate]);
 
   const deleteExchange = async (tokenNo) => {
+    
     setLoading(true);
     try {
       if (!tokenNo) {
+
         setMessageWithTimeout(setError, 'Invalid token number');
         return false;
       }
 
       const response = await axios.delete(`${API_URL}/pure-exchange/${tokenNo}`);
+  
       
       if (response.data?.message) {
         // Update local state
-        const updatedExchanges = exchanges.filter(exchange => exchange.tokenNo !== tokenNo);
+        const updatedExchanges = exchanges.filter(exchange => 
+          exchange.tokenno !== tokenNo
+        );
+  
+        
         setExchanges(updatedExchanges);
-        setFilteredExchanges(prev => prev.filter(exchange => exchange.tokenNo !== tokenNo));
+        setFilteredExchanges(prev => 
+          prev.filter(exchange => exchange.tokenno !== tokenNo)
+        );
         
         setMessageWithTimeout(setSuccessMessage, response.data.message);
         return true;

@@ -52,7 +52,8 @@ const ConfirmDialog = ({ isOpen, onClose, onConfirm, tokenNo, isDeleting }) => {
         <div className="p-6">
           <div className="mb-6">
             <p className="text-gray-600 mb-4">
-              Are you sure you want to delete token number <span className="font-semibold text-gray-900">#{tokenNo}</span>?
+              Are you sure you want to delete this exchange record
+              {tokenNo ? ` #${tokenNo}` : ''}?
             </p>
             <p className="text-sm text-red-500">
               This action cannot be undone. The exchange record will be permanently deleted.
@@ -174,6 +175,11 @@ const ExchangeTable = ({ exchanges, loading, onDelete, onUpdate }) => {
   const handleDelete = async (exchange) => {
     setSelectedExchange(exchange);
     setShowConfirmDelete(true);
+  };
+
+  const handleConfirmDelete = () => {
+    onDelete(selectedExchange.tokenno);
+    setShowConfirmDelete(false);
   };
 
   const handleEdit = (exchange) => {
@@ -304,11 +310,8 @@ const ExchangeTable = ({ exchanges, loading, onDelete, onUpdate }) => {
         <ConfirmDialog
           isOpen={showConfirmDelete}
           onClose={() => setShowConfirmDelete(false)}
-          onConfirm={() => {
-            onDelete(selectedExchange.id);
-            setShowConfirmDelete(false);
-          }}
-          tokenNo={selectedExchange.token_no}
+          onConfirm={handleConfirmDelete}
+          tokenNo={selectedExchange.tokenno}
         />
       )}
 
