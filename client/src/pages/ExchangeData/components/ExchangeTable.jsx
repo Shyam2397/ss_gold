@@ -150,61 +150,15 @@ const DeleteButton = ({ onDelete, tokenNo }) => {
   );
 };
 
-const getColumnAlignment = (key) => {
-  const numericColumns = ['amount', 'rate', 'quantity', 'token_no'];
-  const dateColumns = ['date', 'created_at', 'updated_at'];
-  
-  if (numericColumns.some(col => key.toLowerCase().includes(col))) return 'text-right';
-  if (dateColumns.some(col => key.toLowerCase().includes(col))) return 'text-center';
-  return 'text-left';
-};
-
-const getTokenNumber = (exchange) => {
-  return exchange.tokenNo || '';
-};
-
-const formatValue = (value, key) => {
-  if (value === null || value === undefined) return '-';
-  
-  if (key === 'date' && typeof value === 'string') {
-    const date = new Date(value);
-    if (!isNaN(date)) {
-      return date.toLocaleDateString('en-GB');
-    }
-  }
-  
-  if (typeof value === 'number') {
-    if (key.includes('amount') || key.includes('rate')) {
-      return value.toFixed(2);
-    }
-    return value.toString();
-  }
-  
-  return value;
-};
-
-const filterColumns = (obj) => {
-  const excludedColumns = ['_id', '__v'];
-  return Object.keys(obj).filter(key => !excludedColumns.includes(key));
-};
-
 const ExchangeTable = ({ exchanges, loading, onDelete, onUpdate }) => {
+  const [showConfirmDelete, setShowConfirmDelete] = useState(false);
   const [selectedExchange, setSelectedExchange] = useState(null);
-  const columns = exchanges.length > 0 ? filterColumns(exchanges[0]) : [];
-  
-  const handleEdit = (exchange) => {
-    setSelectedExchange(exchange);
-  };
-
-  const handleSave = async (updatedData) => {
-    await onUpdate(selectedExchange.tokenNo, updatedData);
-    setSelectedExchange(null);
-  };
+  const [showEditModal, setShowEditModal] = useState(false);
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <FiLoader className="h-8 w-8 text-[#D3B04D] animate-spin" />
+      <div className="flex items-center justify-center h-48">
+        <FiLoader className="h-6 w-6 text-[#D3B04D] animate-spin" />
       </div>
     );
   }
@@ -212,84 +166,163 @@ const ExchangeTable = ({ exchanges, loading, onDelete, onUpdate }) => {
   if (!exchanges || exchanges.length === 0) {
     return (
       <div className="text-center py-4 text-gray-500">
-        No exchange data available
+        No exchanges found
       </div>
     );
   }
 
-  // Sort exchanges by token number
-  const sortedExchanges = [...exchanges].sort((a, b) => {
-    const tokenA = getTokenNumber(a);
-    const tokenB = getTokenNumber(b);
-    return tokenA.localeCompare(tokenB);
-  });
+  const handleDelete = async (exchange) => {
+    setSelectedExchange(exchange);
+    setShowConfirmDelete(true);
+  };
+
+  const handleEdit = (exchange) => {
+    setSelectedExchange(exchange);
+    setShowEditModal(true);
+  };
+
+  const handleUpdate = async (updatedExchange) => {
+    await onUpdate(updatedExchange);
+    setShowEditModal(false);
+    setSelectedExchange(null);
+  };
+
+  const getColumnAlignment = (key) => {
+    const numericColumns = ['token_no', 'old_weight', 'new_weight', 'amount'];
+    const dateColumns = ['date'];
+    
+    if (numericColumns.some(col => key.toLowerCase().includes(col))) return 'text-right';
+    if (dateColumns.some(col => key.toLowerCase().includes(col))) return 'text-center';
+    return 'text-left';
+  };
+
+  const formatValue = (value, key) => {
+    if (value === null || value === undefined) return '-';
+    
+    // Format dates
+    if (key === 'date' && typeof value === 'string') {
+      try {
+        const date = new Date(value);
+        if (!isNaN(date)) {
+          const day = date.getDate().toString().padStart(2, '0');
+          const month = (date.getMonth() + 1).toString().padStart(2, '0');
+          const year = date.getFullYear();
+          return `${day}-${month}-${year}`;
+        }
+      } catch (e) {
+        console.warn('Error formatting date:', e);
+      }
+      return value;
+    }
+    
+    // Format numbers
+    if (typeof value === 'number') {
+      return value.toLocaleString('en-IN', { 
+        minimumFractionDigits: 0, 
+        maximumFractionDigits: 2 
+      });
+    }
+    
+    return value;
+  };
+
+  const filterColumns = (obj) => {
+    const excludedColumns = ['id', 'created_at', 'updated_at'];
+    return Object.fromEntries(
+      Object.entries(obj).filter(([key]) => !excludedColumns.includes(key))
+    );
+  };
+
+  const firstExchange = filterColumns(exchanges[0]);
+  const headers = Object.keys(firstExchange);
 
   return (
-    <div className="h-full bg-white rounded-xl shadow-lg overflow-hidden">
-      <div className="flex flex-col h-full">
+    <>
+      <div className="mt-3 bg-white rounded-xl shadow-inner overflow-hidden">
         <div className="overflow-x-auto">
-          <div className="inline-block min-w-full align-middle">
-            <div className="overflow-hidden">
-              <div className="max-h-[calc(100vh-300px)] overflow-y-auto">
-                <table className="min-w-full divide-y divide-amber-100">
-                  <thead className="sticky top-0 z-10">
-                    <tr className="bg-gradient-to-r from-[#DD845A] to-[#D3B04D]">
-                      <th className="px-6 py-4 text-center text-sm font-semibold text-white first:rounded-tl-lg">
-                        Actions
-                      </th>
-                      {columns.map((column) => (
-                        <th
-                          key={column}
-                          className={`px-6 py-4 text-sm font-semibold text-white last:rounded-tr-lg whitespace-nowrap ${getColumnAlignment(column)}`}
+          <div className="max-h-[500px] overflow-y-auto">
+            <table className="w-full border-collapse">
+              <thead className="sticky top-0 z-10">
+                <tr className="bg-gradient-to-r from-[#DD845A] to-[#D3B04D] text-white">
+                  {headers.map((header) => (
+                    <th
+                      key={header}
+                      className="px-5 py-3.5 text-center font-semibold text-sm whitespace-nowrap"
+                    >
+                      {header.split('_').map(word => 
+                        word.charAt(0).toUpperCase() + word.slice(1)
+                      ).join(' ')}
+                    </th>
+                  ))}
+                  <th className="px-5 py-3.5 text-center font-semibold text-sm whitespace-nowrap">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="text-sm">
+                {[...exchanges].reverse().map((exchange) => {
+                  const filteredExchange = filterColumns(exchange);
+                  return (
+                    <tr
+                      key={exchange.id}
+                      className="border-b border-amber-100 hover:bg-amber-50/70 transition-colors duration-150"
+                    >
+                      {headers.map((header) => (
+                        <td
+                          key={header}
+                          className={`px-5 py-2.5 text-center whitespace-nowrap ${getColumnAlignment(header)}`}
                         >
-                          {column.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-amber-100">
-                    {sortedExchanges.map((exchange, index) => (
-                      <tr
-                        key={exchange.id}
-                        className="hover:bg-amber-50"
-                      >
-                        <td className="px-6 py-3 text-center">
-                          <div className="flex justify-center space-x-2">
-                            <button
-                              onClick={() => handleEdit(exchange)}
-                              className="text-amber-600 hover:text-amber-800 transition-colors"
-                              title="Edit"
-                            >
-                              <FiEdit2 className="h-5 w-5" />
-                            </button>
-                            <DeleteButton onDelete={onDelete} tokenNo={getTokenNumber(exchange)} />
-                          </div>
+                          {formatValue(filteredExchange[header], header)}
                         </td>
-                        {columns.map((column) => (
-                          <td
-                            key={column}
-                            className={`px-6 py-3 text-sm whitespace-nowrap ${getColumnAlignment(column)} text-gray-700`}
+                      ))}
+                      <td className="px-5 py-2.5 text-center whitespace-nowrap">
+                        <div className="flex items-center justify-center space-x-2">
+                          <button
+                            onClick={() => handleEdit(exchange)}
+                            className="text-amber-600 hover:text-amber-800 transition-colors"
                           >
-                            {formatValue(exchange[column], column)}
-                          </td>
-                        ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+                            <FiEdit2 className="h-4.5 w-4.5" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(exchange)}
+                            className="text-red-600 hover:text-red-800 transition-colors"
+                          >
+                            <FiTrash2 className="h-4.5 w-4.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
-      {selectedExchange && (
-        <EditExchangeModal
-          exchange={selectedExchange}
-          onClose={() => setSelectedExchange(null)}
-          onSave={handleSave}
+
+      {showConfirmDelete && (
+        <ConfirmDialog
+          isOpen={showConfirmDelete}
+          onClose={() => setShowConfirmDelete(false)}
+          onConfirm={() => {
+            onDelete(selectedExchange.id);
+            setShowConfirmDelete(false);
+          }}
+          tokenNo={selectedExchange.token_no}
         />
       )}
-    </div>
+
+      {showEditModal && (
+        <EditExchangeModal
+          exchange={selectedExchange}
+          onClose={() => {
+            setShowEditModal(false);
+            setSelectedExchange(null);
+          }}
+          onUpdate={handleUpdate}
+        />
+      )}
+    </>
   );
 };
 
