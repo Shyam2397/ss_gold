@@ -23,7 +23,24 @@ export const useSkinTest = () => {
     setLoading(true);
     try {
       const sortedData = await fetchSkinTests();
-      setSkinTests(sortedData);
+      
+      // Fetch phone numbers for each test that has a code
+      const testsWithPhoneNumbers = await Promise.all(
+        sortedData.map(async (test) => {
+          if (test.code) {
+            try {
+              const phoneNumber = await fetchPhoneNumber(test.code);
+              return { ...test, phoneNumber: phoneNumber || '' };
+            } catch (err) {
+              console.error(`Failed to fetch phone number for code ${test.code}:`, err);
+              return test;
+            }
+          }
+          return test;
+        })
+      );
+      
+      setSkinTests(testsWithPhoneNumbers);
     } catch (err) {
       console.error(err);
       setError('Failed to fetch skin tests');
