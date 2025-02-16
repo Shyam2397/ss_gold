@@ -399,18 +399,18 @@ const TokenPage = () => {
             />
           </div>
 
-          <div className="flex justify-end space-x-3">
+          <div className="flex justify-end space-x-3 pt-2">
             <button
               type="button"
               onClick={resetForm}
-              className="inline-flex items-center px-3 py-1.5 border border-amber-200 text-amber-700 rounded hover:bg-amber-50 transition-all text-sm"
+              className="inline-flex items-center px-3 py-1.5 text-sm border border-amber-200 text-amber-700 rounded-xl hover:bg-amber-50 transition-all"
             >
               <FiRotateCcw className="mr-1.5 h-4 w-4" />
               Reset
             </button>
             <button
               type="submit"
-              className="inline-flex items-center px-3 py-1.5 rounded text-sm font-medium text-white bg-amber-600 hover:bg-amber-700 focus:ring-1 focus:ring-amber-500 transition-all"
+              className="inline-flex items-center px-3 py-1.5 text-sm bg-gradient-to-r from-amber-600 to-yellow-500 text-white rounded-xl hover:from-amber-700 hover:to-yellow-600 transition-all"
             >
               <FiSave className="mr-1.5 h-4 w-4" />
               {editMode ? "Update Token" : "Save Token"}
@@ -418,7 +418,7 @@ const TokenPage = () => {
             <button
               type="button"
               onClick={handlePrint}
-              className="inline-flex items-center px-3 py-1.5 rounded text-sm font-medium text-white bg-amber-600 hover:bg-amber-700 focus:ring-1 focus:ring-amber-500 transition-all"
+              className="inline-flex items-center px-3 py-1.5 text-sm bg-gradient-to-r from-amber-600 to-yellow-500 text-white rounded-xl hover:from-amber-700 hover:to-yellow-600 transition-all"
             >
               <FiPrinter className="mr-1.5 h-4 w-4" />
               Print

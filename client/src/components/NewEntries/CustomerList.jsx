@@ -20,62 +20,71 @@ const CustomerList = ({
             Customer List
           </h3>
         </div>
-        <div className="relative w-full sm:w-64">
+        <div className="relative rounded-md shadow-sm w-full sm:w-64">
+          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+            <FiSearch className="h-5 w-5 text-amber-600" aria-hidden="true" />
+          </div>
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search customers..."
-            className="w-full pl-8 pr-2 py-1.5 text-sm rounded border border-amber-200 focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition-all text-amber-900 placeholder-amber-400"
+            className="w-full rounded-md border border-amber-200 bg-white pl-10 shadow-sm focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 py-2 text-sm text-amber-900"
           />
-          <FiSearch className="absolute left-2 top-1/2 transform -translate-y-1/2 text-amber-400 h-4 w-4" />
         </div>
       </div>
 
       {loading ? (
         <LoadingSpinner />
       ) : (
-        <div className="overflow-hidden rounded border border-amber-100">
+        <div className="overflow-hidden rounded-lg border border-amber-100">
           <div className="overflow-x-auto">
             <div className="max-h-[450px] overflow-y-auto scrollbar-thin scrollbar-thumb-amber-300 scrollbar-track-amber-50">
               <table className="min-w-full divide-y divide-amber-50">
-                <thead className="bg-amber-500/90 sticky top-0 z-10">
+                <thead className="bg-gradient-to-r from-amber-600 to-yellow-500 sticky top-0 z-10">
                   <tr>
-                    <th className="px-2 py-1.5 text-left text-xs font-medium text-white uppercase">Code</th>
-                    <th className="px-2 py-1.5 text-left text-xs font-medium text-white uppercase">Name</th>
-                    <th className="hidden sm:table-cell px-2 py-1.5 text-left text-xs font-medium text-white uppercase">Phone</th>
-                    <th className="hidden md:table-cell px-2 py-1.5 text-left text-xs font-medium text-white uppercase">Place</th>
-                    <th className="px-2 py-1.5 text-left text-xs font-medium text-white uppercase">Actions</th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-white uppercase tracking-wider">Code</th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-white uppercase tracking-wider">Name</th>
+                    <th className="hidden sm:table-cell px-3 py-2 text-left text-xs font-medium text-white uppercase tracking-wider">Phone</th>
+                    <th className="hidden md:table-cell px-3 py-2 text-left text-xs font-medium text-white uppercase tracking-wider">Place</th>
+                    <th className="px-3 py-2 text-right text-xs font-medium text-white uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-amber-50">
-                  {customers.map((customer) => (
-                    <tr
-                      key={customer.id}
-                      className="hover:bg-amber-50/30 transition-colors text-amber-900"
-                    >
-                      <td className="px-2 py-1.5 whitespace-nowrap text-sm">{customer.code}</td>
-                      <td className="px-2 py-1.5 whitespace-nowrap text-sm">{customer.name}</td>
-                      <td className="hidden sm:table-cell px-2 py-1.5 whitespace-nowrap text-sm">{customer.phoneNumber}</td>
-                      <td className="hidden md:table-cell px-2 py-1.5 whitespace-nowrap text-sm">{customer.place}</td>
-                      <td className="px-2 py-1.5 whitespace-nowrap text-sm space-x-1 flex items-center">
-                        <button
-                          onClick={() => handleEdit(customer)}
-                          className="text-amber-600 hover:text-amber-900 p-0.5 rounded hover:bg-amber-50"
-                          title="Edit Customer"
-                        >
-                          <FiEdit2 className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => confirmDelete(customer.id)}
-                          className="text-red-600 hover:text-red-900 p-0.5 rounded hover:bg-red-50"
-                          title="Delete Customer"
-                        >
-                          <FiTrash2 className="w-3.5 h-3.5" />
-                        </button>
+                  {customers.length === 0 ? (
+                    <tr>
+                      <td colSpan="5" className="px-3 py-4 text-center text-sm text-amber-900">
+                        No customers found
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    customers.map((customer) => (
+                      <tr key={customer.id} className="hover:bg-amber-50/40 transition-colors">
+                        <td className="px-3 py-2 text-sm text-amber-900">{customer.code}</td>
+                        <td className="px-3 py-2 text-sm text-amber-900">{customer.name}</td>
+                        <td className="hidden sm:table-cell px-3 py-2 text-sm text-amber-900">{customer.phoneNumber}</td>
+                        <td className="hidden md:table-cell px-3 py-2 text-sm text-amber-900">{customer.place}</td>
+                        <td className="px-3 py-2 text-right">
+                          <div className="flex items-center justify-end space-x-2">
+                            <button
+                              onClick={() => handleEdit(customer)}
+                              className="p-1 text-amber-600 hover:text-amber-900 hover:bg-amber-50 rounded"
+                              title="Edit customer"
+                            >
+                              <FiEdit2 className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => confirmDelete(customer)}
+                              className="p-1 text-amber-600 hover:text-amber-900 hover:bg-amber-50 rounded"
+                              title="Delete customer"
+                            >
+                              <FiTrash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
