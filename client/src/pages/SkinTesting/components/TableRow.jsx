@@ -10,16 +10,28 @@ const TableRow = ({
   columns 
 }) => {
   const handleWhatsAppShare = () => {
-    const message = `*Gold Test Report*%0a%0a` +
-      `🔖 *Token No:* ${rowData.tokenNo || rowData.tokenno}%0a` +
-      `👤 *Name:* ${rowData.name}%0a` +
-      `📅 *Date:* ${formatDateForDisplay(rowData.date)}%0a` +
-      `⏰ *Time:* ${formatTimeForDisplay(rowData.time)}%0a` +
-      `⚖️ *Weight:* ${rowData.weight} g%0a` +
-      `🔍 *Sample:* ${rowData.sample}%0a` +
-      `✨ *Gold Fineness:* ${rowData.gold_fineness}%25%0a` +
-      `💫 *Karat:* ${rowData.karat}K%0a` +
-      (rowData.remarks ? `📝 *Remarks:* ${rowData.remarks}%0a` : '');
+    const messageLines = [
+      '*Dear Customer,*',
+      '',
+      `🔖 *Token No:* ${rowData.tokenNo || rowData.tokenno}`,
+      `📅 *Date:* ${formatDateForDisplay(rowData.date)}`,
+      `👤 *Name:* ${rowData.name}`,
+      `⚖️ *Weight:* ${parseFloat(rowData.weight).toFixed(3)} g`,
+      `🔍 *Sample:* ${rowData.sample}`,
+      '',
+      `✨ *RESULT:* *${parseFloat(rowData.gold_fineness).toFixed(2)}* %`,
+      '',
+      'SS GOLD TESTING,',
+      'Nilakottai.',
+      'For any doubt/clarification, please contact',
+      '8903225544'
+    ];
+
+    if (rowData.remarks) {
+      messageLines.push(`📝 *Remarks:* ${rowData.remarks}`);
+    }
+
+    const message = encodeURIComponent(messageLines.join('\n'));
 
     let phoneNumber = rowData.phoneNumber?.replace(/\D/g, '') || '';
     // Handle Indian phone numbers
@@ -41,7 +53,7 @@ const TableRow = ({
       alert('No phone number available for this entry');
       return;
     }
-    window.open(`https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`, '_blank');
+    window.open(`https://wa.me/${phoneNumber}?text=${message}`, '_blank');
   };
 
   return (
