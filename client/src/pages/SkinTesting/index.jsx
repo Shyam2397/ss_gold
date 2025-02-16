@@ -131,7 +131,7 @@ const SkinTesting = () => {
       <div className="bg-white rounded-lg shadow-sm p-4 border border-amber-100">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center space-x-3">
-            <GiTestTubes className="w-8 h-8 text-amber-600" />
+            <GiTestTubes className="w-6 h-6 text-amber-600" />
             <h2 className="text-xl font-bold text-amber-900">Skin Testing</h2>
           </div>
           {error && (
