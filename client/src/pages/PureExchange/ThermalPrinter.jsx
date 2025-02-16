@@ -1,6 +1,7 @@
 import React from 'react';
+import { FiPrinter } from 'react-icons/fi';
 
-const ThermalPrinter = ({ data }) => {
+const ThermalPrinter = ({ data, tableData }) => {
   const printContent = () => {
     const printWindow = window.open('', '', 'width=1200,height=800');
     
@@ -133,21 +134,13 @@ const ThermalPrinter = ({ data }) => {
   };
 
   return (
-    <button 
+    <button
       onClick={printContent}
-      style={{
-        padding: '8px 16px',
-        background: 'linear-gradient(4deg, rgba(34,195,123,1) 0%, rgba(88,253,45,1) 100%)',
-        color: 'white', 
-        border: 'none',
-        borderRadius: '15px',
-        cursor: 'pointer',
-        transition: 'background 0.3s ease'
-      }}
-      onMouseEnter={(e) => e.currentTarget.style.background = 'linear-gradient(4deg, rgba(88,253,45,1) 0%, rgba(34,195,123,1) 100%)'}
-      onMouseLeave={(e) => e.currentTarget.style.background = 'linear-gradient(4deg, rgba(34,195,123,1) 0%, rgba(88,253,45,1) 100%)'}
+      disabled={!tableData || tableData.length === 0}
+      className="px-2 py-1 border border-amber-300 text-amber-700 text-sm rounded hover:bg-amber-50 transition-colors flex items-center space-x-1 h-[30px]"
     >
-      Print Receipt
+      <FiPrinter className="w-3.5 h-3.5" />
+      <span>Print</span>
     </button>
   );
 };
