@@ -74,7 +74,7 @@ const CustomerList = ({
                               <FiEdit2 className="w-4 h-4" />
                             </button>
                             <button
-                              onClick={() => confirmDelete(customer)}
+                              onClick={() => confirmDelete(customer.id)}
                               className="p-1 text-amber-600 hover:text-amber-900 hover:bg-amber-50 rounded"
                               title="Delete customer"
                             >
