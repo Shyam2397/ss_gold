@@ -21,6 +21,7 @@ import { GiTestTubes } from 'react-icons/gi';
 import FormInput from './components/FormInput';
 import TableRow from './components/TableRow';
 import LoadingSpinner from './components/LoadingSpinner';
+import DeleteConfirmationModal from './components/DeleteConfirmationModal';
 import useSkinTest from './hooks/useSkinTest';
 import { initialFormData } from './constants/initialState';
 import { formatDateForInput, formatTimeForInput } from './utils/validation';
@@ -44,6 +45,10 @@ const SkinTesting = () => {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredSkinTests, setFilteredSkinTests] = useState([]);
+  const [deleteConfirmation, setDeleteConfirmation] = useState({
+    isOpen: false,
+    itemId: null
+  });
 
   useEffect(() => {
     loadSkinTests();
@@ -339,7 +344,7 @@ const SkinTesting = () => {
                           key={test.id || index}
                           rowData={test}
                           onEdit={handleEdit}
-                          onDelete={handleDelete}
+                          onDelete={() => setDeleteConfirmation({ isOpen: true, itemId: test.tokenNo || test.tokenno })}
                           onPrint={handlePrint}
                           columns={Object.keys(test).filter(
                             key => key !== 'code' && key !== 'phoneNumber'
@@ -354,6 +359,16 @@ const SkinTesting = () => {
           </div>
         )}
       </div>
+      {deleteConfirmation.isOpen && (
+        <DeleteConfirmationModal
+          isOpen={deleteConfirmation.isOpen}
+          onCancel={() => setDeleteConfirmation({ isOpen: false, itemId: null })}
+          onConfirm={() => {
+            handleDelete(deleteConfirmation.itemId);
+            setDeleteConfirmation({ isOpen: false, itemId: null });
+          }}
+        />
+      )}
     </div>
   );
 };

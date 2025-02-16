@@ -271,11 +271,6 @@ export const useSkinTest = () => {
       setLoading(true);
       setError('');
 
-      // Confirm deletion
-      if (!window.confirm('Are you sure you want to delete this skin test?')) {
-        return;
-      }
-
       const response = await deleteSkinTest(tokenNo);
       
       if (response.data?.success) {
