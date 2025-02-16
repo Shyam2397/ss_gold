@@ -4,17 +4,17 @@ import { FiDownload } from 'react-icons/fi';
 
 const CustomerDataHeader = ({ entries, onExport }) => {
   return (
-    <div className="flex flex-col sm:flex-row justify-between items-center mb-6 pb-4 border-b-4 border-[#D3B04D]">
-      <h1 className="text-4xl font-bold mb-4 sm:mb-0 bg-clip-text text-transparent bg-gradient-to-r from-[#391145] to-[#D3B04D]">
+    <div className="flex flex-col sm:flex-row justify-between items-center mb-5 pb-3 border-b-2 border-[#D3B04D]">
+      <h1 className="text-3xl font-bold mb-4 sm:mb-0 bg-clip-text text-transparent bg-gradient-to-r from-[#391145] to-[#D3B04D]">
         Customer Data
       </h1>
       <motion.button
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
+        whileHover={{ scale: 1.02 }}
+        whileTap={{ scale: 0.98 }}
         onClick={onExport}
-        className="flex items-center gap-2 bg-gradient-to-r from-[#D3B04D] to-[#DD845A] text-white px-6 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300"
+        className="flex items-center gap-2 bg-gradient-to-r from-[#D3B04D] to-[#DD845A] text-white px-5 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
       >
-        <FiDownload className="h-5 w-5" />
+        <FiDownload className="h-4.5 w-4.5" />
         Export to Excel
       </motion.button>
     </div>

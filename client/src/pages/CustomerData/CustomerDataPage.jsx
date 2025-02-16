@@ -18,7 +18,7 @@ const CustomerDataPage = () => {
   return (
     // Replaced motion.div with standard div to eliminate animation
     <div
-      className="p-8 bg-gradient-to-br from-[#F9F3F1] to-[#FFF8F0] shadow-xl rounded-2xl max-w-full h-full text-[#391145]"
+      className="p-6 sm:p-8 bg-gradient-to-br from-[#F9F3F1] to-[#FFF8F0] shadow-lg rounded-xl max-w-full h-full text-[#391145]"
     >
       <CustomerDataHeader entries={entries} onExport={exportToExcel} />
       <CustomerDataError error={error} />

@@ -3,42 +3,42 @@ import { FiTrash2 } from 'react-icons/fi';
 
 const CustomerDataTable = ({ entries, onDelete }) => {
   return (
-    <div className="mt-4 bg-white rounded-2xl shadow-inner overflow-hidden">
+    <div className="mt-3 bg-white rounded-xl shadow-inner overflow-hidden">
       <div className="overflow-x-auto">
-        <div className="max-h-[450px] overflow-y-auto">
+        <div className="max-h-[500px] overflow-y-auto">
           <table className="w-full border-collapse">
             <thead className="sticky top-0 z-10">
               <tr className="bg-gradient-to-r from-[#DD845A] to-[#D3B04D] text-white">
-                <th className="px-6 py-4 text-left font-semibold">Name</th>
-                <th className="px-6 py-4 text-left font-semibold hidden sm:table-cell">Phone Number</th>
-                <th className="px-6 py-4 text-left font-semibold hidden sm:table-cell">Code</th>
-                <th className="px-6 py-4 text-left font-semibold hidden sm:table-cell">Place</th>
-                <th className="px-6 py-4 text-left font-semibold">Actions</th>
+                <th className="px-5 py-3.5 text-center font-semibold text-sm">Name</th>
+                <th className="px-5 py-3.5 text-center font-semibold text-sm hidden sm:table-cell">Phone Number</th>
+                <th className="px-5 py-3.5 text-center font-semibold text-sm hidden sm:table-cell">Code</th>
+                <th className="px-5 py-3.5 text-center font-semibold text-sm hidden sm:table-cell">Place</th>
+                <th className="px-5 py-3.5 text-center font-semibold text-sm">Actions</th>
               </tr>
             </thead>
             <tbody className="text-sm">
               {entries.map((entry, index) => (
                 <tr
                   key={entry.id}
-                  className="border-b border-amber-100 hover:bg-amber-50 transition-colors duration-200"
+                  className="border-b border-amber-100 hover:bg-amber-50/70 transition-colors duration-150"
                 >
-                  <td className="px-6 py-3 whitespace-nowrap font-medium">
+                  <td className="px-5 py-2.5 whitespace-nowrap text-left font-medium text-sm">
                     {entry.name}
-                    <dl className="sm:hidden mt-1">
-                      <dd className="text-sm text-gray-600">{entry.phoneNumber}</dd>
-                      <dd className="text-sm text-gray-600">{entry.code}</dd>
-                      <dd className="text-sm text-gray-600">{entry.place}</dd>
+                    <dl className="sm:hidden mt-0.5">
+                      <dd className="text-xs text-gray-600">{entry.phoneNumber}</dd>
+                      <dd className="text-xs text-gray-600">{entry.code}</dd>
+                      <dd className="text-xs text-gray-600">{entry.place}</dd>
                     </dl>
                   </td>
-                  <td className="px-6 py-3 whitespace-nowrap hidden sm:table-cell">{entry.phoneNumber}</td>
-                  <td className="px-6 py-3 whitespace-nowrap hidden sm:table-cell">{entry.code}</td>
-                  <td className="px-6 py-3 whitespace-nowrap hidden sm:table-cell">{entry.place}</td>
-                  <td className="px-6 py-3 whitespace-nowrap">
+                  <td className="px-5 py-2.5 whitespace-nowrap hidden sm:table-cell text-center text-sm">{entry.phoneNumber}</td>
+                  <td className="px-5 py-2.5 whitespace-nowrap hidden sm:table-cell text-center text-sm">{entry.code}</td>
+                  <td className="px-5 py-2.5 whitespace-nowrap hidden sm:table-cell text-left text-sm">{entry.place}</td>
+                  <td className="px-5 py-2.5 text-center whitespace-nowrap">
                     <button
                       onClick={() => onDelete(entry.id)}
-                      className="text-red-500 hover:text-red-700 transition-colors duration-200"
+                      className="text-red-500 hover:text-red-700 transition-colors duration-150"
                     >
-                      <FiTrash2 className="h-5 w-5" />
+                      <FiTrash2 className="h-4.5 w-4.5" />
                     </button>
                   </td>
                 </tr>
