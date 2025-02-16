@@ -25,6 +25,7 @@ import DeleteConfirmationModal from './components/DeleteConfirmationModal';
 import useSkinTest from './hooks/useSkinTest';
 import { initialFormData } from './constants/initialState';
 import { formatDateForInput, formatTimeForInput } from './utils/validation';
+import { printData } from './utils/printUtils';
 
 const SkinTesting = () => {
   const {
@@ -72,35 +73,8 @@ const SkinTesting = () => {
     debouncedSearchChange(e.target.value);
   };
 
-  const handlePrint = () => {
-    const printWindow = window.open('width=1200,height=800');
-    printWindow.document.open();
-    printWindow.document.write(`
-      <html>
-        <head>
-          <title>Print</title>
-          <style>
-            @media print {
-              .print-area {
-                width: 210mm;
-                height: 99mm;
-                margin: 0;
-                border: 1px solid #000;
-                box-sizing: border-box;
-              }
-              body { margin: 0; padding: 0; }
-              .no-print { display: none; }
-            }
-          </style>
-        </head>
-        <body>
-        ${document.getElementById('print-content').innerHTML}
-        </body>
-      </html>
-    `);
-    printWindow.document.close();
-    printWindow.focus();
-    printWindow.print();
+  const handlePrint = (data) => {
+    printData(data);
   };
 
   const customerFields = {
@@ -249,7 +223,7 @@ const SkinTesting = () => {
               {isEditing ? 'Update Test' : 'Save Test'}
             </button>
             <button
-              onClick={handlePrint}
+              onClick={() => handlePrint(formData)}
               className="inline-flex items-center px-3 py-2 border border-transparent rounded-2xl shadow-sm text-sm font-medium text-white bg-gradient-to-r from-amber-600 to-yellow-500 hover:from-amber-700 hover:to-yellow-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 transition-all"
             >
               <FiPrinter className="mr-2 h-4 w-4" />
@@ -345,7 +319,7 @@ const SkinTesting = () => {
                           rowData={test}
                           onEdit={handleEdit}
                           onDelete={() => setDeleteConfirmation({ isOpen: true, itemId: test.tokenNo || test.tokenno })}
-                          onPrint={handlePrint}
+                          onPrint={() => handlePrint(test)}
                           columns={Object.keys(test).filter(
                             key => key !== 'code' && key !== 'phoneNumber'
                           )}
