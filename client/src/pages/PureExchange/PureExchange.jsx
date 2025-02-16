@@ -22,7 +22,7 @@ const FormInput = ({ label, name, value, onChange, readOnly = false, className }
                 value={value}
                 onChange={onChange}
                 readOnly={readOnly}
-                className={`w-full pl-4 pr-4 py-2 rounded-lg border border-amber-200 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all duration-200 ${
+                className={`w-full pl-4 pr-4 py-2 rounded-lg border border-amber-200 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-amber-900 transition-all duration-200 ${
                     readOnly ? 'bg-gray-50' : ''
                 }`}
             />
@@ -136,14 +136,25 @@ const PureExchange = () => {
             // Prepare data for saving (excluding id field)
             const dataToSave = tableData.map(({ id, ...rest }) => rest);
 
-            // Check each record for existing tokens
+            // Check all records for existing tokens first
+            const existingTokens = [];
             for (const record of dataToSave) {
                 const exists = await checkPureExchangeExists(record.tokenNo);
                 if (exists) {
-                    setErrorWithTimeout(`Token ${record.tokenNo} already exists in the database`);
-                    setLoading(false);
-                    return;
+                    existingTokens.push(record.tokenNo);
                 }
+            }
+
+            // If any tokens exist, show error and return
+            if (existingTokens.length > 0) {
+                const tokens = existingTokens.join(', ');
+                setErrorWithTimeout(
+                    existingTokens.length === 1
+                        ? `Token ${tokens} already exists in Pure Exchange data. Please remove it and try again.`
+                        : `Tokens ${tokens} already exist in Pure Exchange data. Please remove them and try again.`
+                );
+                setLoading(false);
+                return;
             }
 
             // Save each record
@@ -216,7 +227,7 @@ const PureExchange = () => {
                         />
                         <button
                             onClick={handleAdd}
-                            className="px-4 py-2 bg-amber-500 text-white rounded-md hover:bg-amber-600 transition-colors flex items-center space-x-2"
+                            className="px-4 py-2 bg-amber-500 text-white rounded-xl hover:bg-amber-600 transition-colors flex items-center space-x-2"
                         >
                             <FiPlus className="w-5 h-5" />
                             <span>Add</span>
@@ -299,7 +310,7 @@ const PureExchange = () => {
                 <div className="flex justify-end space-x-4 mt-6">
                     <button
                         onClick={handleReset}
-                        className="inline-flex items-center px-4 py-2 border border-amber-200 text-amber-700 rounded-lg hover:bg-amber-50 transition-all duration-200"
+                        className="inline-flex items-center px-4 py-2 border border-amber-200 text-amber-700 rounded-xl hover:bg-amber-50 transition-all duration-200"
                     >
                         <FiRotateCcw className="-ml-1 mr-2 h-5 w-5" />
                         Reset
@@ -307,7 +318,7 @@ const PureExchange = () => {
                     <button
                         onClick={handleSave}
                         disabled={loading}
-                        className="inline-flex items-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-gradient-to-r from-amber-600 to-yellow-500 hover:from-amber-700 hover:to-yellow-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 transition-all duration-200"
+                        className="inline-flex items-center px-4 py-2 border border-transparent rounded-xl shadow-sm text-sm font-medium text-white bg-gradient-to-r from-amber-600 to-yellow-500 hover:from-amber-700 hover:to-yellow-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 transition-all duration-200"
                     >
                         {loading ? (
                             <div className="flex items-center justify-center">

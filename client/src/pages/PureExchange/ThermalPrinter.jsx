@@ -140,9 +140,9 @@ const ThermalPrinter = ({ data }) => {
         background: 'linear-gradient(4deg, rgba(34,195,123,1) 0%, rgba(88,253,45,1) 100%)',
         color: 'white', 
         border: 'none',
-        borderRadius: '6px',
+        borderRadius: '15px',
         cursor: 'pointer',
-        transition: 'background 0.3s ease',
+        transition: 'background 0.3s ease'
       }}
       onMouseEnter={(e) => e.currentTarget.style.background = 'linear-gradient(4deg, rgba(88,253,45,1) 0%, rgba(34,195,123,1) 100%)'}
       onMouseLeave={(e) => e.currentTarget.style.background = 'linear-gradient(4deg, rgba(34,195,123,1) 0%, rgba(88,253,45,1) 100%)'}
