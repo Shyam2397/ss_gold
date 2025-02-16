@@ -177,7 +177,7 @@ const SkinTesting = () => {
                   name={key}
                   value={inputValue}
                   onChange={key === 'tokenNo' ? handleTokenChange : handleChange}
-                  icon={getFieldIcon(key)}
+                  icon={key === 'tokenNo' ? FiHash : getFieldIcon(key)}
                   size="base"
                   readOnly={isEditing && key === 'tokenNo'}
                   placeholder={key === 'tokenNo' ? 'Enter token number' : ''}
