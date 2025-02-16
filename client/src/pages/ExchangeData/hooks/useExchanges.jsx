@@ -177,31 +177,94 @@ const useExchanges = () => {
     setToDate("");
   }, []);
 
-  const updateExchange = async (tokenNo, updatedData) => {
+  const updateExchange = async (updatedData) => {
     setLoading(true);
     try {
-      await axios.put(
+      const tokenNo = updatedData.tokenno;
+      if (!tokenNo) {
+        setMessageWithTimeout(setError, "Invalid token number");
+        return;
+      }
+
+      // Format numbers to exactly 3 decimal places for weights and 2 for others
+      const formatWeight = (value) => {
+        const numValue = parseFloat(value || 0);
+        return parseFloat(numValue.toFixed(3));
+      };
+
+      const formatOther = (value) => {
+        const numValue = parseFloat(value || 0);
+        return parseFloat(numValue.toFixed(2));
+      };
+
+      // Convert numeric string values to numbers and use correct field names
+      const processedData = {
+        tokenNo: tokenNo,
+        date: updatedData.date,
+        time: updatedData.time,
+        weight: formatWeight(updatedData.weight),
+        highest: formatOther(updatedData.highest),
+        hWeight: formatWeight(updatedData.hweight),
+        average: formatOther(updatedData.average),
+        aWeight: formatWeight(updatedData.aweight),
+        goldFineness: formatOther(updatedData.goldfineness),
+        gWeight: formatWeight(updatedData.gweight),
+        exGold: formatOther(updatedData.exgold),
+        exWeight: formatWeight(updatedData.exweight)
+      };
+
+      console.log('Updating exchange with data:', processedData);
+
+      const response = await axios.put(
         `${API_URL}/pure-exchange/${tokenNo}`,
-        updatedData
+        processedData
       );
       
-      // Update local state
+      // Convert back to lowercase for local state
+      const localData = {
+        tokenno: tokenNo,
+        date: updatedData.date,
+        time: updatedData.time,
+        weight: formatWeight(updatedData.weight),
+        highest: formatOther(updatedData.highest),
+        hweight: formatWeight(updatedData.hweight),
+        average: formatOther(updatedData.average),
+        aweight: formatWeight(updatedData.aweight),
+        goldfineness: formatOther(updatedData.goldfineness),
+        gweight: formatWeight(updatedData.gweight),
+        exgold: formatOther(updatedData.exgold),
+        exweight: formatWeight(updatedData.exweight)
+      };
+      
+      // Update local state with lowercase fields
       const updatedExchanges = exchanges.map(exchange => 
-        exchange.tokenNo === tokenNo ? { ...exchange, ...updatedData } : exchange
+        exchange.tokenno === tokenNo ? { ...exchange, ...localData } : exchange
       );
       setExchanges(updatedExchanges);
       
-      // Update filtered exchanges if needed
+      // Update filtered exchanges
       setFilteredExchanges(prev => 
         prev.map(exchange => 
-          exchange.tokenNo === tokenNo ? { ...exchange, ...updatedData } : exchange
+          exchange.tokenno === tokenNo ? { ...exchange, ...localData } : exchange
         )
       );
 
       setMessageWithTimeout(setSuccessMessage, "Exchange updated successfully!");
+      return true;
     } catch (error) {
       console.error("Error updating exchange:", error);
-      setMessageWithTimeout(setError, "Failed to update exchange. Please try again.");
+      console.error("Error response:", error.response?.data);
+      
+      let errorMessage = "Failed to update exchange. Please try again.";
+      
+      if (error.response?.status === 404) {
+        errorMessage = `Exchange with token ${tokenNo} not found`;
+      } else if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      }
+      
+      setMessageWithTimeout(setError, errorMessage);
+      return false;
     } finally {
       setLoading(false);
     }

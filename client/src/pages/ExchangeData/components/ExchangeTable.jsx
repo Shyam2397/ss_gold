@@ -156,6 +156,81 @@ const ExchangeTable = ({ exchanges, loading, onDelete, onUpdate }) => {
   const [selectedExchange, setSelectedExchange] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
 
+  const columns = [
+    {
+      title: 'Token No',
+      key: 'tokenno',
+      width: '100px',
+      render: (value) => value
+    },
+    {
+      title: 'Date',
+      key: 'date',
+      width: '100px',
+      render: (value) => formatValue(value, 'date')
+    },
+    {
+      title: 'Time',
+      key: 'time',
+      width: '100px',
+      render: (value) => value
+    },
+    {
+      title: 'Weight',
+      key: 'weight',
+      width: '100px',
+      render: (value) => formatWeight(value)
+    },
+    {
+      title: 'Highest',
+      key: 'highest',
+      width: '100px',
+      render: (value) => formatOther(value)
+    },
+    {
+      title: 'H.Weight',
+      key: 'hweight',
+      width: '100px',
+      render: (value) => formatWeight(value)
+    },
+    {
+      title: 'Average',
+      key: 'average',
+      width: '100px',
+      render: (value) => formatOther(value)
+    },
+    {
+      title: 'A.Weight',
+      key: 'aweight',
+      width: '100px',
+      render: (value) => formatWeight(value)
+    },
+    {
+      title: 'Gold Fineness',
+      key: 'goldfineness',
+      width: '120px',
+      render: (value) => formatOther(value)
+    },
+    {
+      title: 'G.Weight',
+      key: 'gweight',
+      width: '100px',
+      render: (value) => formatWeight(value)
+    },
+    {
+      title: 'Ex.Gold',
+      key: 'exgold',
+      width: '100px',
+      render: (value) => formatOther(value)
+    },
+    {
+      title: 'Ex.Weight',
+      key: 'exweight',
+      width: '100px',
+      render: (value) => formatWeight(value)
+    }
+  ];
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-48">
@@ -193,13 +268,16 @@ const ExchangeTable = ({ exchanges, loading, onDelete, onUpdate }) => {
     setSelectedExchange(null);
   };
 
-  const getColumnAlignment = (key) => {
-    const numericColumns = ['token_no', 'old_weight', 'new_weight', 'amount'];
-    const dateColumns = ['date'];
-    
-    if (numericColumns.some(col => key.toLowerCase().includes(col))) return 'text-right';
-    if (dateColumns.some(col => key.toLowerCase().includes(col))) return 'text-center';
-    return 'text-left';
+  const formatWeight = (value) => {
+    // Ensure weight values always have exactly 3 decimal places
+    const numValue = parseFloat(value || 0);
+    return numValue.toFixed(3);
+  };
+
+  const formatOther = (value) => {
+    // Format other numeric values with 2 decimal places
+    const numValue = parseFloat(value || 0);
+    return numValue.toFixed(2);
   };
 
   const formatValue = (value, key) => {
@@ -222,11 +300,17 @@ const ExchangeTable = ({ exchanges, loading, onDelete, onUpdate }) => {
     }
     
     // Format numbers
-    if (typeof value === 'number') {
-      return value.toLocaleString('en-IN', { 
-        minimumFractionDigits: 0, 
-        maximumFractionDigits: 2 
-      });
+    if (typeof value === 'number' || typeof value === 'string') {
+      // Check if the field is a weight field
+      if (key === 'weight' || 
+          key === 'hweight' || 
+          key === 'aweight' || 
+          key === 'gweight' || 
+          key === 'exweight') {
+        return formatWeight(value);
+      } else {
+        return formatOther(value);
+      }
     }
     
     return value;
@@ -239,9 +323,6 @@ const ExchangeTable = ({ exchanges, loading, onDelete, onUpdate }) => {
     );
   };
 
-  const firstExchange = filterColumns(exchanges[0]);
-  const headers = Object.keys(firstExchange);
-
   return (
     <>
       <div className="mt-3 bg-white rounded-xl shadow-inner overflow-hidden">
@@ -250,14 +331,13 @@ const ExchangeTable = ({ exchanges, loading, onDelete, onUpdate }) => {
             <table className="w-full border-collapse">
               <thead className="sticky top-0 z-10">
                 <tr className="bg-gradient-to-r from-[#DD845A] to-[#D3B04D] text-white">
-                  {headers.map((header) => (
+                  {columns.map((column) => (
                     <th
-                      key={header}
+                      key={column.key}
                       className="px-5 py-3.5 text-center font-semibold text-sm whitespace-nowrap"
+                      style={{ width: column.width }}
                     >
-                      {header.split('_').map(word => 
-                        word.charAt(0).toUpperCase() + word.slice(1)
-                      ).join(' ')}
+                      {column.title}
                     </th>
                   ))}
                   <th className="px-5 py-3.5 text-center font-semibold text-sm whitespace-nowrap">
@@ -273,12 +353,12 @@ const ExchangeTable = ({ exchanges, loading, onDelete, onUpdate }) => {
                       key={exchange.id}
                       className="border-b border-amber-100 hover:bg-amber-50/70 transition-colors duration-150"
                     >
-                      {headers.map((header) => (
+                      {columns.map((column) => (
                         <td
-                          key={header}
-                          className={`px-5 py-2.5 text-center whitespace-nowrap ${getColumnAlignment(header)}`}
+                          key={column.key}
+                          className="px-5 py-2.5 text-center whitespace-nowrap"
                         >
-                          {formatValue(filteredExchange[header], header)}
+                          {column.render(filteredExchange[column.key])}
                         </td>
                       ))}
                       <td className="px-5 py-2.5 text-center whitespace-nowrap">
