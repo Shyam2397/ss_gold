@@ -49,7 +49,9 @@ const PureExchange = () => {
         try {
             const response = await fetchSkinTests();
             const skinTests = response;
-            const skinTest = skinTests.find(test => test.tokenNo === tokenNo);
+            const skinTest = skinTests.find(test => 
+                (test.tokenNo || test.tokenno || '').toString() === tokenNo.toString()
+            );
             
             if (!skinTest) {
                 setErrorWithTimeout('Token number not found in skin testing data');
