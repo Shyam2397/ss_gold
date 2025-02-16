@@ -4,7 +4,7 @@ import { exportToExcel } from '../../../utils/excelExport';
 
 const API_URL = import.meta.env.VITE_API_URL;
 
-const useCustomerData = () => {
+export const useCustomerData = () => {
   const [entries, setEntries] = useState([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -54,5 +54,3 @@ const useCustomerData = () => {
     setError
   };
 };
-
-export default useCustomerData;

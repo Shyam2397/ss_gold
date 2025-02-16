@@ -1,6 +1,6 @@
 import React from 'react';
 
-import useCustomerData from './hooks/useCustomerData';
+import { useCustomerData } from './hooks/useCustomerData';
 import CustomerDataHeader from './components/CustomerDataHeader';
 import CustomerDataError from './components/CustomerDataError';
 import CustomerDataLoader from './components/CustomerDataLoader';
