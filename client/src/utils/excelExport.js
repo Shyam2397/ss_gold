@@ -31,11 +31,10 @@ const formatValue = (value, header) => {
     try {
       const date = new Date(value);
       if (!isNaN(date)) {
-        return date.toLocaleDateString('en-GB', {
-          day: '2-digit',
-          month: '2-digit',
-          year: 'numeric'
-        });
+        const day = date.getDate().toString().padStart(2, '0');
+        const month = (date.getMonth() + 1).toString().padStart(2, '0');
+        const year = date.getFullYear();
+        return `${day}-${month}-${year}`;
       }
     } catch (e) {
       console.warn('Error formatting date:', e);
