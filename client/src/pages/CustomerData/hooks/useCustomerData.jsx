@@ -36,8 +36,25 @@ export const useCustomerData = () => {
     }
   }, []);
 
-  const handleExport = async (data) => {
-    await exportToExcel(data, "Customer Data", "customer_data.xlsx");
+  const handleExport = async () => {
+    try {
+      if (!entries || entries.length === 0) {
+        setError("No data available to export");
+        return;
+      }
+
+      const transformedData = entries.map(entry => ({
+        'Name': entry.name,
+        'Phone Number': entry.phoneNumber,
+        'Code': entry.code,
+        'Place': entry.place
+      }));
+
+      await exportToExcel(transformedData, "Customer Data", "customer_data.xlsx");
+    } catch (error) {
+      console.error("Error exporting data:", error);
+      setError("Failed to export data. Please try again.");
+    }
   };
 
   useEffect(() => {
