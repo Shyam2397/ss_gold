@@ -51,8 +51,14 @@ const MasterExpense = ({ isOpen, onClose }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!expenseName.trim()) {
-      setError('Expense name cannot be empty');
+    const trimmedExpenseName = expenseName.trim();
+    if (!trimmedExpenseName) {
+      setError('Expense name is required');
+      return;
+    }
+
+    if (trimmedExpenseName.length < 2) {
+      setError('Expense name must be at least 2 characters long');
       return;
     }
 
@@ -62,12 +68,12 @@ const MasterExpense = ({ isOpen, onClose }) => {
 
       if (editingId) {
         await axios.put(`${API_BASE_URL}/api/expense-master/${editingId}`, {
-          expenseName: expenseName.trim()
+          expense_name: trimmedExpenseName
         });
         showSuccessMessage('Expense type updated successfully');
       } else {
         await axios.post(`${API_BASE_URL}/api/expense-master`, {
-          expenseName: expenseName.trim()
+          expense_name: trimmedExpenseName
         });
         showSuccessMessage('Expense type added successfully');
       }
@@ -80,7 +86,7 @@ const MasterExpense = ({ isOpen, onClose }) => {
       if (err.response?.status === 409) {
         setError('This expense type already exists');
       } else {
-        setError(err.response?.data?.error || 'Failed to save expense type. Please try again.');
+        setError(err.response?.data?.message || err.response?.data?.error || 'Failed to save expense type. Please try again.');
       }
     } finally {
       setLoading(false);
@@ -154,7 +160,7 @@ const MasterExpense = ({ isOpen, onClose }) => {
         <div className="p-6">
           <div className="mb-6">
             <div className="flex justify-between">
-            <h3 className="text-gray-700 font-medium mb-4">
+            <h3 className="text-amber-700 font-medium mb-4">
               {editingId ? 'Edit' : 'Add'} Expense Name
             </h3>
             
@@ -187,14 +193,14 @@ const MasterExpense = ({ isOpen, onClose }) => {
             
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-amber-700 mb-1">
                   Expense Name <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
                   value={expenseName}
                   onChange={(e) => setExpenseName(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-colors"
+                  className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-colors text-amber-900"
                   placeholder="Enter expense name"
                   required
                   disabled={loading}

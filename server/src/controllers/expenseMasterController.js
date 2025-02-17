@@ -2,15 +2,15 @@ const { pool } = require('../config/database');
 
 // Create a new expense type
 const createExpenseType = (req, res) => {
-  const { expenseName } = req.body;
+  const { expense_name } = req.body;
 
-  if (!expenseName) {
+  if (!expense_name) {
     return res.status(400).json({ error: 'Expense name is required' });
   }
 
   const sql = 'INSERT INTO expense_master (expense_name) VALUES ($1) RETURNING id';
   
-  pool.query(sql, [expenseName], (err, result) => {
+  pool.query(sql, [expense_name], (err, result) => {
     if (err) {
       if (err.code === '23505') { // PostgreSQL unique violation error code
         return res.status(409).json({ error: 'Expense type already exists' });
@@ -21,7 +21,7 @@ const createExpenseType = (req, res) => {
     
     res.status(201).json({
       id: result.rows[0].id,
-      expenseName,
+      expense_name,
       message: 'Expense type created successfully'
     });
   });
@@ -44,9 +44,9 @@ const getAllExpenseTypes = (req, res) => {
 // Update an expense type
 const updateExpenseType = (req, res) => {
   const { id } = req.params;
-  const { expenseName } = req.body;
+  const { expense_name } = req.body;
 
-  if (!expenseName) {
+  if (!expense_name) {
     return res.status(400).json({ error: 'Expense name is required' });
   }
 
@@ -58,7 +58,7 @@ const updateExpenseType = (req, res) => {
     RETURNING *
   `;
   
-  pool.query(sql, [expenseName, id], (err, result) => {
+  pool.query(sql, [expense_name, id], (err, result) => {
     if (err) {
       if (err.code === '23505') { // PostgreSQL unique violation error code
         return res.status(409).json({ error: 'Expense type already exists' });
