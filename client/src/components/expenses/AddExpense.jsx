@@ -142,12 +142,12 @@ const AddExpense = ({ isOpen, onClose }) => {
       >
         {/* Header */}
         <div className="px-6 py-4 border-b border-gray-300 flex justify-between items-center bg-gradient-to-r from-yellow-400 to-yellow-500">
-          <h2 className="text-xl font-semibold text-white">Add Expense</h2>
+          <h2 className="text-xl font-semibold text-amber-900">Add Expense</h2>
           <button
             onClick={onClose}
             className="p-1 rounded-full hover:bg-yellow-300 transition-colors"
           >
-            <FiX className="w-5 h-5 text-white" />
+            <FiX className="w-5 h-5 text-amber-900" />
           </button>
         </div>
 
@@ -155,7 +155,7 @@ const AddExpense = ({ isOpen, onClose }) => {
           <div className="grid grid-cols-2 gap-x-6 gap-y-5">
             {/* Date Field */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-amber-900 mb-1">
                 Date <span className="text-red-500">*</span>
               </label>
               <input
@@ -163,26 +163,26 @@ const AddExpense = ({ isOpen, onClose }) => {
                 name="date"
                 value={formData.date}
                 onChange={handleChange}
-                className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-colors text-white"
+                className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-colors text-amber-900"
                 required
               />
             </div>
 
             {/* Expense Type Field */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-amber-900 mb-1">
                 Expense Type <span className="text-red-500">*</span>
               </label>
               <select
                 name="expenseType"
                 value={formData.expenseType}
                 onChange={handleChange}
-                className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-colors text-white"
+                className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-colors text-amber-900"
                 required
               >
-                <option value="" className="text-white">Select</option>
+                <option value="" className="text-amber-900">Select</option>
                 {expenseTypes.map((type) => (
-                  <option className="text-white" key={type.id} value={type.expense_name}>
+                  <option className="text-amber-900" key={type.id} value={type.expense_name}>
                     {type.expense_name}
                   </option>
                 ))}
@@ -191,7 +191,7 @@ const AddExpense = ({ isOpen, onClose }) => {
 
             {/* Amount Field */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-amber-900 mb-1">
                 Amount <span className="text-red-500">*</span>
               </label>
               <div className="relative">
@@ -203,7 +203,7 @@ const AddExpense = ({ isOpen, onClose }) => {
                   name="amount"
                   value={formData.amount}
                   onChange={handleChange}
-                  className="w-full pl-7 pr-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-colors text-white"
+                  className="w-full pl-7 pr-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-colors text-amber-900"
                   required
                   min="0"
                   step="0.01"
@@ -213,7 +213,7 @@ const AddExpense = ({ isOpen, onClose }) => {
 
             {/* Paid To Field */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-amber-900 mb-1">
                 Paid To <span className="text-red-500">*</span>
               </label>
               <input
@@ -221,21 +221,21 @@ const AddExpense = ({ isOpen, onClose }) => {
                 name="paidTo"
                 value={formData.paidTo}
                 onChange={handleChange}
-                className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-colors text-white"
+                className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-colors text-amber-900"
                 required
               />
             </div>
 
             {/* Pay Mode Field */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-amber-900 mb-1">
                 Pay Mode <span className="text-red-500">*</span>
               </label>
               <select
                 name="payMode"
                 value={formData.payMode}
                 onChange={handleChange}
-                className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-colors text-white"
+                className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-colors text-amber-900"
                 required
               >
                 <option value="">Select</option>
@@ -248,7 +248,7 @@ const AddExpense = ({ isOpen, onClose }) => {
 
             {/* Remarks Field - Full Width */}
             <div className="col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-amber-900 mb-1">
                 Remarks
               </label>
               <textarea
@@ -256,7 +256,7 @@ const AddExpense = ({ isOpen, onClose }) => {
                 value={formData.remarks}
                 onChange={handleChange}
                 rows={2}
-                className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-colors resize-none text-white"
+                className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-colors resize-none text-amber-900"
                 placeholder="Add any additional notes here..."
               />
             </div>
@@ -266,7 +266,7 @@ const AddExpense = ({ isOpen, onClose }) => {
           <div className="mt-8 flex justify-end border-t border-gray-200 pt-5">
             <button
               type="submit"
-              className="px-6 py-2.5 bg-yellow-500 text-white font-medium rounded-lg hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 transition-colors"
+              className="px-6 py-2.5 bg-yellow-500 text-amber-900 font-medium rounded-lg hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 transition-colors"
             >
               Save
             </button>
