@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { FiX, FiEdit2, FiTrash2 } from 'react-icons/fi';
+import { FiX, FiEdit2, FiTrash2, FiInfo } from 'react-icons/fi';
 import axios from 'axios';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
@@ -16,6 +16,17 @@ const ViewExpense = ({ isOpen, onClose }) => {
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const [searchKeyword, setSearchKeyword] = useState('');
+
+  // Calculate total amount with proper formatting
+  const calculateTotal = (expenses) => {
+    const total = expenses.reduce((sum, expense) => sum + parseFloat(expense.amount || 0), 0);
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(total);
+  };
 
   // Fetch all expenses
   const fetchExpenses = async () => {
@@ -166,23 +177,23 @@ const ViewExpense = ({ isOpen, onClose }) => {
 
           {/* Filter Controls */}
           <div className="flex items-center gap-4 mb-4">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 text-amber-900">
               <select 
                 value={dateRange}
                 onChange={(e) => setDateRange(e.target.value)}
-                className="border rounded px-2 py-1"
+                className="border rounded-lg border-amber-200 bg-white shadow-sm focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 px-2 py-1"
               >
                 <option>Today</option>
                 <option>Last 7 days</option>
                 <option>Last 30 days</option>
                 <option>Custom Range</option>
               </select>
-              <span>From</span>
+              <span >From</span>
               <input 
                 type="date" 
                 value={fromDate}
                 onChange={(e) => setFromDate(e.target.value)}
-                className="border rounded px-2 py-1"
+                className="border rounded-lg border-amber-200 bg-white shadow-sm focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 px-2 py-1"
                 disabled={dateRange !== 'Custom Range'}
               />
 
@@ -191,7 +202,7 @@ const ViewExpense = ({ isOpen, onClose }) => {
                 type="date"
                 value={toDate}
                 onChange={(e) => setToDate(e.target.value)}
-                className="border rounded px-2 py-1"
+                className="border rounded-lg border-amber-200 bg-white shadow-sm focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 px-2 py-1"
                 disabled={dateRange !== 'Custom Range'}
               />
             </div>
@@ -202,46 +213,59 @@ const ViewExpense = ({ isOpen, onClose }) => {
                 placeholder="Search keyword..."
                 value={searchKeyword}
                 onChange={(e) => setSearchKeyword(e.target.value)}
-                className="w-full border rounded px-3 py-1"
+                className="w-full border rounded-lg border-amber-200 bg-white shadow-sm focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 px-2 py-1 text-amber-900"
               />
             </div>
           </div>
 
           {/* Expenses Table */}
           <div className="overflow-x-auto" style={{ height: '300px', overflowY: 'auto' }}>
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50 sticky top-0">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Paid To</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pay Mode</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Remarks</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+            <table className="min-w-full divide-y divide-amber-100">
+              <thead className="bg-amber-500 sticky top-0 z-10 text-white">
+                <tr className='text-center'>
+                  <th className="px-6 py-3 text-xs font-medium uppercase tracking-wider">Date</th>
+                  <th className="px-6 py-3 text-xs font-medium uppercase tracking-wider">Type</th>
+                  <th className="px-6 py-3 text-xs font-medium uppercase tracking-wider">Amount</th>
+                  <th className="px-6 py-3 text-xs font-medium uppercase tracking-wider">Paid To</th>
+                  <th className="px-6 py-3 text-xs font-medium uppercase tracking-wider">Pay Mode</th>
+                  <th className="px-6 py-3 text-xs font-medium uppercase tracking-wider">Remarks</th>
+                  <th className="px-6 py-3 text-xs font-medium uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredExpenses.map((expense) => (
                   <tr key={expense.id}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-6 py-2 whitespace-nowrap text-sm text-amber-900">
                       {new Date(expense.date).toLocaleDateString('en-GB')}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{expense.expense_type}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">₹{expense.amount}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{expense.paid_to}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{expense.pay_mode}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{expense.remarks}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                    <td className="px-6 py-2 whitespace-nowrap text-sm text-amber-900">{expense.expense_type}</td>
+                    <td className="px-6 py-2 whitespace-nowrap text-sm text-amber-900">₹{expense.amount}</td>
+                    <td className="px-6 py-2 whitespace-nowrap text-sm text-amber-900">{expense.paid_to}</td>
+                    <td className="px-6 py-2 whitespace-nowrap text-sm text-amber-900">{expense.pay_mode}</td>
+                    <td className="px-6 py-2 whitespace-nowrap text-sm text-amber-900 max-w-[150px]">
+                      {expense.remarks && expense.remarks.length > 20 ? (
+                        <div className="group relative">
+                          <span className="block truncate" title={expense.remarks}>
+                            {expense.remarks}
+                          </span>
+                          <div className="absolute z-10 p-2 bg-black text-white text-xs rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 -bottom-10 left-1/2 transform -translate-x-1/2">
+                            {expense.remarks}
+                          </div>
+                        </div>
+                      ) : (
+                        expense.remarks || '-'
+                      )}
+                    </td>
+                    <td className="px-6 py-2 whitespace-nowrap text-sm font-medium">
                       <button
                         onClick={() => handleEdit(expense)}
-                        className="text-indigo-600 hover:text-indigo-900 mr-3"
+                        className="text-amber-600 hover:text-amber-900 px-2 rounded-full hover:bg-amber-50"
                       >
                         <FiEdit2 className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => handleDeleteClick(expense)}
-                        className="text-red-600 hover:text-red-900"
+                        className="text-red-600 hover:text-red-900 px-2 rounded-full hover:bg-red-50"
                       >
                         <FiTrash2 className="w-4 h-4" />
                       </button>
@@ -252,7 +276,7 @@ const ViewExpense = ({ isOpen, onClose }) => {
             </table>
           </div>
           <div className="px-6 py-4 text-left text-black">
-            <strong>Total: </strong> ₹{filteredExpenses.reduce((total, expense) => total + expense.amount, 0)}
+            <strong>Total: </strong> {calculateTotal(filteredExpenses)}
           </div>
         </div>
       </motion.div>
