@@ -161,7 +161,14 @@ function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [recentActivities, setRecentActivities] = useState([]);
-  const [todayTotal, setTodayTotal] = useState(0);
+  const [todayTotal, setTodayTotal] = useState({
+    revenue: 0,
+    expenses: 0,
+    netTotal: 0,
+    formattedRevenue: '₹0.00',
+    formattedExpenses: '₹0.00',
+    formattedNetTotal: '₹0.00'
+  });
   const [dateRange, setDateRange] = useState({
     fromDate: new Date(new Date().setDate(1)).toISOString().split('T')[0], // First day of current month
     toDate: new Date().toISOString().split('T')[0] // Today
@@ -425,32 +432,55 @@ function Dashboard() {
         });
 
         // Calculate today's total
-        const calculateTodayTotal = (tokenData) => {
-          const today = new Date().toLocaleDateString('en-GB', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric'
-          }).split('/').join('-'); // Convert to DD-MM-YYYY format
+        const calculateTodayTotal = (tokenData, expenseData) => {
+          const today = new Date();
+          today.setHours(0, 0, 0, 0); // Set to start of day
 
-          console.log('Today\'s date for comparison:', today);
+          // Calculate today's revenue from tokens
           const todayTokens = tokenData.filter(token => {
-            console.log('Token date:', token.date, 'Amount:', token.amount);
-            return token.date === today;
+            const tokenDate = new Date(token.date);
+            tokenDate.setHours(0, 0, 0, 0);
+            return tokenDate.getTime() === today.getTime();
           });
           
-          console.log('Today\'s tokens:', todayTokens);
-          const total = todayTokens.reduce((sum, token) => {
-            const amount = parseFloat(token.amount || 0);
-            console.log('Adding amount:', amount);
-            return sum + amount;
+          const todayRevenue = todayTokens.reduce((sum, token) => {
+            return sum + parseFloat(token.amount || 0);
           }, 0);
+
+          // Calculate today's expenses
+          const todayExpenses = expenseData.filter(expense => {
+            const expenseDate = new Date(expense.date);
+            expenseDate.setHours(0, 0, 0, 0);
+            return expenseDate.getTime() === today.getTime();
+          });
+
+          const todayExpenseTotal = todayExpenses.reduce((sum, expense) => {
+            return sum + parseFloat(expense.amount || 0);
+          }, 0);
+
+          // Calculate net total (revenue - expenses)
+          const netTotal = todayRevenue - todayExpenseTotal;
           
-          console.log('Final total for today:', total);
-          setTodayTotal(total);
+          // Format amounts with Indian currency format
+          const formatAmount = (amount) => new Intl.NumberFormat('en-IN', {
+            style: 'currency',
+            currency: 'INR',
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+          }).format(amount);
+
+          setTodayTotal({
+            revenue: todayRevenue,
+            expenses: todayExpenseTotal,
+            netTotal: netTotal,
+            formattedRevenue: formatAmount(todayRevenue),
+            formattedExpenses: formatAmount(todayExpenseTotal),
+            formattedNetTotal: formatAmount(netTotal)
+          });
         };
 
-        calculateTodayTotal(tokenData);
-
+        calculateTodayTotal(tokenData, expensesRes.data);
+        
         setLoading(false);
       } catch (err) {
         setError(err.message);
@@ -592,9 +622,21 @@ function Dashboard() {
       
       {/* Date Range Picker with Today's Total */}
       <div className="mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between bg-white p-4 rounded-lg shadow-sm space-y-4 sm:space-y-0">
-        <div className="flex items-center space-x-2 w-full sm:w-auto">
-          <span className="text-lg font-bold text-amber-700 whitespace-nowrap">Today's Total:</span>
-          <span className="text-xl font-bold text-yellow-600">₹ {todayTotal.toLocaleString('en-IN')}</span>
+        <div className="flex items-center space-x-4 w-full sm:w-auto">
+          <div className="flex flex-col">
+            <span className="text-sm font-medium text-amber-700">Today's Revenue</span>
+            <span className="text-lg font-bold text-yellow-600">{todayTotal.formattedRevenue}</span>
+          </div>
+          <div className="flex flex-col">
+            <span className="text-sm font-medium text-amber-700">Today's Expenses</span>
+            <span className="text-lg font-bold text-red-600">{todayTotal.formattedExpenses}</span>
+          </div>
+          <div className="flex flex-col">
+            <span className="text-sm font-medium text-amber-700">Today's Net Total</span>
+            <span className={`text-lg font-bold ${todayTotal.netTotal >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              {todayTotal.formattedNetTotal}
+            </span>
+          </div>
         </div>
         <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-4 sm:space-y-0 sm:space-x-4 w-full sm:w-auto">
           <div className="flex items-center space-x-2 w-full sm:w-auto">
