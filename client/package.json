@@ -62,7 +62,7 @@
   },
   "scripts": {
     "dev": "vite",
-    "start": "cross-env ELECTRON=true NODE_ENV=development concurrently \"yarn dev\" \"wait-on http://localhost:3000 && electron .\"",
+    "start": "vite",
     "build": "vite build",
     "preview": "vite preview",
     "analyze": "source-map-explorer 'build/static/js/*.js'"
