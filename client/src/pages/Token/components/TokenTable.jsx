@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { FiEdit2, FiTrash2, FiCheckCircle, FiXCircle } from 'react-icons/fi';
-import { AutoSizer, List, Column, Table } from 'react-virtualized';
+import { AutoSizer, Table, Column } from 'react-virtualized';
 import 'react-virtualized/styles.css';
 
 const formatDateToIST = (dateString) => {
@@ -51,20 +51,24 @@ const TokenTable = ({ tokens = [], onEdit, onDelete, onPaymentStatusChange }) =>
   }
 
   const columns = [
-    { label: "Actions", key: "actions", width: 130 },
-    { label: "Token No", key: "tokenNo", width: 100 },
-    { label: "Date", key: "date", width: 100 },
-    { label: "Time", key: "time", width: 100 },
-    { label: "Code", key: "code", width: 80 },
-    { label: "Name", key: "name", width: 220 },
-    { label: "Test", key: "test", width: 175 },
-    { label: "Weight", key: "weight", width: 100 },
-    { label: "Sample", key: "sample", width: 150 },
-    { label: "Amount", key: "amount", width: 100 }
+    { label: "Actions", key: "actions", width: 130, flexGrow: 0 },
+    { label: "Token No", key: "tokenNo", width: 100, flexGrow: 0 },
+    { label: "Date", key: "date", width: 100, flexGrow: 0 },
+    { label: "Time", key: "time", width: 100, flexGrow: 0 },
+    { label: "Code", key: "code", width: 80, flexGrow: 0 },
+    { label: "Name", key: "name", width: 200, flexGrow: 1 },
+    { label: "Test", key: "test", width: 150, flexGrow: 1 },
+    { label: "Weight", key: "weight", width: 100, flexGrow: 0 },
+    { label: "Sample", key: "sample", width: 150, flexGrow: 1 },
+    { label: "Amount", key: "amount", width: 100, flexGrow: 0 }
   ];
 
-  const getRowHeight = () => 50;
-  
+  // Calculate minimum width needed
+  const minTableWidth = useMemo(() => 
+    columns.reduce((sum, col) => sum + col.width, 0), 
+    [columns]
+  );
+
   const cellRenderer = ({ rowData, dataKey, columnIndex }) => {
     if (dataKey === 'actions') {
       return (
@@ -126,35 +130,41 @@ const TokenTable = ({ tokens = [], onEdit, onDelete, onPaymentStatusChange }) =>
   );
 
   return (
-    <div className="h-[450px] rounded-lg border border-amber-100">
-      <AutoSizer>
-        {({ width, height }) => (
-          <Table
-            width={width}
-            height={height}
-            headerHeight={40}
-            rowHeight={getRowHeight}
-            rowCount={tokens.length}
-            rowGetter={({ index }) => tokens[index]}
-            rowClassName={({ index }) => 
-              `${index === -1 ? 'bg-amber-500' : index % 2 === 0 ? 'bg-white' : 'bg-amber-50/40'} 
-               hover:bg-amber-50/40 transition-colors`
-            }
-          >
-            {columns.map(({ label, key, width }) => (
-              <Column
-                key={key}
-                label={label}
-                dataKey={key}
-                width={width}
-                cellRenderer={cellRenderer}
-                headerRenderer={headerRenderer}
-                className="divide-x divide-amber-100"
-              />
-            ))}
-          </Table>
-        )}
-      </AutoSizer>
+    <div className="relative overflow-hidden rounded-lg border border-amber-100">
+      <div className="h-[450px]">
+        <AutoSizer>
+          {({ width, height }) => (
+            <Table
+              width={Math.max(width, minTableWidth)}
+              height={height}
+              headerHeight={40}
+              rowHeight={50}
+              rowCount={tokens.length}
+              rowGetter={({ index }) => tokens[index]}
+              rowClassName={({ index }) => 
+                `${index === -1 ? 'bg-amber-500' : index % 2 === 0 ? 'bg-white' : 'bg-amber-50/40'} 
+                 hover:bg-amber-50/40 transition-colors`
+              }
+              overscanRowCount={5}
+            >
+              {columns.map(({ label, key, width, flexGrow }) => (
+                <Column
+                  key={key}
+                  label={label}
+                  dataKey={key}
+                  width={width}
+                  flexGrow={flexGrow}
+                  cellRenderer={cellRenderer}
+                  headerRenderer={headerRenderer}
+                  className="divide-x divide-amber-100"
+                  style={{ overflow: 'hidden' }}
+                />
+              ))}
+            </Table>
+          )}
+        </AutoSizer>
+      </div>
+      <div className="absolute bottom-0 left-0 right-0 h-4 bg-gradient-to-t from-white to-transparent pointer-events-none" />
     </div>
   );
 };
