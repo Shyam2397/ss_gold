@@ -3,14 +3,32 @@ import { FiEdit2, FiTrash2, FiCheckCircle, FiXCircle } from 'react-icons/fi';
 
 const formatDateToIST = (dateString) => {
   if (!dateString) return '';
-  const date = new Date(dateString);
   
-  // Manually format to DD-MM-YYYY
-  const day = date.getDate().toString().padStart(2, '0');
-  const month = (date.getMonth() + 1).toString().padStart(2, '0');
-  const year = date.getFullYear();
-  
-  return `${day}-${month}-${year}`;
+  try {
+    // Handle different date formats
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) {
+      // Try parsing DD-MM-YYYY format
+      const [day, month, year] = dateString.split('-');
+      if (day && month && year) {
+        date = new Date(year, month - 1, day);
+      }
+    }
+    
+    if (isNaN(date.getTime())) {
+      return dateString; // Return original if parsing fails
+    }
+    
+    // Format to DD-MM-YYYY
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const year = date.getFullYear();
+    
+    return `${day}-${month}-${year}`;
+  } catch (error) {
+    console.error('Date parsing error:', error);
+    return dateString;
+  }
 };
 
 const formatTimeToIST = (timeString) => {
