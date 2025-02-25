@@ -2,8 +2,7 @@
   "name": "ss_gold",
   "version": "0.1.0",
   "private": true,
-  "main": "electron/main.js",
-  "type": "commonjs",
+  "type": "module",
   "dependencies": {
     "@heroicons/react": "^2.2.0",
     "@tabler/icons-react": "^3.29.0",
@@ -56,8 +55,6 @@
     "@vitejs/plugin-react": "^4.2.1",
     "concurrently": "^8.2.2",
     "cross-env": "^7.0.3",
-    "electron": "^29.1.4",
-    "electron-builder": "^24.13.3",
     "source-map-explorer": "^2.5.3",
     "typescript": "^5.2.2",
     "vite": "^5.0.8",
@@ -65,13 +62,10 @@
   },
   "scripts": {
     "dev": "vite",
-    "start": "vite",
+    "start": "cross-env ELECTRON=true NODE_ENV=development concurrently \"yarn dev\" \"wait-on http://localhost:3000 && electron .\"",
     "build": "vite build",
     "preview": "vite preview",
-    "analyze": "source-map-explorer 'build/static/js/*.js'",
-    "electron:dev": "cross-env ELECTRON=true concurrently \"yarn dev\" \"wait-on http://localhost:3000 && electron .\"",
-    "electron:build": "cross-env ELECTRON=true yarn build && electron-builder",
-    "electron:start": "electron ."
+    "analyze": "source-map-explorer 'build/static/js/*.js'"
   },
   "eslintConfig": {
     "extends": [

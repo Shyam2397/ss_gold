@@ -2,7 +2,7 @@
   "name": "ss_gold",
   "version": "1.0.0",
   "scripts": {
-    "client": "cd client && npm run electron:dev",
+    "client": "cd client && npm run start",
     "server": "cd server && npm run dev",
     "dev": "concurrently \"npm run client\" \"npm run server\""
   },
