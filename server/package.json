@@ -26,6 +26,7 @@
     "jsonwebtoken": "^9.0.2",
     "pg": "^8.13.1",
     "winston": "^3.11.0",
+    "worker-loader": "^3.0.8",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {

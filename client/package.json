@@ -40,6 +40,7 @@
     "react-to-print": "^2.14.13",
     "react-toastify": "^11.0.3",
     "react-tooltip": "^5.28.0",
+    "react-virtualized": "^9.22.6",
     "recharts": "^2.15.0",
     "rimraf": "^5.0.5",
     "sqlite3": "^5.1.7",

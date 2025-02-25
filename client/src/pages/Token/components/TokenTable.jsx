@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { FiEdit2, FiTrash2, FiCheckCircle, FiXCircle } from 'react-icons/fi';
+import { AutoSizer, List, Column, Table } from 'react-virtualized';
+import 'react-virtualized/styles.css';
 
 const formatDateToIST = (dateString) => {
   if (!dateString) return '';
-  
   try {
     // Handle different date formats
     const date = new Date(dateString);
@@ -11,12 +12,9 @@ const formatDateToIST = (dateString) => {
       // Try parsing DD-MM-YYYY format
       const [day, month, year] = dateString.split('-');
       if (day && month && year) {
-        date = new Date(year, month - 1, day);
+        return `${day}-${month}-${year}`;
       }
-    }
-    
-    if (isNaN(date.getTime())) {
-      return dateString; // Return original if parsing fails
+      return dateString;
     }
     
     // Format to DD-MM-YYYY
@@ -53,98 +51,110 @@ const TokenTable = ({ tokens = [], onEdit, onDelete, onPaymentStatusChange }) =>
   }
 
   const columns = [
-    "Token No",
-    "Date",
-    "Time",
-    "Code",
-    "Name",
-    "Test",
-    "Weight",
-    "Sample",
-    "Amount"
+    { label: "Actions", key: "actions", width: 130 },
+    { label: "Token No", key: "tokenNo", width: 100 },
+    { label: "Date", key: "date", width: 100 },
+    { label: "Time", key: "time", width: 100 },
+    { label: "Code", key: "code", width: 80 },
+    { label: "Name", key: "name", width: 220 },
+    { label: "Test", key: "test", width: 175 },
+    { label: "Weight", key: "weight", width: 100 },
+    { label: "Sample", key: "sample", width: 150 },
+    { label: "Amount", key: "amount", width: 100 }
   ];
 
-  return (
-    <div className="overflow-x-auto rounded-lg border border-amber-100">
-      <div className="max-h-[450px] overflow-y-auto scrollbar-thin scrollbar-thumb-amber-300 scrollbar-track-amber-50">
-        <table className="w-full table-fixed divide-y divide-amber-100">
-          <thead className="bg-amber-500 sticky top-0 z-10">
-            <tr>
-              <th className="w-[130px] px-2 py-2 text-center text-xs font-medium text-white uppercase tracking-wider">
-                Actions
-              </th>
-              {columns.map((column) => (
-                <th
-                  key={column}
-                  className="px-2 py-2 text-center text-xs font-medium text-white uppercase tracking-wider"
-                >
-                  {column}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-amber-50">
-            {tokens.map((token, index) => (
-              <tr
-                key={token.id || index}
-                className="hover:bg-amber-50/40 transition-colors"
-              >
-                <td className="w-[130px] px-2 py-2 whitespace-nowrap text-center align-middle">
-                  <div className="flex items-center justify-center space-x-2">
-                    <input
-                      type="checkbox"
-                      checked={token.isPaid}
-                      onChange={(e) => onPaymentStatusChange(token.id, e.target.checked)}
-                      className="h-4 w-4 text-amber-600 focus:ring-amber-500 border-gray-300 rounded cursor-pointer"
-                    />
-                    <span className={`flex items-center ${token.isPaid ? 'text-green-600' : 'text-red-600'}`}>
-                      {token.isPaid ? <FiCheckCircle className="w-4 h-4" /> : <FiXCircle className="w-4 h-4" />}
-                    </span>
-                    <button
-                      onClick={() => onEdit(token)}
-                      className="text-amber-600 hover:text-amber-900 p-1 rounded hover:bg-amber-50"
-                      title="Edit Token"
-                    >
-                      <FiEdit2 className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={() => onDelete(token.id)}
-                      className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50"
-                      title="Delete Token"
-                    >
-                      <FiTrash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </td>
-                {columns.map((column) => {
-                  let displayValue = token[column.toLowerCase().replace(/\s/g, '')];
-                  
-                  if (column === 'Token No') {
-                    displayValue = token.tokenno || token.tokenNo || token['token no'] || 'N/A';
-                  }
-                  
-                  if (column === 'Date') {
-                    displayValue = formatDateToIST(displayValue);
-                  } else if (column === 'Time') {
-                    displayValue = formatTimeToIST(displayValue);
-                  } else if (column === 'Weight') {
-                    displayValue = parseFloat(displayValue).toFixed(3);
-                  }
+  const getRowHeight = () => 50;
+  
+  const cellRenderer = ({ rowData, dataKey, columnIndex }) => {
+    if (dataKey === 'actions') {
+      return (
+        <div className="flex items-center justify-center space-x-2">
+          <input
+            type="checkbox"
+            checked={Boolean(rowData.isPaid)}
+            onChange={(e) => onPaymentStatusChange(rowData.id, e.target.checked)}
+            className="h-4 w-4 text-amber-600 focus:ring-amber-500 border-gray-300 rounded cursor-pointer"
+          />
+          <span className={`flex items-center ${rowData.isPaid ? 'text-green-600' : 'text-red-600'}`}>
+            {rowData.isPaid ? <FiCheckCircle className="w-4 h-4" /> : <FiXCircle className="w-4 h-4" />}
+          </span>
+          <button
+            onClick={() => onEdit(rowData)}
+            className="text-amber-600 hover:text-amber-900 p-1 rounded hover:bg-amber-50"
+          >
+            <FiEdit2 className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={() => onDelete(rowData.id)}
+            className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50"
+          >
+            <FiTrash2 className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      );
+    }
 
-                  return (
-                    <td
-                      key={column}
-                      className="px-2 py-2 whitespace-nowrap text-center text-xs text-amber-900 truncate align-middle"
-                    >
-                      {displayValue}
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+    let value = rowData[dataKey];
+    
+    // Handle null/undefined values
+    if (value === null || value === undefined) {
+      return <div className="text-center text-xs text-gray-400">-</div>;
+    }
+
+    // Format specific columns
+    if (dataKey === 'date') {
+      value = formatDateToIST(value);
+    } else if (dataKey === 'time') {
+      value = formatTimeToIST(value);
+    } else if (dataKey === 'weight') {
+      value = typeof value === 'number' ? value.toFixed(3) : value;
+    } else if (dataKey === 'amount') {
+      value = typeof value === 'number' ? value.toFixed(2) : value;
+    }
+
+    return (
+      <div className="text-center text-xs text-amber-900 truncate py-4">
+        {value}
       </div>
+    );
+  };
+
+  const headerRenderer = ({ label }) => (
+    <div className="text-center text-xs font-medium text-white uppercase tracking-wider py-2">
+      {label}
+    </div>
+  );
+
+  return (
+    <div className="h-[450px] rounded-lg border border-amber-100">
+      <AutoSizer>
+        {({ width, height }) => (
+          <Table
+            width={width}
+            height={height}
+            headerHeight={40}
+            rowHeight={getRowHeight}
+            rowCount={tokens.length}
+            rowGetter={({ index }) => tokens[index]}
+            rowClassName={({ index }) => 
+              `${index === -1 ? 'bg-amber-500' : index % 2 === 0 ? 'bg-white' : 'bg-amber-50/40'} 
+               hover:bg-amber-50/40 transition-colors`
+            }
+          >
+            {columns.map(({ label, key, width }) => (
+              <Column
+                key={key}
+                label={label}
+                dataKey={key}
+                width={width}
+                cellRenderer={cellRenderer}
+                headerRenderer={headerRenderer}
+                className="divide-x divide-amber-100"
+              />
+            ))}
+          </Table>
+        )}
+      </AutoSizer>
     </div>
   );
 };

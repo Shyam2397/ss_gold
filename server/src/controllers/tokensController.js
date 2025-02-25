@@ -1,75 +1,153 @@
-const XLSX = require('xlsx');
+const { pool } = require('../config/database');
+const { handleDatabaseError } = require('../middleware/errorHandler');
 const path = require('path');
 const fs = require('fs');
+const { Worker } = require('worker_threads');
 
-// Add date formatting helpers
-const formatDate = (dateString) => {
-  if (!dateString) return '';
-  
-  try {
-    let date = new Date(dateString);
-    if (isNaN(date.getTime())) {
-      // Try parsing DD-MM-YYYY format
-      const [day, month, year] = dateString.split('-');
-      if (day && month && year) {
-        date = new Date(year, month - 1, day);
-      }
-    }
-    
-    if (isNaN(date.getTime())) {
-      return dateString;
-    }
-    
-    const day = date.getDate().toString().padStart(2, '0');
-    const month = (date.getMonth() + 1).toString().padStart(2, '0');
-    const year = date.getFullYear();
-    
-    return `${day}-${month}-${year}`;
-  } catch (error) {
-    console.error('Date formatting error:', error);
-    return dateString;
-  }
-};
-
-// Define the Excel file path
 const DATA_DIR = path.join(__dirname, '../../../data');
 const EXCEL_FILE = path.join(DATA_DIR, 'tokens.xlsx');
+const WORKER_FILE = path.join(__dirname, '../workers/excelWorker.js');
 
 // Ensure data directory exists
 if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
 }
 
-// Modify the read helper to format dates
-const readExcelFile = () => {
-  if (!fs.existsSync(EXCEL_FILE)) {
-    return [];
+// Worker management with error handling
+let worker = null;
+let isWorkerBusy = false;
+
+const createWorker = () => {
+  try {
+    const newWorker = new Worker(WORKER_FILE);
+    
+    newWorker.on('error', (error) => {
+      console.error('Worker error:', error);
+      if (worker === newWorker) {
+        worker = null;
+        isWorkerBusy = false;
+      }
+    });
+
+    newWorker.on('exit', (code) => {
+      if (code !== 0) {
+        console.error(`Worker stopped with exit code ${code}`);
+      }
+      if (worker === newWorker) {
+        worker = null;
+        isWorkerBusy = false;
+      }
+    });
+
+    return newWorker;
+  } catch (error) {
+    console.error('Failed to create worker:', error);
+    return null;
   }
-  const workbook = XLSX.readFile(EXCEL_FILE);
-  const sheet = workbook.Sheets[workbook.SheetNames[0]];
-  const data = XLSX.utils.sheet_to_json(sheet);
-  
-  // Format dates in the data
-  return data.map(row => ({
-    ...row,
-    date: formatDate(row.date)
-  }));
 };
 
-// Helper function to write Excel file
-const writeExcelFile = (data) => {
-  const worksheet = XLSX.utils.json_to_sheet(data);
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, 'Tokens');
-  XLSX.writeFile(workbook, EXCEL_FILE);
+const getWorker = () => {
+  if (!worker && !isWorkerBusy) {
+    worker = createWorker();
+  }
+  return worker;
 };
+
+const executeWorkerTask = (type, data = null) => {
+  return new Promise((resolve, reject) => {
+    const currentWorker = getWorker();
+    
+    if (!currentWorker) {
+      return reject(new Error('Worker initialization failed'));
+    }
+
+    const timeout = setTimeout(() => {
+      cleanup();
+      reject(new Error('Worker operation timed out'));
+    }, 30000); // 30 second timeout
+
+    const cleanup = () => {
+      clearTimeout(timeout);
+      currentWorker.removeListener('message', handleMessage);
+      currentWorker.removeListener('error', handleError);
+      isWorkerBusy = false;
+    };
+
+    const handleMessage = (message) => {
+      if (message.type === `${type}_SUCCESS`) {
+        cleanup();
+        resolve(message.data);
+      } else if (message.type === 'ERROR') {
+        cleanup();
+        reject(new Error(message.error));
+      }
+    };
+
+    const handleError = (error) => {
+      cleanup();
+      reject(error);
+    };
+
+    currentWorker.on('message', handleMessage);
+    currentWorker.on('error', handleError);
+    
+    isWorkerBusy = true;
+    currentWorker.postMessage({ 
+      type, 
+      data, 
+      filePath: EXCEL_FILE 
+    });
+  });
+};
+
+// Helper functions using the new worker execution
+const readExcelFile = () => executeWorkerTask('READ');
+const writeExcelFile = (data) => executeWorkerTask('WRITE', data);
+
+// Add payment status column if it doesn't exist
+const initializeTable = async () => {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS tokens (
+        id SERIAL PRIMARY KEY,
+        token_no VARCHAR(50) UNIQUE NOT NULL,
+        date DATE,
+        time TIME,
+        code VARCHAR(50),
+        name VARCHAR(100),
+        test VARCHAR(100),
+        weight DECIMAL(10, 2),
+        sample VARCHAR(100),
+        amount DECIMAL(10, 2),
+        is_paid INTEGER DEFAULT 0
+      );
+    `);
+  } catch (err) {
+    console.error('Error initializing tokens table:', err);
+    throw err;
+  }
+};
+
+// Initialize table but don't block module loading
+(async () => {
+  try {
+    await initializeTable();
+  } catch (err) {
+    console.error('Failed to initialize tokens table:', err);
+    // Don't throw here, let the application continue
+  }
+})();
 
 const getAllTokens = async (req, res) => {
   try {
-    const data = readExcelFile();
+    const data = await readExcelFile();
+    if (!Array.isArray(data)) {
+      throw new Error('Invalid data format received from worker');
+    }
+
     const transformedData = data.map(row => ({
       id: row.id,
-      tokenNo: row.token_no,
+      tokenNo: row.token_no || row.tokenNo,
       date: row.date,
       time: row.time,
       code: row.code,
@@ -78,8 +156,9 @@ const getAllTokens = async (req, res) => {
       weight: row.weight,
       sample: row.sample,
       amount: row.amount,
-      isPaid: row.is_paid
-    }));
+      isPaid: row.is_paid || row.isPaid || 0
+    })).sort((a, b) => b.id - a.id); // Sort by id descending
+
     res.json(transformedData);
   } catch (err) {
     console.error('Error in getAllTokens:', err);
@@ -89,16 +168,21 @@ const getAllTokens = async (req, res) => {
 
 const getTokenByNumber = async (req, res) => {
   try {
-    const data = readExcelFile();
-    const token = data.find(row => row.token_no === req.params.tokenNo);
+    const data = await readExcelFile();
+    const token = data.find(row => 
+      (row.token_no || row.tokenNo) === req.params.tokenNo
+    );
     
     if (!token) {
-      return res.status(404).json({ success: false, message: 'Token not found' });
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Token not found' 
+      });
     }
 
     const transformedRow = {
       id: token.id,
-      tokenNo: token.token_no,
+      tokenNo: token.token_no || token.tokenNo,
       date: token.date,
       time: token.time,
       code: token.code,
@@ -107,7 +191,7 @@ const getTokenByNumber = async (req, res) => {
       weight: token.weight,
       sample: token.sample,
       amount: token.amount,
-      isPaid: token.is_paid
+      isPaid: token.is_paid || token.isPaid || 0
     };
 
     res.json({ success: true, data: transformedRow });
@@ -117,16 +201,23 @@ const getTokenByNumber = async (req, res) => {
   }
 };
 
-// Modify createToken to format date
 const createToken = async (req, res) => {
   try {
-    const data = readExcelFile();
+    const data = await readExcelFile();
     const { tokenNo, date, time, code, name, test, weight, sample, amount } = req.body;
     
+    // Check for duplicate token number
+    if (data.some(t => (t.token_no || t.tokenNo) === tokenNo)) {
+      return res.status(400).json({ 
+        success: false, 
+        error: "Token number already exists" 
+      });
+    }
+
     const newToken = {
       id: data.length > 0 ? Math.max(...data.map(t => t.id)) + 1 : 1,
       token_no: tokenNo,
-      date: formatDate(date),
+      date,
       time,
       code,
       name,
@@ -138,7 +229,7 @@ const createToken = async (req, res) => {
     };
 
     data.push(newToken);
-    writeExcelFile(data);
+    await writeExcelFile(data);
 
     const transformedRow = {
       id: newToken.id,
@@ -161,27 +252,32 @@ const createToken = async (req, res) => {
   }
 };
 
-// Modify updateToken to format date
 const updateToken = async (req, res) => {
   try {
-    const data = readExcelFile();
+    const data = await readExcelFile();
     const { tokenNo, date, time, code, name, test, weight, sample, amount } = req.body;
     const id = parseInt(req.params.id);
 
     const tokenIndex = data.findIndex(t => t.id === id);
     if (tokenIndex === -1) {
-      return res.status(404).json({ success: false, error: "Token not found" });
+      return res.status(404).json({ 
+        success: false, 
+        error: "Token not found" 
+      });
     }
 
     // Check for duplicate token number
-    if (data.some(t => t.token_no === tokenNo && t.id !== id)) {
-      return res.status(400).json({ success: false, error: "Token number already exists" });
+    if (data.some(t => (t.token_no || t.tokenNo) === tokenNo && t.id !== id)) {
+      return res.status(400).json({ 
+        success: false, 
+        error: "Token number already exists" 
+      });
     }
 
     data[tokenIndex] = {
       ...data[tokenIndex],
       token_no: tokenNo,
-      date: formatDate(date),
+      date,
       time,
       code,
       name,
@@ -191,7 +287,7 @@ const updateToken = async (req, res) => {
       amount
     };
 
-    writeExcelFile(data);
+    await writeExcelFile(data);
 
     const transformedRow = {
       id: data[tokenIndex].id,
@@ -204,7 +300,7 @@ const updateToken = async (req, res) => {
       weight: data[tokenIndex].weight,
       sample: data[tokenIndex].sample,
       amount: data[tokenIndex].amount,
-      isPaid: data[tokenIndex].is_paid
+      isPaid: data[tokenIndex].is_paid || data[tokenIndex].isPaid || 0
     };
 
     res.status(200).json({ success: true, data: transformedRow });
@@ -216,7 +312,7 @@ const updateToken = async (req, res) => {
 
 const updatePaymentStatus = async (req, res) => {
   try {
-    const data = readExcelFile();
+    const data = await readExcelFile();
     const { isPaid } = req.body;
     const id = parseInt(req.params.id);
 
@@ -226,7 +322,7 @@ const updatePaymentStatus = async (req, res) => {
     }
 
     data[tokenIndex].is_paid = isPaid ? 1 : 0;
-    writeExcelFile(data);
+    await writeExcelFile(data);
 
     const transformedRow = {
       id: data[tokenIndex].id,
@@ -251,7 +347,7 @@ const updatePaymentStatus = async (req, res) => {
 
 const deleteToken = async (req, res) => {
   try {
-     const data = readExcelFile();
+    const data = await readExcelFile();
     const id = parseInt(req.params.id);
 
     const tokenIndex = data.findIndex(t => t.id === id);
@@ -261,7 +357,7 @@ const deleteToken = async (req, res) => {
 
     const deletedToken = data[tokenIndex];
     data.splice(tokenIndex, 1);
-    writeExcelFile(data);
+    await writeExcelFile(data);
 
     const transformedRow = {
       id: deletedToken.id,
@@ -274,7 +370,7 @@ const deleteToken = async (req, res) => {
       weight: deletedToken.weight,
       sample: deletedToken.sample,
       amount: deletedToken.amount,
-      isPaid: deletedToken.is_paid
+      isPaid: deletedToken.is_paid || deletedToken.isPaid || 0
     };
 
     res.status(200).json({ deletedID: 1, token: transformedRow });
@@ -286,13 +382,15 @@ const deleteToken = async (req, res) => {
 
 const generateTokenNumber = async (req, res) => {
   try {
-    const data = readExcelFile();
+    const data = await readExcelFile();
     
     let nextTokenNo;
     if (data.length === 0) {
       nextTokenNo = "A1";
     } else {
-      const currentToken = data[data.length - 1].token_no.toString();
+      const lastToken = data.reduce((max, token) => 
+        (!max || token.id > max.id) ? token : max, null);
+      const currentToken = (lastToken.token_no || lastToken.tokenNo).toString();
       const match = currentToken.match(/^([A-Z])(\d+)$/);
       
       if (!match) {
@@ -314,7 +412,7 @@ const generateTokenNumber = async (req, res) => {
       }
     }
 
-    if (data.some(t => t.token_no === nextTokenNo)) {
+    if (data.some(t => (t.token_no || t.tokenNo) === nextTokenNo)) {
       return res.status(409).json({ 
         error: "Generated token number already exists. Please try again." 
       });
@@ -326,6 +424,28 @@ const generateTokenNumber = async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 };
+
+// Enhanced cleanup
+process.on('exit', () => {
+  if (worker) {
+    worker.terminate();
+  }
+});
+
+process.on('SIGINT', () => {
+  if (worker) {
+    worker.terminate();
+  }
+  process.exit(0);
+});
+
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught Exception:', error);
+  if (worker) {
+    worker.terminate();
+  }
+  process.exit(1);
+});
 
 module.exports = {
   getAllTokens,
