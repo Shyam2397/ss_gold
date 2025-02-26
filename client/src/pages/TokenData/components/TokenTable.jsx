@@ -1,13 +1,31 @@
 import React from 'react';
 import { FiLoader, FiTrash2 } from 'react-icons/fi';
+import { AutoSizer, List } from 'react-virtualized';
+import 'react-virtualized/styles.css';
 
 const getColumnAlignment = (key) => {
-  const numericColumns = ['token_no', 'age', 'price', 'quantity', 'amount'];
-  const dateColumns = ['date', 'created_at', 'updated_at'];
+  const leftAlignColumns = ['name', 'test', 'sample'];
+  const rightAlignColumns = ['token_no', 'age', 'price', 'quantity', 'amount', 'weight'];
   
-  if (numericColumns.some(col => key.toLowerCase().includes(col))) return 'text-right';
-  if (dateColumns.some(col => key.toLowerCase().includes(col))) return 'text-center';
-  return 'text-left';
+  if (leftAlignColumns.includes(key.toLowerCase())) return 'text-left';
+  if (rightAlignColumns.includes(key.toLowerCase())) return 'text-right';
+  return 'text-center';
+};
+
+const getColumnWidth = (key) => {
+  const columnWidths = {
+    token_no: 100,
+    name: 200,
+    phone: 120,
+    date: 100,
+    time: 100,
+    price: 100,
+    quantity: 100,
+    amount: 120,
+    isPaid: 100,
+  };
+  
+  return columnWidths[key] || 130; // default width if not specified
 };
 
 const formatValue = (value, key) => {
@@ -114,11 +132,7 @@ const filterColumns = (obj) => {
   return rest;
 };
 
-const TokenTable = ({ 
-  tokens, 
-  loading, 
-  onDelete 
-}) => {
+const TokenTable = ({ tokens, loading, onDelete }) => {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-56">
@@ -136,53 +150,75 @@ const TokenTable = ({
   }
 
   const columns = Object.keys(filterColumns(tokens[0]));
+  
+  // Calculate total width
+  const getTotalWidth = () => {
+    return columns.reduce((total, column) => total + getColumnWidth(column), 0) + 100; // 100 for action column
+  };
+
+  const rowRenderer = ({ index, key, style }) => {
+    const token = tokens[index];
+    return (
+      <div
+        key={key}
+        style={style}
+        className="flex border-b border-amber-100 hover:bg-amber-50/70 transition-colors duration-150"
+      >
+        {columns.map(column => (
+          <div
+            key={column}
+            style={{ width: getColumnWidth(column) }}
+            className={`flex-none px-5 py-2.5 whitespace-nowrap ${getColumnAlignment(column)} text-sm`}
+          >
+            {formatValue(token[column], column)}
+          </div>
+        ))}
+        <div className="flex-none px-5 py-2.5 text-center whitespace-nowrap" style={{ width: 100 }}>
+          <button
+            onClick={() => onDelete(token.id)}
+            className="text-red-500 hover:text-red-700 transition-colors duration-150"
+          >
+            <FiTrash2 className="h-4.5 w-4.5" />
+          </button>
+        </div>
+      </div>
+    );
+  };
 
   return (
-    <div className="mt-3 bg-white rounded-xl shadow-inner overflow-hidden">
+    <div className="mt-3 bg-white rounded-xl shadow-inner">
       <div className="overflow-x-auto">
-        <div className="max-h-[500px] overflow-y-auto">
-          <table className="w-full border-collapse">
-            <thead className="sticky top-0 z-10">
-              <tr className="bg-gradient-to-r from-[#DD845A] to-[#D3B04D] text-white">
-                {columns.map(column => (
-                  <th
-                    key={column}
-                    className="px-5 py-3.5 text-center font-semibold text-sm whitespace-nowrap text-center"
-                  >
-                    {column.split('_').map(word => 
-                      word.charAt(0).toUpperCase() + word.slice(1)
-                    ).join(' ')}
-                  </th>
-                ))}
-                <th className="px-5 py-3.5 text-center font-semibold text-sm">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="text-sm">
-              {tokens.map((token, index) => (
-                <tr
-                  key={token.id}
-                  className="border-b border-amber-100 hover:bg-amber-50/70 transition-colors duration-150"
-                >
-                  {columns.map(column => (
-                    <td
-                      key={column}
-                      className={`px-5 py-2.5 whitespace-nowrap text-center ${getColumnAlignment(column)} text-sm`}
-                    >
-                      {formatValue(token[column], column)}
-                    </td>
-                  ))}
-                  <td className="px-5 py-2.5 text-center whitespace-nowrap">
-                    <button
-                      onClick={() => onDelete(token.id)}
-                      className="text-red-500 hover:text-red-700 transition-colors duration-150"
-                    >
-                      <FiTrash2 className="h-4.5 w-4.5" />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="flex flex-col" style={{ minWidth: getTotalWidth() }}>
+          <div className="bg-gradient-to-r from-[#DD845A] to-[#D3B04D] text-white flex">
+            {columns.map(column => (
+              <div
+                key={column}
+                style={{ width: getColumnWidth(column) }}
+                className="flex-none px-5 py-3.5 text-center font-semibold text-sm whitespace-nowrap"
+              >
+                {column.split('_').map(word => 
+                  word.charAt(0).toUpperCase() + word.slice(1)
+                ).join(' ')}
+              </div>
+            ))}
+            <div className="flex-none px-5 py-3.5 text-center font-semibold text-sm" style={{ width: 100 }}>
+              Actions
+            </div>
+          </div>
+          <div style={{ height: '500px' }}>
+            <AutoSizer disableHeight>
+              {({ width }) => (
+                <List
+                  width={Math.max(width, getTotalWidth())}
+                  height={500}
+                  rowCount={tokens.length}
+                  rowHeight={45}
+                  rowRenderer={rowRenderer}
+                  overscanRowCount={5}
+                />
+              )}
+            </AutoSizer>
+          </div>
         </div>
       </div>
     </div>
