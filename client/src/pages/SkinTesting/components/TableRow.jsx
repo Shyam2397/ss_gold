@@ -269,7 +269,7 @@ const TableRow = ({
                   width={100} // Increased width
                   flexShrink={0}
                   cellRenderer={renderActions}
-                  headerClassName="bg-amber-500 text-white text-sm font-medium uppercase tracking-wider whitespace-nowrap text-center"
+                  headerClassName="bg-amber-500 text-white text-xs font-medium uppercase tracking-wider whitespace-nowrap text-center"
                   className="sticky left-0 z-10 bg-white"
                 />
                 {columns.map(key => (
