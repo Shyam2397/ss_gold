@@ -256,81 +256,13 @@ const SkinTesting = () => {
         {loading ? (
           <LoadingSpinner />
         ) : (
-          <div className="rounded border border-amber-100">
-            <div className="relative overflow-x-auto">
-              <div className="max-h-[450px] overflow-y-auto scrollbar-thin scrollbar-thumb-amber-300 scrollbar-track-amber-50">
-                <table className="w-full divide-y divide-amber-100">
-                  <thead className="bg-amber-500 sticky top-0 z-10">
-                    <tr className="whitespace-nowrap">
-                      <th className="sticky left-0 z-20 bg-amber-500 w-[130px] px-2 py-2 text-center text-xs font-medium text-white uppercase tracking-wider">
-                        Actions
-                      </th>
-                      {filteredSkinTests.length > 0
-                        ? Object.keys(filteredSkinTests[0])
-                            .filter(key => key !== 'code' && key !== 'phoneNumber')
-                            .map((key) => (
-                              <th
-                                key={key}
-                                className={`px-2 py-2 text-center text-xs font-medium text-white uppercase tracking-wider ${
-                                  key === 'weight' ? 'w-[100px]' : 
-                                  key === 'tokenNo' ? 'w-[100px]' : 
-                                  key === 'date' ? 'w-[100px]' : 
-                                  key === 'time' ? 'w-[100px]' : 
-                                  key === 'name' ? 'w-[150px]' : 
-                                  'min-w-[100px]'
-                                }`}
-                              >
-                                {key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
-                              </th>
-                            ))
-                        : Object.keys(initialFormData)
-                            .filter(key => key !== 'code' && key !== 'phoneNumber')
-                            .map((key) => (
-                              <th
-                                key={key}
-                                className={`px-2 py-2 text-center text-xs font-medium text-white uppercase tracking-wider ${
-                                  key === 'weight' ? 'w-[100px]' : 
-                                  key === 'tokenNo' ? 'w-[100px]' : 
-                                  key === 'date' ? 'w-[100px]' : 
-                                  key === 'time' ? 'w-[100px]' : 
-                                  key === 'name' ? 'w-[150px]' : 
-                                  'min-w-[100px]'
-                                }`}
-                              >
-                                {key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
-                              </th>
-                            ))}
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-amber-50">
-                    {filteredSkinTests.length === 0 ? (
-                      <tr>
-                        <td 
-                          colSpan={Object.keys(initialFormData).length + 1} 
-                          className="text-center py-8 text-gray-500"
-                        >
-                          No tests found
-                        </td>
-                      </tr>
-                    ) : (
-                      filteredSkinTests.map((test, index) => (
-                        <TableRow
-                          key={test.id || index}
-                          rowData={test}
-                          onEdit={handleEdit}
-                          onDelete={() => setDeleteConfirmation({ isOpen: true, itemId: test.tokenNo || test.tokenno })}
-                          onPrint={() => handlePrint(test)}
-                          columns={Object.keys(test).filter(
-                            key => key !== 'code' && key !== 'phoneNumber'
-                          )}
-                        />
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
+          <TableRow
+            skinTests={filteredSkinTests}
+            initialFormData={initialFormData}
+            onEdit={handleEdit}
+            onDelete={(id) => setDeleteConfirmation({ isOpen: true, itemId: id })}
+            onPrint={handlePrint}
+          />
         )}
       </div>
       {deleteConfirmation.isOpen && (
