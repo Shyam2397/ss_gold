@@ -255,7 +255,13 @@ const TableRow = ({
                 rowCount={reversedTests.length || 0}
                 rowGetter={({ index }) => reversedTests[index]}
                 rowClassName={({ index }) => 
-                  `${index === -1 ? 'bg-amber-500' : index % 2 === 0 ? 'bg-white' : 'bg-amber-50/40'} hover:bg-amber-100/40 transition-colors text-amber-900 text-xs font-medium`
+                  `${
+                    index === -1 
+                      ? 'bg-amber-500' 
+                      : index % 2 === 0 
+                        ? 'bg-white hover:bg-amber-100/40' 
+                        : 'bg-amber-50/40 hover:bg-amber-100/40'
+                  } transition-colors text-amber-900 text-xs font-medium rounded`
                 }
                 noRowsRenderer={() => (
                   <div className="flex items-center justify-center h-full text-gray-500">
@@ -269,7 +275,7 @@ const TableRow = ({
                   width={100} // Increased width
                   flexShrink={0}
                   cellRenderer={renderActions}
-                  headerClassName="bg-amber-500 text-white text-xs font-medium uppercase tracking-wider whitespace-nowrap text-center"
+                  headerClassName="bg-amber-500 text-white text-xs font-medium uppercase tracking-wider whitespace-nowrap text-center pointer-events-none"
                   className="sticky left-0 z-10 bg-white"
                 />
                 {columns.map(key => (
@@ -288,7 +294,7 @@ const TableRow = ({
                         {getCellValue({ dataKey, rowData })}
                       </div>
                     )}
-                    headerClassName="bg-amber-500 text-white text-xs font-medium uppercase tracking-wider whitespace-nowrap text-center"
+                    headerClassName="bg-amber-500 text-white text-xs font-medium uppercase tracking-wider whitespace-nowrap text-center pointer-events-none"
                     style={{ overflow: 'visible' }}
                   />
                 ))}
