@@ -1,5 +1,7 @@
 import React from 'react';
 import { FiLoader } from 'react-icons/fi';
+import { AutoSizer, Table, Column } from 'react-virtualized';
+import 'react-virtualized/styles.css';
 
 const SkinTestTable = ({ tests, loading }) => {
   if (loading) {
@@ -18,35 +20,61 @@ const SkinTestTable = ({ tests, loading }) => {
     );
   }
 
-  const getColumnAlignment = (key, value) => {
-    const numericColumns = ['token_no', 'age', 'price', 'quantity', 'amount'];
-    const dateColumns = ['date', 'created_at', 'updated_at'];
-    
-    if (numericColumns.some(col => key.toLowerCase().includes(col))) return 'text-right';
-    if (dateColumns.some(col => key.toLowerCase().includes(col))) return 'text-center';
-    return 'text-left';
+  const getColumnWidth = (key) => {
+    switch (key.toLowerCase()) {
+      case 'token_no':
+      case 'tokenno':
+        return 80;
+      case 'date':
+        return 90;
+      case 'time':
+        return 90;
+      case 'name':
+        return 180;
+      case 'weight':
+        return 80;
+      case 'sample':
+        return 180;
+      case 'highest':
+      case 'average':
+        return 100;
+      case 'gold_fineness':
+        return 120;
+      case 'remarks':
+        return 200;
+      case 'silver':
+      case 'copper':
+      case 'zinc':
+      case 'cadmium':
+      case 'nickel':
+      case 'tungsten':
+      case 'others':
+        return 80;
+      default:
+        return 100;
+    }
+  };
+
+  const getTotalTableWidth = (columns) => {
+    let totalWidth = 50;
+    columns.forEach(key => {
+      totalWidth += getColumnWidth(key) + 10;
+    });
+    return totalWidth + 50;
+  };
+
+  const getColumnAlignment = (key) => {
+    const leftAlignedColumns = ['name', 'sample', 'remarks'];
+    return leftAlignedColumns.includes(key.toLowerCase()) 
+      ? 'text-left' 
+      : 'text-center';
   };
 
   const formatValue = (value, key) => {
-    if (value === null || value === undefined) return '-';
-    
-    // Format dates
-    if (key === 'date' && typeof value === 'string') {
-      try {
-        const date = new Date(value);
-        if (!isNaN(date)) {
-          const day = date.getDate().toString().padStart(2, '0');
-          const month = (date.getMonth() + 1).toString().padStart(2, '0');
-          const year = date.getFullYear();
-          return `${day}-${month}-${year}`;
-        }
-      } catch (e) {
-        console.warn('Error formatting date:', e);
-      }
-      return value;
+    if (value === null || value === undefined || value === '') {
+      return '-';
     }
 
-    // Format time to 12-hour format
     if (key === 'time' && typeof value === 'string') {
       try {
         const [hours, minutes] = value.split(':').map(Number);
@@ -60,70 +88,117 @@ const SkinTestTable = ({ tests, loading }) => {
       }
       return value;
     }
-    
-    // Format numbers
-    if (typeof value === 'number') {
-      return value.toLocaleString('en-IN', { 
-        minimumFractionDigits: 0, 
-        maximumFractionDigits: 2 
-      });
+
+    if (key === 'date') {
+      try {
+        const date = new Date(value);
+        if (!isNaN(date)) {
+          return date.toLocaleDateString('en-IN', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
+          });
+        }
+      } catch (e) {
+        console.warn('Error formatting date:', e);
+      }
+      return value;
     }
-    
+
+    if (key === 'weight') {
+      const num = parseFloat(value);
+      return isNaN(num) ? value : num.toFixed(3);
+    }
+
+    const numericColumns = [
+      'highest',
+      'average',
+      'gold_fineness',
+      'silver',
+      'copper',
+      'zinc',
+      'cadmium',
+      'nickel',
+      'tungsten',
+      'others'
+    ];
+
+    if (numericColumns.includes(key.toLowerCase())) {
+      const num = parseFloat(value);
+      return isNaN(num) ? value : num.toFixed(2);
+    }
+
     return value;
   };
 
   const filterColumns = (obj) => {
-    const excludedColumns = ['id', 'created_at', 'updated_at'];
+    const excludedColumns = [
+      'id', 
+      'created_at', 
+      'updated_at', 
+      'phone_number',
+      'phonenumber',
+      'phone',
+      'phoneNumber'
+    ];
     return Object.fromEntries(
-      Object.entries(obj).filter(([key]) => !excludedColumns.includes(key))
+      Object.entries(obj).filter(([key]) => 
+        !excludedColumns.includes(key) && 
+        !excludedColumns.includes(key.toLowerCase()) &&
+        !key.toLowerCase().includes('phone')
+      )
     );
   };
 
-  const firstTest = filterColumns(tests[0]);
+  const firstTest = filterColumns(tests[0] || {});
   const headers = Object.keys(firstTest);
 
   return (
-    <div className="mt-3 bg-white rounded-xl shadow-inner overflow-hidden">
-      <div className="overflow-x-auto">
-        <div className="max-h-[500px] overflow-y-auto">
-          <table className="w-full border-collapse">
-            <thead className="sticky top-0 z-10">
-              <tr className="bg-gradient-to-r from-[#DD845A] to-[#D3B04D] text-white">
-                {headers.map((header) => (
-                  <th
-                    key={header}
-                    className="px-5 py-3.5 text-center font-semibold text-sm whitespace-nowrap"
-                  >
-                    {header.split('_').map(word => 
-                      word.charAt(0).toUpperCase() + word.slice(1)
-                    ).join(' ')}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="text-sm">
-              {tests.map((test) => {
-                const filteredTest = filterColumns(test);
-                return (
-                  <tr
-                    key={test.id}
-                    className="border-b border-amber-100 hover:bg-amber-50/70 transition-colors duration-150"
-                  >
-                    {headers.map((header) => (
-                      <td
-                        key={header}
-                        className={`px-5 py-2.5 text-center whitespace-nowrap ${getColumnAlignment(header, filteredTest[header])}`}
-                      >
-                        {formatValue(filteredTest[header], header)}
-                      </td>
-                    ))}
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
+    <div className="mt-3 bg-white rounded-xl shadow-inner overflow-hidden h-[500px]">
+      <AutoSizer>
+        {({ width, height }) => (
+          <div style={{ height, width, overflowX: 'auto', overflowY: 'hidden' }}>
+            <Table
+              width={Math.max(width, getTotalTableWidth(headers))}
+              height={height}
+              headerHeight={50}
+              rowHeight={40}
+              rowCount={tests.length}
+              rowGetter={({ index }) => filterColumns(tests[index])}
+              rowClassName={({ index }) => 
+                `${index === -1 
+                  ? 'bg-amber-500 text-white' 
+                  : index % 2 === 0 
+                    ? 'bg-white' 
+                    : 'bg-amber-50/40'} 
+                hover:bg-amber-100/40 transition-colors duration-150 text-sm`
+              }
+            >
+              {headers.map(header => (
+                <Column
+                  key={header}
+                  label={header.split('_').map(word => 
+                    word.charAt(0).toUpperCase() + word.slice(1)
+                  ).join(' ')}
+                  dataKey={header}
+                  width={getColumnWidth(header)}
+                  flexGrow={0}
+                  flexShrink={0}
+                  cellRenderer={({ cellData, dataKey }) => (
+                    <div 
+                      className={`truncate whitespace-nowrap ${getColumnAlignment(dataKey)}`}
+                      title={cellData}
+                    >
+                      {formatValue(cellData, dataKey)}
+                    </div>
+                  )}
+                  headerClassName="bg-amber-500 text-white text-xs font-medium uppercase tracking-wider whitespace-nowrap text-center"
+                />
+              ))}
+            </Table>
+          </div>
+        )}
+      </AutoSizer>
     </div>
   );
 };
