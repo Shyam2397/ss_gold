@@ -72,16 +72,27 @@ export const useSkinTest = () => {
     if (name === 'tokenNo' && value) {
       setLoading(true);
       try {
-        // Fetch token data
         const response = await fetchTokenData(value);
         
         if (response.data.success && response.data.data) {
           const { date, time, name, weight, sample, code } = response.data.data;
           
-          // Update form with token data
+          // Format date to YYYY-MM-DD if it's not already in that format
+          let formattedDate = date;
+          if (date) {
+            const dateParts = date.split(/[-/]/);
+            if (dateParts.length === 3) {
+              // Check if date is in DD-MM-YYYY or DD/MM/YYYY format
+              if (dateParts[0].length === 2) {
+                formattedDate = `${dateParts[2]}-${dateParts[1].padStart(2, '0')}-${dateParts[0].padStart(2, '0')}`;
+              }
+              // If it's already in YYYY-MM-DD format, keep it as is
+            }
+          }
+
           setFormData((prevFormData) => ({
             ...prevFormData,
-            date: date || '',
+            date: formattedDate || '',
             time: time || '',
             name: name || '',
             weight: weight ? parseFloat(weight).toFixed(3) : '',
@@ -90,7 +101,6 @@ export const useSkinTest = () => {
             tokenNo: value,
           }));
 
-          // If we have a code, fetch phone number
           if (code) {
             try {
               const phoneNumber = await fetchPhoneNumber(code);
@@ -226,11 +236,24 @@ export const useSkinTest = () => {
         throw new Error('Token number is required for editing');
       }
       
+      // Format date to YYYY-MM-DD if it exists and isn't already in that format
+      let formattedDate = test.date;
+      if (formattedDate) {
+        const dateParts = formattedDate.split(/[-/]/);
+        if (dateParts.length === 3) {
+          // Check if date is in DD-MM-YYYY or DD/MM/YYYY format
+          if (dateParts[0].length === 2) {
+            formattedDate = `${dateParts[2]}-${dateParts[1].padStart(2, '0')}-${dateParts[0].padStart(2, '0')}`;
+          }
+          // If it's already in YYYY-MM-DD format, keep it as is
+        }
+      }
+
       // For editing, we'll use the test data directly since it's already complete
       const editData = {
         ...test,
-        tokenNo: tokenNo, // Use the found tokenNo
-        // Ensure weight is formatted correctly
+        tokenNo: tokenNo,
+        date: formattedDate || '', // Use the formatted date
         weight: test.weight ? parseFloat(test.weight).toFixed(3) : '',
       };
 
