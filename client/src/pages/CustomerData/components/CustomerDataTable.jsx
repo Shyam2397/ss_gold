@@ -8,12 +8,12 @@ const CustomerDataTable = ({ entries, onDelete }) => {
         <div className="max-h-[500px] overflow-y-auto">
           <table className="w-full border-collapse">
             <thead className="sticky top-0 z-10">
-              <tr className="bg-gradient-to-r from-[#DD845A] to-[#D3B04D] text-white">
-                <th className="px-5 py-3.5 text-center font-semibold text-sm">Name</th>
-                <th className="px-5 py-3.5 text-center font-semibold text-sm hidden sm:table-cell">Phone Number</th>
-                <th className="px-5 py-3.5 text-center font-semibold text-sm hidden sm:table-cell">Code</th>
-                <th className="px-5 py-3.5 text-center font-semibold text-sm hidden sm:table-cell">Place</th>
-                <th className="px-5 py-3.5 text-center font-semibold text-sm">Actions</th>
+              <tr className="bg-amber-500 text-white rounded-t-xl">
+                <th className="px-5 py-2.5 text-center font-semibold text-sm">Name</th>
+                <th className="px-5 py-2.5 text-center font-semibold text-sm hidden sm:table-cell">Phone Number</th>
+                <th className="px-5 py-2.5 text-center font-semibold text-sm hidden sm:table-cell">Code</th>
+                <th className="px-5 py-2.5 text-center font-semibold text-sm hidden sm:table-cell">Place</th>
+                <th className="px-5 py-2.5 text-center font-semibold text-sm">Actions</th>
               </tr>
             </thead>
             <tbody className="text-sm">

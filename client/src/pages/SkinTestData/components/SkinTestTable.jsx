@@ -161,7 +161,7 @@ const SkinTestTable = ({ tests, loading }) => {
             <Table
               width={Math.max(width, getTotalTableWidth(headers))}
               height={height}
-              headerHeight={50}
+              headerHeight={40}
               rowHeight={40}
               rowCount={tests.length}
               rowGetter={({ index }) => filterColumns(tests[index])}
@@ -169,9 +169,9 @@ const SkinTestTable = ({ tests, loading }) => {
                 `${index === -1 
                   ? 'bg-amber-500 text-white' 
                   : index % 2 === 0 
-                    ? 'bg-white' 
-                    : 'bg-amber-50/40'} 
-                hover:bg-amber-100/40 transition-colors duration-150 text-sm`
+                    ? 'bg-white hover:bg-amber-100/40' 
+                    : 'bg-amber-50/40 hover:bg-amber-100/40'} 
+                transition-colors duration-150 text-sm`
               }
             >
               {headers.map(header => (

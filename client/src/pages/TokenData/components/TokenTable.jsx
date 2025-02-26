@@ -189,19 +189,19 @@ const TokenTable = ({ tokens, loading, onDelete }) => {
     <div className="mt-3 bg-white rounded-xl shadow-inner">
       <div className="overflow-x-auto">
         <div className="flex flex-col" style={{ minWidth: getTotalWidth() }}>
-          <div className="bg-gradient-to-r from-[#DD845A] to-[#D3B04D] text-white flex">
+          <div className="bg-amber-500 text-white flex rounded-t-xl">
             {columns.map(column => (
               <div
                 key={column}
                 style={{ width: getColumnWidth(column) }}
-                className="flex-none px-5 py-3.5 text-center font-semibold text-sm whitespace-nowrap"
+                className="flex-none px-5 py-2.5 text-center font-semibold text-sm whitespace-nowrap"
               >
                 {column.split('_').map(word => 
                   word.charAt(0).toUpperCase() + word.slice(1)
                 ).join(' ')}
               </div>
             ))}
-            <div className="flex-none px-5 py-3.5 text-center font-semibold text-sm" style={{ width: 100 }}>
+            <div className="flex-none px-5 py-2.5 text-center font-semibold text-sm" style={{ width: 100 }}>
               Actions
             </div>
           </div>
