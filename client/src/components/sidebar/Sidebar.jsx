@@ -84,11 +84,33 @@ const Sidebar = ({ open = true, setOpen, animate = true, user, setLoggedIn }) =>
     { icon: FiDatabase, label: 'Exchange Data', path: '/exchange-data' },
   ];
 
+  const handleExpenseClick = (modalSetter) => {
+    modalSetter(true); // Open the modal
+    setIsExpensesOpen(false); // Close expense menu
+    if (animate) setOpen(false); // Close sidebar only if in animated mode
+  };
+
   const expenseMenuItems = [
-    { icon: FiDollarSign, label: 'Add Expense', onClick: () => setShowAddExpense(true) },
-    { icon: FiDollarSign, label: 'Master Expense', onClick: () => setShowMasterExpense(true) },
-    { icon: FiDollarSign, label: 'View Expenses', onClick: () => setShowViewExpense(true) },
-    { icon: FiBook, label: 'Cash Book', onClick: () => setShowCashBook(true) },
+    { 
+      icon: FiDollarSign, 
+      label: 'Add Expense', 
+      onClick: () => handleExpenseClick(setShowAddExpense)
+    },
+    { 
+      icon: FiDollarSign, 
+      label: 'Master Expense', 
+      onClick: () => handleExpenseClick(setShowMasterExpense)
+    },
+    { 
+      icon: FiDollarSign, 
+      label: 'View Expenses', 
+      onClick: () => handleExpenseClick(setShowViewExpense)
+    },
+    { 
+      icon: FiBook, 
+      label: 'Cash Book', 
+      onClick: () => handleExpenseClick(setShowCashBook)
+    },
   ];
 
   return (
@@ -420,6 +442,7 @@ const Sidebar = ({ open = true, setOpen, animate = true, user, setLoggedIn }) =>
                               onClick={() => {
                                 item.onClick();
                                 setOpen(false);
+                                setIsExpensesOpen(false);
                               }}
                               className={cn(
                                 "w-full flex items-center h-8 px-2",

@@ -83,6 +83,12 @@ const AddExpense = ({ isOpen, onClose }) => {
 
   if (!isOpen) return null;
 
+  const handleBackdropClick = (e) => {
+    if (e.target === e.currentTarget) {
+      onClose();
+    }
+  };
+
   if (loading) {
     return (
       <motion.div
@@ -112,6 +118,7 @@ const AddExpense = ({ isOpen, onClose }) => {
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         className="fixed inset-0 bg-black bg-opacity-25 backdrop-blur-sm flex items-center justify-center z-50"
+        onClick={handleBackdropClick}
       >
         <motion.div
           initial={{ scale: 0.95, opacity: 0 }}
@@ -133,6 +140,7 @@ const AddExpense = ({ isOpen, onClose }) => {
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       className="fixed inset-0 bg-black bg-opacity-25 backdrop-blur-sm flex items-center justify-center z-50"
+      onClick={handleBackdropClick}
     >
       <motion.div
         initial={{ scale: 0.95, opacity: 0 }}

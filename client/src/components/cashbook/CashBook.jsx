@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, RotateCcw, ArrowUpDown, FileSpreadsheet, Printer, Mail, X } from 'lucide-react';
 import CashAdjustment from './CashAdjustment';
+import { motion } from 'framer-motion';
 
 function CashBook({ isOpen, onClose }) {
   const [dateRange, setDateRange] = useState({
@@ -117,11 +118,29 @@ function CashBook({ isOpen, onClose }) {
     setShowAdjustment(false);
   };
 
+  const handleBackdropClick = (e) => {
+    if (e.target === e.currentTarget) {
+      onClose();
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/25 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl shadow-2xl w-[90vw] max-w-7xl max-h-[90vh] overflow-hidden flex flex-col">
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 bg-black bg-opacity-25 backdrop-blur-sm flex items-center justify-center z-50"
+      onClick={handleBackdropClick}
+    >
+      <motion.div
+        initial={{ scale: 0.95, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.95, opacity: 0 }}
+        className="bg-white rounded-xl shadow-2xl w-[90vw] max-w-7xl max-h-[90vh] overflow-hidden flex flex-col"
+        onClick={e => e.stopPropagation()} // Prevent clicks inside modal from closing it
+      >
         {/* Header */}
         <div className="px-6 py-4 border-b flex justify-between items-center bg-white sticky top-0 shadow-sm">
           <div className="flex items-center gap-3">
@@ -365,13 +384,13 @@ function CashBook({ isOpen, onClose }) {
             <span className="px-2 py-1 bg-gray-100 rounded-full">Limited Version</span>
           </div>
         </div>
-      </div>
+      </motion.div>
       <CashAdjustment 
         isOpen={showAdjustment}
         onClose={() => setShowAdjustment(false)}
         onSave={handleAdjustmentSave}
       />
-    </div>
+    </motion.div>
   );
 }
 
