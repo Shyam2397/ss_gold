@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { FiLoader, FiTrash2, FiAlertTriangle, FiX, FiEdit2 } from 'react-icons/fi';
+import { AutoSizer, Table, Column } from 'react-virtualized';
+import 'react-virtualized/styles.css';
 import EditExchangeModal from './EditExchangeModal';
 
 const ConfirmDialog = ({ isOpen, onClose, onConfirm, tokenNo, isDeleting }) => {
@@ -231,6 +233,38 @@ const ExchangeTable = ({ exchanges, loading, onDelete, onUpdate }) => {
     }
   ];
 
+  const getColumnWidth = (key) => {
+    switch (key.toLowerCase()) {
+      case 'tokenno':
+        return 80;
+      case 'date':
+      case 'time':
+        return 80;
+      case 'weight':
+      case 'hweight':
+      case 'aweight':
+      case 'gweight':
+      case 'exweight':
+        return 100;
+      case 'highest':
+      case 'average':
+      case 'exgold':
+        return 100;
+      case 'goldfineness':
+        return 100;
+      default:
+        return 100;
+    }
+  };
+
+  const getTotalTableWidth = (columns) => {
+    let totalWidth = 50;
+    columns.forEach(key => {
+      totalWidth += getColumnWidth(key) + 10;
+    });
+    return totalWidth + 100; // Extra 100 for actions column
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-48">
@@ -282,7 +316,7 @@ const ExchangeTable = ({ exchanges, loading, onDelete, onUpdate }) => {
 
   const formatValue = (value, key) => {
     if (value === null || value === undefined) return '-';
-    
+
     // Format dates
     if (key === 'date' && typeof value === 'string') {
       try {
@@ -298,21 +332,21 @@ const ExchangeTable = ({ exchanges, loading, onDelete, onUpdate }) => {
       }
       return value;
     }
-    
+
     // Format numbers
     if (typeof value === 'number' || typeof value === 'string') {
       // Check if the field is a weight field
-      if (key === 'weight' || 
-          key === 'hweight' || 
-          key === 'aweight' || 
-          key === 'gweight' || 
-          key === 'exweight') {
+      if (key === 'weight' ||
+        key === 'hweight' ||
+        key === 'aweight' ||
+        key === 'gweight' ||
+        key === 'exweight') {
         return formatWeight(value);
       } else {
         return formatOther(value);
       }
     }
-    
+
     return value;
   };
 
@@ -323,67 +357,99 @@ const ExchangeTable = ({ exchanges, loading, onDelete, onUpdate }) => {
     );
   };
 
+  // Update the cell renderer to properly handle token numbers
+  const cellRenderer = ({ cellData, rowData, dataKey }) => {
+    if (dataKey === 'actions') {
+      return (
+        <div className="flex items-center justify-center space-x-2">
+          <button
+            onClick={() => handleEdit(rowData)}
+            className="text-amber-600 hover:text-amber-800 transition-colors"
+          >
+            <FiEdit2 className="h-4.5 w-4.5" />
+          </button>
+          <button
+            onClick={() => handleDelete(rowData)}
+            className="text-red-600 hover:text-red-800 transition-colors"
+          >
+            <FiTrash2 className="h-4.5 w-4.5" />
+          </button>
+        </div>
+      );
+    }
+
+    // Special handling for token number
+    if (dataKey === 'tokenno') {
+      return (
+        <div className="truncate whitespace-nowrap text-center">
+          {rowData.tokenno || '-'}
+        </div>
+      );
+    }
+
+    return (
+      <div 
+        className="truncate whitespace-nowrap text-center"
+        title={cellData}
+      >
+        {formatValue(cellData, dataKey)}
+      </div>
+    );
+  };
+
+  const headerRenderer = ({ label }) => (
+    <div className="text-center font-semibold text-sm whitespace-nowrap">
+      {label}
+    </div>
+  );
+
   return (
     <>
-      <div className="mt-3 bg-white rounded-xl shadow-inner overflow-hidden">
-        <div className="overflow-x-auto">
-          <div className="max-h-[500px] overflow-y-auto">
-            <table className="w-full border-collapse">
-              <thead className="sticky top-0 z-10">
-                <tr className="bg-gradient-to-r from-[#DD845A] to-[#D3B04D] text-white">
-                  {columns.map((column) => (
-                    <th
-                      key={column.key}
-                      className="px-5 py-3.5 text-center font-semibold text-sm whitespace-nowrap"
-                      style={{ width: column.width }}
-                    >
-                      {column.title}
-                    </th>
-                  ))}
-                  <th className="px-5 py-3.5 text-center font-semibold text-sm whitespace-nowrap">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="text-sm">
-                {[...exchanges].reverse().map((exchange) => {
-                  const filteredExchange = filterColumns(exchange);
-                  return (
-                    <tr
-                      key={exchange.id}
-                      className="border-b border-amber-100 hover:bg-amber-50/70 transition-colors duration-150"
-                    >
-                      {columns.map((column) => (
-                        <td
-                          key={column.key}
-                          className="px-5 py-2.5 text-center whitespace-nowrap"
-                        >
-                          {column.render(filteredExchange[column.key])}
-                        </td>
-                      ))}
-                      <td className="px-5 py-2.5 text-center whitespace-nowrap">
-                        <div className="flex items-center justify-center space-x-2">
-                          <button
-                            onClick={() => handleEdit(exchange)}
-                            className="text-amber-600 hover:text-amber-800 transition-colors"
-                          >
-                            <FiEdit2 className="h-4.5 w-4.5" />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(exchange)}
-                            className="text-red-600 hover:text-red-800 transition-colors"
-                          >
-                            <FiTrash2 className="h-4.5 w-4.5" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
+      <div className="mt-3 bg-white rounded-xl shadow-inner overflow-hidden h-[500px]">
+        <AutoSizer>
+          {({ width, height }) => (
+            <div style={{ height, width, overflowX: 'auto', overflowY: 'hidden' }}>
+              <Table
+                width={Math.max(width, getTotalTableWidth(columns.map(c => c.key)))}
+                height={height}
+                headerHeight={40}
+                rowHeight={40}
+                rowCount={exchanges.length}
+                rowGetter={({ index }) => filterColumns(exchanges[index])} // Changed this line
+                rowClassName={({ index }) => 
+                  `${index === -1 
+                    ? 'bg-amber-500 rounded-t-xl text-white' 
+                    : index % 2 === 0 
+                      ? 'bg-white hover:bg-amber-100/40' 
+                      : 'bg-amber-50/40 hover:bg-amber-100/40'} 
+                  transition-colors duration-150 text-sm`
+                }
+              >
+                {columns.map(column => (
+                  <Column
+                    key={column.key}
+                    label={column.title}
+                    dataKey={column.key}
+                    width={getColumnWidth(column.key)}
+                    flexGrow={0}
+                    flexShrink={0}
+                    cellRenderer={cellRenderer}
+                    headerClassName="text-xs font-medium uppercase tracking-wider whitespace-nowrap text-center"
+                  />
+                ))}
+                <Column
+                  label="Actions"
+                  dataKey="actions"
+                  width={100}
+                  flexGrow={0}
+                  flexShrink={0}
+                  cellRenderer={cellRenderer}
+                  headerClassName="text-xs font-medium uppercase tracking-wider whitespace-nowrap text-center"
+                />
+              </Table>
+            </div>
+          )}
+        </AutoSizer>
       </div>
 
       {showConfirmDelete && (
