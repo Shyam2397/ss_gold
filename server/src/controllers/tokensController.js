@@ -104,6 +104,28 @@ const executeWorkerTask = (type, data = null) => {
 const readExcelFile = () => executeWorkerTask('READ');
 const writeExcelFile = (data) => executeWorkerTask('WRITE', data);
 
+// Initialize Excel file if it doesn't exist
+if (!fs.existsSync(EXCEL_FILE)) {
+  const initialData = [
+    {
+      id: null,
+      token_no: null,
+      date: null,
+      time: null,
+      code: null,
+      name: null,
+      test: null,
+      weight: null,
+      sample: null,
+      amount: null,
+      is_paid: null
+    }
+  ];
+  writeExcelFile(initialData).catch(err => {
+    console.error('Error initializing Excel file:', err);
+  });
+}
+
 // Add payment status column if it doesn't exist
 const initializeTable = async () => {
   try {
@@ -385,34 +407,40 @@ const generateTokenNumber = async (req, res) => {
     const data = await readExcelFile();
     
     let nextTokenNo;
-    if (data.length === 0) {
+    if (!data || data.length === 0 || !data.some(t => t.token_no || t.tokenNo)) {
       nextTokenNo = "A1";
     } else {
-      const lastToken = data.reduce((max, token) => 
+      const validTokens = data.filter(token => token && (token.token_no || token.tokenNo));
+      const lastToken = validTokens.reduce((max, token) => 
         (!max || token.id > max.id) ? token : max, null);
-      const currentToken = (lastToken.token_no || lastToken.tokenNo).toString();
-      const match = currentToken.match(/^([A-Z])(\d+)$/);
       
-      if (!match) {
+      if (!lastToken) {
         nextTokenNo = "A1";
       } else {
-        const letter = match[1];
-        const number = parseInt(match[2]);
+        const currentToken = (lastToken.token_no || lastToken.tokenNo || "").toString();
+        const match = currentToken.match(/^([A-Z])(\d+)$/);
         
-        if (number >= 999) {
-          if (letter === 'Z') {
-            return res.status(400).json({ 
-              error: "Token number limit reached. Please contact administrator." 
-            });
-          }
-          nextTokenNo = `${String.fromCharCode(letter.charCodeAt(0) + 1)}1`;
+        if (!match) {
+          nextTokenNo = "A1";
         } else {
-          nextTokenNo = `${letter}${number + 1}`;
+          const letter = match[1];
+          const number = parseInt(match[2]);
+          
+          if (number >= 999) {
+            if (letter === 'Z') {
+              return res.status(400).json({ 
+                error: "Token number limit reached. Please contact administrator." 
+              });
+            }
+            nextTokenNo = `${String.fromCharCode(letter.charCodeAt(0) + 1)}1`;
+          } else {
+            nextTokenNo = `${letter}${number + 1}`;
+          }
         }
       }
     }
 
-    if (data.some(t => (t.token_no || t.tokenNo) === nextTokenNo)) {
+    if (data && data.some(t => (t.token_no || t.tokenNo) === nextTokenNo)) {
       return res.status(409).json({ 
         error: "Generated token number already exists. Please try again." 
       });

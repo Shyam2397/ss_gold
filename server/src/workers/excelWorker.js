@@ -39,7 +39,8 @@ parentPort.on('message', async ({ type, data, filePath }) => {
             case 'WRITE':
                 const wb = XLSX.utils.book_new();
                 const ws = XLSX.utils.json_to_sheet(data);
-                XLSX.utils.book_append_sheet(wb, ws, 'SkinTests');
+                const sheetName = filePath.toLowerCase().includes('tokens') ? 'Tokens' : 'SkinTests';
+                XLSX.utils.book_append_sheet(wb, ws, sheetName);
                 XLSX.writeFile(wb, filePath);
                 parentPort.postMessage({ type: 'WRITE_SUCCESS' });
                 break;

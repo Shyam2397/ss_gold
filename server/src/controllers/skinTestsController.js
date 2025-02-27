@@ -1,10 +1,152 @@
 const { pool } = require('../config/database');
 const { handleDatabaseError } = require('../middleware/errorHandler');
-const { readExcelData, writeExcelData } = require('../utils/excelUtils');
+const path = require('path');
+const fs = require('fs');
+const { Worker } = require('worker_threads');
+
+const DATA_DIR = path.join(__dirname, '../../../data');
+const EXCEL_FILE = path.join(DATA_DIR, 'skin_tests.xlsx');
+const WORKER_FILE = path.join(__dirname, '../workers/excelWorker.js');
+
+// Ensure data directory exists
+if (!fs.existsSync(DATA_DIR)) {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+}
+
+// Worker management with error handling
+let worker = null;
+let isWorkerBusy = false;
+
+const createWorker = () => {
+  try {
+    const newWorker = new Worker(WORKER_FILE);
+    
+    newWorker.on('error', (error) => {
+      console.error('Worker error:', error);
+      if (worker === newWorker) {
+        worker = null;
+        isWorkerBusy = false;
+      }
+    });
+
+    newWorker.on('exit', (code) => {
+      if (code !== 0) {
+        console.error(`Worker stopped with exit code ${code}`);
+      }
+      if (worker === newWorker) {
+        worker = null;
+        isWorkerBusy = false;
+      }
+    });
+
+    return newWorker;
+  } catch (error) {
+    console.error('Failed to create worker:', error);
+    return null;
+  }
+};
+
+const getWorker = () => {
+  if (!worker && !isWorkerBusy) {
+    worker = createWorker();
+  }
+  return worker;
+};
+
+const executeWorkerTask = (type, data = null) => {
+  return new Promise((resolve, reject) => {
+    const currentWorker = getWorker();
+    
+    if (!currentWorker) {
+      return reject(new Error('Worker initialization failed'));
+    }
+
+    const timeout = setTimeout(() => {
+      cleanup();
+      reject(new Error('Worker operation timed out'));
+    }, 30000); // 30 second timeout
+
+    const cleanup = () => {
+      clearTimeout(timeout);
+      currentWorker.removeListener('message', handleMessage);
+      currentWorker.removeListener('error', handleError);
+      isWorkerBusy = false;
+    };
+
+    const handleMessage = (message) => {
+      if (message.type === `${type}_SUCCESS`) {
+        cleanup();
+        resolve(message.data);
+      } else if (message.type === 'ERROR') {
+        cleanup();
+        reject(new Error(message.error));
+      }
+    };
+
+    const handleError = (error) => {
+      cleanup();
+      reject(error);
+    };
+
+    currentWorker.on('message', handleMessage);
+    currentWorker.on('error', handleError);
+    
+    isWorkerBusy = true;
+    currentWorker.postMessage({ 
+      type, 
+      data, 
+      filePath: EXCEL_FILE 
+    });
+  });
+};
+
+// Helper functions using the new worker execution
+const readExcelFile = () => executeWorkerTask('READ');
+const writeExcelFile = (data) => executeWorkerTask('WRITE', data);
+
+// Initialize Excel file if it doesn't exist
+if (!fs.existsSync(EXCEL_FILE)) {
+  const initialData = [
+    {
+      tokenNo: null,
+      date: null,
+      time: null,
+      name: null,
+      weight: null,
+      sample: null,
+      highest: null,
+      average: null,
+      gold_fineness: null,
+      karat: null,
+      silver: null,
+      copper: null,
+      zinc: null,
+      cadmium: null,
+      nickel: null,
+      tungsten: null,
+      iridium: null,
+      ruthenium: null,
+      osmium: null,
+      rhodium: null,
+      rhenium: null,
+      indium: null,
+      titanium: null,
+      palladium: null,
+      platinum: null,
+      others: null,
+      remarks: null,
+      code: null,
+      phoneNumber: null
+    }
+  ];
+  writeExcelFile(initialData).catch(err => {
+    console.error('Error initializing Excel file:', err);
+  });
+}
 
 const getAllSkinTests = async (req, res) => {
     try {
-        const skinTests = await readExcelData();
+        const skinTests = await readExcelFile();
         const processedRows = await Promise.all(skinTests.map(async (row) => {
             try {
                 const entryResult = await pool.query(
@@ -26,7 +168,7 @@ const getAllSkinTests = async (req, res) => {
 const createSkinTest = async (req, res) => {
     try {
         const data = req.body;
-        const existingData = await readExcelData();
+        const existingData = await readExcelFile();
         
         // Check if token number already exists
         if (existingData.some(row => row.tokenNo === data.tokenNo)) {
@@ -39,7 +181,7 @@ const createSkinTest = async (req, res) => {
         }, {});
 
         existingData.push(processedData);
-        await writeExcelData(existingData);
+        await writeExcelFile(existingData);
 
         res.json({ message: "Success", data: processedData });
     } catch (error) {
@@ -55,7 +197,7 @@ const updateSkinTest = async (req, res) => {
     try {
         const data = req.body;
         const { tokenNo } = req.params;
-        const existingData = await readExcelData();
+        const existingData = await readExcelFile();
         
         const index = existingData.findIndex(row => row.tokenNo === tokenNo);
         if (index === -1) {
@@ -63,7 +205,7 @@ const updateSkinTest = async (req, res) => {
         }
 
         existingData[index] = { ...existingData[index], ...data };
-        await writeExcelData(existingData);
+        await writeExcelFile(existingData);
 
         res.json({ message: "Success", data: existingData[index] });
     } catch (error) {
@@ -78,7 +220,7 @@ const updateSkinTest = async (req, res) => {
 const deleteSkinTest = async (req, res) => {
     try {
         const { tokenNo } = req.params;
-        const existingData = await readExcelData();
+        const existingData = await readExcelFile();
         
         const index = existingData.findIndex(row => row.tokenNo === tokenNo);
         if (index === -1) {
@@ -87,7 +229,7 @@ const deleteSkinTest = async (req, res) => {
 
         const deletedRow = existingData[index];
         existingData.splice(index, 1);
-        await writeExcelData(existingData);
+        await writeExcelFile(existingData);
 
         res.json({ message: "Deleted", data: deletedRow });
     } catch (error) {
@@ -121,7 +263,7 @@ const getPhoneNumberByCode = async (req, res) => {
 
 const resetSkinTests = async (req, res) => {
     try {
-        await writeExcelData([]);
+        await writeExcelFile([]);
         res.json({ message: "Skin tests have been reset" });
     } catch (error) {
         console.error('Error in resetSkinTests:', error);
