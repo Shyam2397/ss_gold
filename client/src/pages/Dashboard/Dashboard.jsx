@@ -1,158 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { AreaChart, Area, LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { 
-  ArrowUpIcon, 
-  ArrowDownIcon, 
-  CurrencyRupeeIcon, 
-  ScaleIcon, 
-  ReceiptPercentIcon, 
-  UserGroupIcon, 
-  BeakerIcon, 
-  ArrowsRightLeftIcon 
+  CurrencyRupeeIcon, ScaleIcon, 
+  ReceiptPercentIcon, UserGroupIcon, BeakerIcon, ArrowsRightLeftIcon 
 } from '@heroicons/react/24/solid';
 import toast, { Toaster } from 'react-hot-toast';
 import axios from 'axios';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
+import DashboardCard from './components/DashboardCard';
+import DashboardCharts from './components/DashboardCharts';
+import DateRangeSelector from './components/DateRangeSelector';
+import TodayStats from './components/TodayStats';
 
-// Trend Sparkline component
-const TrendSparkline = ({ data, color }) => (
-  <div className="h-6 w-20">
-    <ResponsiveContainer width="100%" height="100%">
-      <LineChart data={data}>
-        <Line 
-          type="monotone" 
-          dataKey="value" 
-          stroke={color} 
-          strokeWidth={1.5} 
-          dot={false}
-        />
-      </LineChart>
-    </ResponsiveContainer>
-  </div>
-);
 
-// Enhanced DashboardCard component
-const DashboardCard = ({ title, value, trend, icon: Icon, description, sparklineData, className, iconClassName, valueClassName }) => {
-  const [isHovered, setIsHovered] = useState(false);
-  const isPositive = trend > 0;
-  const trendColor = isPositive ? '#F7DC6F' : '#EF4444';
 
-  return (
-    <motion.div
-      className={`bg-white rounded-3xl shadow-sm hover:shadow relative overflow-hidden min-h-[120px] ${className}`}
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
-      whileHover={{ 
-        scale: 1.02,
-        transition: { duration: 0.2 }
-      }}
-      onHoverStart={() => setIsHovered(true)}
-      onHoverEnd={() => setIsHovered(false)}
-    >
-      {/* Background gradient effect */}
-      <div className="absolute inset-0 bg-gradient-to-br from-transparent to-gray-50 opacity-50" />
-      
-      {/* Card content */}
-      <div className="p-4 relative">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center space-x-2 min-w-0 flex-1">
-            <motion.div
-              initial={{ scale: 1 }}
-              animate={{ scale: isHovered ? 1.1 : 1 }}
-              transition={{ duration: 0.2 }}
-            >
-              {Icon && (
-                <div className="p-1.5 rounded-lg bg-yellow-50 shrink-0">
-                  <Icon className={`w-5 h-5 ${iconClassName}`} />
-                </div>
-              )}
-            </motion.div>
-            <h3 className="text-gray-600 text-base sm:text-xl font-medium truncate overflow-hidden flex-1">{title}</h3>
-          </div>
-          
-          {/* Trend indicator */}
-          <motion.div
-            className={`flex items-center px-2 py-0.5 rounded-full ${
-              isPositive ? 'bg-yellow-50' : 'bg-red-50'
-            } ml-2 shrink-0`}
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.1 }}
-          >
-            <motion.div
-              animate={{ 
-                y: isHovered ? [-1, 1, -1] : 0 
-              }}
-              transition={{ 
-                duration: 1,
-                repeat: Infinity,
-                repeatType: "reverse"
-              }}
-            >
-              {isPositive ? (
-                <ArrowUpIcon className="w-3 h-3 text-yellow-600" />
-              ) : (
-                <ArrowDownIcon className="w-3 h-3 text-red-500" />
-              )}
-            </motion.div>
-            <span className={`ml-1 text-xs ${
-              isPositive ? 'text-yellow-600' : 'text-red-600'
-            }`}>
-              {Math.abs(trend)}%
-            </span>
-          </motion.div>
-        </div>
-
-        {/* Value, description and sparkline */}
-        <div className="space-y-1 sm:space-y-2">
-          <div className="flex items-center justify-between flex-wrap sm:flex-nowrap gap-2">
-            <motion.div
-              className={`text-xl sm:text-2xl font-bold ${valueClassName}`}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-            >
-              {value}
-            </motion.div>
-
-            {/* Sparkline */}
-            <AnimatePresence>
-              {sparklineData && (
-                <motion.div
-                  initial={{ opacity: 0, width: 0 }}
-                  animate={{ opacity: 1, width: 'auto' }}
-                  exit={{ opacity: 0, width: 0 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  <TrendSparkline data={sparklineData} color={trendColor} />
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-          <motion.p 
-            className="text-xs sm:text-sm text-gray-500 truncate max-w-full sm:max-w-[90%]"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.3 }}
-          >
-            {description}
-          </motion.p>
-        </div>
-
-        {/* Hover effect overlay */}
-        <motion.div
-          className="absolute inset-0 bg-yellow-50"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: isHovered ? 0.02 : 0 }}
-          transition={{ duration: 0.2 }}
-        />
-      </div>
-    </motion.div>
-  );
-};
-
-// Main Dashboard component
+// Main Dashboard Component
 function Dashboard() {
   const [tokens, setTokens] = useState([]);
   const [entries, setEntries] = useState([]); 
@@ -603,65 +464,20 @@ function Dashboard() {
 
   if (error) {
     return (
-      <motion.div 
-        className="p-6 text-red-500"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-      >
+      <motion.div className="p-6 text-red-500">
         Error loading dashboard: {error}
       </motion.div>
     );
   }
 
   return (
-    <motion.div 
-      className="p-4 sm:p-6 max-w-7xl mx-auto space-y-6"
-      style={{ minHeight: 'calc(100vh - 4rem)' }}
-    >
+    <motion.div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-6">
       <Toaster />
       
-      {/* Date Range Picker with Today's Total */}
+      {/* Date Range and Today's Total */}
       <div className="mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between bg-white p-4 rounded-lg shadow-sm space-y-4 sm:space-y-0">
-        <div className="flex items-center space-x-4 w-full sm:w-auto">
-          <div className="flex flex-col">
-            <span className="text-sm font-medium text-amber-700">Today's Revenue</span>
-            <span className="text-lg font-bold text-yellow-600">{todayTotal.formattedRevenue}</span>
-          </div>
-          <div className="flex flex-col">
-            <span className="text-sm font-medium text-amber-700">Today's Expenses</span>
-            <span className="text-lg font-bold text-red-600">{todayTotal.formattedExpenses}</span>
-          </div>
-          <div className="flex flex-col">
-            <span className="text-sm font-medium text-amber-700">Today's Net Total</span>
-            <span className={`text-lg font-bold ${todayTotal.netTotal >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-              {todayTotal.formattedNetTotal}
-            </span>
-          </div>
-        </div>
-        <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-4 sm:space-y-0 sm:space-x-4 w-full sm:w-auto">
-          <div className="flex items-center space-x-2 w-full sm:w-auto">
-            <label htmlFor="fromDate" className="text-sm font-medium text-amber-700 whitespace-nowrap">From:</label>
-            <input
-              type="date"
-              id="fromDate"
-              className="form-input w-full sm:w-auto rounded-md shadow-sm focus:border-yellow-500 focus:ring-yellow-500 p-1 bg-gradient-to-br from-yellow-50 to-yellow-100 border-yellow-500 text-amber-700 [&::-webkit-calendar-picker-indicator]:text-yellow-500 [&::-webkit-calendar-picker-indicator]:filter-yellow"
-              value={dateRange.fromDate}
-              onChange={(e) => setDateRange(prev => ({ ...prev, fromDate: e.target.value }))}
-              style={{ colorScheme: 'yellow' }}
-            />
-          </div>
-          <div className="flex items-center space-x-2 w-full sm:w-auto">
-            <label htmlFor="toDate" className="text-sm font-medium text-amber-700 whitespace-nowrap">To:</label>
-            <input
-              type="date"
-              id="toDate"
-              className="form-input w-full sm:w-auto rounded-md shadow-sm focus:border-yellow-500 focus:ring-yellow-500 p-1 bg-gradient-to-br from-yellow-50 to-yellow-100 border-yellow-500 text-amber-700 [&::-webkit-calendar-picker-indicator]:text-yellow-500 [&::-webkit-calendar-picker-indicator]:filter-yellow"
-              value={dateRange.toDate}
-              onChange={(e) => setDateRange(prev => ({ ...prev, toDate: e.target.value }))}
-              style={{ colorScheme: 'yellow' }}
-            />
-          </div>
-        </div>
+        <TodayStats todayTotal={todayTotal} />
+        <DateRangeSelector dateRange={dateRange} onDateRangeChange={setDateRange} />
       </div>
 
       {/* Metrics Grid */}
@@ -779,44 +595,8 @@ function Dashboard() {
         />
       </div>
 
-      {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-        <div className="bg-white p-4 rounded-lg shadow-sm">
-          <h3 className="text-lg font-semibold text-yellow-900 mb-4">Revenue vs Expenses</h3>
-          <div className="h-[300px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={sparklineData.revenue}>
-                <XAxis dataKey="date" tick={{ fontSize: 12 }} />
-                <YAxis tick={{ fontSize: 12 }} />
-                <Tooltip />
-                <Line type="monotone" dataKey="totalAmount" name="Revenue" stroke="#F7DC6F" strokeWidth={2} />
-                <Line type="monotone" dataKey="expenses" name="Expenses" stroke="#EF4444" strokeWidth={2} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        <div className="bg-white p-4 rounded-lg shadow-sm">
-          <h3 className="text-lg font-semibold text-yellow-900 mb-4">Profit Trend</h3>
-          <div className="h-[300px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={sparklineData.profit}>
-                <XAxis dataKey="date" tick={{ fontSize: 12 }} />
-                <YAxis tick={{ fontSize: 12 }} />
-                <Tooltip />
-                <Area 
-                  type="monotone" 
-                  dataKey="totalAmount" 
-                  name="Profit"
-                  fill="#F7DC6F" 
-                  stroke="#F2C464" 
-                  strokeWidth={2}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      </div>
+      {/* Charts */}
+      <DashboardCharts sparklineData={sparklineData} />
 
       {/* Recent Activity */}
       <div className="bg-white p-4 sm:p-6 rounded-lg shadow-sm">
