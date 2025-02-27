@@ -1,130 +1,5 @@
 const { pool } = require('../config/database');
 const { handleDatabaseError } = require('../middleware/errorHandler');
-const path = require('path');
-const fs = require('fs');
-const { Worker } = require('worker_threads');
-
-const DATA_DIR = path.join(__dirname, '../../../data');
-const EXCEL_FILE = path.join(DATA_DIR, 'tokens.xlsx');
-const WORKER_FILE = path.join(__dirname, '../workers/excelWorker.js');
-
-// Ensure data directory exists
-if (!fs.existsSync(DATA_DIR)) {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
-}
-
-// Worker management with error handling
-let worker = null;
-let isWorkerBusy = false;
-
-const createWorker = () => {
-  try {
-    const newWorker = new Worker(WORKER_FILE);
-    
-    newWorker.on('error', (error) => {
-      console.error('Worker error:', error);
-      if (worker === newWorker) {
-        worker = null;
-        isWorkerBusy = false;
-      }
-    });
-
-    newWorker.on('exit', (code) => {
-      if (code !== 0) {
-        console.error(`Worker stopped with exit code ${code}`);
-      }
-      if (worker === newWorker) {
-        worker = null;
-        isWorkerBusy = false;
-      }
-    });
-
-    return newWorker;
-  } catch (error) {
-    console.error('Failed to create worker:', error);
-    return null;
-  }
-};
-
-const getWorker = () => {
-  if (!worker && !isWorkerBusy) {
-    worker = createWorker();
-  }
-  return worker;
-};
-
-const executeWorkerTask = (type, data = null) => {
-  return new Promise((resolve, reject) => {
-    const currentWorker = getWorker();
-    
-    if (!currentWorker) {
-      return reject(new Error('Worker initialization failed'));
-    }
-
-    const timeout = setTimeout(() => {
-      cleanup();
-      reject(new Error('Worker operation timed out'));
-    }, 30000); // 30 second timeout
-
-    const cleanup = () => {
-      clearTimeout(timeout);
-      currentWorker.removeListener('message', handleMessage);
-      currentWorker.removeListener('error', handleError);
-      isWorkerBusy = false;
-    };
-
-    const handleMessage = (message) => {
-      if (message.type === `${type}_SUCCESS`) {
-        cleanup();
-        resolve(message.data);
-      } else if (message.type === 'ERROR') {
-        cleanup();
-        reject(new Error(message.error));
-      }
-    };
-
-    const handleError = (error) => {
-      cleanup();
-      reject(error);
-    };
-
-    currentWorker.on('message', handleMessage);
-    currentWorker.on('error', handleError);
-    
-    isWorkerBusy = true;
-    currentWorker.postMessage({ 
-      type, 
-      data, 
-      filePath: EXCEL_FILE 
-    });
-  });
-};
-
-// Helper functions using the new worker execution
-const readExcelFile = () => executeWorkerTask('READ');
-const writeExcelFile = (data) => executeWorkerTask('WRITE', data);
-
-// Initialize Excel file if it doesn't exist
-if (!fs.existsSync(EXCEL_FILE)) {
-  const initialData = [
-    {
-      id: null,
-      token_no: null,
-      date: null,
-      time: null,
-      code: null,
-      name: null,
-      test: null,
-      weight: null,
-      sample: null,
-      amount: null,
-      is_paid: null
-    }
-  ];
-  writeExcelFile(initialData).catch(err => {
-    console.error('Error initializing Excel file:', err);
-  });
-}
 
 // Add payment status column if it doesn't exist
 const initializeTable = async () => {
@@ -161,15 +36,28 @@ const initializeTable = async () => {
 })();
 
 const getAllTokens = async (req, res) => {
+  const client = await pool.connect();
   try {
-    const data = await readExcelFile();
-    if (!Array.isArray(data)) {
-      throw new Error('Invalid data format received from worker');
-    }
-
-    const transformedData = data.map(row => ({
+    const result = await client.query(`
+      SELECT 
+        id,
+        token_no,
+        date,
+        time,
+        code,
+        name,
+        test,
+        weight,
+        sample,
+        amount,
+        is_paid
+      FROM tokens 
+      ORDER BY id DESC
+    `);
+    // Transform to camelCase for frontend
+    const transformedRows = result.rows.map(row => ({
       id: row.id,
-      tokenNo: row.token_no || row.tokenNo,
+      tokenNo: row.token_no,
       date: row.date,
       time: row.time,
       code: row.code,
@@ -178,302 +66,277 @@ const getAllTokens = async (req, res) => {
       weight: row.weight,
       sample: row.sample,
       amount: row.amount,
-      isPaid: row.is_paid || row.isPaid || 0
-    })).sort((a, b) => b.id - a.id); // Sort by id descending
-
-    res.json(transformedData);
+      isPaid: row.is_paid
+    }));
+    res.json(transformedRows);
   } catch (err) {
     console.error('Error in getAllTokens:', err);
-    res.status(500).json({ error: 'Internal server error' });
+    return handleDatabaseError(err, res);
+  } finally {
+    client.release();
   }
 };
 
 const getTokenByNumber = async (req, res) => {
   try {
-    const data = await readExcelFile();
-    const token = data.find(row => 
-      (row.token_no || row.tokenNo) === req.params.tokenNo
+    const result = await pool.query(
+      "SELECT * FROM tokens WHERE token_no = $1",
+      [req.params.tokenNo]
     );
-    
-    if (!token) {
+
+    if (!result.rows || result.rows.length === 0) {
       return res.status(404).json({ 
         success: false, 
         message: 'Token not found' 
       });
     }
 
+    // Transform to camelCase for frontend
+    const row = result.rows[0];
     const transformedRow = {
-      id: token.id,
-      tokenNo: token.token_no || token.tokenNo,
-      date: token.date,
-      time: token.time,
-      code: token.code,
-      name: token.name,
-      test: token.test,
-      weight: token.weight,
-      sample: token.sample,
-      amount: token.amount,
-      isPaid: token.is_paid || token.isPaid || 0
+      id: row.id,
+      tokenNo: row.token_no,
+      date: row.date,
+      time: row.time,
+      code: row.code,
+      name: row.name,
+      test: row.test,
+      weight: row.weight,
+      sample: row.sample,
+      amount: row.amount,
+      isPaid: row.is_paid
     };
 
-    res.json({ success: true, data: transformedRow });
+    res.json({ 
+      success: true,
+      data: transformedRow 
+    });
   } catch (err) {
-    console.error('Error in getTokenByNumber:', err);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Database error:', err);
+    handleDatabaseError(err, res);
   }
 };
 
 const createToken = async (req, res) => {
+  const { tokenNo, date, time, code, name, test, weight, sample, amount } = req.body;
+  const client = await pool.connect();
   try {
-    const data = await readExcelFile();
-    const { tokenNo, date, time, code, name, test, weight, sample, amount } = req.body;
-    
-    // Check for duplicate token number
-    if (data.some(t => (t.token_no || t.tokenNo) === tokenNo)) {
-      return res.status(400).json({ 
-        success: false, 
-        error: "Token number already exists" 
-      });
-    }
-
-    const newToken = {
-      id: data.length > 0 ? Math.max(...data.map(t => t.id)) + 1 : 1,
-      token_no: tokenNo,
-      date,
-      time,
-      code,
-      name,
-      test,
-      weight,
-      sample,
-      amount,
-      is_paid: 0
-    };
-
-    data.push(newToken);
-    await writeExcelFile(data);
-
+    const result = await client.query(
+      `INSERT INTO tokens (token_no, date, time, code, name, test, weight, sample, amount, is_paid) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 0) 
+       RETURNING id, token_no, date, time, code, name, test, weight, sample, amount, is_paid`,
+      [tokenNo, date, time, code, name, test, weight, sample, amount]
+    );
+    // Transform to camelCase for frontend
     const transformedRow = {
-      id: newToken.id,
-      tokenNo: newToken.token_no,
-      date: newToken.date,
-      time: newToken.time,
-      code: newToken.code,
-      name: newToken.name,
-      test: newToken.test,
-      weight: newToken.weight,
-      sample: newToken.sample,
-      amount: newToken.amount,
-      isPaid: newToken.is_paid
+      id: result.rows[0].id,
+      tokenNo: result.rows[0].token_no,
+      date: result.rows[0].date,
+      time: result.rows[0].time,
+      code: result.rows[0].code,
+      name: result.rows[0].name,
+      test: result.rows[0].test,
+      weight: result.rows[0].weight,
+      sample: result.rows[0].sample,
+      amount: result.rows[0].amount,
+      isPaid: result.rows[0].is_paid
     };
-
     res.status(201).json(transformedRow);
   } catch (err) {
-    console.error('Error in createToken:', err);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Error creating token:', err);
+    return handleDatabaseError(err, res);
+  } finally {
+    client.release();
   }
 };
 
 const updateToken = async (req, res) => {
+  const { tokenNo, date, time, code, name, test, weight, sample, amount } = req.body;
+  const client = await pool.connect();
+  
   try {
-    const data = await readExcelFile();
-    const { tokenNo, date, time, code, name, test, weight, sample, amount } = req.body;
-    const id = parseInt(req.params.id);
+    await client.query('BEGIN');
 
-    const tokenIndex = data.findIndex(t => t.id === id);
-    if (tokenIndex === -1) {
-      return res.status(404).json({ 
-        success: false, 
-        error: "Token not found" 
-      });
-    }
+    // Check if the token number exists for any other record
+    const duplicateCheck = await client.query(
+      'SELECT id FROM tokens WHERE token_no = $1 AND id != $2',
+      [tokenNo, req.params.id]
+    );
 
-    // Check for duplicate token number
-    if (data.some(t => (t.token_no || t.tokenNo) === tokenNo && t.id !== id)) {
+    if (duplicateCheck.rows.length > 0) {
+      await client.query('ROLLBACK');
       return res.status(400).json({ 
-        success: false, 
+        success: false,
         error: "Token number already exists" 
       });
     }
 
-    data[tokenIndex] = {
-      ...data[tokenIndex],
-      token_no: tokenNo,
-      date,
-      time,
-      code,
-      name,
-      test,
-      weight,
-      sample,
-      amount
-    };
+    const result = await client.query(
+      `UPDATE tokens 
+       SET token_no = $1, date = $2, time = $3, code = $4, name = $5, 
+           test = $6, weight = $7, sample = $8, amount = $9 
+       WHERE id = $10 
+       RETURNING id, token_no, date, time, code, name, test, weight, sample, amount, is_paid`,
+      [tokenNo, date, time, code, name, test, weight, sample, amount, req.params.id]
+    );
 
-    await writeExcelFile(data);
+    if (result.rowCount === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ 
+        success: false,
+        error: "Token not found" 
+      });
+    }
 
+    await client.query('COMMIT');
+
+    // Transform to camelCase for frontend
     const transformedRow = {
-      id: data[tokenIndex].id,
-      tokenNo: data[tokenIndex].token_no,
-      date: data[tokenIndex].date,
-      time: data[tokenIndex].time,
-      code: data[tokenIndex].code,
-      name: data[tokenIndex].name,
-      test: data[tokenIndex].test,
-      weight: data[tokenIndex].weight,
-      sample: data[tokenIndex].sample,
-      amount: data[tokenIndex].amount,
-      isPaid: data[tokenIndex].is_paid || data[tokenIndex].isPaid || 0
+      id: result.rows[0].id,
+      tokenNo: result.rows[0].token_no,
+      date: result.rows[0].date,
+      time: result.rows[0].time,
+      code: result.rows[0].code,
+      name: result.rows[0].name,
+      test: result.rows[0].test,
+      weight: result.rows[0].weight,
+      sample: result.rows[0].sample,
+      amount: result.rows[0].amount,
+      isPaid: result.rows[0].is_paid
     };
 
-    res.status(200).json({ success: true, data: transformedRow });
+    res.status(200).json({
+      success: true,
+      data: transformedRow
+    });
   } catch (err) {
-    console.error('Error in updateToken:', err);
-    res.status(500).json({ error: 'Internal server error' });
+    await client.query('ROLLBACK');
+    console.error('Error updating token:', err);
+    return handleDatabaseError(err, res);
+  } finally {
+    client.release();
   }
 };
 
 const updatePaymentStatus = async (req, res) => {
+  const { isPaid } = req.body;
   try {
-    const data = await readExcelFile();
-    const { isPaid } = req.body;
-    const id = parseInt(req.params.id);
-
-    const tokenIndex = data.findIndex(t => t.id === id);
-    if (tokenIndex === -1) {
+    const result = await pool.query(
+      "UPDATE tokens SET is_paid = $1 WHERE id = $2 RETURNING *",
+      [isPaid ? 1 : 0, req.params.id]
+    );
+    if (result.rowCount === 0) {
       return res.status(404).json({ error: "Token not found" });
     }
-
-    data[tokenIndex].is_paid = isPaid ? 1 : 0;
-    await writeExcelFile(data);
-
+    // Transform to camelCase for frontend
     const transformedRow = {
-      id: data[tokenIndex].id,
-      tokenNo: data[tokenIndex].token_no,
-      date: data[tokenIndex].date,
-      time: data[tokenIndex].time,
-      code: data[tokenIndex].code,
-      name: data[tokenIndex].name,
-      test: data[tokenIndex].test,
-      weight: data[tokenIndex].weight,
-      sample: data[tokenIndex].sample,
-      amount: data[tokenIndex].amount,
-      isPaid: data[tokenIndex].is_paid
+      id: result.rows[0].id,
+      tokenNo: result.rows[0].token_no,
+      date: result.rows[0].date,
+      time: result.rows[0].time,
+      code: result.rows[0].code,
+      name: result.rows[0].name,
+      test: result.rows[0].test,
+      weight: result.rows[0].weight,
+      sample: result.rows[0].sample,
+      amount: result.rows[0].amount,
+      isPaid: result.rows[0].is_paid
     };
-
-    res.status(200).json({ updatedID: 1, token: transformedRow });
+    res.status(200).json({ updatedID: result.rowCount, token: transformedRow });
   } catch (err) {
-    console.error('Error in updatePaymentStatus:', err);
-    res.status(500).json({ error: 'Internal server error' });
+    return handleDatabaseError(err, res);
   }
 };
 
 const deleteToken = async (req, res) => {
   try {
-    const data = await readExcelFile();
-    const id = parseInt(req.params.id);
-
-    const tokenIndex = data.findIndex(t => t.id === id);
-    if (tokenIndex === -1) {
+    const result = await pool.query(
+      "DELETE FROM tokens WHERE id = $1 RETURNING *",
+      [req.params.id]
+    );
+    if (result.rowCount === 0) {
       return res.status(404).json({ error: "Token not found" });
     }
-
-    const deletedToken = data[tokenIndex];
-    data.splice(tokenIndex, 1);
-    await writeExcelFile(data);
-
+    // Transform to camelCase for frontend
     const transformedRow = {
-      id: deletedToken.id,
-      tokenNo: deletedToken.token_no,
-      date: deletedToken.date,
-      time: deletedToken.time,
-      code: deletedToken.code,
-      name: deletedToken.name,
-      test: deletedToken.test,
-      weight: deletedToken.weight,
-      sample: deletedToken.sample,
-      amount: deletedToken.amount,
-      isPaid: deletedToken.is_paid || deletedToken.isPaid || 0
+      id: result.rows[0].id,
+      tokenNo: result.rows[0].token_no,
+      date: result.rows[0].date,
+      time: result.rows[0].time,
+      code: result.rows[0].code,
+      name: result.rows[0].name,
+      test: result.rows[0].test,
+      weight: result.rows[0].weight,
+      sample: result.rows[0].sample,
+      amount: result.rows[0].amount,
+      isPaid: result.rows[0].is_paid
     };
-
-    res.status(200).json({ deletedID: 1, token: transformedRow });
+    res.status(200).json({ deletedID: result.rowCount, token: transformedRow });
   } catch (err) {
-    console.error('Error in deleteToken:', err);
-    res.status(500).json({ error: 'Internal server error' });
+    return handleDatabaseError(err, res);
   }
 };
 
 const generateTokenNumber = async (req, res) => {
+  const client = await pool.connect();
   try {
-    const data = await readExcelFile();
-    
+    await client.query('BEGIN');
+
+    // Get the latest token
+    const result = await client.query(
+      'SELECT token_no FROM tokens ORDER BY id DESC LIMIT 1'
+    );
+
     let nextTokenNo;
-    if (!data || data.length === 0 || !data.some(t => t.token_no || t.tokenNo)) {
+    if (!result.rows[0] || !result.rows[0].token_no) {
       nextTokenNo = "A1";
     } else {
-      const validTokens = data.filter(token => token && (token.token_no || token.tokenNo));
-      const lastToken = validTokens.reduce((max, token) => 
-        (!max || token.id > max.id) ? token : max, null);
+      const currentToken = result.rows[0].token_no.toString();
+      const match = currentToken.match(/^([A-Z])(\d+)$/);
       
-      if (!lastToken) {
+      if (!match) {
         nextTokenNo = "A1";
       } else {
-        const currentToken = (lastToken.token_no || lastToken.tokenNo || "").toString();
-        const match = currentToken.match(/^([A-Z])(\d+)$/);
+        const letter = match[1];
+        const number = parseInt(match[2]);
         
-        if (!match) {
-          nextTokenNo = "A1";
-        } else {
-          const letter = match[1];
-          const number = parseInt(match[2]);
-          
-          if (number >= 999) {
-            if (letter === 'Z') {
-              return res.status(400).json({ 
-                error: "Token number limit reached. Please contact administrator." 
-              });
-            }
-            nextTokenNo = `${String.fromCharCode(letter.charCodeAt(0) + 1)}1`;
-          } else {
-            nextTokenNo = `${letter}${number + 1}`;
+        if (number >= 999) {
+          if (letter === 'Z') {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ 
+              error: "Token number limit reached. Please contact administrator." 
+            });
           }
+          nextTokenNo = `${String.fromCharCode(letter.charCodeAt(0) + 1)}1`;
+        } else {
+          nextTokenNo = `${letter}${number + 1}`;
         }
       }
     }
 
-    if (data && data.some(t => (t.token_no || t.tokenNo) === nextTokenNo)) {
+    // Verify the generated token is unique
+    const checkUnique = await client.query(
+      'SELECT COUNT(*) FROM tokens WHERE token_no = $1',
+      [nextTokenNo]
+    );
+
+    if (parseInt(checkUnique.rows[0].count) > 0) {
+      await client.query('ROLLBACK');
       return res.status(409).json({ 
         error: "Generated token number already exists. Please try again." 
       });
     }
 
+    await client.query('COMMIT');
     res.json({ tokenNo: nextTokenNo });
   } catch (err) {
-    console.error('Error in generateTokenNumber:', err);
-    res.status(500).json({ error: 'Internal server error' });
+    await client.query('ROLLBACK');
+    console.error('Token generation error:', err);
+    return handleDatabaseError(err, res);
+  } finally {
+    client.release();
   }
 };
-
-// Enhanced cleanup
-process.on('exit', () => {
-  if (worker) {
-    worker.terminate();
-  }
-});
-
-process.on('SIGINT', () => {
-  if (worker) {
-    worker.terminate();
-  }
-  process.exit(0);
-});
-
-process.on('uncaughtException', (error) => {
-  console.error('Uncaught Exception:', error);
-  if (worker) {
-    worker.terminate();
-  }
-  process.exit(1);
-});
 
 module.exports = {
   getAllTokens,
