@@ -143,7 +143,7 @@ const TokenTable = ({ tokens = [], onEdit, onDelete, onPaymentStatusChange }) =>
               rowGetter={({ index }) => tokens[index]}
               rowClassName={({ index }) => 
                 `${index === -1 ? 'bg-amber-500' : index % 2 === 0 ? 'bg-white' : 'bg-amber-50/40'} 
-                 hover:bg-amber-50/40 transition-colors`
+                 ${index !== -1 ? 'hover:bg-amber-50/40' : ''} transition-colors`
               }
               overscanRowCount={5}
             >
