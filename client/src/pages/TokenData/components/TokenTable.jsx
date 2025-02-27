@@ -118,6 +118,10 @@ const formatValue = (value, key) => {
   
   // Format numbers
   if (typeof value === 'number') {
+    // Special handling for weight values
+    if (key === 'weight') {
+      return value.toFixed(3);
+    }
     return value.toLocaleString('en-IN', { 
       minimumFractionDigits: 0, 
       maximumFractionDigits: 2 

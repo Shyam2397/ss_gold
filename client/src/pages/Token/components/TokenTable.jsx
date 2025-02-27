@@ -111,7 +111,7 @@ const TokenTable = ({ tokens = [], onEdit, onDelete, onPaymentStatusChange }) =>
     } else if (dataKey === 'time') {
       value = formatTimeToIST(value);
     } else if (dataKey === 'weight') {
-      value = typeof value === 'number' ? value.toFixed(3) : value;
+      value = parseFloat(value || 0).toFixed(3);
     } else if (dataKey === 'amount') {
       value = typeof value === 'number' ? value.toFixed(2) : value;
     }
