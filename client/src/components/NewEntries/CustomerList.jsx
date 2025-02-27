@@ -11,6 +11,11 @@ const CustomerList = ({
   handleEdit,
   confirmDelete
 }) => {
+  // Sort customers alphabetically by name
+  const sortedCustomers = [...customers].sort((a, b) => 
+    a.name.localeCompare(b.name)
+  );
+
   return (
     <div className="mt-4 bg-white rounded-2xl p-3 border border-amber-100">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
@@ -51,14 +56,14 @@ const CustomerList = ({
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-amber-50">
-                  {customers.length === 0 ? (
+                  {sortedCustomers.length === 0 ? (
                     <tr>
                       <td colSpan="5" className="px-3 py-4 text-center text-sm text-amber-900">
                         No customers found
                       </td>
                     </tr>
                   ) : (
-                    customers.map((customer) => (
+                    sortedCustomers.map((customer) => (
                       <tr key={customer.id} className="hover:bg-amber-50/40 transition-colors">
                         <td className="px-3 py-2 text-sm text-amber-900">{customer.code}</td>
                         <td className="px-3 py-2 text-sm text-amber-900">{customer.name}</td>
