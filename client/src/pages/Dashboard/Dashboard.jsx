@@ -80,7 +80,7 @@ function Dashboard() {
         totalWeight: filteredExchanges.reduce((sum, exchange) => 
           sum + parseFloat(exchange.weight || '0'), 0),
         totalExWeight: filteredExchanges.reduce((sum, exchange) => 
-          sum + parseFloat(exchange.exWeight || '0'), 0)
+          sum + parseFloat(exchange.exweight || '0'), 0)
       }));
     }
   }, [dateRange, exchanges]);
@@ -299,7 +299,10 @@ function Dashboard() {
 
           // Calculate today's revenue from tokens
           const todayTokens = tokenData.filter(token => {
-            const tokenDate = new Date(token.date);
+            // Handle DD-MM-YYYY format by splitting and reversing
+            const [day, month, year] = (token.date || '').split('-');
+            if (!day || !month || !year) return false;
+            const tokenDate = new Date(year, month - 1, day);
             tokenDate.setHours(0, 0, 0, 0);
             return tokenDate.getTime() === today.getTime();
           });
@@ -362,95 +365,128 @@ function Dashboard() {
 
     return () => clearInterval(interval);
   }, []);
-
   // Calculate metrics from tokens and expenses
-  const totalRevenue = tokens.reduce((sum, token) => sum + (token.totalAmount || 0), 0);
-  const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);
-  const netProfit = totalRevenue - totalExpenses;
-  const profitMargin = totalRevenue ? ((netProfit / totalRevenue) * 100).toFixed(2) : 0;
+const totalRevenue = tokens.reduce((sum, token) => sum + (parseFloat(token.totalAmount) || 0), 0);
+const totalExpenses = expenses.reduce((sum, expense) => sum + (parseFloat(expense.amount) || 0), 0);
+const netProfit = totalRevenue - totalExpenses;
+const profitMargin = totalRevenue ? ((netProfit / totalRevenue) * 100).toFixed(2) : 0;
 
-  // Calculate month-over-month growth for trends
-  const currentMonth = new Date().getMonth();
-  
-  // Revenue trend calculation
-  const currentMonthRevenue = tokens
-    .filter(token => new Date(token.date).getMonth() === currentMonth)
-    .reduce((sum, token) => sum + (token.totalAmount || 0), 0);
-  
-  const lastMonthRevenue = tokens
-    .filter(token => new Date(token.date).getMonth() === currentMonth - 1)
-    .reduce((sum, token) => sum + (token.totalAmount || 0), 0);
+// Get dates for last 7 days and previous 7 days
+const today = new Date();
+const sevenDaysAgo = new Date(today);
+sevenDaysAgo.setDate(today.getDate() - 7);
+const fourteenDaysAgo = new Date(today);
+fourteenDaysAgo.setDate(today.getDate() - 14);
 
-  const revenueGrowth = lastMonthRevenue ? 
-    ((currentMonthRevenue - lastMonthRevenue) / lastMonthRevenue) * 100 : 0;
+// Revenue trend calculation
+const currentRevenue = tokens
+  .filter(token => {
+    const tokenDate = new Date(token.date.split('-').reverse().join('-'));
+    return tokenDate >= sevenDaysAgo && tokenDate <= today;
+  })
+  .reduce((sum, token) => sum + (token.totalAmount || 0), 0);
 
-  // Expenses trend calculation
-  const currentMonthExpenses = expenses
-    .filter(expense => new Date(expense.date).getMonth() === currentMonth)
-    .reduce((sum, expense) => sum + expense.amount, 0);
-  
-  const lastMonthExpenses = expenses
-    .filter(expense => new Date(expense.date).getMonth() === currentMonth - 1)
-    .reduce((sum, expense) => sum + expense.amount, 0);
+const previousRevenue = tokens
+  .filter(token => {
+    const tokenDate = new Date(token.date.split('-').reverse().join('-'));
+    return tokenDate >= fourteenDaysAgo && tokenDate < sevenDaysAgo;
+  })
+  .reduce((sum, token) => sum + (token.totalAmount || 0), 0);
 
-  const expensesGrowth = lastMonthExpenses ? 
-    ((currentMonthExpenses - lastMonthExpenses) / lastMonthExpenses) * 100 : 0;
+const revenueGrowth = previousRevenue ? 
+  ((currentRevenue - previousRevenue) / previousRevenue) * 100 : 0;
 
-  // Net Profit trend calculation
-  const currentMonthProfit = currentMonthRevenue - currentMonthExpenses;
-  const lastMonthProfit = lastMonthRevenue - lastMonthExpenses;
-  const profitGrowth = lastMonthProfit ? 
-    ((currentMonthProfit - lastMonthProfit) / lastMonthProfit) * 100 : 0;
+// Expenses trend calculation
+const currentExpenses = expenses
+  .filter(expense => {
+    const expenseDate = new Date(expense.date);
+    return expenseDate >= sevenDaysAgo && expenseDate <= today;
+  })
+  .reduce((sum, expense) => sum + expense.amount, 0);
 
-  // Profit Margin trend calculation
-  const currentMonthMargin = currentMonthRevenue ? (currentMonthProfit / currentMonthRevenue) * 100 : 0;
-  const lastMonthMargin = lastMonthRevenue ? (lastMonthProfit / lastMonthRevenue) * 100 : 0;
-  const marginGrowth = lastMonthMargin ? 
-    ((currentMonthMargin - lastMonthMargin) / lastMonthMargin) * 100 : 0;
+const previousExpenses = expenses
+  .filter(expense => {
+    const expenseDate = new Date(expense.date);
+    return expenseDate >= fourteenDaysAgo && expenseDate < sevenDaysAgo;
+  })
+  .reduce((sum, expense) => sum + expense.amount, 0);
 
-  // Customer trends
-  const currentPeriodCustomers = entries.filter(entry => 
-    new Date(entry.createdAt).getMonth() === currentMonth).length;
-  
-  const previousPeriodCustomers = entries.filter(entry => 
-    new Date(entry.createdAt).getMonth() === currentMonth - 1).length;
+const expensesGrowth = previousExpenses ? 
+  ((currentExpenses - previousExpenses) / previousExpenses) * 100 : 0;
 
-  const customersTrend = previousPeriodCustomers ? 
-    ((currentPeriodCustomers - previousPeriodCustomers) / previousPeriodCustomers) * 100 : 0;
+// Net Profit trend calculation
+const currentProfit = currentRevenue - currentExpenses;
+const previousProfit = previousRevenue - previousExpenses;
+const profitGrowth = previousProfit ? 
+  ((currentProfit - previousProfit) / previousProfit) * 100 : 0;
 
-  // Token trends
-  const currentPeriodTokens = tokens.filter(token => 
-    new Date(token.date).getMonth() === currentMonth).length;
-  
-  const previousPeriodTokens = tokens.filter(token => 
-    new Date(token.date).getMonth() === currentMonth - 1).length;
+// Profit Margin trend calculation
+const currentMargin = currentRevenue ? (currentProfit / currentRevenue) * 100 : 0;
+const previousMargin = previousRevenue ? (previousProfit / previousRevenue) * 100 : 0;
+const marginGrowth = previousMargin ? 
+  ((currentMargin - previousMargin) / previousMargin) * 100 : 0;
 
-  const tokensTrend = previousPeriodTokens ? 
-    ((currentPeriodTokens - previousPeriodTokens) / previousPeriodTokens) * 100 : 0;
+// Customer trends
+const currentCustomers = entries.filter(entry => {
+  const entryDate = new Date(entry.createdAt);
+  return entryDate >= sevenDaysAgo && entryDate <= today;
+}).length;
 
-  // Exchange trends
-  const currentPeriodExchanges = exchanges.filter(exchange => 
-    new Date(exchange.date.split('-').reverse().join('-')).getMonth() === currentMonth).length;
-  
-  const previousPeriodExchanges = exchanges.filter(exchange => 
-    new Date(exchange.date.split('-').reverse().join('-')).getMonth() === currentMonth - 1).length;
+const previousCustomers = entries.filter(entry => {
+  const entryDate = new Date(entry.createdAt);
+  return entryDate >= fourteenDaysAgo && entryDate < sevenDaysAgo;
+}).length;
 
-  const exchangesTrend = previousPeriodExchanges ? 
-    ((currentPeriodExchanges - previousPeriodExchanges) / previousPeriodExchanges) * 100 : 0;
+const customersTrend = previousCustomers ? 
+  ((currentCustomers - previousCustomers) / previousCustomers) * 100 : 0;
 
-  // Weight trends
-  const currentPeriodWeight = exchanges
-    .filter(exchange => new Date(exchange.date.split('-').reverse().join('-')).getMonth() === currentMonth)
-    .reduce((sum, exchange) => sum + parseFloat(exchange.weight || '0'), 0);
-  
-  const previousPeriodWeight = exchanges
-    .filter(exchange => new Date(exchange.date.split('-').reverse().join('-')).getMonth() === currentMonth - 1)
-    .reduce((sum, exchange) => sum + parseFloat(exchange.weight || '0'), 0);
+// Token trends
+const currentTokens = tokens.filter(token => {
+  const tokenDate = new Date(token.date.split('-').reverse().join('-'));
+  return tokenDate >= sevenDaysAgo && tokenDate <= today;
+}).length;
 
-  const weightTrend = previousPeriodWeight ? 
-    ((currentPeriodWeight - previousPeriodWeight) / previousPeriodWeight) * 100 : 0;
+const previousTokens = tokens.filter(token => {
+  const tokenDate = new Date(token.date.split('-').reverse().join('-'));
+  return tokenDate >= fourteenDaysAgo && tokenDate < sevenDaysAgo;
+}).length;
 
-  if (loading) {
+const tokensTrend = previousTokens ? 
+  ((currentTokens - previousTokens) / previousTokens) * 100 : 0;
+
+// Exchange trends
+const currentExchanges = exchanges.filter(exchange => {
+  const exchangeDate = new Date(exchange.date.split('-').reverse().join('-'));
+  return exchangeDate >= sevenDaysAgo && exchangeDate <= today;
+}).length;
+
+const previousExchanges = exchanges.filter(exchange => {
+  const exchangeDate = new Date(exchange.date.split('-').reverse().join('-'));
+  return exchangeDate >= fourteenDaysAgo && exchangeDate < sevenDaysAgo;
+}).length;
+
+const exchangesTrend = previousExchanges ? 
+  ((currentExchanges - previousExchanges) / previousExchanges) * 100 : 0;
+
+// Weight trends
+const currentWeight = exchanges
+  .filter(exchange => {
+    const exchangeDate = new Date(exchange.date.split('-').reverse().join('-'));
+    return exchangeDate >= sevenDaysAgo && exchangeDate <= today;
+  })
+  .reduce((sum, exchange) => sum + parseFloat(exchange.weight || '0'), 0);
+
+const previousWeight = exchanges
+  .filter(exchange => {
+    const exchangeDate = new Date(exchange.date.split('-').reverse().join('-'));
+    return exchangeDate >= fourteenDaysAgo && exchangeDate < sevenDaysAgo;
+  })
+  .reduce((sum, exchange) => sum + parseFloat(exchange.weight || '0'), 0);
+
+const weightTrend = previousWeight ? 
+  ((currentWeight - previousWeight) / previousWeight) * 100 : 0;
+
+if (loading) {
     return (
       <div className="flex items-center justify-center h-screen">
         <motion.div
@@ -581,8 +617,8 @@ function Dashboard() {
           title="Pure Exchange" 
           value={
             <div className="flex flex-col text-sm">
-              <span>Weight: {(metrics.totalWeight || 0).toFixed(3)} g</span>
-              <span>ExWeight: {(metrics.totalExWeight || 0).toFixed(3)} g</span>
+              <span>{(metrics.totalWeight || 0).toFixed(3)} g</span>
+              <span>{(metrics.totalExWeight || 0).toFixed(3)} g</span>
             </div>
           }
           trend={weightTrend}
