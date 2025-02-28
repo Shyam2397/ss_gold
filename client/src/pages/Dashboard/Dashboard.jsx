@@ -119,8 +119,8 @@ function Dashboard() {
         setMetrics({
           totalCustomers: entriesData.length,
           totalTokens: processedTokens.length,
-          skinTestCount: processedTokens.filter(token => token.test === 'Skin Testing').length,
-          photoTestCount: processedTokens.filter(token => token.test === 'Photo Testing').length,
+          skinTestCount: processedTokens.filter(token => token.test?.toLowerCase() === 'skin testing' || token.test?.toLowerCase() === 'skin test').length,
+          photoTestCount: processedTokens.filter(token => token.test?.toLowerCase() === 'photo testing' || token.test?.toLowerCase() === 'photo test').length,
           totalExchanges: filteredExchanges.length,
           totalWeight: filteredExchanges.reduce((sum, exchange) => 
             sum + parseFloat(exchange.weight || '0'), 0),
@@ -394,7 +394,7 @@ const previousRevenue = tokens
   .reduce((sum, token) => sum + (token.totalAmount || 0), 0);
 
 const revenueGrowth = previousRevenue ? 
-  ((currentRevenue - previousRevenue) / previousRevenue) * 100 : 0;
+  ((currentRevenue - previousRevenue) / previousRevenue * 100).toFixed(2) : 0;
 
 // Expenses trend calculation
 const currentExpenses = expenses
@@ -412,19 +412,19 @@ const previousExpenses = expenses
   .reduce((sum, expense) => sum + expense.amount, 0);
 
 const expensesGrowth = previousExpenses ? 
-  ((currentExpenses - previousExpenses) / previousExpenses) * 100 : 0;
+  ((currentExpenses - previousExpenses) / previousExpenses * 100).toFixed(2) : 0;
 
 // Net Profit trend calculation
 const currentProfit = currentRevenue - currentExpenses;
 const previousProfit = previousRevenue - previousExpenses;
 const profitGrowth = previousProfit ? 
-  ((currentProfit - previousProfit) / previousProfit) * 100 : 0;
+  ((currentProfit - previousProfit) / previousProfit * 100).toFixed(2) : 0;
 
 // Profit Margin trend calculation
 const currentMargin = currentRevenue ? (currentProfit / currentRevenue) * 100 : 0;
 const previousMargin = previousRevenue ? (previousProfit / previousRevenue) * 100 : 0;
 const marginGrowth = previousMargin ? 
-  ((currentMargin - previousMargin) / previousMargin) * 100 : 0;
+  ((currentMargin - previousMargin) / previousMargin * 100).toFixed(2) : 0;
 
 // Customer trends
 const currentCustomers = entries.filter(entry => {
@@ -438,7 +438,7 @@ const previousCustomers = entries.filter(entry => {
 }).length;
 
 const customersTrend = previousCustomers ? 
-  ((currentCustomers - previousCustomers) / previousCustomers) * 100 : 0;
+  ((currentCustomers - previousCustomers) / previousCustomers * 100).toFixed(2) : 0;
 
 // Token trends
 const currentTokens = tokens.filter(token => {
@@ -466,7 +466,7 @@ const previousExchanges = exchanges.filter(exchange => {
 }).length;
 
 const exchangesTrend = previousExchanges ? 
-  ((currentExchanges - previousExchanges) / previousExchanges) * 100 : 0;
+  ((currentExchanges - previousExchanges) / previousExchanges * 100).toFixed(2) : 0;
 
 // Weight trends
 const currentWeight = exchanges
@@ -484,7 +484,7 @@ const previousWeight = exchanges
   .reduce((sum, exchange) => sum + parseFloat(exchange.weight || '0'), 0);
 
 const weightTrend = previousWeight ? 
-  ((currentWeight - previousWeight) / previousWeight) * 100 : 0;
+  ((currentWeight - previousWeight) / previousWeight * 100).toFixed(2) : 0;
 
 if (loading) {
     return (
@@ -577,19 +577,17 @@ if (loading) {
           title="Token" 
           value={
             <div className="flex flex-col space-y-1">
-              <div className="text-lg font-semibold text-yellow-900">
+              <div className="text-lg font-bold text-yellow-900">
                 Total : {metrics.totalTokens}
               </div>
-              <div className="flex flex-col items-center text-sm">
+              <div className="flex flex-row items-center text-sm">
                 <div className="flex items-center">
                   <div className="h-2 w-2 rounded-full bg-yellow-400 mr-1"></div>
-                  <span className="text-yellow-600">Skin :</span>
-                  <span className="ml-1 font-medium">{metrics.skinTestCount}</span>
+                  <span className="ml-1 font-semibold">{metrics.skinTestCount}</span>
                 </div>
-                <div className="flex items-center">
+                <div className="flex items-center ml-5">
                   <div className="h-2 w-2 rounded-full bg-yellow-400 mr-1"></div>
-                  <span className="text-yellow-600">Photo:</span>
-                  <span className="ml-1 font-medium">{metrics.photoTestCount}</span>
+                  <span className="ml-1 font-semibold">{metrics.photoTestCount}</span>
                 </div>
               </div>
             </div>
@@ -616,9 +614,9 @@ if (loading) {
         <DashboardCard 
           title="Pure Exchange" 
           value={
-            <div className="flex flex-col text-sm">
+            <div className="flex flex-row justify-between w-full text-xl">
               <span>{(metrics.totalWeight || 0).toFixed(3)} g</span>
-              <span>{(metrics.totalExWeight || 0).toFixed(3)} g</span>
+              <span className='ml-3'>{(metrics.totalExWeight || 0).toFixed(3)} g</span>
             </div>
           }
           trend={weightTrend}

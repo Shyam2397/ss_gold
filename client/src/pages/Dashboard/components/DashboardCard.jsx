@@ -54,7 +54,7 @@ const DashboardCard = ({ title, value, trend, icon: Icon, description, sparkline
 
         {/* Card Content */}
         <div className="space-y-1 sm:space-y-2">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between w-full">
             <div className={`text-xl sm:text-2xl font-bold ${valueClassName}`}>{value}</div>
             {sparklineData && <TrendSparkline data={sparklineData} color={trendColor} />}
           </div>
