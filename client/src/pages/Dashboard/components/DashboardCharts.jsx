@@ -53,7 +53,7 @@ const DashboardCharts = ({ tokens = [], expenses = [], entries = [], exchanges =
       const today = new Date();
       let startDate = new Date();
       
-      // Set time range
+      // Updated time ranges
       switch (period) {
         case 'yearly':
           startDate.setFullYear(today.getFullYear() - 5);
@@ -62,7 +62,8 @@ const DashboardCharts = ({ tokens = [], expenses = [], entries = [], exchanges =
           startDate.setFullYear(today.getFullYear() - 1);
           break;
         case 'weekly':
-          startDate.setMonth(today.getMonth() - 3);
+          startDate.setMonth(today.getMonth() - 7); // Changed from 3 to 7 months
+          startDate.setDate(startDate.getDate() - startDate.getDay()); // Align to week start
           break;
         default:
           startDate.setDate(today.getDate() - 30);
@@ -73,8 +74,21 @@ const DashboardCharts = ({ tokens = [], expenses = [], entries = [], exchanges =
       const expenseMap = new Map();
       const exchangeMap = new Map();
 
+      // Improved weekly key generation for better aggregation
+      const getWeekKey = (date) => {
+        const d = new Date(date);
+        d.setHours(0, 0, 0, 0);
+        d.setDate(d.getDate() - d.getDay()); // Set to start of week (Sunday)
+        return d.toISOString().split('T')[0];
+      };
+
+      // Process tokens with improved weekly handling
       tokens.forEach(token => {
-        const key = getDateKey(token.date, period);
+        const date = new Date(token.date);
+        const key = period === 'weekly' ? 
+          getWeekKey(date) : 
+          getDateKey(token.date, period);
+
         if (!tokenMap.has(key)) {
           tokenMap.set(key, { amount: 0, count: 0 });
         }
@@ -83,16 +97,26 @@ const DashboardCharts = ({ tokens = [], expenses = [], entries = [], exchanges =
         data.count++;
       });
 
+      // Process expenses with improved weekly handling
       expenses.forEach(expense => {
-        const key = getDateKey(expense.date, period);
+        const date = new Date(expense.date);
+        const key = period === 'weekly' ? 
+          getWeekKey(date) : 
+          getDateKey(expense.date, period);
+
         if (!expenseMap.has(key)) {
           expenseMap.set(key, 0);
         }
         expenseMap.set(key, expenseMap.get(key) + (parseFloat(expense.amount) || 0));
       });
 
+      // Process exchanges with improved weekly handling
       exchanges.forEach(exchange => {
-        const key = getDateKey(exchange.date.split('-').reverse().join('-'), period);
+        const date = new Date(exchange.date.split('-').reverse().join('-'));
+        const key = period === 'weekly' ? 
+          getWeekKey(date) : 
+          getDateKey(date, period);
+
         if (!exchangeMap.has(key)) {
           exchangeMap.set(key, { count: 0, weight: 0 });
         }
@@ -101,25 +125,23 @@ const DashboardCharts = ({ tokens = [], expenses = [], entries = [], exchanges =
         data.weight += parseFloat(exchange.weight) || 0;
       });
 
-      // Generate data points
+      // Generate weekly data points
       const dataPoints = new Map();
-      for (let d = new Date(startDate); d <= today; d.setDate(d.getDate() + 1)) {
-        const key = getDateKey(d, period);
+      for (let d = new Date(startDate); d <= today; d.setDate(d.getDate() + (period === 'weekly' ? 7 : 1))) {
+        const key = period === 'weekly' ? getWeekKey(d) : getDateKey(d, period);
         const tokenData = tokenMap.get(key) || { amount: 0, count: 0 };
         const expenseAmount = expenseMap.get(key) || 0;
         const exchangeData = exchangeMap.get(key) || { count: 0, weight: 0 };
 
-        if (!dataPoints.has(key)) {
-          dataPoints.set(key, {
-            date: key,
-            revenue: tokenData.amount,
-            expenses: expenseAmount,
-            profit: tokenData.amount - expenseAmount,
-            tokens: tokenData.count,
-            exchanges: exchangeData.count,
-            weight: exchangeData.weight
-          });
-        }
+        dataPoints.set(key, {
+          date: key,
+          revenue: tokenData.amount,
+          expenses: expenseAmount,
+          profit: tokenData.amount - expenseAmount,
+          tokens: tokenData.count,
+          exchanges: exchangeData.count,
+          weight: exchangeData.weight
+        });
       }
 
       return Array.from(dataPoints.values()).sort((a, b) => a.date.localeCompare(b.date));
@@ -140,7 +162,10 @@ const DashboardCharts = ({ tokens = [], expenses = [], entries = [], exchanges =
         case 'monthly':
           return d.toLocaleString('default', { month: 'short', year: 'numeric' });
         case 'weekly':
-          return `W${Math.ceil(d.getDate() / 7)} ${d.toLocaleString('default', { month: 'short' })}`;
+          // Improved weekly date formatting
+          const weekEnd = new Date(d);
+          weekEnd.setDate(d.getDate() + 6);
+          return `${d.toLocaleString('default', { month: 'short', day: 'numeric' })} - ${weekEnd.getDate()}`;
         default:
           return d.toLocaleString('default', { month: 'short', day: 'numeric' });
       }
