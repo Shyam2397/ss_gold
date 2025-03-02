@@ -72,7 +72,6 @@ function Dashboard() {
   useEffect(() => {
     if (exchanges.length > 0) {
       const filteredExchanges = getFilteredExchanges(exchanges);
-      console.log('Date Range Changed - Filtered Exchanges:', filteredExchanges);
       
       setMetrics(prev => ({
         ...prev,
@@ -98,10 +97,6 @@ function Dashboard() {
         const tokenData = tokensRes.data;
         const entriesData = entriesRes.data;
         const exchangesData = exchangesRes.data.data || [];
-
-        console.log('Raw Token Data:', tokenData);
-        console.log('Raw Entries Data:', entriesData);
-        console.log('Raw Exchanges Data:', exchangesData);
         
         // Process tokens and calculate metrics
         const processedTokens = tokenData.map(token => {
@@ -295,36 +290,49 @@ function Dashboard() {
         // Calculate today's total
         const calculateTodayTotal = (tokenData, expenseData) => {
           const today = new Date();
-          today.setHours(0, 0, 0, 0); // Set to start of day
-
+          today.setHours(0, 0, 0, 0);
+        
+          // Format token date from ISO to DD-MM-YYYY for comparison
+          const formatTokenDate = (isoDate) => {
+            const date = new Date(isoDate);
+            return date.toLocaleDateString('en-GB', {
+              day: '2-digit',
+              month: '2-digit',
+              year: 'numeric'
+            });
+          };
+        
           // Calculate today's revenue from tokens
           const todayTokens = tokenData.filter(token => {
-            // Handle DD-MM-YYYY format by splitting and reversing
-            const [day, month, year] = (token.date || '').split('-');
-            if (!day || !month || !year) return false;
-            const tokenDate = new Date(year, month - 1, day);
-            tokenDate.setHours(0, 0, 0, 0);
-            return tokenDate.getTime() === today.getTime();
+            if (!token.date) return false;
+            const tokenDateFormatted = formatTokenDate(token.date);
+            const todayFormatted = today.toLocaleDateString('en-GB', {
+              day: '2-digit',
+              month: '2-digit',
+              year: 'numeric'
+            });
+            
+            return tokenDateFormatted === todayFormatted;
           });
-          
+        
           const todayRevenue = todayTokens.reduce((sum, token) => {
-            return sum + parseFloat(token.amount || 0);
+            return sum + (parseFloat(token.amount) || 0);
           }, 0);
-
+        
           // Calculate today's expenses
           const todayExpenses = expenseData.filter(expense => {
             const expenseDate = new Date(expense.date);
             expenseDate.setHours(0, 0, 0, 0);
             return expenseDate.getTime() === today.getTime();
           });
-
+        
           const todayExpenseTotal = todayExpenses.reduce((sum, expense) => {
-            return sum + parseFloat(expense.amount || 0);
+            return sum + (parseFloat(expense.amount) || 0);
           }, 0);
-
-          // Calculate net total (revenue - expenses)
+        
+          // Calculate net total
           const netTotal = todayRevenue - todayExpenseTotal;
-          
+        
           // Format amounts with Indian currency format
           const formatAmount = (amount) => new Intl.NumberFormat('en-IN', {
             style: 'currency',
@@ -332,7 +340,7 @@ function Dashboard() {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2
           }).format(amount);
-
+        
           setTodayTotal({
             revenue: todayRevenue,
             expenses: todayExpenseTotal,
@@ -342,7 +350,7 @@ function Dashboard() {
             formattedNetTotal: formatAmount(netTotal)
           });
         };
-
+        
         calculateTodayTotal(tokenData, expensesRes.data);
         
         setLoading(false);
