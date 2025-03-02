@@ -1,77 +1,17 @@
 import React, { useState } from 'react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import TimeSelector from './TimeSelector';
+import { aggregateData, formatDateLabel, formatTooltipLabel } from '../utils/dataAggregator';
 
 const DashboardCharts = ({ sparklineData }) => {
   const [period, setPeriod] = useState('daily');
-
-  const aggregateData = (data, period) => {
-    if (!data || !data.length) return [];
-
-    switch (period) {
-      case 'weekly':
-        return data.reduce((acc, curr) => {
-          const date = new Date(curr.date);
-          const weekStart = new Date(date.setDate(date.getDate() - date.getDay()));
-          const weekKey = weekStart.toISOString().split('T')[0];
-          const existingWeek = acc.find(item => item.date === weekKey);
-          
-          if (existingWeek) {
-            existingWeek.value += curr.value;
-          } else {
-            acc.push({ date: weekKey, value: curr.value });
-          }
-          return acc;
-        }, []);
-
-      case 'monthly':
-        return data.reduce((acc, curr) => {
-          const date = new Date(curr.date);
-          const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-          const existingMonth = acc.find(item => item.date === monthKey);
-          
-          if (existingMonth) {
-            existingMonth.value += curr.value;
-          } else {
-            acc.push({ date: monthKey, value: curr.value });
-          }
-          return acc;
-        }, []);
-
-      case 'yearly':
-        return data.reduce((acc, curr) => {
-          const date = new Date(curr.date);
-          const yearKey = date.getFullYear().toString();
-          const existingYear = acc.find(item => item.date === yearKey);
-          
-          if (existingYear) {
-            existingYear.value += curr.value;
-          } else {
-            acc.push({ date: yearKey, value: curr.value });
-          }
-          return acc;
-        }, []);
-
-      default: // daily
-        return data;
-    }
-  };
 
   return (
     <div className="grid grid-cols-1 gap-6 mt-6">
       <div className="bg-white p-4 rounded-lg shadow-sm">
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-lg font-semibold text-yellow-900">Statistics</h3>
-          <div className="flex space-x-2">
-            {['daily', 'weekly', 'monthly', 'yearly'].map((p) => (
-              <button
-                key={p}
-                onClick={() => setPeriod(p)}
-                className={`px-3 py-1 rounded-md text-sm ${period === p ? 'bg-yellow-100 text-yellow-900' : 'text-gray-600 hover:bg-gray-100'}`}
-              >
-                {p.charAt(0).toUpperCase() + p.slice(1)}
-              </button>
-            ))}
-          </div>
+          <TimeSelector period={period} setPeriod={setPeriod} />
         </div>
         <div className="h-[400px]">
           <ResponsiveContainer>
@@ -94,18 +34,7 @@ const DashboardCharts = ({ sparklineData }) => {
                 dataKey="date" 
                 axisLine={false} 
                 tickLine={false}
-                tickFormatter={(value) => {
-                  switch (period) {
-                    case 'weekly':
-                      return new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                    case 'monthly':
-                      return value.split('-')[1] + '/' + value.split('-')[0];
-                    case 'yearly':
-                      return value;
-                    default:
-                      return new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                  }
-                }}
+                tickFormatter={(value) => formatDateLabel(value, period)}
               />
               <YAxis axisLine={false} tickLine={false} />
               <Tooltip
@@ -115,18 +44,7 @@ const DashboardCharts = ({ sparklineData }) => {
                   borderRadius: '8px',
                   boxShadow: '0 2px 10px rgba(0,0,0,0.1)'
                 }}
-                labelFormatter={(value) => {
-                  switch (period) {
-                    case 'weekly':
-                      return `Week of ${new Date(value).toLocaleDateString()}`;
-                    case 'monthly':
-                      return `${new Date(value + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`;
-                    case 'yearly':
-                      return `Year ${value}`;
-                    default:
-                      return new Date(value).toLocaleDateString();
-                  }
-                }}
+                labelFormatter={(value) => formatTooltipLabel(value, period)}
               />
               <Area
                 type="monotone"
