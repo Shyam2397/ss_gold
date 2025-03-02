@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import TimeSelector from './TimeSelector';
 
@@ -18,9 +18,36 @@ const CHART_SERIES = [
   ['exchanges', 'Exchanges', CHART_COLORS.exchanges, 'right']
 ];
 
+// Create a date cache for better performance
+const dateCache = new Map();
+const getDateKey = (date, format) => {
+  const key = `${date}-${format}`;
+  if (!dateCache.has(key)) {
+    const d = new Date(date);
+    let formatted;
+    switch (format) {
+      case 'yearly':
+        formatted = d.getFullYear().toString();
+        break;
+      case 'monthly':
+        formatted = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        break;
+      case 'weekly':
+        const week = new Date(d);
+        week.setDate(d.getDate() - d.getDay());
+        formatted = week.toISOString().split('T')[0];
+        break;
+      default:
+        formatted = d.toISOString().split('T')[0];
+    }
+    dateCache.set(key, formatted);
+  }
+  return dateCache.get(key);
+};
+
 const DashboardCharts = ({ tokens = [], expenses = [], entries = [], exchanges = [] }) => {
   const [period, setPeriod] = useState('daily');
-  
+
   const chartData = useMemo(() => {
     try {
       const today = new Date();
@@ -29,73 +56,98 @@ const DashboardCharts = ({ tokens = [], expenses = [], entries = [], exchanges =
       // Set time range
       switch (period) {
         case 'yearly':
-          startDate.setFullYear(today.getFullYear() - 1);
+          startDate.setFullYear(today.getFullYear() - 5);
           break;
         case 'monthly':
-          startDate.setMonth(today.getMonth() - 11);
+          startDate.setFullYear(today.getFullYear() - 1);
           break;
         case 'weekly':
-          startDate.setDate(today.getDate() - 7);
+          startDate.setMonth(today.getMonth() - 3);
           break;
         default:
           startDate.setDate(today.getDate() - 30);
       }
 
-      // Generate data points
-      return Array.from(
-        { length: Math.ceil((today - startDate) / (24 * 60 * 60 * 1000)) + 1 },
-        (_, index) => {
-          const currentDate = new Date(startDate);
-          currentDate.setDate(startDate.getDate() + index);
-          const dateStr = currentDate.toISOString().split('T')[0];
+      // Pre-process data into maps for faster lookups
+      const tokenMap = new Map();
+      const expenseMap = new Map();
+      const exchangeMap = new Map();
 
-          // Get day's data
-          const dayTokens = tokens.filter(token => 
-            new Date(token.date).toISOString().split('T')[0] === dateStr);
-          const dayExpenses = expenses.filter(expense => 
-            new Date(expense.date).toISOString().split('T')[0] === dateStr);
-          const dayExchanges = exchanges.filter(exchange => 
-            new Date(exchange.date.split('-').reverse().join('-')).toISOString().split('T')[0] === dateStr);
-
-          // Calculate metrics
-          const revenue = dayTokens.reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
-          const expenseTotal = dayExpenses.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
-          
-          return {
-            date: dateStr,
-            revenue,
-            expenses: expenseTotal,
-            profit: revenue - expenseTotal,
-            tokens: dayTokens.length,
-            exchanges: dayExchanges.length,
-            weight: dayExchanges.reduce((sum, ex) => sum + (parseFloat(ex.weight) || 0), 0)
-          };
+      tokens.forEach(token => {
+        const key = getDateKey(token.date, period);
+        if (!tokenMap.has(key)) {
+          tokenMap.set(key, { amount: 0, count: 0 });
         }
-      );
+        const data = tokenMap.get(key);
+        data.amount += parseFloat(token.amount) || 0;
+        data.count++;
+      });
+
+      expenses.forEach(expense => {
+        const key = getDateKey(expense.date, period);
+        if (!expenseMap.has(key)) {
+          expenseMap.set(key, 0);
+        }
+        expenseMap.set(key, expenseMap.get(key) + (parseFloat(expense.amount) || 0));
+      });
+
+      exchanges.forEach(exchange => {
+        const key = getDateKey(exchange.date.split('-').reverse().join('-'), period);
+        if (!exchangeMap.has(key)) {
+          exchangeMap.set(key, { count: 0, weight: 0 });
+        }
+        const data = exchangeMap.get(key);
+        data.count++;
+        data.weight += parseFloat(exchange.weight) || 0;
+      });
+
+      // Generate data points
+      const dataPoints = new Map();
+      for (let d = new Date(startDate); d <= today; d.setDate(d.getDate() + 1)) {
+        const key = getDateKey(d, period);
+        const tokenData = tokenMap.get(key) || { amount: 0, count: 0 };
+        const expenseAmount = expenseMap.get(key) || 0;
+        const exchangeData = exchangeMap.get(key) || { count: 0, weight: 0 };
+
+        if (!dataPoints.has(key)) {
+          dataPoints.set(key, {
+            date: key,
+            revenue: tokenData.amount,
+            expenses: expenseAmount,
+            profit: tokenData.amount - expenseAmount,
+            tokens: tokenData.count,
+            exchanges: exchangeData.count,
+            weight: exchangeData.weight
+          });
+        }
+      }
+
+      return Array.from(dataPoints.values()).sort((a, b) => a.date.localeCompare(b.date));
     } catch (error) {
       console.error('Error processing chart data:', error);
       return [];
     }
   }, [tokens, expenses, exchanges, period]);
 
-  const formatDate = (date) => {
+  const formatDate = useCallback((date) => {
     try {
       const d = new Date(date);
-      if (isNaN(d.getTime())) throw new Error('Invalid date');
+      if (isNaN(d.getTime())) return date;
       
       switch (period) {
         case 'yearly':
-          return d.getFullYear();
+          return d.getFullYear().toString();
         case 'monthly':
           return d.toLocaleString('default', { month: 'short', year: 'numeric' });
+        case 'weekly':
+          return `W${Math.ceil(d.getDate() / 7)} ${d.toLocaleString('default', { month: 'short' })}`;
         default:
           return d.toLocaleString('default', { month: 'short', day: 'numeric' });
       }
-    } catch (error) {
-      console.error('Error formatting date:', error);
+    } catch {
       return date;
     }
-  };
+  }, [period]);
 
   return (
     <div className="grid grid-cols-1 gap-6 mt-6">
@@ -169,6 +221,6 @@ const DashboardCharts = ({ tokens = [], expenses = [], entries = [], exchanges =
   );
 };
 
-export default DashboardCharts;
+export default React.memo(DashboardCharts);
 
 
