@@ -48,11 +48,10 @@ function Dashboard() {
     revenue: [],
     expenses: [],
     profit: [],
-    margin: [],
     customers: [],
     skinTests: [],
     photoTests: [],
-    weights: []
+    weights: []  // Removed margin from here
   });
 
   // Function to filter exchanges by date range
@@ -214,14 +213,12 @@ function Dashboard() {
 
         // Update sparkline data with proper calculations
         setSparklineData({
-          revenue: last7Days.map(date => {
-            const dayTokens = processedTokens.filter(token => 
-              new Date(token.date).toLocaleDateString() === date);
-            return {
-              value: dayTokens.reduce((sum, token) => sum + (token.totalAmount || 0), 0),
-              date
-            };
-          }),
+          revenue: last7Days.map(date => ({
+            value: processedTokens
+              .filter(token => new Date(token.date).toLocaleDateString() === date)
+              .reduce((sum, token) => sum + (token.totalAmount || 0), 0),
+            date
+          })),
           expenses: last7Days.map(date => {
             const dayExpenses = expensesRes.data.filter(expense => 
               new Date(expense.date).toLocaleDateString() === date);
@@ -239,19 +236,6 @@ function Dashboard() {
               .reduce((sum, expense) => sum + expense.amount, 0);
             return {
               value: dayRevenue - dayExpenses,
-              date
-            };
-          }),
-          margin: last7Days.map(date => {
-            const dayRevenue = processedTokens
-              .filter(token => new Date(token.date).toLocaleDateString() === date)
-              .reduce((sum, token) => sum + (token.totalAmount || 0), 0);
-            const dayExpenses = expensesRes.data
-              .filter(expense => new Date(expense.date).toLocaleDateString() === date)
-              .reduce((sum, expense) => sum + expense.amount, 0);
-            const dayProfit = dayRevenue - dayExpenses;
-            return {
-              value: dayRevenue ? (dayProfit / dayRevenue) * 100 : 0,
               date
             };
           }),
@@ -565,7 +549,6 @@ if (loading) {
           trend={marginGrowth}
           icon={UserGroupIcon}
           description="Current profit margin"
-          sparklineData={sparklineData.margin}
           className="bg-white"
           iconClassName="text-yellow-600"
           valueClassName="text-yellow-900"
@@ -638,7 +621,12 @@ if (loading) {
       </div>
 
       {/* Charts */}
-      <DashboardCharts sparklineData={sparklineData} />
+      <DashboardCharts 
+        tokens={tokens} 
+        expenses={expenses} 
+        entries={entries} 
+        exchanges={exchanges}
+      />
 
       {/* Recent Activity */}
       <div className="bg-white p-4 sm:p-6 rounded-lg shadow-sm">
