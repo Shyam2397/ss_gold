@@ -59,32 +59,57 @@ const useDashboardData = () => {
       ]);
 
       const tokenData = tokensRes.data;
+      console.log('Raw token data:', tokenData);
       const entriesData = entriesRes.data;
       const exchangesData = exchangesRes.data.data || [];
-      const processedTokens = tokenData.map(token => ({
-        ...token,
-        totalAmount: parseFloat(token.amount || '0'),
-        weight: parseFloat(token.weight || '0')
-      }));
+      const processedTokens = tokenData.map(token => {
+        const processed = {
+          ...token,
+          totalAmount: parseFloat(token.amount || '0'),
+          weight: parseFloat(token.weight || '0')
+        };
+        console.log('Processed token:', processed);
+        return processed;
+      });
 
       setTokens(processedTokens);
       setEntries(entriesData);
       setExpenses(expensesRes.data);
       setExchanges(exchangesData);
 
-      const filteredExchanges = getFilteredExchanges(exchangesData);
-      setMetrics({
-        totalCustomers: entriesData.length,
-        totalTokens: processedTokens.length,
-        skinTestCount: processedTokens.filter(token => token.test?.toLowerCase().includes('skin')).length,
-        photoTestCount: processedTokens.filter(token => token.test?.toLowerCase().includes('photo')).length,
-        totalExchanges: filteredExchanges.length,
-        totalWeight: filteredExchanges.reduce((sum, exchange) => sum + parseFloat(exchange.weight || '0'), 0),
-        totalExWeight: filteredExchanges.reduce((sum, exchange) => sum + parseFloat(exchange.exWeight || '0'), 0)
+      // Calculate today's totals
+      const today = new Date().toISOString();
+      console.log('Today\'s date:', today);
+      const todayTokens = processedTokens.filter(token => {
+        if (!token.date) return false;
+        const tokenDate = new Date(token.date);
+        const todayDate = new Date(today);
+        return tokenDate.getFullYear() === todayDate.getFullYear() &&
+               tokenDate.getMonth() === todayDate.getMonth() &&
+               tokenDate.getDate() === todayDate.getDate();
+      });
+      console.log('Today\'s tokens:', todayTokens);
+      const todayExpenses = expensesRes.data.filter(expense => {
+        if (!expense.date) return false;
+        const expenseDate = new Date(expense.date.split('-').reverse().join('-'));
+        const todayDate = new Date(today);
+        return expenseDate.getFullYear() === todayDate.getFullYear() &&
+               expenseDate.getMonth() === todayDate.getMonth() &&
+               expenseDate.getDate() === todayDate.getDate();
       });
 
-      // Add sparkline data and todayTotal calculations here (omitted for brevity, move from original)
-      // ... [Your sparklineData and calculateTodayTotal logic here] ...
+      const todayRevenue = todayTokens.reduce((sum, token) => sum + (token.totalAmount || 0), 0);
+      const todayExpensesTotal = todayExpenses.reduce((sum, expense) => sum + (parseFloat(expense.amount) || 0), 0);
+      const todayNetTotal = todayRevenue - todayExpensesTotal;
+
+      setTodayTotal({
+        revenue: todayRevenue,
+        expenses: todayExpensesTotal,
+        netTotal: todayNetTotal,
+        formattedRevenue: `₹${todayRevenue.toFixed(2)}`,
+        formattedExpenses: `₹${todayExpensesTotal.toFixed(2)}`,
+        formattedNetTotal: `₹${todayNetTotal.toFixed(2)}`
+      });
 
       setLoading(false);
     } catch (err) {
