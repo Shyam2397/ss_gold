@@ -42,9 +42,9 @@ const useDashboardData = () => {
       const filteredExchanges = getFilteredExchanges(exchanges);
       setMetrics(prev => ({
         ...prev,
-        totalExchanges: filteredExchanges.length,
+        totalExchanges: exchanges.length,
         totalWeight: filteredExchanges.reduce((sum, exchange) => sum + parseFloat(exchange.weight || '0'), 0),
-        totalExWeight: filteredExchanges.reduce((sum, exchange) => sum + parseFloat(exchange.exWeight || '0'), 0)
+        totalExWeight: filteredExchanges.reduce((sum, exchange) => sum + parseFloat(exchange.exweight || '0'), 0)
       }));
     }
   }, [dateRange, exchanges]);
@@ -59,7 +59,6 @@ const useDashboardData = () => {
       ]);
 
       const tokenData = tokensRes.data;
-      console.log('Raw token data:', tokenData);
       const entriesData = entriesRes.data;
       const exchangesData = exchangesRes.data.data || [];
       const processedTokens = tokenData.map(token => {
@@ -68,7 +67,6 @@ const useDashboardData = () => {
           totalAmount: parseFloat(token.amount || '0'),
           weight: parseFloat(token.weight || '0')
         };
-        console.log('Processed token:', processed);
         return processed;
       });
 
@@ -77,9 +75,21 @@ const useDashboardData = () => {
       setExpenses(expensesRes.data);
       setExchanges(exchangesData);
 
+      // Calculate total number of customers and test counts from entries
+      const skinTestCount = processedTokens.filter(token => token.test === "Skin Test").length;
+      const photoTestCount = processedTokens.filter(token => token.test === "Photo Testing").length;
+
+      setMetrics(prev => ({
+        ...prev,
+        totalCustomers: entriesData.length,
+        totalTokens: processedTokens.length,
+        skinTestCount,
+        photoTestCount
+      }));
+
       // Calculate today's totals
       const today = new Date().toISOString();
-      console.log('Today\'s date:', today);
+      
       const todayTokens = processedTokens.filter(token => {
         if (!token.date) return false;
         const tokenDate = new Date(token.date);
@@ -88,7 +98,7 @@ const useDashboardData = () => {
                tokenDate.getMonth() === todayDate.getMonth() &&
                tokenDate.getDate() === todayDate.getDate();
       });
-      console.log('Today\'s tokens:', todayTokens);
+     
       const todayExpenses = expensesRes.data.filter(expense => {
         if (!expense.date) return false;
         const expenseDate = new Date(expense.date.split('-').reverse().join('-'));

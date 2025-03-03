@@ -109,9 +109,9 @@ const MetricsGrid = ({ metrics, tokens, expenses, entries, exchanges, sparklineD
       <DashboardCard 
         title="Pure Exchange" 
         value={
-          <div className="flex flex-row justify-between w-full text-xl">
+          <div className="flex flex-col justify-between w-full text-xl">
             <span>{(metrics.totalWeight || 0).toFixed(3)} g</span>
-            <span className='ml-3'>{(metrics.totalExWeight || 0).toFixed(3)} g</span>
+            <span>{(metrics.totalExWeight || 0).toFixed(3)} g</span>
           </div>
         }
         trend={trends.weightTrend}
