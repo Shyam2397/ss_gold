@@ -27,19 +27,62 @@ const useDashboardData = () => {
     skinTests: [], photoTests: [], weights: []
   });
 
-  const getFilteredExchanges = (exchanges) => {
+  const getFilteredExchanges = (exchanges, period = 'daily') => {
+    if (!exchanges || exchanges.length === 0) return [];
+    
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+    let startDate = new Date(today);
+
+    // Set the start date based on period
+    switch (period) {
+      case 'yearly':
+        startDate = new Date(today.getFullYear(), 0, 1, 0, 0, 0);
+        break;
+      case 'monthly':
+        startDate = new Date(today.getFullYear(), today.getMonth(), 1, 0, 0, 0);
+        break;
+      case 'weekly':
+        // Set start date to beginning of current week (Sunday)
+        startDate.setDate(today.getDate() - today.getDay());
+        startDate.setHours(0, 0, 0, 0);
+        break;
+      default: // daily
+        startDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0);
+    }
+
+    startDate.setHours(0, 0, 0, 0);
+
     return exchanges.filter(exchange => {
-      const exchangeDate = new Date(exchange.date.split('-').reverse().join('-'));
-      const fromDate = new Date(dateRange.fromDate);
-      const toDate = new Date(dateRange.toDate);
-      toDate.setHours(23, 59, 59, 999);
-      return exchangeDate >= fromDate && exchangeDate <= toDate;
+      if (!exchange.date) return false;
+      
+      // Handle both DD-MM-YYYY and YYYY-MM-DD formats
+      let exchangeDate;
+      if (exchange.date.includes('-')) {
+        const parts = exchange.date.split('-');
+        if (parts[0].length === 4) {
+          // YYYY-MM-DD format
+          exchangeDate = new Date(parts[0], parts[1] - 1, parts[2]);
+        } else {
+          // DD-MM-YYYY format
+          exchangeDate = new Date(parts[2], parts[1] - 1, parts[0]);
+        }
+      } else {
+        return false;
+      }
+
+      // Set the time to noon to avoid timezone issues
+      exchangeDate.setHours(12, 0, 0, 0);
+      
+      return exchangeDate >= startDate && exchangeDate <= today;
     });
   };
 
+  const [selectedPeriod, setSelectedPeriod] = useState('daily');
+
   useEffect(() => {
     if (exchanges.length > 0) {
-      const filteredExchanges = getFilteredExchanges(exchanges);
+      const filteredExchanges = getFilteredExchanges(exchanges, selectedPeriod);
       setMetrics(prev => ({
         ...prev,
         totalExchanges: exchanges.length,
@@ -47,7 +90,7 @@ const useDashboardData = () => {
         totalExWeight: filteredExchanges.reduce((sum, exchange) => sum + parseFloat(exchange.exweight || '0'), 0)
       }));
     }
-  }, [dateRange, exchanges]);
+  }, [dateRange, exchanges, selectedPeriod]);
 
   const fetchDashboardData = async () => {
     try {
