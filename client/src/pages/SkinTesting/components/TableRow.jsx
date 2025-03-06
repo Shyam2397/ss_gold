@@ -61,7 +61,7 @@ const TableRow = ({
 
   const getColumns = () => {
     const columnOrder = [
-      'tokenNo',
+      'tokenno', // Changed from 'tokenNo' to 'tokenno'
       'date',
       'time',
       'name',
@@ -109,7 +109,7 @@ const TableRow = ({
   const getColumnWidth = (key) => {
     switch (key.toLowerCase()) {
       case 'tokenno':
-        return 80;
+        return 100; // Increased width for token number
       case 'date':
         return 80;
       case 'time':
@@ -181,6 +181,11 @@ const TableRow = ({
 
   const getCellValue = ({ dataKey, rowData }) => {
     let value = rowData[dataKey];
+    
+    // Special handling for token number
+    if (dataKey === 'tokenno') {
+      return rowData.tokenNo || rowData.tokenno || '-';
+    }
     
     // Return "-" for null, undefined or empty values
     if (value === null || value === undefined || value === '') {
