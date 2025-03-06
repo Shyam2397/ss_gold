@@ -7,8 +7,8 @@ const defaultConfig = {
   password: process.env.DB_PASSWORD || 'postgres',
   port: parseInt(process.env.DB_PORT || '5432'),
   max: parseInt(process.env.DB_MAX_CONNECTIONS || '20'),
-  idleTimeoutMillis: parseInt(process.env.DB_IDLE_TIMEOUT || '30000'),
-  connectionTimeoutMillis: parseInt(process.env.DB_CONNECTION_TIMEOUT || '2000'),
+  idleTimeoutMillis: parseInt(process.env.DB_IDLE_TIMEOUT || '60000'),
+  connectionTimeoutMillis: parseInt(process.env.DB_CONNECTION_TIMEOUT || '10000'),
   ssl: process.env.DB_SSL === 'true' ? {
     rejectUnauthorized: false
   } : undefined
