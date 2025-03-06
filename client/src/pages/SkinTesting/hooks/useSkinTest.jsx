@@ -164,36 +164,23 @@ export const useSkinTest = () => {
     try {
       setLoading(true);
       if (isEditing) {
-        // Ensure we have the tokenNo
         if (!formData.tokenNo) {
           throw new Error('Token number is required for updating');
         }
 
-        console.log('Updating skin test:', {
-          tokenNo: formData.tokenNo,
-          formData: formData
-        });
-
-        // During edit, ensure we're using the original token number
         const processedData = processFormData({
           ...formData,
-          tokenNo: formData.tokenNo // Ensure tokenNo is preserved
+          tokenNo: formData.tokenNo
         });
 
-        console.log('Processed data for update:', processedData);
-
-        const response = await updateSkinTest(processedData.tokenNo, processedData);
-        console.log('Update successful:', response);
-        
+        await updateSkinTest(processedData.tokenNo, processedData);
         setIsEditing(false);
         await loadSkinTests();
         setFormData(initialFormData);
         setError('');
         setSum(0);
       } else {
-        // For new entries, process the data normally
         const processedData = processFormData(formData);
-        // Check for duplicate token number during creation
         const exists = skinTests.some(test => test.tokenNo === processedData.tokenNo);
         if (exists) {
           setError('Token number already exists');
@@ -206,15 +193,7 @@ export const useSkinTest = () => {
         setSum(0);
       }
     } catch (err) {
-      console.error('Submit error details:', {
-        error: err.message,
-        response: err.response?.data,
-        status: err.response?.status,
-        formData: formData,
-        isEditing: isEditing
-      });
-
-      // Set a more user-friendly error message
+      console.error('Submit error:', err.message);
       const errorMessage = err.message || 'Failed to submit form';
       setError(errorMessage);
     } finally {
@@ -227,39 +206,29 @@ export const useSkinTest = () => {
       setLoading(true);
       setError('');
       
-      // Get tokenNo from either camelCase or lowercase version
       const tokenNo = test.tokenNo || test.tokenno;
       
-      // Ensure we have the tokenNo
       if (!tokenNo) {
-        console.error('Missing token number in test data:', test);
         throw new Error('Token number is required for editing');
       }
       
-      // Format date to YYYY-MM-DD if it exists and isn't already in that format
       let formattedDate = test.date;
       if (formattedDate) {
         const dateParts = formattedDate.split(/[-/]/);
         if (dateParts.length === 3) {
-          // Check if date is in DD-MM-YYYY or DD/MM/YYYY format
           if (dateParts[0].length === 2) {
             formattedDate = `${dateParts[2]}-${dateParts[1].padStart(2, '0')}-${dateParts[0].padStart(2, '0')}`;
           }
-          // If it's already in YYYY-MM-DD format, keep it as is
         }
       }
 
-      // For editing, we'll use the test data directly since it's already complete
       const editData = {
         ...test,
         tokenNo: tokenNo,
-        date: formattedDate || '', // Use the formatted date
+        date: formattedDate || '',
         weight: test.weight ? parseFloat(test.weight).toFixed(3) : '',
       };
 
-      console.log('Edit data prepared:', editData);
-
-      // If we have a code, fetch latest phone number
       if (editData.code) {
         try {
           const phoneNumber = await fetchPhoneNumber(editData.code);
@@ -267,8 +236,7 @@ export const useSkinTest = () => {
             editData.phoneNumber = phoneNumber;
           }
         } catch (phoneErr) {
-          console.error('Failed to fetch phone number during edit:', phoneErr);
-          // Don't block edit if phone number fetch fails
+          console.error('Failed to fetch phone number:', phoneErr);
         }
       }
 
@@ -277,7 +245,7 @@ export const useSkinTest = () => {
       const newSum = calculateSum(editData);
       setSum(newSum);
     } catch (err) {
-      console.error('Error during edit:', err);
+      console.error('Edit error:', err.message);
       setError('Failed to prepare data for editing. Please try again.');
     } finally {
       setLoading(false);

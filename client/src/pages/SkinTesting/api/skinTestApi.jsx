@@ -15,29 +15,16 @@ export const createSkinTest = async (data) => {
 
 export const updateSkinTest = async (tokenNo, data) => {
   try {
-    console.log('Making update request:', {
-      url: `${API_URL}/skin-tests/${tokenNo}`,
-      data: data
-    });
-
     const response = await axios.put(`${API_URL}/skin-tests/${tokenNo}`, data, {
       headers: { 'Content-Type': 'application/json' }
     });
 
-    console.log('Update response:', response.data);
     return response.data;
   } catch (error) {
-    console.error('Update API error:', {
-      status: error.response?.status,
-      data: error.response?.data,
-      message: error.message
-    });
-
     if (error.response?.status === 404) {
       throw new Error('Skin test not found');
     }
 
-    // Throw a more specific error message
     throw new Error(
       error.response?.data?.error || 
       error.response?.data?.message || 
@@ -82,16 +69,10 @@ export const fetchTokenData = async (tokenNo) => {
 };
 
 export const fetchPhoneNumber = async (code) => {
-  if (!code) {
-    console.log('No code provided for phone number lookup');
-    return null;
-  }
+  if (!code) return null;
 
   try {
-    console.log(`Attempting to fetch phone number for code: ${code}`);
     const response = await axios.get(`${API_URL}/entries`, { params: { code } });
-    console.log('Entries response:', response.data);
-
     let phoneNumber = null;
 
     if (typeof response.data === 'object') {
@@ -107,19 +88,9 @@ export const fetchPhoneNumber = async (code) => {
       }
     }
 
-    if (phoneNumber) {
-      console.log('Fetched Phone Number:', phoneNumber);
-      return phoneNumber;
-    }
-    
-    console.log(`No phone number found for code: ${code}`);
-    return null;
+    return phoneNumber || null;
   } catch (err) {
-    console.error('Error fetching phone number:', {
-      message: err.message,
-      response: err.response?.data,
-      status: err.response?.status,
-    });
+    console.error('Error fetching phone number:', err.message);
     return null;
   }
 };
