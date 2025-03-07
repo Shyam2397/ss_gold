@@ -12,6 +12,26 @@ const TableRow = ({
   onDelete,
   onPrint
 }) => {
+  // Update sorting logic
+  const sortedTests = React.useMemo(() => {
+    return [...skinTests].sort((a, b) => {
+      const tokenA = (a.tokenNo || a.tokenno || '').toString();
+      const tokenB = (b.tokenNo || b.tokenno || '').toString();
+      
+      // Extract letter prefix and number
+      const [, letterA = '', numberA = '0'] = tokenA.match(/([A-Z])(\d+)/) || [];
+      const [, letterB = '', numberB = '0'] = tokenB.match(/([A-Z])(\d+)/) || [];
+      
+      // Compare letters first (reverse order for newest first)
+      if (letterA !== letterB) {
+        return letterB.localeCompare(letterA);
+      }
+      
+      // If letters are same, compare numbers (reverse order for newest first)
+      return parseInt(numberB) - parseInt(numberA);
+    });
+  }, [skinTests]);
+
   const handleWhatsAppShare = (rowData) => {
     const messageLines = [
       '*Dear Customer,*',
@@ -230,9 +250,6 @@ const TableRow = ({
       : 'text-center';
   };
 
-  // Create reversed array for display
-  const reversedTests = [...skinTests].reverse();
-
   const getTotalTableWidth = () => {
     // Start with actions column width plus some buffer
     let totalWidth = 100;
@@ -257,8 +274,8 @@ const TableRow = ({
                 height={height}
                 headerHeight={40}
                 rowHeight={48}
-                rowCount={reversedTests.length || 0}
-                rowGetter={({ index }) => reversedTests[index]}
+                rowCount={sortedTests.length || 0}
+                rowGetter={({ index }) => sortedTests[index]}
                 rowClassName={({ index }) => 
                   `${
                     index === -1 
