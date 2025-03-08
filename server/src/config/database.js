@@ -7,8 +7,8 @@ const defaultConfig = {
   password: process.env.DB_PASSWORD || 'postgres',
   port: parseInt(process.env.DB_PORT || '5432'),
   max: parseInt(process.env.DB_MAX_CONNECTIONS || '20'),
-  idleTimeoutMillis: parseInt(process.env.DB_IDLE_TIMEOUT || '60000'),
-  connectionTimeoutMillis: parseInt(process.env.DB_CONNECTION_TIMEOUT || '10000'),
+  idleTimeoutMillis: parseInt(process.env.DB_IDLE_TIMEOUT || '30000'),
+  connectionTimeoutMillis: parseInt(process.env.DB_CONNECTION_TIMEOUT || '5000'),
   ssl: process.env.DB_SSL === 'true' ? {
     rejectUnauthorized: false
   } : undefined
@@ -18,6 +18,14 @@ const pool = new Pool(defaultConfig);
 
 pool.on('error', (err, client) => {
   console.error('Unexpected error on idle client', err);
+});
+
+pool.on('connect', () => {
+  console.log('Database connection established');
+});
+
+pool.on('acquire', () => {
+  console.log('Client acquired from pool');
 });
 
 /**
