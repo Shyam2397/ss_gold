@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { FiSearch, FiEdit2, FiTrash2 } from 'react-icons/fi';
 import { BsQrCode } from 'react-icons/bs';
+import { AutoSizer, Table, Column } from 'react-virtualized';
+import 'react-virtualized/styles.css';
 import LoadingSpinner from './LoadingSpinner';
 
 const CustomerList = ({
@@ -14,6 +16,67 @@ const CustomerList = ({
   // Sort customers alphabetically by name
   const sortedCustomers = [...customers].sort((a, b) => 
     a.name.localeCompare(b.name)
+  );
+
+  const columns = useMemo(() => [
+    { label: "Actions", key: "actions", width: 130, flexGrow: 0, minWidth: 130 },
+    { label: "Code", key: "code", width: 100, flexGrow: 0, minWidth: 80 },
+    { label: "Name", key: "name", width: 200, flexGrow: 1, minWidth: 120 },
+    { label: "Phone", key: "phoneNumber", width: 150, flexGrow: 0, minWidth: 120 },
+    { label: "Place", key: "place", width: 180, flexGrow: 1, minWidth: 100 }
+  ], []);
+
+  const minTableWidth = useMemo(() => 
+    columns.reduce((sum, col) => sum + col.width, 0),
+    [columns]
+  );
+
+  const cellRenderer = ({ rowData, dataKey }) => {
+    if (dataKey === 'actions') {
+      return (
+        <div className="flex items-center justify-center space-x-2 px-2 min-w-[130px]">
+          <button
+            onClick={() => handleEdit(rowData)}
+            className="text-amber-600 hover:text-amber-900 p-1.5 rounded hover:bg-amber-50"
+            title="Edit customer"
+          >
+            <FiEdit2 className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => confirmDelete(rowData.id)}
+            className="text-red-600 hover:text-red-900 p-1.5 rounded hover:bg-red-50"
+            title="Delete customer"
+          >
+            <FiTrash2 className="w-4 h-4" />
+          </button>
+        </div>
+      );
+    }
+
+    const value = rowData[dataKey];
+    const column = columns.find(col => col.key === dataKey);
+    
+    return (
+      <div 
+        className="px-3 py-3 text-sm text-amber-900" 
+        style={{ 
+          minWidth: column?.minWidth,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: dataKey === 'code' ? 'center' : 'flex-start'
+        }}
+      >
+        <span className="truncate">
+          {value || '-'}
+        </span>
+      </div>
+    );
+  };
+
+  const headerRenderer = ({ label }) => (
+    <div className="text-center text-xs font-medium text-white uppercase tracking-wider py-2">
+      {label}
+    </div>
   );
 
   return (
@@ -42,58 +105,42 @@ const CustomerList = ({
       {loading ? (
         <LoadingSpinner />
       ) : (
-        <div className="overflow-hidden rounded-lg border border-amber-100">
-          <div className="overflow-x-auto">
-            <div className="max-h-[450px] overflow-y-auto scrollbar-thin scrollbar-thumb-amber-300 scrollbar-track-amber-50">
-              <table className="min-w-full divide-y divide-amber-50">
-                <thead className="bg-gradient-to-r from-amber-600 to-yellow-500 sticky top-0 z-10">
-                  <tr>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-white uppercase tracking-wider">Code</th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-white uppercase tracking-wider">Name</th>
-                    <th className="hidden sm:table-cell px-3 py-2 text-left text-xs font-medium text-white uppercase tracking-wider">Phone</th>
-                    <th className="hidden md:table-cell px-3 py-2 text-left text-xs font-medium text-white uppercase tracking-wider">Place</th>
-                    <th className="px-3 py-2 text-right text-xs font-medium text-white uppercase tracking-wider">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-amber-50">
-                  {sortedCustomers.length === 0 ? (
-                    <tr>
-                      <td colSpan="5" className="px-3 py-4 text-center text-sm text-amber-900">
-                        No customers found
-                      </td>
-                    </tr>
-                  ) : (
-                    sortedCustomers.map((customer) => (
-                      <tr key={customer.id} className="hover:bg-amber-50/40 transition-colors">
-                        <td className="px-3 py-2 text-sm text-amber-900">{customer.code}</td>
-                        <td className="px-3 py-2 text-sm text-amber-900">{customer.name}</td>
-                        <td className="hidden sm:table-cell px-3 py-2 text-sm text-amber-900">{customer.phoneNumber}</td>
-                        <td className="hidden md:table-cell px-3 py-2 text-sm text-amber-900">{customer.place}</td>
-                        <td className="px-3 py-2 text-right">
-                          <div className="flex items-center justify-end space-x-2">
-                            <button
-                              onClick={() => handleEdit(customer)}
-                              className="p-1 text-amber-600 hover:text-amber-900 hover:bg-amber-50 rounded"
-                              title="Edit customer"
-                            >
-                              <FiEdit2 className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => confirmDelete(customer.id)}
-                              className="p-1 text-amber-600 hover:text-amber-900 hover:bg-amber-50 rounded"
-                              title="Delete customer"
-                            >
-                              <FiTrash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+        <div className="relative overflow-hidden rounded-lg border border-amber-100">
+          <div className="h-[450px]">
+            <AutoSizer>
+              {({ width, height }) => (
+                <Table
+                  width={Math.max(width, minTableWidth)}
+                  height={height}
+                  headerHeight={44}
+                  rowHeight={48}
+                  rowCount={sortedCustomers.length}
+                  rowGetter={({ index }) => sortedCustomers[index]}
+                  rowClassName={({ index }) => 
+                    `${index === -1 ? 'bg-gradient-to-r from-amber-600 to-yellow-500' : 
+                      index % 2 === 0 ? 'bg-white' : 'bg-amber-50/40'} 
+                     ${index !== -1 ? 'hover:bg-amber-100/40' : ''} transition-colors`
+                  }
+                  overscanRowCount={5}
+                >
+                  {columns.map(({ label, key, width, flexGrow }) => (
+                    <Column
+                      key={key}
+                      label={label}
+                      dataKey={key}
+                      width={width}
+                      flexGrow={flexGrow}
+                      cellRenderer={cellRenderer}
+                      headerRenderer={headerRenderer}
+                      className="divide-x divide-amber-100"
+                      style={{ overflow: 'hidden' }}
+                    />
+                  ))}
+                </Table>
+              )}
+            </AutoSizer>
           </div>
+          <div className="absolute bottom-0 left-0 right-0 h-4 bg-gradient-to-t from-white to-transparent pointer-events-none" />
         </div>
       )}
     </div>
