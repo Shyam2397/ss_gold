@@ -105,42 +105,43 @@ const CustomerList = ({
       {loading ? (
         <LoadingSpinner />
       ) : (
-        <div className="relative overflow-hidden rounded-lg border border-amber-100">
-          <div className="h-[450px]">
+        <div className="rounded border border-amber-100" style={{ height: '450px' }}>
+          <div style={{ width: '100%', height: '100%', overflow: 'hidden' }}>
             <AutoSizer>
-              {({ width, height }) => (
-                <Table
-                  width={Math.max(width, minTableWidth)}
-                  height={height}
-                  headerHeight={44}
-                  rowHeight={48}
-                  rowCount={sortedCustomers.length}
-                  rowGetter={({ index }) => sortedCustomers[index]}
-                  rowClassName={({ index }) => 
-                    `${index === -1 ? 'bg-gradient-to-r from-amber-600 to-yellow-500' : 
-                      index % 2 === 0 ? 'bg-white' : 'bg-amber-50/40'} 
-                     ${index !== -1 ? 'hover:bg-amber-100/40' : ''} transition-colors`
-                  }
-                  overscanRowCount={5}
-                >
-                  {columns.map(({ label, key, width, flexGrow }) => (
-                    <Column
-                      key={key}
-                      label={label}
-                      dataKey={key}
-                      width={width}
-                      flexGrow={flexGrow}
-                      cellRenderer={cellRenderer}
-                      headerRenderer={headerRenderer}
-                      className="divide-x divide-amber-100"
-                      style={{ overflow: 'hidden' }}
-                    />
-                  ))}
-                </Table>
+              {({ height, width }) => (
+                <div style={{ height, width, overflowX: 'auto', overflowY: 'hidden' }}>
+                  <Table
+                    width={Math.max(width, minTableWidth)}
+                    height={height}
+                    headerHeight={44}
+                    rowHeight={48}
+                    rowCount={sortedCustomers.length}
+                    rowGetter={({ index }) => sortedCustomers[index]}
+                    rowClassName={({ index }) => 
+                      `${index === -1 ? 'bg-gradient-to-r from-amber-600 to-yellow-500' : 
+                        index % 2 === 0 ? 'bg-white' : 'bg-amber-50/40'} 
+                       ${index !== -1 ? 'hover:bg-amber-100/40' : ''} transition-colors`
+                    }
+                    overscanRowCount={5}
+                  >
+                    {columns.map(({ label, key, width, flexGrow }) => (
+                      <Column
+                        key={key}
+                        label={label}
+                        dataKey={key}
+                        width={width}
+                        flexGrow={flexGrow}
+                        cellRenderer={cellRenderer}
+                        headerRenderer={headerRenderer}
+                        className="divide-x divide-amber-100"
+                        style={{ overflow: 'hidden' }}
+                      />
+                    ))}
+                  </Table>
+                </div>
               )}
             </AutoSizer>
           </div>
-          <div className="absolute bottom-0 left-0 right-0 h-4 bg-gradient-to-t from-white to-transparent pointer-events-none" />
         </div>
       )}
     </div>
