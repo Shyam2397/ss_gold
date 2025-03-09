@@ -1,8 +1,13 @@
-const { pool } = require('../config/database');
+const { pool, ensureConnection } = require('../config/database');
 const { handleDatabaseError } = require('../middleware/errorHandler');
 
 const getAllEntries = async (req, res) => {
+  let client;
   try {
+    // Ensure database connection before proceeding
+    await ensureConnection();
+    
+    client = await pool.connect();
     const { code, phoneNumber } = req.query;
     let query = "SELECT id, code, name, phone_number as \"phoneNumber\", place, created_at, updated_at FROM entries ORDER BY created_at DESC";
     let params = [];
@@ -15,7 +20,7 @@ const getAllEntries = async (req, res) => {
       params = [phoneNumber];
     }
 
-    const result = await pool.query(query, params);
+    const result = await client.query(query, params);
 
     if ((code || phoneNumber) && result.rows.length === 0) {
       return res.status(404).json({
@@ -27,14 +32,23 @@ const getAllEntries = async (req, res) => {
     res.status(200).json(result.rows);
   } catch (err) {
     console.error('Error in getAllEntries:', err);
-    handleDatabaseError(err, res, 'Failed to fetch entries');
+    res.status(503).json({
+      error: 'Database connection error',
+      message: 'Service temporarily unavailable. Please try again later.'
+    });
+  } finally {
+    if (client) {
+      client.release(true); // Force release the client
+    }
   }
 };
 
 const getEntryByCode = async (req, res) => {
+  let client;
   try {
+    client = await pool.connect();
     const { code } = req.params;
-    const result = await pool.query(
+    const result = await client.query(
       "SELECT id, code, name, phone_number as \"phoneNumber\", place, created_at, updated_at FROM entries WHERE code = $1",
       [code]
     );
@@ -52,12 +66,21 @@ const getEntryByCode = async (req, res) => {
     });
   } catch (err) {
     console.error('Error in getEntryByCode:', err);
-    handleDatabaseError(err, res, 'Failed to fetch entry');
+    res.status(500).json({
+      error: 'Database connection error',
+      message: 'Unable to fetch entry. Please try again later.'
+    });
+  } finally {
+    if (client) {
+      client.release();
+    }
   }
 };
 
 const createEntry = async (req, res) => {
+  let client;
   try {
+    client = await pool.connect();
     const { code, name, phoneNumber, place } = req.body;
 
     if (!code || !name || !phoneNumber || !place) {
@@ -75,7 +98,7 @@ const createEntry = async (req, res) => {
       });
     }
 
-    const codeCheck = await pool.query(
+    const codeCheck = await client.query(
       "SELECT * FROM entries WHERE code = $1",
       [code]
     );
@@ -87,7 +110,7 @@ const createEntry = async (req, res) => {
       });
     }
 
-    const phoneCheck = await pool.query(
+    const phoneCheck = await client.query(
       "SELECT * FROM entries WHERE phone_number = $1",
       [phoneNumber]
     );
@@ -99,7 +122,7 @@ const createEntry = async (req, res) => {
       });
     }
 
-    const result = await pool.query(
+    const result = await client.query(
       "INSERT INTO entries (code, name, phone_number, place) VALUES ($1, $2, $3, $4) RETURNING id, code, name, phone_number as \"phoneNumber\", place, created_at, updated_at",
       [code, name, phoneNumber, place]
     );
@@ -111,12 +134,21 @@ const createEntry = async (req, res) => {
     });
   } catch (err) {
     console.error('Error in createEntry:', err);
-    handleDatabaseError(err, res, 'Failed to create entry');
+    res.status(500).json({
+      error: 'Database connection error',
+      message: 'Unable to create entry. Please try again later.'
+    });
+  } finally {
+    if (client) {
+      client.release();
+    }
   }
 };
 
 const updateEntry = async (req, res) => {
+  let client;
   try {
+    client = await pool.connect();
     const { id } = req.params;
     const { code, name, phoneNumber, place } = req.body;
 
@@ -135,7 +167,7 @@ const updateEntry = async (req, res) => {
       });
     }
 
-    const entryCheck = await pool.query(
+    const entryCheck = await client.query(
       "SELECT * FROM entries WHERE id = $1",
       [id]
     );
@@ -147,7 +179,7 @@ const updateEntry = async (req, res) => {
       });
     }
 
-    const codeCheck = await pool.query(
+    const codeCheck = await client.query(
       "SELECT * FROM entries WHERE code = $1 AND id != $2",
       [code, id]
     );
@@ -159,7 +191,7 @@ const updateEntry = async (req, res) => {
       });
     }
 
-    const phoneCheck = await pool.query(
+    const phoneCheck = await client.query(
       "SELECT * FROM entries WHERE phone_number = $1 AND id != $2",
       [phoneNumber, id]
     );
@@ -171,7 +203,7 @@ const updateEntry = async (req, res) => {
       });
     }
 
-    const result = await pool.query(
+    const result = await client.query(
       `UPDATE entries 
        SET code = $1, name = $2, phone_number = $3, place = $4 
        WHERE id = $5 
@@ -186,15 +218,24 @@ const updateEntry = async (req, res) => {
     });
   } catch (err) {
     console.error('Error in updateEntry:', err);
-    handleDatabaseError(err, res, 'Failed to update entry');
+    res.status(500).json({
+      error: 'Database connection error',
+      message: 'Unable to update entry. Please try again later.'
+    });
+  } finally {
+    if (client) {
+      client.release();
+    }
   }
 };
 
 const deleteEntry = async (req, res) => {
+  let client;
   try {
+    client = await pool.connect();
     const { id } = req.params;
 
-    const entryCheck = await pool.query(
+    const entryCheck = await client.query(
       "SELECT * FROM entries WHERE id = $1",
       [id]
     );
@@ -206,7 +247,7 @@ const deleteEntry = async (req, res) => {
       });
     }
 
-    await pool.query("DELETE FROM entries WHERE id = $1", [id]);
+    await client.query("DELETE FROM entries WHERE id = $1", [id]);
 
     res.status(200).json({
       success: true,
@@ -214,7 +255,14 @@ const deleteEntry = async (req, res) => {
     });
   } catch (err) {
     console.error('Error in deleteEntry:', err);
-    handleDatabaseError(err, res, 'Failed to delete entry');
+    res.status(500).json({
+      error: 'Database connection error',
+      message: 'Unable to delete entry. Please try again later.'
+    });
+  } finally {
+    if (client) {
+      client.release();
+    }
   }
 };
 

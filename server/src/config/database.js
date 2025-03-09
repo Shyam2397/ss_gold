@@ -6,59 +6,52 @@ const defaultConfig = {
   database: process.env.DB_NAME || 'gold_testing',
   password: process.env.DB_PASSWORD || 'postgres',
   port: parseInt(process.env.DB_PORT || '5432'),
-  max: parseInt(process.env.DB_MAX_CONNECTIONS || '20'),
-  idleTimeoutMillis: parseInt(process.env.DB_IDLE_TIMEOUT || '30000'),
-  connectionTimeoutMillis: parseInt(process.env.DB_CONNECTION_TIMEOUT || '5000'),
-  ssl: process.env.DB_SSL === 'true' ? {
-    rejectUnauthorized: false
-  } : undefined
+  // Increase connection timeout and add retry settings
+  connectionTimeoutMillis: 30000, // 30 seconds
+  idleTimeoutMillis: 60000, // 1 minute
+  max: 10, // Reduce max connections
+  min: 1, // Minimum connections
+  acquireTimeoutMillis: 30000,
+  createTimeoutMillis: 30000,
+  // Enable automatic reconnection
+  keepAlive: true,
+  keepAliveInitialDelayMillis: 10000
 };
 
 const pool = new Pool(defaultConfig);
 
-pool.on('error', (err, client) => {
+// Connection management
+let isConnected = false;
+const maxRetries = 5;
+const retryInterval = 5000;
+
+async function ensureConnection() {
+  let retries = 0;
+  while (retries < maxRetries) {
+    try {
+      if (!isConnected) {
+        const client = await pool.connect();
+        client.release();
+        isConnected = true;
+        console.log('Database connection established');
+        return true;
+      }
+      return true;
+    } catch (err) {
+      retries++;
+      console.error(`Connection attempt ${retries} failed:`, err.message);
+      await new Promise(resolve => setTimeout(resolve, retryInterval));
+    }
+  }
+  throw new Error('Failed to connect to database after multiple attempts');
+}
+
+pool.on('error', (err) => {
   console.error('Unexpected error on idle client', err);
+  isConnected = false;
 });
-
-pool.on('connect', () => {
-  console.log('Database connection established');
-});
-
-pool.on('acquire', () => {
-  console.log('Client acquired from pool');
-});
-
-/**
- * Get a client from the pool
- * @returns {Promise<PoolClient>}
- */
-const getClient = async () => {
-  const client = await pool.connect();
-  const query = client.query;
-  const release = client.release;
-
-  const timeout = setTimeout(() => {
-    console.error('A client has been checked out for more than 5 seconds!');
-    console.error(`The last executed query on this client was: ${client.lastQuery}`);
-  }, 5000);
-
-  client.query = (...args) => {
-    client.lastQuery = args;
-    return query.apply(client, args);
-  };
-
-  client.release = () => {
-    clearTimeout(timeout);
-    client.query = query;
-    client.release = release;
-    return release.apply(client);
-  };
-
-  return client;
-};
 
 module.exports = {
   pool,
-  getClient,
-  config: defaultConfig
+  ensureConnection
 };
