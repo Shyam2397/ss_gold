@@ -20,7 +20,6 @@ import { GiTestTubes } from 'react-icons/gi';
 
 import FormInput from './components/FormInput';
 import TableRow from './components/TableRow';
-import LoadingSpinner from './components/LoadingSpinner';
 import DeleteConfirmationModal from './components/DeleteConfirmationModal';
 import useSkinTest from './hooks/useSkinTest';
 import { initialFormData } from './constants/initialState';
@@ -254,7 +253,9 @@ const SkinTesting = () => {
         </div>
 
         {loading ? (
-          <LoadingSpinner />
+          <div className="flex items-center justify-center h-48">
+            <p className="text-gray-500">Loading...</p>
+          </div>
         ) : (
           <TableRow
             skinTests={filteredSkinTests}
