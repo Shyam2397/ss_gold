@@ -21,7 +21,7 @@ import { GiTestTubes } from 'react-icons/gi';
 import FormInput from './components/FormInput';
 import TableRow from './components/TableRow';
 import DeleteConfirmationModal from './components/DeleteConfirmationModal';
-import useSkinTest from './hooks/useSkinTest';
+import {useSkinTest} from './hooks/useSkinTest';
 import { initialFormData } from './constants/initialState';
 import { formatDateForInput, formatTimeForInput } from './utils/validation';
 import { printData } from './utils/printUtils';
