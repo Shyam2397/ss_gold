@@ -18,15 +18,20 @@ const routes = {
 
 const SimpleTransition = () => {
     const location = useLocation();
-
+    
     return (
         <motion.div
             className='page-transition'
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            transition={{ duration: 0.2 }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{
+                duration: 0.4,
+                ease: [0.43, 0.13, 0.23, 0.96],
+                staggerChildren: 0.1
+            }}
         >
+            
         </motion.div>
     );
 };
