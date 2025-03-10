@@ -68,29 +68,47 @@ export const fetchTokenData = async (tokenNo) => {
   return await axios.get(`${API_URL}/tokens/${tokenNo}`);
 };
 
-export const fetchPhoneNumber = async (code) => {
+const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+export const fetchPhoneNumber = async (code, retries = 3, backoff = 1000) => {
   if (!code) return null;
 
-  try {
-    const response = await axios.get(`${API_URL}/entries`, { params: { code } });
-    let phoneNumber = null;
+  for (let attempt = 0; attempt < retries; attempt++) {
+    try {
+      const response = await axios.get(`${API_URL}/entries`, { 
+        params: { code },
+        timeout: 5000 // 5 second timeout
+      });
+      
+      let phoneNumber = null;
 
-    if (typeof response.data === 'object') {
-      if (response.data.phoneNumber) {
-        phoneNumber = response.data.phoneNumber;
-      } else if (Array.isArray(response.data)) {
-        const matchingEntry = response.data.find(
-          (entry) => entry.code === code || entry.code.toString() === code.toString()
-        );
-        phoneNumber = matchingEntry?.phoneNumber;
-      } else if (response.data.code && response.data.phoneNumber) {
-        phoneNumber = response.data.phoneNumber;
+      if (typeof response.data === 'object') {
+        if (response.data.phoneNumber) {
+          phoneNumber = response.data.phoneNumber;
+        } else if (Array.isArray(response.data)) {
+          const matchingEntry = response.data.find(
+            (entry) => entry.code === code || entry.code.toString() === code.toString()
+          );
+          phoneNumber = matchingEntry?.phoneNumber;
+        } else if (response.data.code && response.data.phoneNumber) {
+          phoneNumber = response.data.phoneNumber;
+        }
       }
-    }
 
-    return phoneNumber || null;
-  } catch (err) {
-    console.error('Error fetching phone number:', err.message);
-    return null;
+      return phoneNumber || null;
+    } catch (err) {
+      const isRetryable = err.response?.status === 503 || !err.response;
+      const isLastAttempt = attempt === retries - 1;
+
+      if (!isRetryable || isLastAttempt) {
+        console.error('Error fetching phone number:', err.message);
+        return null;
+      }
+
+      // Wait before retrying, with exponential backoff
+      await delay(backoff * Math.pow(2, attempt));
+    }
   }
+
+  return null;
 };
