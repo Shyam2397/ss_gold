@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { FiEdit2, FiTrash2 } from 'react-icons/fi';
 import { FaWhatsapp } from 'react-icons/fa';
 import { AutoSizer, Table, Column } from 'react-virtualized';
@@ -12,23 +12,13 @@ const TableRow = ({
   onDelete,
   onPrint
 }) => {
-  // Update sorting logic
-  const sortedTests = React.useMemo(() => {
+  // Optimize sorting with simpler logic
+  const sortedTests = useMemo(() => {
+    if (!skinTests.length) return [];
     return [...skinTests].sort((a, b) => {
       const tokenA = (a.tokenNo || a.tokenno || '').toString();
       const tokenB = (b.tokenNo || b.tokenno || '').toString();
-      
-      // Extract letter prefix and number
-      const [, letterA = '', numberA = '0'] = tokenA.match(/([A-Z])(\d+)/) || [];
-      const [, letterB = '', numberB = '0'] = tokenB.match(/([A-Z])(\d+)/) || [];
-      
-      // Compare letters first (reverse order for newest first)
-      if (letterA !== letterB) {
-        return letterB.localeCompare(letterA);
-      }
-      
-      // If letters are same, compare numbers (reverse order for newest first)
-      return parseInt(numberB) - parseInt(numberA);
+      return tokenB.localeCompare(tokenA, undefined, { numeric: true });
     });
   }, [skinTests]);
 
@@ -124,7 +114,8 @@ const TableRow = ({
     );
   };
 
-  const columns = getColumns();
+  // Memoize columns configuration
+  const columns = useMemo(() => getColumns(), [skinTests, initialFormData]);
 
   const getColumnWidth = (key) => {
     switch (key.toLowerCase()) {
@@ -250,18 +241,21 @@ const TableRow = ({
       : 'text-center';
   };
 
-  const getTotalTableWidth = () => {
+  const getTotalTableWidth = (cols) => {
     // Start with actions column width plus some buffer
     let totalWidth = 100;
     
     // Add up all column widths with some padding
-    columns.forEach(key => {
+    cols.forEach(key => {
       totalWidth += getColumnWidth(key) + 10; // Added 10px padding between columns
     });
     
     // Add extra buffer for scrollbar and edge cases
     return totalWidth + 50;
   };
+
+  // Memoize total width calculation
+  const totalWidth = useMemo(() => getTotalTableWidth(columns), [columns]);
 
   return (
     <div className="rounded border border-amber-100" style={{ height: '450px' }}>
@@ -270,12 +264,17 @@ const TableRow = ({
           {({ height, width }) => (
             <div style={{ height, width, overflowX: 'auto', overflowY: 'hidden' }}>
               <Table
-                width={getTotalTableWidth()}
+                width={Math.max(width, totalWidth)}
                 height={height}
                 headerHeight={40}
                 rowHeight={48}
                 rowCount={sortedTests.length || 0}
                 rowGetter={({ index }) => sortedTests[index]}
+                overscanRowCount={5} // Add this to improve scroll performance
+                scrollToIndex={0}
+                // Add these props to improve performance
+                estimatedRowSize={48}
+                defaultHeight={450}
                 rowClassName={({ index }) => 
                   `${
                     index === -1 
@@ -329,4 +328,5 @@ const TableRow = ({
   );
 };
 
-export default TableRow;
+// Apply memo after the component definition
+export default React.memo(TableRow);
