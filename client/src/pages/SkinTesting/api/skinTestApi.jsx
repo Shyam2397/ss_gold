@@ -77,7 +77,7 @@ export const fetchPhoneNumber = async (code, retries = 3, backoff = 1000) => {
     try {
       const response = await axios.get(`${API_URL}/entries`, { 
         params: { code },
-        timeout: 5000 // 5 second timeout
+        timeout: 15000 // Increased to 15 seconds
       });
       
       let phoneNumber = null;
@@ -97,15 +97,18 @@ export const fetchPhoneNumber = async (code, retries = 3, backoff = 1000) => {
 
       return phoneNumber || null;
     } catch (err) {
-      const isRetryable = err.response?.status === 503 || !err.response;
+      const isRetryable = 
+        err.code === 'ECONNABORTED' || // Timeout error
+        err.response?.status === 503 || // Service unavailable
+        !err.response; // Network error
       const isLastAttempt = attempt === retries - 1;
 
       if (!isRetryable || isLastAttempt) {
-        console.error('Error fetching phone number:', err.message);
+        console.error(`Error fetching phone number (attempt ${attempt + 1}/${retries}):`, err.message);
         return null;
       }
 
-      // Wait before retrying, with exponential backoff
+      console.warn(`Attempt ${attempt + 1}/${retries} failed, retrying...`);
       await delay(backoff * Math.pow(2, attempt));
     }
   }
