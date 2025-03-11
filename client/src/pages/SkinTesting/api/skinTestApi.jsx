@@ -1,6 +1,8 @@
 import axios from 'axios';
 
 const API_URL = import.meta.env.VITE_API_URL;
+// Add phone number cache
+const phoneNumberCache = new Map();
 
 export const fetchSkinTests = async () => {
   const response = await axios.get(`${API_URL}/skin-tests`);
@@ -70,48 +72,60 @@ export const fetchTokenData = async (tokenNo) => {
 
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
-export const fetchPhoneNumber = async (code, retries = 3, backoff = 1000) => {
+export const fetchPhoneNumber = async (code, retries = 2, backoff = 2000) => {
   if (!code) return null;
+
+  // Check cache first
+  if (phoneNumberCache.has(code)) {
+    return phoneNumberCache.get(code);
+  }
 
   for (let attempt = 0; attempt < retries; attempt++) {
     try {
       const response = await axios.get(`${API_URL}/entries`, { 
         params: { code },
-        timeout: 15000 // Increased to 15 seconds
+        timeout: 5000, // Reduced timeout to 5 seconds
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
       });
       
       let phoneNumber = null;
 
-      if (typeof response.data === 'object') {
-        if (response.data.phoneNumber) {
-          phoneNumber = response.data.phoneNumber;
-        } else if (Array.isArray(response.data)) {
-          const matchingEntry = response.data.find(
-            (entry) => entry.code === code || entry.code.toString() === code.toString()
-          );
-          phoneNumber = matchingEntry?.phoneNumber;
-        } else if (response.data.code && response.data.phoneNumber) {
-          phoneNumber = response.data.phoneNumber;
-        }
+      if (response.data?.phoneNumber) {
+        phoneNumber = response.data.phoneNumber;
+      } else if (Array.isArray(response.data)) {
+        const matchingEntry = response.data.find(
+          entry => entry.code?.toString() === code?.toString()
+        );
+        phoneNumber = matchingEntry?.phoneNumber;
       }
 
-      return phoneNumber || null;
+      if (phoneNumber) {
+        // Cache the successful result
+        phoneNumberCache.set(code, phoneNumber);
+        return phoneNumber;
+      }
+
+      return null;
     } catch (err) {
       const isRetryable = 
-        err.code === 'ECONNABORTED' || // Timeout error
-        err.response?.status === 503 || // Service unavailable
-        !err.response; // Network error
-      const isLastAttempt = attempt === retries - 1;
+        err.code === 'ECONNABORTED' || 
+        err.response?.status === 503 || 
+        !err.response;
 
-      if (!isRetryable || isLastAttempt) {
-        console.error(`Error fetching phone number (attempt ${attempt + 1}/${retries}):`, err.message);
+      if (!isRetryable || attempt === retries - 1) {
+        console.error(`Failed to fetch phone number for code ${code}:`, err.message);
         return null;
       }
 
-      console.warn(`Attempt ${attempt + 1}/${retries} failed, retrying...`);
       await delay(backoff * Math.pow(2, attempt));
     }
   }
 
   return null;
 };
+
+// Clear cache periodically (every 30 minutes)
+setInterval(() => phoneNumberCache.clear(), 30 * 60 * 1000);

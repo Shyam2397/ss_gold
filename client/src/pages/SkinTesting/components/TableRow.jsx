@@ -45,27 +45,31 @@ const TableRow = ({
     }
 
     const message = encodeURIComponent(messageLines.join('\n'));
-
+    
+    // Extract and validate phone number
     let phoneNumber = rowData.phoneNumber?.replace(/\D/g, '') || '';
-    // Handle Indian phone numbers
-    if (phoneNumber) {
-      // Remove leading zeros if any
-      phoneNumber = phoneNumber.replace(/^0+/, '');
-      // If number starts with 91, make sure it's not duplicated
-      if (phoneNumber.startsWith('91')) {
-        phoneNumber = phoneNumber.substring(2);
-      }
-      // Check if it's a valid Indian mobile number (10 digits)
-      if (phoneNumber.length === 10) {
-        phoneNumber = '91' + phoneNumber;
-      } else {
-        alert('Invalid phone number format. Please ensure it is a 10-digit Indian mobile number.');
-        return;
-      }
-    } else {
-      alert('No phone number available for this entry');
+    if (!phoneNumber) {
+      const userInput = prompt('No phone number found. Please enter a phone number:');
+      if (!userInput) return;
+      phoneNumber = userInput.replace(/\D/g, '');
+    }
+
+    // Format phone number
+    phoneNumber = phoneNumber.replace(/^0+/, '');
+    if (phoneNumber.startsWith('91')) {
+      phoneNumber = phoneNumber.substring(2);
+    }
+
+    // Validate phone number
+    if (phoneNumber.length !== 10) {
+      alert('Invalid phone number format. Please enter a 10-digit mobile number.');
       return;
     }
+
+    // Add country code
+    phoneNumber = '91' + phoneNumber;
+
+    // Open WhatsApp
     window.open(`https://wa.me/${phoneNumber}?text=${message}`, '_blank');
   };
 
