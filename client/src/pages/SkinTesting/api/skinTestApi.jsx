@@ -6,13 +6,57 @@ const phoneNumberCache = new Map();
 
 export const fetchSkinTests = async () => {
   const response = await axios.get(`${API_URL}/skin-tests`);
-  return response.data.data.sort((a, b) => parseFloat(b.tokenNo) - parseFloat(a.tokenNo));
+  // Response data is directly the array, no need for .data property
+  return response.data.sort((a, b) => {
+    const tokenA = a.token_no || a.tokenNo;
+    const tokenB = b.token_no || b.tokenNo;
+    return parseFloat(tokenB) - parseFloat(tokenA);
+  });
 };
 
 export const createSkinTest = async (data) => {
-  return await axios.post(`${API_URL}/skin-tests`, data, {
-    headers: { 'Content-Type': 'application/json' }
-  });
+  try {
+    // Numeric fields list
+    const numericFields = [
+      'weight', 'highest', 'average', 'gold_fineness', 'karat',
+      'silver', 'copper', 'zinc', 'cadmium', 'nickel', 'tungsten',
+      'iridium', 'ruthenium', 'osmium', 'rhodium', 'rhenium',
+      'indium', 'titanium', 'palladium', 'platinum', 'others'
+    ];
+
+    // Process data
+    const formattedData = {
+      tokenNo: data.tokenNo || data.token_no, // Keep tokenNo for consistency
+      date: data.date,
+      time: data.time,
+      name: data.name || '',
+      sample: data.sample || '',
+      remarks: data.remarks || '',
+      code: data.code || ''
+    };
+
+    if (!formattedData.tokenNo) {
+      throw new Error('Token number is required');
+    }
+
+    // Handle numeric fields
+    numericFields.forEach(field => {
+      const value = data[field];
+      formattedData[field] = value === '' || value === null || value === undefined ? 
+        0 : 
+        parseFloat(value) || 0;
+    });
+
+    console.log('Sending formatted data:', formattedData);
+
+    const response = await axios.post(`${API_URL}/skin-tests`, formattedData, {
+      headers: { 'Content-Type': 'application/json' }
+    });
+    return response;
+  } catch (error) {
+    console.error('Create skin test error:', error.response?.data || error.message);
+    throw error;
+  }
 };
 
 export const updateSkinTest = async (tokenNo, data) => {

@@ -206,7 +206,7 @@ export const useSkinTest = () => {
       setLoading(true);
       setError('');
       
-      const tokenNo = test.tokenNo || test.tokenno;
+      const tokenNo = test.tokenNo || test.token_no;
       
       if (!tokenNo) {
         throw new Error('Token number is required for editing');
@@ -253,7 +253,9 @@ export const useSkinTest = () => {
   };
 
   const handleDelete = async (tokenNo) => {
-    if (!tokenNo) {
+    const normalizedTokenNo = tokenNo?.toString().trim();
+    
+    if (!normalizedTokenNo) {
       setError('Invalid token number for deletion');
       return;
     }
@@ -262,14 +264,12 @@ export const useSkinTest = () => {
       setLoading(true);
       setError('');
 
-      const response = await deleteSkinTest(tokenNo);
+      const response = await deleteSkinTest(normalizedTokenNo);
       
       if (response.data?.success) {
-        // Clear form if we're editing the same token that's being deleted
-        if (isEditing && formData.tokenNo === tokenNo) {
+        if (isEditing && formData.tokenNo === normalizedTokenNo) {
           handleReset();
         }
-        
         await loadSkinTests();
       } else {
         throw new Error(response.data?.message || 'Failed to delete skin test');

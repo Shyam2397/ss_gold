@@ -4,72 +4,95 @@ const { resetSkinTestsTable } = require('../models/tables');
 
 const getAllSkinTests = async (req, res) => {
   try {
-    const skinTestsResult = await pool.query(
-      "SELECT * FROM skin_tests ORDER BY tokenNo DESC"
-    );
+    const query = `
+      SELECT token_no, date, time, name, weight, sample, 
+             highest, average, gold_fineness, karat,
+             silver, copper, zinc, cadmium, nickel, 
+             tungsten, iridium, ruthenium, osmium, rhodium,
+             rhenium, indium, titanium, palladium, platinum,
+             others, remarks, code
+      FROM skin_tests
+      ORDER BY date DESC, time DESC`;
     
-    const processedRows = await Promise.all(
-      skinTestsResult.rows.map(async (row) => {
-        try {
-          const entryResult = await pool.query(
-            "SELECT phoneNumber FROM entries WHERE code = $1",
-            [row.code]
-          );
-          return {
-            ...row,
-            phoneNumber: entryResult.rows[0]?.phoneNumber || null
-          };
-        } catch (err) {
-          return { ...row, phoneNumber: null };
-        }
-      })
-    );
-
-    res.json({ data: processedRows });
-  } catch (error) {
-    console.error('Detailed error in getAllSkinTests:', error);
-    return res.status(500).json({ 
-      error: 'Failed to process skin tests',
-      details: error.message,
-      stack: error.stack 
-    });
+    const result = await pool.query(query);
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Detailed error in getAllSkinTests:', err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 };
 
 const createSkinTest = async (req, res) => {
   const data = req.body;
+  console.log('Received data:', data);
   
   try {
+    // Get token number from either tokenNo or token_no
+    const tokenNo = data.tokenNo || data.token_no;
+    if (!tokenNo) {
+      return res.status(400).json({ 
+        error: "Missing required fields",
+        detail: "tokenNo is required for creating new skin tests"
+      });
+    }
+
+    // Normalize numeric fields
+    const numericFields = [
+      'weight', 'highest', 'average', 'gold_fineness', 'karat',
+      'silver', 'copper', 'zinc', 'cadmium', 'nickel', 'tungsten',
+      'iridium', 'ruthenium', 'osmium', 'rhodium', 'rhenium',
+      'indium', 'titanium', 'palladium', 'platinum', 'others'
+    ];
+
+    const processedData = {
+      token_no: tokenNo,
+      date: data.date ? new Date(data.date).toISOString().split('T')[0] : null,
+      time: data.time || null,
+      name: data.name || '',
+      sample: data.sample || '',
+      remarks: data.remarks || '',
+      code: data.code || ''
+    };
+
+    if (!processedData.date || !processedData.time) {
+      return res.status(400).json({
+        error: "Missing required fields",
+        detail: "date and time are required"
+      });
+    }
+
+    // Process numeric fields
+    numericFields.forEach(field => {
+      const value = data[field];
+      processedData[field] = value === '' || value === null || value === undefined ? 
+        0 : 
+        parseFloat(value) || 0;
+    });
+
+    // Check token existence
     const tokenCheck = await pool.query(
-      "SELECT tokenNo FROM skin_tests WHERE tokenNo = $1",
-      [data.tokenNo]
+      "SELECT token_no FROM skin_tests WHERE token_no = $1",
+      [processedData.token_no]
     );
     
     if (tokenCheck.rows.length > 0) {
       return res.status(400).json({ error: "Token number already exists" });
     }
 
-    const processedData = Object.entries(data).reduce((acc, [key, value]) => {
-      acc[key] = String(value || (key === 'weight' || key.includes('_') ? '0' : ''));
-      return acc;
-    }, {});
-
-    const columns = [
-      'tokenNo', 'date', 'time', 'name', 'weight', 'sample',
-      'highest', 'average', 'gold_fineness', 'karat', 'silver',
-      'copper', 'zinc', 'cadmium', 'nickel', 'tungsten',
-      'iridium', 'ruthenium', 'osmium', 'rhodium', 'rhenium',
-      'indium', 'titanium', 'palladium', 'platinum',
-      'others', 'remarks', 'code'
-    ];
-
+    const columns = Object.keys(processedData);
+    const values = Object.values(processedData);
     const placeholders = columns.map((_, i) => `$${i + 1}`).join(', ');
-    const sql = `INSERT INTO skin_tests (${columns.join(', ')}) VALUES (${placeholders}) RETURNING *`;
-    const params = columns.map(col => processedData[col]);
+    
+    const sql = `
+      INSERT INTO skin_tests (${columns.join(', ')}) 
+      VALUES (${placeholders}) 
+      RETURNING *
+    `;
 
-    const result = await pool.query(sql, params);
-    res.json({ message: "Success", data: result.rows[0] });
+    const result = await pool.query(sql, values);
+    res.status(201).json({ message: "Success", data: result.rows[0] });
   } catch (err) {
+    console.error('Create error:', err);
     return handleDatabaseError(err, res);
   }
 };
@@ -99,7 +122,7 @@ const updateSkinTest = async (req, res) => {
   try {
     // First check if the record exists
     const checkResult = await pool.query(
-      'SELECT tokenNo FROM skin_tests WHERE tokenNo = $1',
+      'SELECT token_no FROM skin_tests WHERE token_no = $1',
       [tokenNo]
     );
 
@@ -111,7 +134,7 @@ const updateSkinTest = async (req, res) => {
     const sql = `
       UPDATE skin_tests 
       SET ${columns.map((col, i) => `${col} = $${i + 1}`).join(', ')} 
-      WHERE tokenNo = $${columns.length + 1}
+      WHERE token_no = $${columns.length + 1}
       RETURNING *
     `;
     const params = [...columns.map(col => data[col] || null), tokenNo];
@@ -154,7 +177,7 @@ const updateSkinTest = async (req, res) => {
 const deleteSkinTest = async (req, res) => {
   try {
     const result = await pool.query(
-      "DELETE FROM skin_tests WHERE tokenNo = $1 RETURNING *",
+      "DELETE FROM skin_tests WHERE token_no = $1 RETURNING *",
       [req.params.tokenNo]
     );
     if (result.rowCount === 0) {

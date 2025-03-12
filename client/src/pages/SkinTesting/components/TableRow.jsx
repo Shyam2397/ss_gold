@@ -178,7 +178,12 @@ const TableRow = ({
         <FiEdit2 className="w-3.5 h-3.5" />
       </button>
       <button 
-        onClick={() => onDelete(rowData.tokenNo || rowData.tokenno)}
+        onClick={() => {
+          const tokenNo = rowData.tokenNo || rowData.tokenno || rowData.token_no;
+          if (tokenNo) {
+            onDelete(tokenNo.toString());
+          }
+        }}
         className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50"
         title="Delete Test"
       >

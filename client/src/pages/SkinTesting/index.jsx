@@ -176,9 +176,11 @@ const SkinTesting = () => {
                   'date', 'time', 'name', 'weight', 
                   'sample', 'code', 'phoneNumber'
                 ];
+                // Also exclude any key that contains 'token' (case insensitive)
                 return !excludedFields.includes(key) && 
                   !Object.keys(customerFields).includes(key) && 
-                  !Object.keys(tokenFields).includes(key);
+                  !Object.keys(tokenFields).includes(key) &&
+                  !/token/i.test(key);
               })
               .map((key) => (
                 <FormInput
