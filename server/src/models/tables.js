@@ -1,36 +1,76 @@
 const { pool } = require('../config/database');
 
+const createTokensTable = async () => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query(`
+      DROP SEQUENCE IF EXISTS tokens_id_seq CASCADE;
+      DROP TABLE IF EXISTS tokens CASCADE;
+    `);
+
+    const createTableSQL = `
+      CREATE TABLE tokens (
+        id SERIAL PRIMARY KEY,
+        token_no VARCHAR(10) UNIQUE NOT NULL,
+        date DATE NOT NULL,
+        time TIME NOT NULL,
+        code VARCHAR(50),
+        name VARCHAR(100),
+        test VARCHAR(100),
+        weight DECIMAL(10,3),
+        sample VARCHAR(100),
+        amount DECIMAL(10,2),
+        is_paid INTEGER DEFAULT 0,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      )
+    `;
+    
+    await client.query(createTableSQL);
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+};
+
 const createSkinTestsTable = async () => {
   const createTableSQL = `
     CREATE TABLE IF NOT EXISTS skin_tests (
-      tokenNo TEXT PRIMARY KEY,
-      date TEXT,
-      time TEXT,
-      name TEXT,
-      weight TEXT,
-      sample TEXT,
-      highest TEXT,
-      average TEXT,
-      gold_fineness TEXT,
-      karat TEXT,
-      silver TEXT,
-      copper TEXT,
-      zinc TEXT,
-      cadmium TEXT,
-      nickel TEXT,
-      tungsten TEXT,
-      iridium TEXT,
-      ruthenium TEXT,
-      osmium TEXT,
-      rhodium TEXT,
-      rhenium TEXT,
-      indium TEXT,
-      titanium TEXT,
-      palladium TEXT,
-      platinum TEXT,
-      others TEXT,
+      token_no VARCHAR(10) PRIMARY KEY UNIQUE,
+      date DATE NOT NULL,
+      time TIME NOT NULL,
+      name VARCHAR(100),
+      weight DECIMAL(10,3),
+      sample VARCHAR(100),
+      highest DECIMAL(5,2),
+      average DECIMAL(5,2),
+      gold_fineness DECIMAL(5,2),
+      karat DECIMAL(4,1),
+      silver DECIMAL(5,2),
+      copper DECIMAL(5,2),
+      zinc DECIMAL(5,2),
+      cadmium DECIMAL(5,2),
+      nickel DECIMAL(5,2),
+      tungsten DECIMAL(5,2),
+      iridium DECIMAL(5,2),
+      ruthenium DECIMAL(5,2),
+      osmium DECIMAL(5,2),
+      rhodium DECIMAL(5,2),
+      rhenium DECIMAL(5,2),
+      indium DECIMAL(5,2),
+      titanium DECIMAL(5,2),
+      palladium DECIMAL(5,2),
+      platinum DECIMAL(5,2),
+      others DECIMAL(5,2),
       remarks TEXT,
-      code TEXT
+      code VARCHAR(50),
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (token_no) REFERENCES tokens(token_no) ON DELETE CASCADE
     )
   `;
   
@@ -44,34 +84,37 @@ const createSkinTestsTable = async () => {
 const resetSkinTestsTable = async () => {
   const createTableSQL = `
     CREATE TABLE IF NOT EXISTS skin_tests (
-      tokenNo TEXT PRIMARY KEY,
-      date TEXT,
-      time TEXT,
-      name TEXT,
-      weight TEXT,
-      sample TEXT,
-      highest TEXT,
-      average TEXT,
-      gold_fineness TEXT,
-      karat TEXT,
-      silver TEXT,
-      copper TEXT,
-      zinc TEXT,
-      cadmium TEXT,
-      nickel TEXT,
-      tungsten TEXT,
-      iridium TEXT,
-      ruthenium TEXT,
-      osmium TEXT,
-      rhodium TEXT,
-      rhenium TEXT,
-      indium TEXT,
-      titanium TEXT,
-      palladium TEXT,
-      platinum TEXT,
-      others TEXT,
+      token_no VARCHAR(10) PRIMARY KEY UNIQUE,
+      date DATE NOT NULL,
+      time TIME NOT NULL,
+      name VARCHAR(100),
+      weight DECIMAL(10,3),
+      sample VARCHAR(100),
+      highest DECIMAL(5,2),
+      average DECIMAL(5,2),
+      gold_fineness DECIMAL(5,2),
+      karat DECIMAL(4,1),
+      silver DECIMAL(5,2),
+      copper DECIMAL(5,2),
+      zinc DECIMAL(5,2),
+      cadmium DECIMAL(5,2),
+      nickel DECIMAL(5,2),
+      tungsten DECIMAL(5,2),
+      iridium DECIMAL(5,2),
+      ruthenium DECIMAL(5,2),
+      osmium DECIMAL(5,2),
+      rhodium DECIMAL(5,2),
+      rhenium DECIMAL(5,2),
+      indium DECIMAL(5,2),
+      titanium DECIMAL(5,2),
+      palladium DECIMAL(5,2),
+      platinum DECIMAL(5,2),
+      others DECIMAL(5,2),
       remarks TEXT,
-      code TEXT
+      code VARCHAR(50),
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (token_no) REFERENCES tokens(token_no) ON DELETE CASCADE
     )
   `;
   
@@ -105,7 +148,7 @@ const createExpensesTable = async () => {
   const createTableSQL = `
     CREATE TABLE IF NOT EXISTS expenses (
       id SERIAL PRIMARY KEY,
-      date TEXT NOT NULL,
+      date DATE NOT NULL,
       expense_type TEXT NOT NULL,
       amount DECIMAL(10,2) NOT NULL,
       paid_to TEXT,
@@ -126,18 +169,21 @@ const createExpensesTable = async () => {
 const createPureExchangeTable = async () => {
   const createTableSQL = `
     CREATE TABLE IF NOT EXISTS pure_exchange (
-      tokenNo TEXT PRIMARY KEY,
-      date TEXT,
-      time TEXT,
-      weight TEXT,
-      highest TEXT,
-      hWeight TEXT,
-      average TEXT,
-      aWeight TEXT,
-      goldFineness TEXT,
-      gWeight TEXT,
-      exGold TEXT,
-      exWeight TEXT
+      token_no VARCHAR(10) PRIMARY KEY,
+      date DATE NOT NULL,
+      time TIME NOT NULL,
+      weight DECIMAL(10,3),
+      highest DECIMAL(5,2),
+      hWeight DECIMAL(10,3),
+      average DECIMAL(5,2),
+      aWeight DECIMAL(10,3),
+      goldFineness DECIMAL(5,2),
+      gWeight DECIMAL(10,3),
+      exGold DECIMAL(10,3),
+      exWeight DECIMAL(10,3),
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (token_no) REFERENCES tokens(token_no) ON DELETE CASCADE
     )
   `;
   
@@ -168,9 +214,15 @@ const createUsersTable = async () => {
     
     // If admin doesn't exist, create it
     if (adminCheck.rows.length === 0) {
-      const bcrypt = require('bcrypt');
-      const salt = await bcrypt.genSalt(10);
-      const hashedPassword = await bcrypt.hash('admin123', salt);
+      let hashedPassword;
+      try {
+        const bcrypt = require('bcrypt');
+        const salt = await bcrypt.genSalt(10);
+        hashedPassword = await bcrypt.hash('admin123', salt);
+      } catch (bcryptErr) {
+        console.warn('Warning: bcrypt not available, using plain password');
+        hashedPassword = 'admin123'; // Fallback to plain password if bcrypt fails
+      }
       
       await pool.query(
         "INSERT INTO users (username, password) VALUES ($1, $2)",
@@ -178,7 +230,6 @@ const createUsersTable = async () => {
       );
     }
   } catch (err) {
-    // If error is not about duplicate admin user, rethrow it
     if (err.code !== '23505' || !err.detail.includes('(username)=(admin)')) {
       console.error('Error creating users table:', err);
       throw err;
@@ -204,45 +255,6 @@ const createEntriesTable = async () => {
   } catch (err) {
     console.error('Error creating entries table:', err);
     throw err;
-  }
-};
-
-const createTokensTable = async () => {
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-
-    // Drop existing sequence and table if they exist
-    await client.query(`
-      DROP SEQUENCE IF EXISTS tokens_id_seq CASCADE;
-      DROP TABLE IF EXISTS tokens CASCADE;
-    `);
-
-    // Create the table with the correct schema
-    const createTableSQL = `
-      CREATE TABLE tokens (
-        id SERIAL PRIMARY KEY,
-        token_no VARCHAR(10) UNIQUE NOT NULL,
-        date DATE,
-        time TIME,
-        code VARCHAR(50),
-        name VARCHAR(100),
-        test VARCHAR(100),
-        weight DECIMAL(10,2),
-        sample VARCHAR(100),
-        amount DECIMAL(10,2),
-        is_paid INTEGER DEFAULT 0
-      )
-    `;
-    
-    await client.query(createTableSQL);
-    await client.query('COMMIT');
-  } catch (err) {
-    await client.query('ROLLBACK');
-    console.error('Error creating tokens table:', err);
-    throw err;
-  } finally {
-    client.release();
   }
 };
 
