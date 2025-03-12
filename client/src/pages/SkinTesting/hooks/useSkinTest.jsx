@@ -32,7 +32,6 @@ export const useSkinTest = () => {
               const phoneNumber = await fetchPhoneNumber(test.code);
               return { ...test, phoneNumber: phoneNumber || '' };
             } catch (err) {
-              console.error(`Failed to fetch phone number for code ${test.code}:`, err);
               return test;
             }
           }
@@ -42,7 +41,6 @@ export const useSkinTest = () => {
       
       setSkinTests(testsWithPhoneNumbers);
     } catch (err) {
-      console.error(err);
       setError('Failed to fetch skin tests');
     } finally {
       setLoading(false);
@@ -111,7 +109,7 @@ export const useSkinTest = () => {
                 }));
               }
             } catch (phoneErr) {
-              console.error('Failed to fetch phone number:', phoneErr);
+              // Remove console.error for phone number fetch
             }
           }
         } else {
@@ -119,7 +117,6 @@ export const useSkinTest = () => {
           clearFormFields();
         }
       } catch (err) {
-        console.error('Token fetch error:', err);
         if (err.response?.status === 404) {
           setError('Token number not found.');
         } else {
@@ -193,7 +190,6 @@ export const useSkinTest = () => {
         setSum(0);
       }
     } catch (err) {
-      console.error('Submit error:', err.message);
       const errorMessage = err.message || 'Failed to submit form';
       setError(errorMessage);
     } finally {
@@ -236,7 +232,7 @@ export const useSkinTest = () => {
             editData.phoneNumber = phoneNumber;
           }
         } catch (phoneErr) {
-          console.error('Failed to fetch phone number:', phoneErr);
+          // Remove console.error for phone number fetch
         }
       }
 
@@ -245,7 +241,6 @@ export const useSkinTest = () => {
       const newSum = calculateSum(editData);
       setSum(newSum);
     } catch (err) {
-      console.error('Edit error:', err.message);
       setError('Failed to prepare data for editing. Please try again.');
     } finally {
       setLoading(false);
@@ -275,7 +270,6 @@ export const useSkinTest = () => {
         throw new Error(response.data?.message || 'Failed to delete skin test');
       }
     } catch (err) {
-      console.error('Error during deletion:', err);
       setError(err.response?.data?.message || 'Failed to delete skin test. Please try again.');
     } finally {
       setLoading(false);

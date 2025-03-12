@@ -47,12 +47,13 @@ export const createSkinTest = async (data) => {
         parseFloat(value) || 0;
     });
 
+    // Removed console.log for formatted data
     const response = await axios.post(`${API_URL}/skin-tests`, formattedData, {
       headers: { 'Content-Type': 'application/json' }
     });
     return response;
   } catch (error) {
-    console.error('Create skin test error:', error.response?.data || error.message);
+    // Simplified error handling
     throw error;
   }
 };
@@ -158,7 +159,7 @@ export const fetchPhoneNumber = async (code, retries = 2, backoff = 2000) => {
         !err.response;
 
       if (!isRetryable || attempt === retries - 1) {
-        console.error(`Failed to fetch phone number for code ${code}:`, err.message);
+        // Remove console.error for failed phone number fetch
         return null;
       }
 

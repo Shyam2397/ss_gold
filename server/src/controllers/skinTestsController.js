@@ -24,7 +24,6 @@ const getAllSkinTests = async (req, res) => {
 
 const createSkinTest = async (req, res) => {
   const data = req.body;
-  console.log('Received data:', data);
   
   try {
     // Get token number from either tokenNo or token_no
@@ -92,7 +91,6 @@ const createSkinTest = async (req, res) => {
     const result = await pool.query(sql, values);
     res.status(201).json({ message: "Success", data: result.rows[0] });
   } catch (err) {
-    console.error('Create error:', err);
     return handleDatabaseError(err, res);
   }
 };
@@ -100,14 +98,8 @@ const createSkinTest = async (req, res) => {
 const updateSkinTest = async (req, res) => {
   const data = req.body;
   const { tokenNo } = req.params;
-  
-  console.log('Update request received:', {
-    tokenNo: tokenNo,
-    bodyData: data
-  });
 
   if (!tokenNo) {
-    console.error('Token number missing in params');
     return res.status(400).json({ error: "Token number is required in URL" });
   }
 
@@ -127,7 +119,6 @@ const updateSkinTest = async (req, res) => {
     );
 
     if (checkResult.rows.length === 0) {
-      console.log('No record found for tokenNo:', tokenNo);
       return res.status(404).json({ error: "Skin test not found" });
     }
 
@@ -138,31 +129,15 @@ const updateSkinTest = async (req, res) => {
       RETURNING *
     `;
     const params = [...columns.map(col => data[col] || null), tokenNo];
-    
-    console.log('Executing SQL:', {
-      sql: sql,
-      params: params
-    });
 
     const result = await pool.query(sql, params);
     
     if (result.rowCount === 0) {
-      console.log('No rows updated for tokenNo:', tokenNo);
       return res.status(404).json({ error: "Failed to update skin test" });
     }
 
-    console.log('Update successful:', result.rows[0]);
     res.json({ message: "Success", data: result.rows[0] });
   } catch (err) {
-    console.error('Update error:', {
-      error: err.message,
-      code: err.code,
-      detail: err.detail,
-      stack: err.stack,
-      data: data,
-      tokenNo: tokenNo
-    });
-    
     if (err.code === '22P02') {
       return res.status(400).json({ 
         error: "Invalid data format",
