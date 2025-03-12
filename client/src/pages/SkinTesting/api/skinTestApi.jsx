@@ -47,8 +47,6 @@ export const createSkinTest = async (data) => {
         parseFloat(value) || 0;
     });
 
-    console.log('Sending formatted data:', formattedData);
-
     const response = await axios.post(`${API_URL}/skin-tests`, formattedData, {
       headers: { 'Content-Type': 'application/json' }
     });
