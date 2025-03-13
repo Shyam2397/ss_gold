@@ -1,9 +1,12 @@
 import React from 'react';
 import { FiPrinter } from 'react-icons/fi';
 
-const ThermalPrinter = ({ data, tableData }) => {
+const ThermalPrinter = ({ tableData }) => {
   const printContent = () => {
     const printWindow = window.open('', '', 'width=1200,height=800');
+    
+    // Format the current date and time
+    const firstRow = tableData[0] || {};
     
     // Set up the print window styles for 80mm thermal printer
     printWindow.document.write(`
@@ -42,11 +45,20 @@ const ThermalPrinter = ({ data, tableData }) => {
               border-collapse: collapse;
               margin: 2px 0;
             }
-            th, td {
-              text-align: left;
+            th {
+              text-align: center;
               padding: 3px 0;
               border-bottom: 1px dotted #ccc;
               font-size: 13px;
+            }
+            td {
+              text-align: right;
+              padding: 3px 0;
+              border-bottom: 1px dotted #ccc;
+              font-size: 13px;
+            }
+            .token {
+              text-align: center;
             }
             .footer {
               text-align: center;
@@ -64,11 +76,11 @@ const ThermalPrinter = ({ data, tableData }) => {
             << ROUGH ESTIMATE >>
           </div>
           <div class="info-row">
-            <span>${data?.date[0]}</span>
-            <span>${data?.time[0]}</span>
+            <span>${firstRow.date || ''}</span>
+            <span>${firstRow.time || ''}</span>
           </div>
           <div class="header">
-            ${data?.name[0]}
+            ${firstRow.name || ''}
           </div>
           <div class="divider"></div>
           <table>
@@ -78,15 +90,15 @@ const ThermalPrinter = ({ data, tableData }) => {
               <th>ExGold</th>
               <th>Pure</th>
             </tr>
-            ${data?.tokenNo.map((token, index) => {
-              const weight = parseFloat(data.weight[index]);
-              const exGold = parseFloat(data.exGold[index]);
+            ${tableData.map((row) => {
+              const weight = parseFloat(row.weight);
+              const exGold = parseFloat(row.exGold);
               const adjustedWeight = (weight - 0.010).toFixed(3);
               const pure = ((weight - 0.010) * exGold / 100).toFixed(3);
               
               return `
                 <tr>
-                  <td>${token}</td>
+                  <td class="token">${row.tokenNo}</td>
                   <td>${adjustedWeight}</td>
                   <td>${exGold.toFixed(2)}</td>
                   <td>${pure}</td>
@@ -97,17 +109,17 @@ const ThermalPrinter = ({ data, tableData }) => {
           <div class="divider"></div>
           <div class="info-row">
             <span>Total Pure</span>
-            <span>${(data?.tokenNo.reduce((total, _, index) => {
-              const weight = parseFloat(data.weight[index]);
-              const exGold = parseFloat(data.exGold[index]);
+            <span>${(tableData.reduce((total, row) => {
+              const weight = parseFloat(row.weight);
+              const exGold = parseFloat(row.exGold);
               return total + ((weight - 0.010) * exGold / 100);
-            }, 0).toFixed(2)) + '0'}</span>
+            }, 0).toFixed(3))}</span>
           </div>
           <div class="info-row">
             <span>Issued (Bar-Ft-999)</span>
-            <span>${(data?.tokenNo.reduce((total, _, index) => {
-              const weight = parseFloat(data.weight[index]);
-              const exGold = parseFloat(data.exGold[index]);
+            <span>${(tableData.reduce((total, row) => {
+              const weight = parseFloat(row.weight);
+              const exGold = parseFloat(row.exGold);
               return total + ((weight - 0.010) * exGold / 100);
             }, 0).toFixed(2)) + '0'}</span>
           </div>

@@ -49,46 +49,67 @@ const PureExchange = () => {
         try {
             const response = await fetchSkinTests();
             const skinTests = response;
-            const skinTest = skinTests.find(test => 
-                (test.tokenNo || test.tokenno || '').toString() === tokenNo.toString()
-            );
+            
+            if (!skinTests || skinTests.length === 0) {
+                setErrorWithTimeout('No skin testing data available');
+                return null;
+            }
+
+            const skinTest = skinTests.find(test => {
+                // Check for token_no field as it's used in the database
+                const testTokenNo = (test.token_no || '').toString().trim();
+                return testTokenNo === tokenNo.toString().trim();
+            });
             
             if (!skinTest) {
-                setErrorWithTimeout('Token number not found in skin testing data');
+                setErrorWithTimeout(`Token number ${tokenNo} not found in skin testing records`);
+                return null;
+            }
+            
+            // Validate required fields
+            const requiredFields = ['weight', 'highest', 'average', 'gold_fineness', 'name'];
+            const missingFields = requiredFields.filter(field => !skinTest[field]);
+            
+            if (missingFields.length > 0) {
+                setErrorWithTimeout(`Missing required data: ${missingFields.join(', ')}`);
                 return null;
             }
             
             return skinTest;
         } catch (error) {
             console.error('Error fetching skin test data:', error);
-            setErrorWithTimeout('Error fetching skin test data. Please try again.');
+            setErrorWithTimeout('Network error while fetching skin test data. Please try again.');
             return null;
         }
     };
 
     const handleAdd = async () => {
-        if (!tokenNo) {
+        if (!tokenNo.trim()) {
             setErrorWithTimeout('Please enter a token number');
             return;
         }
 
-        if (!point) {
-            setErrorWithTimeout('Please enter a point value');
+        if (!point || isNaN(parseFloat(point))) {
+            setErrorWithTimeout('Please enter a valid point value');
             return;
         }
 
-        const tokenExists = tableData.some(row => row.tokenNo === tokenNo);
-
+        const tokenExists = tableData.some(row => row.tokenNo === tokenNo.trim());
         if (tokenExists) {
-            setErrorWithTimeout('Token number already exists.');
+            setErrorWithTimeout(`Token number ${tokenNo} is already added to the table`);
             return;
         }
+
+        // Show loading state while fetching
+        setLoading(true);
+        setError('Fetching skin test data...');
 
         // Fetch skin testing data
         const skinTestData = await fetchSkinTestData(tokenNo);
         
+        setLoading(false);
         if (!skinTestData) {
-            return;
+            return; // Error message already set by fetchSkinTestData
         }
 
         // Extract required values
