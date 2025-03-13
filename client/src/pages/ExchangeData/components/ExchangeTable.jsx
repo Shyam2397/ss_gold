@@ -158,10 +158,16 @@ const ExchangeTable = ({ exchanges, loading, onDelete, onUpdate }) => {
   const [selectedExchange, setSelectedExchange] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
 
+  // Sort exchanges by date and time in descending order
+  const sortedExchanges = [...exchanges].sort((a, b) => {
+    const dateA = new Date(`${a.date} ${a.time}`);
+    const dateB = new Date(`${b.date} ${b.time}`);
+    return dateB - dateA;
+  });
   const columns = [
     {
       title: 'Token No',
-      key: 'tokenno',
+      key: 'token_no',
       width: '100px',
       render: (value) => value
     },
@@ -287,7 +293,7 @@ const ExchangeTable = ({ exchanges, loading, onDelete, onUpdate }) => {
   };
 
   const handleConfirmDelete = () => {
-    onDelete(selectedExchange.tokenno);
+    onDelete(selectedExchange.token_no);
     setShowConfirmDelete(false);
   };
 
@@ -379,10 +385,10 @@ const ExchangeTable = ({ exchanges, loading, onDelete, onUpdate }) => {
     }
 
     // Special handling for token number
-    if (dataKey === 'tokenno') {
+    if (dataKey === 'token_no') {
       return (
         <div className="truncate whitespace-nowrap text-center">
-          {rowData.tokenno || '-'}
+          {rowData.token_no || '-'}
         </div>
       );
     }
@@ -414,8 +420,8 @@ const ExchangeTable = ({ exchanges, loading, onDelete, onUpdate }) => {
                 height={height}
                 headerHeight={40}
                 rowHeight={40}
-                rowCount={exchanges.length}
-                rowGetter={({ index }) => filterColumns(exchanges[index])} // Changed this line
+                rowCount={sortedExchanges.length}
+                rowGetter={({ index }) => filterColumns(sortedExchanges[index])}
                 rowClassName={({ index }) => 
                   `${index === -1 
                     ? 'bg-amber-500 rounded-t-xl text-white' 

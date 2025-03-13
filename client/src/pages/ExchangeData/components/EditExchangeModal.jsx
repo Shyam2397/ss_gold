@@ -21,7 +21,7 @@ const EditExchangeModal = ({ exchange, onClose, onUpdate }) => {
     useEffect(() => {
         if (exchange) {
             setFormData({
-                tokenno: exchange.tokenno || '',
+                tokenno: exchange.token_no || '',
                 date: exchange.date || '',
                 time: exchange.time || '',
                 weight: exchange.weight || '',

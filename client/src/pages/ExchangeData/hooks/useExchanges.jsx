@@ -141,13 +141,13 @@ const useExchanges = () => {
       if (response.data?.message) {
         // Update local state
         const updatedExchanges = exchanges.filter(exchange => 
-          exchange.tokenno !== tokenNo
+          exchange.token_no !== tokenNo
         );
   
         
         setExchanges(updatedExchanges);
         setFilteredExchanges(prev => 
-          prev.filter(exchange => exchange.tokenno !== tokenNo)
+          prev.filter(exchange => exchange.token_no !== tokenNo)
         );
         
         setMessageWithTimeout(setSuccessMessage, response.data.message);
