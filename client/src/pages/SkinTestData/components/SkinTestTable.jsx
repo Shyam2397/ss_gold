@@ -93,11 +93,10 @@ const SkinTestTable = ({ tests, loading }) => {
       try {
         const date = new Date(value);
         if (!isNaN(date)) {
-          return date.toLocaleDateString('en-IN', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric'
-          });
+          const day = date.getDate().toString().padStart(2, '0');
+          const month = (date.getMonth() + 1).toString().padStart(2, '0');
+          const year = date.getFullYear();
+          return `${day}-${month}-${year}`;
         }
       } catch (e) {
         console.warn('Error formatting date:', e);
@@ -171,7 +170,7 @@ const SkinTestTable = ({ tests, loading }) => {
                   : index % 2 === 0 
                     ? 'bg-white hover:bg-amber-100/40' 
                     : 'bg-amber-50/40 hover:bg-amber-100/40'} 
-                transition-colors duration-150 text-sm`
+                transition-colors duration-150 text-sm text-amber-900`
               }
             >
               {headers.map(header => (

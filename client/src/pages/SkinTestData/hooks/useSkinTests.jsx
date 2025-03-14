@@ -17,9 +17,10 @@ const useSkinTests = () => {
       const response = await axios.get(
         `${API_URL}/skin-tests`
       );
-      const sortedData = response.data.data.sort(
-        (a, b) => parseFloat(b.token_no) - parseFloat(a.token_no)
-      );
+      const data = response.data?.data || response.data || [];
+      const sortedData = Array.isArray(data) ? data.sort(
+        (a, b) => parseFloat(b.token_no || 0) - parseFloat(a.token_no || 0)
+      ) : [];
       setSkinTests(sortedData);
       setFilteredTests(sortedData);
       setError("");
