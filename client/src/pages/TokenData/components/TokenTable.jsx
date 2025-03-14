@@ -172,7 +172,7 @@ const TokenTable = ({ tokens, loading, onDelete }) => {
           <div
             key={column}
             style={{ width: getColumnWidth(column) }}
-            className={`flex-none px-5 py-2.5 whitespace-nowrap ${getColumnAlignment(column)} text-sm`}
+            className={`flex-none px-5 py-2.5 whitespace-nowrap ${getColumnAlignment(column)} text-amber-900 text-sm`}
           >
             {formatValue(token[column], column)}
           </div>
