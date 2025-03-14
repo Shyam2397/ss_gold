@@ -20,14 +20,14 @@ const CustomerDataTable = ({ entries, onDelete }) => {
               {entries.map((entry, index) => (
                 <tr
                   key={entry.id}
-                  className="border-b border-amber-100 hover:bg-amber-50/70 transition-colors duration-150"
+                  className="border-b border-amber-100 hover:bg-amber-50/70 transition-colors duration-150 text-amber-900"
                 >
                   <td className="px-5 py-2.5 whitespace-nowrap text-left font-medium text-sm">
                     {entry.name}
                     <dl className="sm:hidden mt-0.5">
-                      <dd className="text-xs text-gray-600">{entry.phoneNumber}</dd>
-                      <dd className="text-xs text-gray-600">{entry.code}</dd>
-                      <dd className="text-xs text-gray-600">{entry.place}</dd>
+                      <dd className="text-xs">{entry.phoneNumber}</dd>
+                      <dd className="text-xs">{entry.code}</dd>
+                      <dd className="text-xs">{entry.place}</dd>
                     </dl>
                   </td>
                   <td className="px-5 py-2.5 whitespace-nowrap hidden sm:table-cell text-center text-sm">{entry.phoneNumber}</td>
