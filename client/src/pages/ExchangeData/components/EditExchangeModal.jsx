@@ -1,6 +1,44 @@
 import React, { useState, useEffect } from 'react';
 import { FiX, FiLoader } from 'react-icons/fi';
 
+const formatDateForDisplay = (dateStr) => {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) {
+        // Try parsing DD-MM-YYYY format
+        const [day, month, year] = dateStr.split('-');
+        if (day && month && year) {
+            return dateStr; // Already in correct format
+        }
+        return '';
+    }
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}-${month}-${year}`;
+};
+
+const formatDateForInput = (dateStr) => {
+    if (!dateStr) return '';
+    // Handle DD-MM-YYYY format
+    const parts = dateStr.split('-');
+    if (parts.length === 3) {
+        const [day, month, year] = parts;
+        if (day && month && year && year.length === 4) {
+            return `${year}-${month}-${day}`; // Convert to YYYY-MM-DD for input
+        }
+    }
+    // Handle other formats
+    const date = new Date(dateStr);
+    if (!isNaN(date.getTime())) {
+        const year = date.getFullYear();
+        const month = (date.getMonth() + 1).toString().padStart(2, '0');
+        const day = date.getDate().toString().padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+    return '';
+};
+
 const EditExchangeModal = ({ exchange, onClose, onUpdate }) => {
     const [formData, setFormData] = useState({
         tokenno: '',
@@ -22,7 +60,7 @@ const EditExchangeModal = ({ exchange, onClose, onUpdate }) => {
         if (exchange) {
             setFormData({
                 tokenno: exchange.token_no || '',
-                date: exchange.date || '',
+                date: formatDateForInput(exchange.date) || '',
                 time: exchange.time || '',
                 weight: exchange.weight || '',
                 highest: exchange.highest || '',
@@ -65,7 +103,11 @@ const EditExchangeModal = ({ exchange, onClose, onUpdate }) => {
         e.preventDefault();
         setIsSubmitting(true);
         try {
-            await onUpdate(formData);
+            const submissionData = {
+                ...formData,
+                date: formatDateForDisplay(formData.date)
+            };
+            await onUpdate(submissionData);
             onClose();
         } catch (error) {
             console.error('Error updating exchange:', error);
@@ -104,7 +146,7 @@ const EditExchangeModal = ({ exchange, onClose, onUpdate }) => {
                     <div>
                         <label className="block text-sm font-medium text-amber-700">Date</label>
                         <input
-                            type="text"
+                            type="date"
                             name="date"
                             value={formData.date}
                             onChange={handleChange}
@@ -115,7 +157,7 @@ const EditExchangeModal = ({ exchange, onClose, onUpdate }) => {
                     <div>
                         <label className="block text-sm font-medium text-amber-700">Time</label>
                         <input
-                            type="text"
+                            type="time"
                             name="time"
                             value={formData.time}
                             onChange={handleChange}

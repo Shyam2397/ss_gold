@@ -4,6 +4,62 @@ import { AutoSizer, Table, Column } from 'react-virtualized';
 import 'react-virtualized/styles.css';
 import EditExchangeModal from './EditExchangeModal';
 
+// Utility functions for formatting
+const formatValue = (value, type) => {
+  if (!value) return '';
+  if (type === 'date') {
+    const date = new Date(value);
+    if (isNaN(date.getTime())) return value;
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}-${month}-${year}`;
+  }
+  return value;
+};
+
+const formatTime = (timeStr) => {
+  if (!timeStr) return '';
+  
+  // If time string contains 'T', it's an ISO format
+  if (timeStr.includes('T')) {
+    const date = new Date(timeStr);
+    if (!isNaN(date.getTime())) {
+      return date.toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      });
+    }
+  }
+  
+  // If it's already in HH:mm or HH:mm:ss format
+  if (timeStr.includes(':')) {
+    const [hours, minutes] = timeStr.split(':');
+    const date = new Date();
+    date.setHours(parseInt(hours), parseInt(minutes));
+    return date.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    });
+  }
+  
+  // If it's just a number (e.g. "21.00")
+  if (!isNaN(parseFloat(timeStr))) {
+    const [hours, minutes] = timeStr.split('.');
+    const date = new Date();
+    date.setHours(parseInt(hours), parseInt(minutes) || 0);
+    return date.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    });
+  }
+  
+  return timeStr; // Return as-is if no known format
+};
+
 const ConfirmDialog = ({ isOpen, onClose, onConfirm, tokenNo, isDeleting }) => {
   // Handle escape key for closing dialog
   React.useEffect(() => {
@@ -181,7 +237,7 @@ const ExchangeTable = ({ exchanges, loading, onDelete, onUpdate }) => {
       title: 'Time',
       key: 'time',
       width: '100px',
-      render: (value) => value
+      render: (value) => formatTime(value)
     },
     {
       title: 'Weight',
