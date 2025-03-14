@@ -75,7 +75,7 @@ const TableRow = ({
 
   const getColumns = () => {
     const columnOrder = [
-      'tokenno', // Changed from 'tokenNo' to 'tokenno'
+      'tokenNo', // Main token field
       'date',
       'time',
       'name',
@@ -104,12 +104,17 @@ const TableRow = ({
       'remarks'
     ];
 
+    // Modified filter to handle token field variations
     if (skinTests.length > 0) {
-      return columnOrder.filter(col => 
-        Object.keys(skinTests[0]).includes(col) &&
-        col !== 'code' && 
-        col !== 'phoneNumber'
-      );
+      const firstTest = skinTests[0];
+      const hasTokenNo = 'tokenNo' in firstTest || 'token_no' in firstTest || 'tokenno' in firstTest;
+      
+      return columnOrder.filter(col => {
+        if (col === 'tokenNo') return hasTokenNo;
+        return Object.keys(firstTest).includes(col) &&
+          col !== 'code' && 
+          col !== 'phoneNumber';
+      });
     }
     return columnOrder.filter(col => 
       Object.keys(initialFormData).includes(col) &&
@@ -124,6 +129,8 @@ const TableRow = ({
   const getColumnWidth = (key) => {
     switch (key.toLowerCase()) {
       case 'tokenno':
+      case 'token_no':
+      case 'tokennumber':
         return 100; // Increased width for token number
       case 'date':
         return 80;
@@ -200,12 +207,13 @@ const TableRow = ({
   );
 
   const getCellValue = ({ dataKey, rowData }) => {
-    let value = rowData[dataKey];
-    
-    // Special handling for token number
-    if (dataKey === 'tokenno') {
-      return rowData.tokenNo || rowData.tokenno || '-';
+    // Special handling for token number variations
+    if (dataKey === 'tokenNo' || dataKey === 'token_no' || dataKey === 'tokenno') {
+      const tokenValue = rowData.tokenNo || rowData.token_no || rowData.tokenno;
+      return tokenValue || '-';
     }
+    
+    let value = rowData[dataKey];
     
     // Return "-" for null, undefined or empty values
     if (value === null || value === undefined || value === '') {
