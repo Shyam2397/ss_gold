@@ -58,6 +58,7 @@ const SkinTesting = () => {
     setFilteredSkinTests(
       skinTests.filter((test) =>
         Object.values(test).some((value) =>
+          value !== null && value !== undefined && 
           value.toString().toLowerCase().includes(searchQuery.toLowerCase())
         )
       )
@@ -248,9 +249,9 @@ const SkinTesting = () => {
               type="text"
               placeholder="Search tests..."
               onChange={handleSearchChange}
-              className="w-full pl-8 pr-3 py-2 rounded border border-amber-200 focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition-all text-sm"
+              className="w-full pl-8 pr-3 py-2 rounded border border-amber-200 focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition-all text-sm text-amber-900"
             />
-            <FiSearch className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <FiSearch className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-amber-500 h-4 w-4" />
           </div>
         </div>
 
