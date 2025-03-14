@@ -20,44 +20,7 @@ const formatValue = (value, type) => {
 
 const formatTime = (timeStr) => {
   if (!timeStr) return '';
-  
-  // If time string contains 'T', it's an ISO format
-  if (timeStr.includes('T')) {
-    const date = new Date(timeStr);
-    if (!isNaN(date.getTime())) {
-      return date.toLocaleTimeString('en-US', {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: true
-      });
-    }
-  }
-  
-  // If it's already in HH:mm or HH:mm:ss format
-  if (timeStr.includes(':')) {
-    const [hours, minutes] = timeStr.split(':');
-    const date = new Date();
-    date.setHours(parseInt(hours), parseInt(minutes));
-    return date.toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true
-    });
-  }
-  
-  // If it's just a number (e.g. "21.00")
-  if (!isNaN(parseFloat(timeStr))) {
-    const [hours, minutes] = timeStr.split('.');
-    const date = new Date();
-    date.setHours(parseInt(hours), parseInt(minutes) || 0);
-    return date.toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true
-    });
-  }
-  
-  return timeStr; // Return as-is if no known format
+  return timeStr;
 };
 
 const ConfirmDialog = ({ isOpen, onClose, onConfirm, tokenNo, isDeleting }) => {
@@ -449,6 +412,15 @@ const ExchangeTable = ({ exchanges, loading, onDelete, onUpdate }) => {
       );
     }
 
+    // Special handling for time column
+    if (dataKey === 'time') {
+      return (
+        <div className="truncate whitespace-nowrap text-center">
+          {cellData || '-'}
+        </div>
+      );
+    }
+
     return (
       <div 
         className="truncate whitespace-nowrap text-center"
@@ -484,7 +456,7 @@ const ExchangeTable = ({ exchanges, loading, onDelete, onUpdate }) => {
                     : index % 2 === 0 
                       ? 'bg-white hover:bg-amber-100/40' 
                       : 'bg-amber-50/40 hover:bg-amber-100/40'} 
-                  transition-colors duration-150 text-sm`
+                  transition-colors duration-150 text-sm text-amber-900`
                 }
               >
                 {columns.map(column => (
