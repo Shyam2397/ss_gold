@@ -177,12 +177,29 @@ const ExchangeTable = ({ exchanges, loading, onDelete, onUpdate }) => {
   const [selectedExchange, setSelectedExchange] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
 
-  // Sort exchanges by date and time in descending order
+  // Update the sorting logic to properly handle dates
   const sortedExchanges = [...exchanges].sort((a, b) => {
-    const dateA = new Date(`${a.date} ${a.time}`);
-    const dateB = new Date(`${b.date} ${b.time}`);
-    return dateB - dateA;
+    // Parse dates using the same format as they appear in the table (DD-MM-YYYY)
+    const [dayA, monthA, yearA] = (a.date || '').split('-');
+    const [dayB, monthB, yearB] = (b.date || '').split('-');
+    
+    // Create Date objects (subtract 1 from month as JS months are 0-based)
+    const dateA = new Date(yearA, monthA - 1, dayA);
+    const dateB = new Date(yearB, monthB - 1, dayB);
+    
+    // Compare dates first
+    if (dateA - dateB !== 0) {
+      return dateB - dateA; // For descending order
+    }
+    
+    // If dates are equal, compare times
+    if (a.time && b.time) {
+      return b.time.localeCompare(a.time);
+    }
+    
+    return 0;
   });
+
   const columns = [
     {
       title: 'Token No',
