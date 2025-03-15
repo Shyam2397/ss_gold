@@ -7,7 +7,8 @@ const CHART_COLORS = {
   expenses: '#EF4444',
   profit: '#10B981',
   tokens: '#EC4899',
-  exchanges: '#8B5CF6'
+  exchanges: '#8B5CF6',
+  exchangeWeight: '#6366F1'  // Added new color
 };
 
 const CHART_SERIES = [
@@ -15,7 +16,8 @@ const CHART_SERIES = [
   ['expenses', 'Expenses', CHART_COLORS.expenses, 'left'],
   ['profit', 'Profit', CHART_COLORS.profit, 'left'],
   ['tokens', 'Tokens', CHART_COLORS.tokens, 'right'],
-  ['exchanges', 'Exchanges', CHART_COLORS.exchanges, 'right']
+  ['exchangeCount', 'Exchange Count', CHART_COLORS.exchanges, 'right'],
+  ['exchangeWeight', 'Exchange Weight', CHART_COLORS.exchangeWeight, 'right']
 ];
 
 // Create a date cache for better performance
@@ -115,17 +117,23 @@ const DashboardCharts = ({ tokens = [], expenses = [], entries = [], exchanges =
 
       // Process exchanges with improved weekly handling
       exchanges.forEach(exchange => {
-        const date = new Date(exchange.date);
-        const key = period === 'weekly' ? 
-          getWeekKey(date) : 
-          getDateKey(exchange.date, period);
+        if (!exchange.date) return;
+        try {
+          const [day, month, year] = exchange.date.split('/');
+          const date = new Date(year, month - 1, day);
+          const key = period === 'weekly' ? 
+            getWeekKey(date) : 
+            getDateKey(date.toISOString(), period);
 
-        if (!exchangeMap.has(key)) {
-          exchangeMap.set(key, { count: 0, weight: 0 });
+          if (!exchangeMap.has(key)) {
+            exchangeMap.set(key, { count: 0, weight: 0 });
+          }
+          const data = exchangeMap.get(key);
+          data.count++;
+          data.weight += parseFloat(exchange.weight || '0');
+        } catch (err) {
+          console.error('Error processing exchange:', err);
         }
-        const data = exchangeMap.get(key);
-        data.count++;
-        data.weight += parseFloat(exchange.weight) || 0;
       });
 
       // Generate weekly data points
@@ -142,8 +150,8 @@ const DashboardCharts = ({ tokens = [], expenses = [], entries = [], exchanges =
           expenses: expenseAmount,
           profit: tokenData.amount - expenseAmount,
           tokens: tokenData.count,
-          exchanges: exchangeData.count,
-          weight: exchangeData.weight
+          exchangeCount: exchangeData.count,
+          exchangeWeight: exchangeData.weight
         });
       }
 
@@ -226,8 +234,10 @@ const DashboardCharts = ({ tokens = [], expenses = [], entries = [], exchanges =
                 formatter={(value, name) => {
                   if (['revenue', 'expenses', 'profit'].includes(name.toLowerCase())) {
                     return [`₹${value.toLocaleString()}`, name];
-                  } else if (name.toLowerCase() === 'weight') {
+                  } else if (name === 'Exchange Weight') {
                     return [`${value.toFixed(3)} g`, name];
+                  } else if (name === 'Exchange Count') {
+                    return [`${value} exchanges`, 'Exchanges'];
                   } else {
                     return [value.toLocaleString(), name];
                   }

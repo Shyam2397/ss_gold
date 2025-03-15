@@ -106,13 +106,20 @@ const useDashboardData = () => {
       
 // Process exchange data to handle ISO date format
       const processedExchanges = exchangesData.map(exchange => {
-        const isoDate = new Date(exchange.date);
-        return {
-          ...exchange,
-// Convert to DD/MM/YYYY format
-          date: `${isoDate.getDate().toString().padStart(2, '0')}/${(isoDate.getMonth() + 1).toString().padStart(2, '0')}/${isoDate.getFullYear()}`
-        };
-      });
+        try {
+          const isoDate = new Date(exchange.date);
+          return {
+            ...exchange,
+// Convert to DD/MM/YYYY format and ensure weight is a number
+            date: `${isoDate.getDate().toString().padStart(2, '0')}/${(isoDate.getMonth() + 1).toString().padStart(2, '0')}/${isoDate.getFullYear()}`,
+            weight: parseFloat(exchange.weight || '0'),
+            exweight: parseFloat(exchange.exweight || '0')
+          };
+        } catch (err) {
+          console.error('Error processing exchange:', err);
+          return null;
+        }
+      }).filter(Boolean); // Remove any null values
 
       setExchanges(processedExchanges);
 
