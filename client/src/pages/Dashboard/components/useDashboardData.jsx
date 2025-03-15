@@ -37,45 +37,32 @@ const useDashboardData = () => {
     // Set the start date based on period
     switch (period) {
       case 'yearly':
-        startDate = new Date(today.getFullYear(), 0, 1, 0, 0, 0);
+        startDate = new Date(today.getFullYear(), 0, 1);
         break;
       case 'monthly':
-        startDate = new Date(today.getFullYear(), today.getMonth(), 1, 0, 0, 0);
+        startDate = new Date(today.getFullYear(), today.getMonth(), 1);
         break;
       case 'weekly':
-        // Set start date to beginning of current week (Sunday)
-        startDate.setDate(today.getDate() - today.getDay());
-        startDate.setHours(0, 0, 0, 0);
+        startDate = new Date(today.setDate(today.getDate() - today.getDay()));
         break;
       default: // daily
-        startDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0);
+        startDate = new Date(today.setHours(0, 0, 0, 0));
     }
 
-    startDate.setHours(0, 0, 0, 0);
-
-    return exchanges.filter(exchange => {
+    const filtered = exchanges.filter(exchange => {
       if (!exchange.date) return false;
-      
-      // Handle both DD-MM-YYYY and YYYY-MM-DD formats
-      let exchangeDate;
-      if (exchange.date.includes('-')) {
-        const parts = exchange.date.split('-');
-        if (parts[0].length === 4) {
-          // YYYY-MM-DD format
-          exchangeDate = new Date(parts[0], parts[1] - 1, parts[2]);
-        } else {
-          // DD-MM-YYYY format
-          exchangeDate = new Date(parts[2], parts[1] - 1, parts[0]);
-        }
-      } else {
+
+      try {
+        const [day, month, year] = exchange.date.split('/');
+        const exchangeDate = new Date(year, parseInt(month) - 1, parseInt(day));
+        exchangeDate.setHours(0, 0, 0, 0);
+        return exchangeDate >= startDate && exchangeDate <= today;
+      } catch (err) {
         return false;
       }
-
-      // Set the time to noon to avoid timezone issues
-      exchangeDate.setHours(12, 0, 0, 0);
-      
-      return exchangeDate >= startDate && exchangeDate <= today;
     });
+
+    return filtered;
   };
 
   const [selectedPeriod, setSelectedPeriod] = useState('daily');
@@ -83,14 +70,26 @@ const useDashboardData = () => {
   useEffect(() => {
     if (exchanges.length > 0) {
       const filteredExchanges = getFilteredExchanges(exchanges, selectedPeriod);
+      const NoofExchanges = exchanges.length;
+      
+      const totalWeight = filteredExchanges.reduce((sum, exchange) => {
+        const weight = parseFloat(exchange.weight) || 0;
+        return sum + (isNaN(weight) ? 0 : weight);
+      }, 0);
+
+      const totalExWeight = filteredExchanges.reduce((sum, exchange) => {
+        const exweight = parseFloat(exchange.exweight) || 0;
+        return sum + (isNaN(exweight) ? 0 : exweight);
+      }, 0);
+
       setMetrics(prev => ({
         ...prev,
-        totalExchanges: exchanges.length,
-        totalWeight: filteredExchanges.reduce((sum, exchange) => sum + parseFloat(exchange.weight || '0'), 0),
-        totalExWeight: filteredExchanges.reduce((sum, exchange) => sum + parseFloat(exchange.exweight || '0'), 0)
+        totalExchanges: NoofExchanges,
+        totalWeight: totalWeight,
+        totalExWeight: totalExWeight
       }));
     }
-  }, [dateRange, exchanges, selectedPeriod]);
+  }, [exchanges, selectedPeriod]);
 
   const fetchDashboardData = async () => {
     try {
@@ -104,6 +103,19 @@ const useDashboardData = () => {
       const tokenData = tokensRes.data;
       const entriesData = entriesRes.data;
       const exchangesData = exchangesRes.data.data || [];
+      
+// Process exchange data to handle ISO date format
+      const processedExchanges = exchangesData.map(exchange => {
+        const isoDate = new Date(exchange.date);
+        return {
+          ...exchange,
+// Convert to DD/MM/YYYY format
+          date: `${isoDate.getDate().toString().padStart(2, '0')}/${(isoDate.getMonth() + 1).toString().padStart(2, '0')}/${isoDate.getFullYear()}`
+        };
+      });
+
+      setExchanges(processedExchanges);
+
       const processedTokens = tokenData.map(token => {
         const processed = {
           ...token,
@@ -116,9 +128,8 @@ const useDashboardData = () => {
       setTokens(processedTokens);
       setEntries(entriesData);
       setExpenses(expensesRes.data);
-      setExchanges(exchangesData);
 
-      // Calculate total number of customers and test counts from entries
+// Calculate total number of customers and test counts from entries
       const skinTestCount = processedTokens.filter(token => token.test === "Skin Test").length;
       const photoTestCount = processedTokens.filter(token => token.test === "Photo Testing").length;
 
@@ -130,7 +141,7 @@ const useDashboardData = () => {
         photoTestCount
       }));
 
-      // Calculate today's totals
+// Calculate today's totals
       const today = new Date().toISOString();
       
       const todayTokens = processedTokens.filter(token => {
@@ -183,7 +194,7 @@ const useDashboardData = () => {
 
   return {
     tokens, entries, expenses, exchanges, loading, error, recentActivities,
-    todayTotal, dateRange, setDateRange, metrics, sparklineData
+    todayTotal, dateRange, setDateRange, metrics, sparklineData, selectedPeriod, setSelectedPeriod
   };
 };
 

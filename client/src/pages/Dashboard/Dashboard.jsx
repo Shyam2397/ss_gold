@@ -10,7 +10,7 @@ import RecentActivity from './components/RecentActivity';
 function Dashboard() {
   const {
     tokens, entries, expenses, exchanges, loading, error, recentActivities,
-    todayTotal, dateRange, setDateRange, metrics, sparklineData
+    todayTotal, dateRange, setDateRange, metrics, sparklineData, selectedPeriod
   } = useDashboardData();
 
   if (loading) {
@@ -44,6 +44,7 @@ function Dashboard() {
         entries={entries} 
         exchanges={exchanges} 
         sparklineData={sparklineData} 
+        selectedPeriod={selectedPeriod}
       />
       <DashboardCharts tokens={tokens} expenses={expenses} entries={entries} exchanges={exchanges} />
       <RecentActivity activities={recentActivities} />

@@ -6,7 +6,7 @@ import {
 } from '@heroicons/react/24/solid';
 import useTrends from '../hooks/useTrends';
 
-const MetricsGrid = ({ metrics, tokens, expenses, entries, exchanges, sparklineData }) => {
+const MetricsGrid = ({ metrics, tokens, expenses, entries, exchanges, sparklineData, selectedPeriod }) => {
   const totalRevenue = tokens.reduce((sum, token) => sum + (parseFloat(token.totalAmount) || 0), 0);
   const totalExpenses = expenses.reduce((sum, expense) => sum + (parseFloat(expense.amount) || 0), 0);
   const netProfit = totalRevenue - totalExpenses;
@@ -109,14 +109,24 @@ const MetricsGrid = ({ metrics, tokens, expenses, entries, exchanges, sparklineD
       <DashboardCard 
         title="Pure Exchange" 
         value={
-          <div className="flex flex-col justify-between w-full text-xl">
-            <span>{(metrics.totalWeight || 0).toFixed(3)} g</span>
-            <span>{(metrics.totalExWeight || 0).toFixed(3)} g</span>
+          <div className="flex flex-col space-y-2 w-full">
+            <div className="flex justify-between items-center">
+              
+              <span className="text-lg font-bold">
+                {Number(metrics.totalWeight || 0).toFixed(3)} g
+              </span>
+            </div>
+            <div className="flex justify-between items-center">
+            
+              <span className="text-lg font-bold">
+                {Number(metrics.totalExWeight || 0).toFixed(3)} g
+              </span>
+            </div>
           </div>
         }
         trend={trends.weightTrend}
         icon={ArrowsRightLeftIcon}
-        description="Exchange weights breakdown"
+        description={`${selectedPeriod} exchange weights`}
         sparklineData={sparklineData.weights}
         className="bg-white"
         iconClassName="text-yellow-600"
