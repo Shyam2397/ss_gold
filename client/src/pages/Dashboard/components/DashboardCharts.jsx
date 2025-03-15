@@ -112,10 +112,10 @@ const DashboardCharts = ({ tokens = [], expenses = [], entries = [], exchanges =
 
       // Process exchanges with improved weekly handling
       exchanges.forEach(exchange => {
-        const date = new Date(exchange.date.split('-').reverse().join('-'));
+        const date = new Date(exchange.date);
         const key = period === 'weekly' ? 
           getWeekKey(date) : 
-          getDateKey(date, period);
+          getDateKey(exchange.date, period);
 
         if (!exchangeMap.has(key)) {
           exchangeMap.set(key, { count: 0, weight: 0 });
@@ -209,21 +209,26 @@ const DashboardCharts = ({ tokens = [], expenses = [], entries = [], exchanges =
                 orientation="right"
                 axisLine={false} 
                 tickLine={false}
+                tickFormatter={value => value.toLocaleString()}
               />
               <Tooltip
                 contentStyle={{
                   backgroundColor: 'rgba(255, 255, 255, 0.9)',
                   borderRadius: '8px',
                   boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
-                  border: 'none'
+                  border: 'none',
+                  padding: '8px 12px'
                 }}
                 labelFormatter={formatDate}
-                formatter={(value, name) => [
-                  ['revenue', 'expenses', 'profit'].includes(name.toLowerCase()) 
-                    ? `₹${value.toLocaleString()}`
-                    : value,
-                  name
-                ]}
+                formatter={(value, name) => {
+                  if (['revenue', 'expenses', 'profit'].includes(name.toLowerCase())) {
+                    return [`₹${value.toLocaleString()}`, name];
+                  } else if (name.toLowerCase() === 'weight') {
+                    return [`${value.toFixed(3)} g`, name];
+                  } else {
+                    return [value.toLocaleString(), name];
+                  }
+                }}
               />
               {CHART_SERIES.map(([key, name, color, axis]) => (
                 <Area
