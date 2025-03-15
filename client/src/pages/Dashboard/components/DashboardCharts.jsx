@@ -24,6 +24,8 @@ const getDateKey = (date, format) => {
   const key = `${date}-${format}`;
   if (!dateCache.has(key)) {
     const d = new Date(date);
+    // Adjust to local timezone by subtracting the offset
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
     let formatted;
     switch (format) {
       case 'yearly':
@@ -35,10 +37,10 @@ const getDateKey = (date, format) => {
       case 'weekly':
         const week = new Date(d);
         week.setDate(d.getDate() - d.getDay());
-        formatted = week.toISOString().split('T')[0];
+        formatted = `${week.getFullYear()}-${String(week.getMonth() + 1).padStart(2, '0')}-${String(week.getDate()).padStart(2, '0')}`;
         break;
       default:
-        formatted = d.toISOString().split('T')[0];
+        formatted = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
     }
     dateCache.set(key, formatted);
   }
@@ -77,9 +79,10 @@ const DashboardCharts = ({ tokens = [], expenses = [], entries = [], exchanges =
       // Improved weekly key generation for better aggregation
       const getWeekKey = (date) => {
         const d = new Date(date);
+        d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); // Adjust to local timezone
         d.setHours(0, 0, 0, 0);
         d.setDate(d.getDate() - d.getDay()); // Set to start of week (Sunday)
-        return d.toISOString().split('T')[0];
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
       };
 
       // Process tokens with improved weekly handling
