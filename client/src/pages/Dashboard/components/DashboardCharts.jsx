@@ -209,17 +209,21 @@ const DashboardCharts = ({ tokens = [], expenses = [], entries = [], exchanges =
     <div className="grid grid-cols-1 gap-6 mt-6">
       <div className="bg-white p-4 rounded-lg shadow-sm">
         <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-semibold text-yellow-900">Statistics</h3>
+          <h3 className="text-lg font-semibold text-yellow-900 px-5">Statistics</h3>
           <TimeSelector period={period} setPeriod={setPeriod} />
         </div>
         <div className="h-[400px]">
           <ResponsiveContainer>
-            <AreaChart data={chartData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
+            <AreaChart 
+              data={chartData} 
+              margin={{ top: 20, right: 30, left: 10, bottom: 0 }}
+              baseValue="dataMin"
+            >
               <defs>
                 {Object.entries(CHART_COLORS).map(([name, color]) => (
                   <linearGradient key={name} id={`color${name}`} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={color} stopOpacity={0.3} />
-                    <stop offset="95%" stopColor={color} stopOpacity={0.1} />
+                    <stop offset="5%" stopColor={color} stopOpacity={0.4} />
+                    <stop offset="95%" stopColor={color} stopOpacity={0.05} />
                   </linearGradient>
                 ))}
               </defs>
@@ -228,12 +232,16 @@ const DashboardCharts = ({ tokens = [], expenses = [], entries = [], exchanges =
                 tickFormatter={formatDate}
                 axisLine={false} 
                 tickLine={false}
+                dy={10}
+                tick={{ fill: '#6B7280', fontSize: 12 }}
               />
               <YAxis 
                 yAxisId="left"
                 axisLine={false} 
                 tickLine={false}
                 tickFormatter={value => `₹${value.toLocaleString()}`}
+                tick={{ fill: '#6B7280', fontSize: 12 }}
+                dx={-10}
               />
               <YAxis 
                 yAxisId="right"
@@ -241,14 +249,24 @@ const DashboardCharts = ({ tokens = [], expenses = [], entries = [], exchanges =
                 axisLine={false} 
                 tickLine={false}
                 tickFormatter={value => value.toLocaleString()}
+                tick={{ fill: '#6B7280', fontSize: 12 }}
+                dx={10}
               />
               <Tooltip
                 contentStyle={{
-                  backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                  borderRadius: '8px',
-                  boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
+                  backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                  borderRadius: '12px',
+                  boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
                   border: 'none',
-                  padding: '8px 12px'
+                  padding: '12px 16px'
+                }}
+                labelStyle={{
+                  color: '#374151',
+                  fontWeight: 600,
+                  marginBottom: '8px'
+                }}
+                itemStyle={{
+                  padding: '4px 0'
                 }}
                 labelFormatter={formatDate}
                 formatter={(value, name) => {
@@ -269,13 +287,21 @@ const DashboardCharts = ({ tokens = [], expenses = [], entries = [], exchanges =
                 <Area
                   key={key}
                   yAxisId={axis}
-                  type="monotone"
+                  type="monotoneX"
                   dataKey={key}
                   name={name}
                   stroke={color}
+                  strokeWidth={2.5}
                   fill={`url(#color${key})`}
                   fillOpacity={1}
-                  strokeWidth={2}
+                  animationDuration={1000}
+                  animationEasing="ease-out"
+                  dot={false}
+                  activeDot={{
+                    r: 6,
+                    strokeWidth: 3,
+                    stroke: '#fff'
+                  }}
                 />
               ))}
             </AreaChart>
