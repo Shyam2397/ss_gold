@@ -91,6 +91,102 @@ const useDashboardData = () => {
     }
   }, [exchanges, selectedPeriod]);
 
+  const processRecentActivities = (tokens, expenses, exchanges, entries) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    let uniqueCounter = 0;
+    const getUniqueId = (prefix, id) => {
+      uniqueCounter += 1;
+      return `${prefix}-${id || uniqueCounter}-${Date.now()}-${uniqueCounter}`;
+    };
+
+    const isToday = (dateStr) => {
+      try {
+        let date;
+        if (typeof dateStr === 'string') {
+          // Handle different date formats
+          if (dateStr.includes('-')) {
+            // For YYYY-MM-DD format
+            date = new Date(dateStr);
+          } else if (dateStr.includes('/')) {
+            // For DD/MM/YYYY format
+            const [day, month, year] = dateStr.split('/');
+            date = new Date(year, month - 1, day);
+          } else {
+            // For ISO string
+            date = new Date(dateStr);
+          }
+        } else {
+          date = new Date(dateStr);
+        }
+        
+        return date.getDate() === today.getDate() &&
+               date.getMonth() === today.getMonth() &&
+               date.getFullYear() === today.getFullYear();
+      } catch (err) {
+        console.error('Date parsing error:', err);
+        return false;
+      }
+    };
+
+    const activities = [
+      ...tokens
+        .filter(token => token.date && isToday(token.date))
+        .map(token => ({
+          id: getUniqueId('token', token._id),
+          type: 'token',
+          action: `${token.test || 'Token'} - ${token.name || 'Unknown'}`,
+          amount: parseFloat(token.amount || 0),
+          time: new Date(token.date),
+          details: `Weight: ${token.weight || 0}g`
+        })),
+      ...expenses
+        .filter(expense => expense.date && isToday(expense.date))
+        .map(expense => ({
+          id: getUniqueId('expense', expense._id),
+          type: 'expense',
+          action: expense.description || 'Expense added',
+          amount: -parseFloat(expense.amount || 0),
+          time: new Date(expense.date),
+          details: `Category: ${expense.expense_type || 'Uncategorized'}`
+        })),
+      ...exchanges
+        .filter(exchange => exchange.date && isToday(exchange.date))
+        .map(exchange => ({
+          id: getUniqueId('exchange', exchange._id),
+          type: 'exchange',
+          action: 'Exchange recorded',
+          amount: 0,
+          time: new Date(exchange.date.split('/').reverse().join('-')),
+          details: `Impure: ${exchange.weight}g → Pure: ${exchange.exweight}g`
+        })),
+      ...entries
+        .filter(entry => entry.createdAt && isToday(entry.createdAt))
+        .map(entry => ({
+          id: getUniqueId('entry', entry._id),
+          type: 'entry',
+          action: 'New customer registered',
+          amount: 0,
+          time: new Date(entry.createdAt),
+          details: entry.name || 'Unknown customer'
+        }))
+    ];
+
+    // Use original timestamps for sorting and display
+    return activities
+      .filter(activity => activity.time instanceof Date && !isNaN(activity.time))
+      .sort((a, b) => b.time.getTime() - a.time.getTime())
+      .map(activity => ({
+        ...activity,
+        time: activity.time.toLocaleTimeString('en-IN', {
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true
+        })
+      }));
+  };
+
   const fetchDashboardData = async () => {
     try {
       const [tokensRes, expensesRes, entriesRes, exchangesRes] = await Promise.all([
@@ -181,6 +277,14 @@ const useDashboardData = () => {
         formattedExpenses: `₹${todayExpensesTotal.toFixed(2)}`,
         formattedNetTotal: `₹${todayNetTotal.toFixed(2)}`
       });
+
+      const recentActivities = processRecentActivities(
+        processedTokens,
+        expensesRes.data,
+        processedExchanges,
+        entriesData
+      );
+      setRecentActivities(recentActivities);
 
       setLoading(false);
     } catch (err) {
