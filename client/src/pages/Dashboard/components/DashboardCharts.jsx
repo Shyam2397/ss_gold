@@ -3,15 +3,15 @@ import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'rec
 import TimeSelector from './TimeSelector';
 
 const CHART_COLORS = {
-  revenue: '#F7DC6F',
-  expenses: '#EF4444',
-  profit: '#10B981',
-  tokens: '#EC4899',
-  exchanges: '#8B5CF6',
-  exchangeWeight: '#6366F1',
-  exchangeExWeight: '#9333EA',  // Add new color for exweight
-  skinTest: '#F59E0B',
-  photoTest: '#8B5CF6'
+  revenue: '#FFD93D',     // Modern gold
+  expenses: '#FF6B6B',    // Soft red
+  profit: '#4ADE80',      // Fresh green
+  tokens: '#A78BFA',      // Lavender
+  exchanges: '#60A5FA',   // Sky blue
+  exchangeWeight: '#F472B6',  // Rose pink
+  exchangeExWeight: '#C084FC', // Purple
+  skinTest: '#38BDF8',    // Light blue
+  photoTest: '#2DD4BF'    // Teal
 };
 
 const CHART_SERIES = [
@@ -222,8 +222,9 @@ const DashboardCharts = ({ tokens = [], expenses = [], entries = [], exchanges =
               <defs>
                 {Object.entries(CHART_COLORS).map(([name, color]) => (
                   <linearGradient key={name} id={`color${name}`} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={color} stopOpacity={0.4} />
-                    <stop offset="95%" stopColor={color} stopOpacity={0.05} />
+                    <stop offset="0%" stopColor={color} stopOpacity={0.4} />
+                    <stop offset="50%" stopColor={color} stopOpacity={0.1} />
+                    <stop offset="100%" stopColor={color} stopOpacity={0.02} />
                   </linearGradient>
                 ))}
               </defs>
@@ -291,16 +292,18 @@ const DashboardCharts = ({ tokens = [], expenses = [], entries = [], exchanges =
                   dataKey={key}
                   name={name}
                   stroke={color}
-                  strokeWidth={2.5}
+                  strokeWidth={2}
                   fill={`url(#color${key})`}
                   fillOpacity={1}
-                  animationDuration={1000}
-                  animationEasing="ease-out"
+                  animationDuration={1500}
+                  animationEasing="ease-in-out"
                   dot={false}
                   activeDot={{
-                    r: 6,
-                    strokeWidth: 3,
-                    stroke: '#fff'
+                    r: 8,
+                    strokeWidth: 2,
+                    stroke: '#fff',
+                    fill: color,
+                    boxShadow: '0 0 10px rgba(0,0,0,0.2)'
                   }}
                 />
               ))}
