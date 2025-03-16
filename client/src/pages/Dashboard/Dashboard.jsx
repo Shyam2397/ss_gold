@@ -6,6 +6,7 @@ import DashboardHeader from './components/DashboardHeader';
 import MetricsGrid from './components/MetricsGrid';
 import DashboardCharts from './components/DashboardCharts';
 import RecentActivity from './components/RecentActivity';
+import UnpaidCustomers from './components/UnpaidCustomers';
 
 function Dashboard() {
   const {
@@ -47,7 +48,10 @@ function Dashboard() {
         selectedPeriod={selectedPeriod}
       />
       <DashboardCharts tokens={tokens} expenses={expenses} entries={entries} exchanges={exchanges} />
-      <RecentActivity activities={recentActivities} />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <RecentActivity activities={recentActivities} />
+        <UnpaidCustomers tokens={tokens} />
+      </div>
     </motion.div>
   );
 }

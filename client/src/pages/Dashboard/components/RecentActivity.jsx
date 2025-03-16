@@ -33,7 +33,7 @@ const RecentActivity = ({ activities = [] }) => (
         })}
       </span>
     </div>
-    <div className="overflow-y-auto max-h-[400px]">
+    <div className="overflow-y-auto max-h-[350px]">
       <div className="space-y-3">
         {activities.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-6">
