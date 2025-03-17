@@ -44,16 +44,14 @@ const UnpaidCustomers = ({ tokens = [] }) => {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between items-start">
-                    <div className="flex flex-col">
+                    <div className="flex items-center space-x-2">
                       <div className="text-sm font-medium text-gray-900">{customer.name}</div>
-                      <div className="text-xs text-gray-500 mt-0.5">
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-gray-100 text-gray-800 mr-2">
-                          #{customer.tokenNo}
-                        </span>
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-gray-100 text-gray-800">
-                          Code: {customer.code}
-                        </span>
-                      </div>
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-800">
+                        #{customer.tokenNo}
+                      </span>
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-800">
+                        Code: {customer.code}
+                      </span>
                     </div>
                     <span className="text-sm font-medium text-red-600">
                       ₹{customer.amount.toLocaleString()}
