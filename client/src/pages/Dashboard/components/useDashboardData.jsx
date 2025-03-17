@@ -133,14 +133,23 @@ const useDashboardData = () => {
     const activities = [
       ...tokens
         .filter(token => token.date && isToday(token.date))
-        .map(token => ({
-          id: getUniqueId('token', token._id),
-          type: 'token',
-          action: `${token.test || 'Token'} - ${token.name || 'Unknown'}`,
-          amount: parseFloat(token.amount || 0),
-          time: new Date(token.date),
-          details: `Weight: ${token.weight || 0}g`
-        })),
+        .map(token => {
+          // Create a date object from the token's date and time
+          const tokenDate = new Date(token.date);
+          if (token.time) {
+            const [hours, minutes] = token.time.split(':');
+            tokenDate.setHours(parseInt(hours, 10), parseInt(minutes, 10));
+          }
+          
+          return {
+            id: `token-${token._id || token.token_no || Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            type: 'token',
+            action: `${token.test || 'Token'} - ${token.name || 'Unknown'}`,
+            amount: parseFloat(token.amount || 0),
+            time: tokenDate,
+            details: `Weight: ${parseFloat(token.weight || 0).toFixed(3)}g`
+          };
+        }),
       ...expenses
         .filter(expense => expense.date && isToday(expense.date))
         .map(expense => ({
@@ -148,7 +157,7 @@ const useDashboardData = () => {
           type: 'expense',
           action: expense.description || 'Expense added',
           amount: -parseFloat(expense.amount || 0),
-          time: new Date(expense.date),
+          time: new Date(expense.created_at || expense.date),
           details: `Category: ${expense.expense_type || 'Uncategorized'}`
         })),
       ...exchanges
@@ -158,17 +167,19 @@ const useDashboardData = () => {
           type: 'exchange',
           action: 'Exchange recorded',
           amount: 0,
-          time: new Date(exchange.date.split('/').reverse().join('-')),
-          details: `Impure: ${exchange.weight}g → Pure: ${exchange.exweight}g`
+          time: exchange.time ? 
+            new Date(`${exchange.date.split('/').reverse().join('-')}T${exchange.time}`) :
+            new Date(exchange.date.split('/').reverse().join('-')),
+          details: `Impure: ${parseFloat(exchange.weight || 0).toFixed(3)}g → Pure: ${parseFloat(exchange.exweight || 0).toFixed(3)}g`
         })),
       ...entries
-        .filter(entry => entry.createdAt && isToday(entry.createdAt))
+        .filter(entry => entry.created_at && isToday(entry.created_at))
         .map(entry => ({
           id: getUniqueId('entry', entry._id),
           type: 'entry',
           action: 'New customer registered',
           amount: 0,
-          time: new Date(entry.createdAt),
+          time: new Date(entry.created_at),
           details: entry.name || 'Unknown customer'
         }))
     ];
