@@ -2,6 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Toaster } from 'react-hot-toast';
 import useDashboardData from './components/useDashboardData';
+import useSparklineData from './hooks/useSparklineData';
 import DashboardHeader from './components/DashboardHeader';
 import MetricsGrid from './components/MetricsGrid';
 import DashboardCharts from './components/DashboardCharts';
@@ -11,8 +12,10 @@ import UnpaidCustomers from './components/UnpaidCustomers';
 function Dashboard() {
   const {
     tokens, entries, expenses, exchanges, loading, error, recentActivities,
-    todayTotal, dateRange, setDateRange, metrics, sparklineData, selectedPeriod
+    todayTotal, dateRange, setDateRange, metrics, selectedPeriod
   } = useDashboardData();
+
+  const sparklineData = useSparklineData({ tokens, expenseData: expenses, entries, exchanges });
 
   if (loading) {
     return (
