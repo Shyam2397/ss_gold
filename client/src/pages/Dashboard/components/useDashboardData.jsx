@@ -269,7 +269,7 @@ const useDashboardData = () => {
      
       const todayExpenses = expensesRes.data.filter(expense => {
         if (!expense.date) return false;
-        const expenseDate = new Date(expense.date.split('-').reverse().join('-'));
+        const expenseDate = new Date(expense.date); // Expense dates are already in YYYY-MM-DD format
         const todayDate = new Date(today);
         return expenseDate.getFullYear() === todayDate.getFullYear() &&
                expenseDate.getMonth() === todayDate.getMonth() &&
