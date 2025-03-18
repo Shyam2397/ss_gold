@@ -7,8 +7,17 @@ import { ArrowUpIcon, ArrowDownIcon } from '@heroicons/react/24/solid';
 const TrendSparkline = ({ data, color }) => (
   <div className="h-6 w-20">
     <ResponsiveContainer width="100%" height="100%">
-      <LineChart data={data}>
-        <Line type="monotone" dataKey="value" stroke={color} strokeWidth={1.5} dot={false} />
+      <LineChart data={data} margin={{ top: 5, right: 0, left: 0, bottom: 5 }}>
+        <Line 
+          type="monotone" 
+          dataKey="value" 
+          stroke={color} 
+          strokeWidth={2} 
+          dot={false}
+          strokeLinecap="round"
+          animationDuration={500}
+          isAnimationActive={true}
+        />
       </LineChart>
     </ResponsiveContainer>
   </div>
@@ -17,7 +26,9 @@ const TrendSparkline = ({ data, color }) => (
 const DashboardCard = ({ title, value, trend, icon: Icon, description, sparklineData, className, iconClassName, valueClassName }) => {
   const [isHovered, setIsHovered] = useState(false);
   const isPositive = trend > 0;
-  const trendColor = isPositive ? '#F7DC6F' : '#EF4444';
+  const trendColor = isPositive ? '#10B981' : '#EF4444';
+  const trendBgColor = isPositive ? 'bg-emerald-50' : 'bg-red-50';
+  const trendTextColor = isPositive ? 'text-emerald-600' : 'text-red-600';
 
   return (
     <motion.div
@@ -41,12 +52,12 @@ const DashboardCard = ({ title, value, trend, icon: Icon, description, sparkline
           </div>
           
           {/* Trend Indicator */}
-          <div className={`flex items-center px-2 py-0.5 rounded-full ${isPositive ? 'bg-yellow-50' : 'bg-red-50'}`}>
+          <div className={`flex items-center px-2 py-0.5 rounded-full ${trendBgColor}`}>
             {isPositive ? 
-              <ArrowUpIcon className="w-3 h-3 text-yellow-600" /> : 
-              <ArrowDownIcon className="w-3 h-3 text-red-500" />
+              <ArrowUpIcon className={`w-3 h-3 ${trendTextColor}`} /> : 
+              <ArrowDownIcon className={`w-3 h-3 ${trendTextColor}`} />
             }
-            <span className={`ml-1 text-xs ${isPositive ? 'text-yellow-600' : 'text-red-600'}`}>
+            <span className={`ml-1 text-xs ${trendTextColor}`}>
               {Math.abs(trend)}%
             </span>
           </div>
