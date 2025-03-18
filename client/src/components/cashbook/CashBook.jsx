@@ -2,31 +2,24 @@ import React, { useState, useEffect } from 'react';
 import { Search, RotateCcw, ArrowUpDown, FileSpreadsheet, Printer, Mail, X } from 'lucide-react';
 import CashAdjustment from './CashAdjustment';
 import { motion } from 'framer-motion';
+import axios from 'axios';
+
+const API_BASE_URL = import.meta.env.VITE_API_URL;
 
 function CashBook({ isOpen, onClose }) {
-  const [dateRange, setDateRange] = useState({
-    from: '2024-12-28',
-    to: '2025-01-04'
+  const [dateRange, setDateRange] = useState(() => {
+    const today = new Date();
+    const weekAgo = new Date(today);
+    weekAgo.setDate(weekAgo.getDate() - 7);
+    return {
+      from: weekAgo.toISOString().split('T')[0],
+      to: today.toISOString().split('T')[0]
+    };
   });
 
-  const [transactions, setTransactions] = useState([
-    {
-      id: 1,
-      date: '2025-01-12',
-      particulars: 'Sales Revenue',
-      type: 'Income',
-      debit: 0,
-      credit: 5000
-    },
-    {
-      id: 2,
-      date: '2025-01-12',
-      particulars: 'Office Supplies',
-      type: 'Expense',
-      debit: 1000,
-      credit: 0
-    }
-  ]);
+  const [transactions, setTransactions] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const [filteredTransactions, setFilteredTransactions] = useState([]);
   const [cashInfo, setCashInfo] = useState({
@@ -37,14 +30,76 @@ function CashBook({ isOpen, onClose }) {
   const [activeTab, setActiveTab] = useState('categorywise');
   const [showAdjustment, setShowAdjustment] = useState(false);
 
+  const fetchTransactions = async () => {
+    if (!dateRange.from || !dateRange.to) return;
+    setLoading(true);
+    setError('');
+    try {
+      // Fetch both tokens and expenses
+      const [tokensResponse, expensesResponse] = await Promise.all([
+        axios.get(`${API_BASE_URL}/tokens`, {
+          params: {
+            from_date: dateRange.from,
+            to_date: dateRange.to
+          }
+        }),
+        axios.get(`${API_BASE_URL}/api/expenses`, {
+          params: {
+            from_date: dateRange.from,
+            to_date: dateRange.to
+          }
+        })
+      ]);
+
+      // Transform tokens into transactions (Income)
+      const tokenTransactions = tokensResponse.data.map(token => ({
+        id: `token-${token.id}`,
+        date: token.date,
+        particulars: `Token #${token.tokenNo} - ${token.name}`,
+        type: 'Income',
+        debit: 0,
+        credit: parseFloat(token.amount) || 0
+      }));
+
+      // Transform expenses into transactions (Expense)
+      const expenseTransactions = expensesResponse.data.map(expense => ({
+        id: `expense-${expense.id}`,
+        date: expense.date,
+        particulars: `${expense.expense_type} - ${expense.paid_to || 'N/A'}`,
+        type: 'Expense',
+        debit: parseFloat(expense.amount) || 0,
+        credit: 0
+      }));
+
+      // Combine and sort transactions by date
+      const allTransactions = [...tokenTransactions, ...expenseTransactions]
+        .sort((a, b) => new Date(b.date) - new Date(a.date));
+
+      setTransactions(allTransactions);
+    } catch (err) {
+      console.error('Error fetching transactions:', err);
+      setError('Failed to fetch transactions. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
+    fetchTransactions();
+    // Set up polling for real-time updates
+    const pollInterval = setInterval(fetchTransactions, 30000); // Poll every 30 seconds
+    return () => clearInterval(pollInterval);
+  }, []);
+
+  useEffect(() => {
+    setFilteredTransactions(transactions);
+
     const filtered = transactions.filter(transaction => {
       const transactionDate = new Date(transaction.date);
       const fromDate = new Date(dateRange.from);
       const toDate = new Date(dateRange.to);
       return transactionDate >= fromDate && transactionDate <= toDate;
     });
-    setFilteredTransactions(filtered);
 
     const info = filtered.reduce((acc, curr) => ({
       inflow: acc.inflow + curr.credit,
@@ -55,6 +110,8 @@ function CashBook({ isOpen, onClose }) {
   }, [transactions, dateRange]);
 
   const handleSearch = () => {
+    if (!transactions.length) return;
+
     const filtered = transactions.filter(transaction => {
       const transactionDate = new Date(transaction.date);
       const fromDate = new Date(dateRange.from);
@@ -62,6 +119,14 @@ function CashBook({ isOpen, onClose }) {
       return transactionDate >= fromDate && transactionDate <= toDate;
     });
     setFilteredTransactions(filtered);
+
+    // Calculate cash info
+    const info = filtered.reduce((acc, curr) => ({
+      inflow: acc.inflow + curr.credit,
+      outflow: acc.outflow + curr.debit,
+      netFlow: (acc.inflow + curr.credit) - (acc.outflow + curr.debit)
+    }), { inflow: 0, outflow: 0, netFlow: 0 });
+    setCashInfo(info);
   };
 
   const handleReset = () => {
@@ -73,6 +138,7 @@ function CashBook({ isOpen, onClose }) {
       from: weekAgo.toISOString().split('T')[0],
       to: today.toISOString().split('T')[0]
     });
+    handleSearch();
   };
 
   const handleQuickFilter = (days) => {
@@ -84,6 +150,7 @@ function CashBook({ isOpen, onClose }) {
       from: startDate.toISOString().split('T')[0],
       to: today.toISOString().split('T')[0]
     });
+    handleSearch();
   };
 
   const handleExport = (type) => {
@@ -163,6 +230,17 @@ function CashBook({ isOpen, onClose }) {
 
         {/* Content */}
         <div className="flex-1 overflow-auto">
+        {loading && (
+          <div className="flex items-center justify-center h-32">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-600"></div>
+          </div>
+        )}
+        {error && (
+          <div className="text-red-500 text-center p-4">{error}</div>
+        )}
+        {!loading && !error && transactions.length === 0 && (
+          <div className="text-gray-500 text-center p-4">No transactions found</div>
+        )}
           {/* Date Range and Actions */}
           <div className="p-4 flex flex-col gap-4 border-b bg-white sticky top-0 z-10">
             {/* Date Range Row */}
@@ -242,7 +320,8 @@ function CashBook({ isOpen, onClose }) {
           <div className="p-4 flex gap-4">
             {/* Table Section */}
             <div className="flex-1">
-              <div className="border rounded-xl overflow-hidden">
+              <div className="border rounded-xl">
+                <div className="overflow-auto max-h-[calc(90vh-280px)]">
                 <table className="w-full">
                   <thead className="bg-amber-50">
                     <tr>
@@ -251,6 +330,7 @@ function CashBook({ isOpen, onClose }) {
                       <th className="py-2.5 px-4 text-left text-sm font-medium text-amber-800">Type</th>
                       <th className="py-2.5 px-4 text-right text-sm font-medium text-amber-800">Debit</th>
                       <th className="py-2.5 px-4 text-right text-sm font-medium text-amber-800">Credit</th>
+                      <th className="py-2.5 px-4 text-right text-sm font-medium text-amber-800">Amount</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y">
@@ -273,6 +353,7 @@ function CashBook({ isOpen, onClose }) {
                         </td>
                         <td className="py-2.5 px-4 text-right text-sm text-gray-600">{transaction.debit.toFixed(2)}</td>
                         <td className="py-2.5 px-4 text-right text-sm text-gray-600">{transaction.credit.toFixed(2)}</td>
+                        <td className="py-2.5 px-4 text-right text-sm text-gray-600">{(transaction.debit || transaction.credit).toFixed(2)}</td>
                       </tr>
                     ))}
                     <tr className="bg-amber-50/50">
@@ -281,6 +362,7 @@ function CashBook({ isOpen, onClose }) {
                     </tr>
                   </tbody>
                 </table>
+                </div>
               </div>
             </div>
 
