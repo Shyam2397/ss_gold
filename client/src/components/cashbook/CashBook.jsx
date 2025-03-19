@@ -15,56 +15,99 @@ function CashBook({ isOpen, onClose }) {
 
   const [filteredTransactions, setFilteredTransactions] = useState([]);
   const [cashInfo, setCashInfo] = useState({
-    inflow: 0,
-    outflow: 0,
-    netFlow: 0,
     openingBalance: 0,
-    closingBalance: 0,
-    previousMonthBalance: 0
+    closingBalance: 0
   });
   const [activeTab, setActiveTab] = useState('categorywise');
   const [showAdjustment, setShowAdjustment] = useState(false);
-
-  const fetchPreviousMonthBalance = async () => {
-    const today = new Date();
-    const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-    const lastDayOfPreviousMonth = new Date(firstDayOfMonth);
-    lastDayOfPreviousMonth.setDate(0);
-
-    try {
-      const [tokensResponse, expensesResponse] = await Promise.all([
-        axios.get(`${API_BASE_URL}/tokens`, {
-          params: {
-            from_date: lastDayOfPreviousMonth.toISOString().split('T')[0],
-            to_date: lastDayOfPreviousMonth.toISOString().split('T')[0]
-          }
-        }),
-        axios.get(`${API_BASE_URL}/api/expenses`, {
-          params: {
-            from_date: lastDayOfPreviousMonth.toISOString().split('T')[0],
-            to_date: lastDayOfPreviousMonth.toISOString().split('T')[0]
-          }
-        })
-      ]);
-
-      const previousMonthIncome = tokensResponse.data.reduce((sum, token) => sum + parseFloat(token.amount), 0);
-      const previousMonthExpenses = expensesResponse.data.reduce((sum, expense) => sum + parseFloat(expense.amount), 0);
-      const previousMonthBalance = previousMonthIncome - previousMonthExpenses;
-
-      setCashInfo(prev => ({...prev, previousMonthBalance, openingBalance: previousMonthBalance}));
-    } catch (err) {
-      console.error('Error fetching previous month balance:', err);
-    }
-  };
 
   const fetchTransactions = async () => {
     setLoading(true);
     setError('');
     try {
-      // Fetch both tokens and expenses without date filtering
+      // Get current month dates
+      const today = new Date();
+      const currentMonth = today.getMonth();
+      const currentYear = today.getFullYear();
+      
+      // Calculate first and last day of current month
+      const firstDayOfMonth = new Date(currentYear, currentMonth, 1);
+      const lastDayOfMonth = new Date(currentYear, currentMonth + 1, 0);
+      
+      // Calculate first and last day of previous month for opening balance
+      const firstDayOfPreviousMonth = new Date(currentYear, currentMonth - 1, 1);
+      const lastDayOfPreviousMonth = new Date(currentYear, currentMonth, 0);
+      
+      // Format dates for API
+      const firstDayFormatted = firstDayOfMonth.toISOString().split('T')[0];
+      const lastDayFormatted = lastDayOfMonth.toISOString().split('T')[0];
+      const firstDayOfAllTime = new Date(2000, 0, 1).toISOString().split('T')[0]; // Start from a very early date
+      const lastDayOfPreviousMonthFormatted = lastDayOfPreviousMonth.toISOString().split('T')[0];
+      
+      console.log('Date ranges for opening balance:', {
+        from: firstDayOfAllTime,
+        to: lastDayOfPreviousMonth
+      });
+      
+      const [previousTokensResponse, previousExpensesResponse] = await Promise.all([
+        axios.get(`${API_BASE_URL}/tokens`, {
+          params: {
+            from_date: firstDayOfAllTime,
+            to_date: lastDayOfPreviousMonth
+          }
+        }),
+        axios.get(`${API_BASE_URL}/api/expenses`, {
+          params: {
+            from_date: firstDayOfAllTime,
+            to_date: lastDayOfPreviousMonth
+          }
+        })
+      ]);
+      
+      // Calculate opening balance from previous transactions (up to last month)
+      const previousIncome = previousTokensResponse.data.reduce((sum, token) => {
+        const transactionDate = new Date(token.date);
+        if (transactionDate <= lastDayOfPreviousMonth) {
+          return sum + parseFloat(token.amount || 0);
+        }
+        return sum;
+      }, 0);
+      
+      const previousExpenses = previousExpensesResponse.data.reduce((sum, expense) => {
+        const transactionDate = new Date(expense.date);
+        if (transactionDate <= lastDayOfPreviousMonth) {
+          return sum + parseFloat(expense.amount || 0);
+        }
+        return sum;
+      }, 0);
+      
+      const openingBalance = previousIncome - previousExpenses;
+      
+      console.log('Opening Balance Calculation:', {
+        previousIncome,
+        previousExpenses,
+        openingBalance,
+        calculatedForMonth: lastDayOfPreviousMonth.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' }),
+        upToDate: lastDayOfPreviousMonthFormatted
+      });
+      
+      // Update opening balance in cashInfo
+      setCashInfo(prev => ({ ...prev, openingBalance }));
+      
+      // 2. Fetch current month transactions to display
       const [tokensResponse, expensesResponse] = await Promise.all([
-        axios.get(`${API_BASE_URL}/tokens`),
-        axios.get(`${API_BASE_URL}/api/expenses`)
+        axios.get(`${API_BASE_URL}/tokens`, {
+          params: {
+            from_date: firstDayFormatted,
+            to_date: lastDayFormatted
+          }
+        }),
+        axios.get(`${API_BASE_URL}/api/expenses`, {
+          params: {
+            from_date: firstDayFormatted,
+            to_date: lastDayFormatted
+          }
+        })
       ]);
 
       // Transform tokens into transactions (Income)
@@ -92,7 +135,7 @@ function CashBook({ isOpen, onClose }) {
         .sort((a, b) => new Date(a.date) - new Date(b.date));
 
       // Calculate running balance
-      let runningBalance = cashInfo.openingBalance;
+      let runningBalance = openingBalance;
       const transactionsWithBalance = allTransactions.map(transaction => {
         runningBalance = runningBalance + transaction.credit - transaction.debit;
         return {
@@ -111,33 +154,56 @@ function CashBook({ isOpen, onClose }) {
   };
 
   useEffect(() => {
-    fetchPreviousMonthBalance();
     fetchTransactions();
     // Set up polling for real-time updates
     const pollInterval = setInterval(() => {
       fetchTransactions();
-      fetchPreviousMonthBalance();
     }, 30000); // Poll every 30 seconds
     return () => clearInterval(pollInterval);
   }, []);
 
   useEffect(() => {
-    setFilteredTransactions(transactions);
-
-    const info = transactions.reduce((acc, curr) => ({
-      inflow: acc.inflow + curr.credit,
-      outflow: acc.outflow + curr.debit,
-      netFlow: (acc.inflow + curr.credit) - (acc.outflow + curr.debit),
-      openingBalance: cashInfo.openingBalance,
-      closingBalance: cashInfo.openingBalance + (acc.inflow + curr.credit) - (acc.outflow + curr.debit)
-    }), { 
-      inflow: 0, 
-      outflow: 0, 
-      netFlow: 0, 
-      openingBalance: cashInfo.openingBalance,
-      closingBalance: cashInfo.openingBalance
+    // Filter transactions to show only current month transactions
+    const today = new Date();
+    const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    
+    // Filter transactions to only include current month
+    const currentMonthTransactions = transactions.filter(transaction => {
+      const transactionDate = new Date(transaction.date);
+      return transactionDate >= firstDayOfMonth && transactionDate <= lastDayOfMonth;
     });
-    setCashInfo(info);
+    
+    // Sort transactions by date for consistent display
+    const sortedTransactions = [...currentMonthTransactions].sort(
+      (a, b) => new Date(a.date) - new Date(b.date)
+    );
+    
+    setFilteredTransactions(sortedTransactions);
+
+    // Calculate net change for current month (simplified from previous cashflow calculation)
+    const netChange = sortedTransactions.reduce(
+      (acc, curr) => acc + ((curr.credit || 0) - (curr.debit || 0)),
+      0
+    );
+    
+    // Set cash info with correct opening and closing balance only
+    setCashInfo(prev => {
+      const openingBalance = prev.openingBalance || 0; // Ensure we have a valid number
+      const closingBalance = openingBalance + netChange;
+      
+      console.log('Balance Calculation Summary:', {
+        month: new Date().toLocaleDateString('en-IN', { month: 'long', year: 'numeric' }),
+        openingBalance,
+        netChange,
+        closingBalance
+      });
+      
+      return {
+        openingBalance: openingBalance, // Preserve the opening balance calculated in fetchTransactions
+        closingBalance: closingBalance
+      };
+    });
   }, [transactions]);
 
   // Search, reset, and quick filter functions removed as per requirement
@@ -158,20 +224,55 @@ function CashBook({ isOpen, onClose }) {
     }
   };
 
-  const handleAdjustmentSave = (adjustmentData) => {
-    // Convert adjustment to transaction format
-    const transaction = {
-      id: Date.now(),
-      date: adjustmentData.date,
-      particulars: adjustmentData.remarks || 'Cash Adjustment',
-      type: adjustmentData.type === 'credit' ? 'Income' : 'Expense',
-      debit: adjustmentData.type === 'debit' ? adjustmentData.amount : 0,
-      credit: adjustmentData.type === 'credit' ? adjustmentData.amount : 0,
-      isAdjustment: true
-    };
+  const handleAdjustmentSave = async (adjustmentData) => {
+    setLoading(true);
+    try {
+      // Convert adjustment to transaction format for UI
+      const transaction = {
+        id: `adjustment-${Date.now()}`,
+        date: adjustmentData.date,
+        particulars: adjustmentData.remarks || 'Cash Adjustment',
+        type: adjustmentData.type === 'credit' ? 'Income' : 'Expense',
+        debit: adjustmentData.type === 'debit' ? adjustmentData.amount : 0,
+        credit: adjustmentData.type === 'credit' ? adjustmentData.amount : 0,
+        isAdjustment: true
+      };
 
-    setTransactions(prev => [...prev, transaction]);
-    setShowAdjustment(false);
+      // Save adjustment to backend - this ensures it's included in future opening balance calculations
+      // We'll save it as an expense with negative amount for debit or as a token for credit
+      if (adjustmentData.type === 'debit') {
+        // Save as expense
+        await axios.post(`${API_BASE_URL}/api/expenses`, {
+          date: adjustmentData.date,
+          expense_type: 'Cash Adjustment',
+          paid_to: adjustmentData.remarks || 'Cash Adjustment',
+          amount: adjustmentData.amount,
+          payment_mode: 'Cash',
+          remarks: 'Manual cash adjustment'
+        });
+      } else {
+        // Save as token/income
+        await axios.post(`${API_BASE_URL}/tokens`, {
+          date: adjustmentData.date,
+          tokenNo: `ADJ-${Date.now()}`,
+          name: adjustmentData.remarks || 'Cash Adjustment',
+          amount: adjustmentData.amount,
+          payment_mode: 'Cash',
+          remarks: 'Manual cash adjustment'
+        });
+      }
+
+      // Add to local transactions and refresh data
+      setTransactions(prev => [...prev, transaction]);
+      // Refresh all transactions to ensure consistency
+      fetchTransactions();
+      setShowAdjustment(false);
+    } catch (err) {
+      console.error('Error saving adjustment:', err);
+      setError('Failed to save adjustment. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleBackdropClick = (e) => {
@@ -205,8 +306,8 @@ function CashBook({ isOpen, onClose }) {
           </div>
           <div className="flex items-center gap-8">
             <div className="flex flex-col items-end">
-              <div className="text-2xl font-semibold text-amber-600 tracking-tight">₹ {cashInfo.netFlow.toFixed(2)}</div>
-              <div className="text-xs text-gray-500 font-medium">Net Balance</div>
+              <div className="text-2xl font-semibold text-amber-600 tracking-tight">₹ {cashInfo.closingBalance.toFixed(2)}</div>
+              <div className="text-xs text-gray-500 font-medium">Closing Balance</div>
             </div>
             <button 
               onClick={onClose}
@@ -246,6 +347,11 @@ function CashBook({ isOpen, onClose }) {
             {/* Table Section */}
             <div className="flex-1">
               <div className="border rounded-xl">
+                <div className="bg-amber-50 px-4 py-2 border-b">
+                  <h3 className="font-medium text-amber-800">
+                    {new Date().toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })} Transactions
+                  </h3>
+                </div>
                 <div className="h-[calc(90vh-280px)]">
                 <AutoSizer>
                   {({ width, height }) => (
@@ -280,9 +386,17 @@ function CashBook({ isOpen, onClose }) {
                         )}
                         cellRenderer={({ rowData }) => (
                           <div className="text-center text-xs text-amber-900 truncate py-4">
-                            {rowData.type === 'opening' ? 'Opening Balance' :
-                             rowData.type === 'closing' ? 'Closing Balance' :
-                             rowData.date}
+                            {rowData.type === 'opening' ? (
+                              <span className="font-semibold">Opening Balance</span>
+                            ) : rowData.type === 'closing' ? (
+                              <span className="font-semibold">Closing Balance</span>
+                            ) : (
+                              new Date(rowData.date).toLocaleDateString('en-IN', {
+                                day: '2-digit',
+                                month: 'short',
+                                year: 'numeric'
+                              })
+                            )}
                           </div>
                         )}
                       />
@@ -364,9 +478,17 @@ function CashBook({ isOpen, onClose }) {
                         )}
                         cellRenderer={({ rowData }) => (
                           <div className="text-right text-xs text-amber-900 truncate py-4 px-4 font-medium">
-                            {rowData.type === 'opening' ? cashInfo.openingBalance.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) :
-                             rowData.type === 'closing' ? (cashInfo.openingBalance + cashInfo.netFlow).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) :
-                             rowData.runningBalance.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            {rowData.type === 'opening' ? (
+                              <span className="font-semibold text-amber-700">
+                                ₹ {cashInfo.openingBalance.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </span>
+                            ) : rowData.type === 'closing' ? (
+                              <span className="font-semibold text-amber-700">
+                                ₹ {cashInfo.closingBalance.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </span>
+                            ) : (
+                              <span>₹ {rowData.runningBalance.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                            )}
                           </div>
                         )}
                       />
@@ -377,27 +499,23 @@ function CashBook({ isOpen, onClose }) {
               </div>
             </div>
 
-            {/* Quick Info Section */}
+            {/* Balance Info Section */}
             <div className="w-72">
               <div className="bg-white border rounded-xl overflow-hidden">
                 <div className="p-4 border-b bg-amber-50/50">
                   <h3 className="font-medium text-amber-800 flex items-center gap-2">
                     <span className="text-amber-500">☀</span> 
-                    Quick Summary
+                    Balance Summary
                   </h3>
                 </div>
                 <div className="p-4 space-y-3">
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600">Cash Inflow</span>
-                    <span className="text-sm font-medium text-green-600">₹ {cashInfo.inflow.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600">Cash Outflow</span>
-                    <span className="text-sm font-medium text-red-600">₹ {cashInfo.outflow.toFixed(2)}</span>
+                    <span className="text-sm text-gray-600">Opening Balance</span>
+                    <span className="text-sm font-medium text-gray-700">₹ {cashInfo.openingBalance.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between items-center pt-2 border-t">
-                    <span className="text-sm font-medium text-gray-700">Net Flow</span>
-                    <span className="text-sm font-medium text-amber-600">₹ {cashInfo.netFlow.toFixed(2)}</span>
+                    <span className="text-sm font-medium text-gray-700">Closing Balance</span>
+                    <span className="text-sm font-medium text-amber-600">₹ {cashInfo.closingBalance.toFixed(2)}</span>
                   </div>
                 </div>
               </div>
