@@ -134,15 +134,34 @@ function CashBook({ isOpen, onClose }) {
       const allTransactions = [...tokenTransactions, ...expenseTransactions]
         .sort((a, b) => new Date(a.date) - new Date(b.date));
 
-      // Calculate running balance
+      // Only process current month transactions for running balance
+      const currentMonthTransactions = allTransactions.filter(transaction => {
+        const transactionDate = new Date(transaction.date);
+        return transactionDate >= firstDayOfMonth && transactionDate <= lastDayOfMonth;
+      });
+
+      // Calculate running balance starting with opening balance
       let runningBalance = openingBalance;
-      const transactionsWithBalance = allTransactions.map(transaction => {
-        runningBalance = runningBalance + transaction.credit - transaction.debit;
+      console.log('Starting running balance calculation with opening balance:', openingBalance);
+      
+      const currentMonthTransactionsWithBalance = currentMonthTransactions.map(transaction => {
+        // For each transaction, update running balance by adding credit and subtracting debit
+        const transactionAmount = (parseFloat(transaction.credit) || 0) - (parseFloat(transaction.debit) || 0);
+        runningBalance += transactionAmount;
+        console.log(`Transaction: ${transaction.particulars}, Date: ${transaction.date}, Credit: ${transaction.credit}, Debit: ${transaction.debit}, Amount: ${transactionAmount}, New Balance: ${runningBalance}`);
         return {
           ...transaction,
-          runningBalance: runningBalance
+          runningBalance
         };
       });
+
+      // Combine with previous transactions (without running balance)
+      const previousTransactions = allTransactions.filter(transaction => {
+        const transactionDate = new Date(transaction.date);
+        return transactionDate < firstDayOfMonth;
+      });
+
+      const transactionsWithBalance = [...previousTransactions, ...currentMonthTransactionsWithBalance];
 
       setTransactions(transactionsWithBalance);
     } catch (err) {
@@ -189,18 +208,17 @@ function CashBook({ isOpen, onClose }) {
     
     // Set cash info with correct opening and closing balance only
     setCashInfo(prev => {
-      const openingBalance = prev.openingBalance || 0; // Ensure we have a valid number
-      const closingBalance = openingBalance + netChange;
+      const closingBalance = prev.openingBalance + netChange;
       
       console.log('Balance Calculation Summary:', {
         month: new Date().toLocaleDateString('en-IN', { month: 'long', year: 'numeric' }),
-        openingBalance,
+        openingBalance: prev.openingBalance,
         netChange,
         closingBalance
       });
       
       return {
-        openingBalance: openingBalance, // Preserve the opening balance calculated in fetchTransactions
+        openingBalance: prev.openingBalance, // Keep the original opening balance
         closingBalance: closingBalance
       };
     });
@@ -304,18 +322,12 @@ function CashBook({ isOpen, onClose }) {
             <h1 className="text-2xl font-semibold text-gray-800 tracking-tight">Cash Book</h1>
             <span className="text-sm px-3 py-1 bg-amber-50 text-amber-700 rounded-full font-medium ring-1 ring-amber-100/50">Report</span>
           </div>
-          <div className="flex items-center gap-8">
-            <div className="flex flex-col items-end">
-              <div className="text-2xl font-semibold text-amber-600 tracking-tight">₹ {cashInfo.closingBalance.toFixed(2)}</div>
-              <div className="text-xs text-gray-500 font-medium">Closing Balance</div>
-            </div>
-            <button 
-              onClick={onClose}
-              className="p-2 hover:bg-gray-100 rounded-full transition-colors duration-200"
-            >
-              <X className="h-5 w-5 text-gray-500" />
-            </button>
-          </div>
+          <button 
+            onClick={onClose}
+            className="p-2 hover:bg-gray-100 rounded-full transition-colors duration-200"
+          >
+            <X className="h-5 w-5 text-gray-500" />
+          </button>
         </div>
 
         {/* Content */}
@@ -358,8 +370,8 @@ function CashBook({ isOpen, onClose }) {
                     <Table
                       width={width}
                       height={height}
-                      headerHeight={40}
-                      rowHeight={50}
+                      headerHeight={32}
+                      rowHeight={40}
                       rowCount={filteredTransactions.length + 2}
                       rowGetter={({ index }) => {
                         if (index === 0) return { type: 'opening' };
@@ -381,12 +393,12 @@ function CashBook({ isOpen, onClose }) {
                         dataKey="date"
                         width={120}
                         headerRenderer={({ label }) => (
-                          <div className="text-center text-xs font-medium text-white uppercase tracking-wider py-2">
+                          <div className="text-center text-xs font-medium text-white uppercase tracking-wider py-1.5">
                             {label}
                           </div>
                         )}
                         cellRenderer={({ rowData }) => (
-                          <div className="text-center text-xs text-amber-900 truncate py-4">
+                          <div className="text-center text-xs text-amber-900 truncate py-2.5">
                             {rowData.type === 'opening' ? (
                               <span className="font-semibold">Opening Balance</span>
                             ) : rowData.type === 'closing' ? (
@@ -407,12 +419,12 @@ function CashBook({ isOpen, onClose }) {
                         width={300}
                         flexGrow={1}
                         headerRenderer={({ label }) => (
-                          <div className="text-center text-xs font-medium text-white uppercase tracking-wider py-2">
+                          <div className="text-center text-xs font-medium text-white uppercase tracking-wider py-1.5">
                             {label}
                           </div>
                         )}
                         cellRenderer={({ rowData }) => (
-                          <div className="text-xs text-amber-900 truncate py-4 px-4">
+                          <div className="text-xs text-amber-900 truncate py-2.5 px-4">
                             {rowData.particulars || '-'}
                           </div>
                         )}
@@ -422,14 +434,14 @@ function CashBook({ isOpen, onClose }) {
                         dataKey="type"
                         width={120}
                         headerRenderer={({ label }) => (
-                          <div className="text-center text-xs font-medium text-white uppercase tracking-wider py-2">
+                          <div className="text-center text-xs font-medium text-white uppercase tracking-wider py-1.5">
                             {label}
                           </div>
                         )}
                         cellRenderer={({ rowData }) => (
-                          <div className="text-center text-xs truncate py-4">
+                          <div className="text-center text-xs truncate py-2.5">
                             {rowData.type === 'opening' || rowData.type === 'closing' ? '' :
-                            <span className={`px-2.5 py-1 rounded-full font-medium inline-block
+                            <span className={`px-2.5 py-0.5 rounded-full font-medium inline-block
                               ${rowData.type === 'Income' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
                               {rowData.type}
                             </span>}
@@ -441,12 +453,12 @@ function CashBook({ isOpen, onClose }) {
                         dataKey="debit"
                         width={120}
                         headerRenderer={({ label }) => (
-                          <div className="text-center text-xs font-medium text-white uppercase tracking-wider py-2">
+                          <div className="text-center text-xs font-medium text-white uppercase tracking-wider py-1.5">
                             {label}
                           </div>
                         )}
                         cellRenderer={({ rowData }) => (
-                          <div className="text-right text-xs text-amber-900 truncate py-4 px-4">
+                          <div className="text-right text-xs text-amber-900 truncate py-2.5 px-4">
                             {rowData.type === 'opening' || rowData.type === 'closing' ? '-' :
                              rowData.debit.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </div>
@@ -457,28 +469,28 @@ function CashBook({ isOpen, onClose }) {
                         dataKey="credit"
                         width={120}
                         headerRenderer={({ label }) => (
-                          <div className="text-center text-xs font-medium text-white uppercase tracking-wider py-2">
+                          <div className="text-center text-xs font-medium text-white uppercase tracking-wider py-1.5">
                             {label}
                           </div>
                         )}
                         cellRenderer={({ rowData }) => (
-                          <div className="text-right text-xs text-amber-900 truncate py-4 px-4">
+                          <div className="text-right text-xs text-amber-900 truncate py-2.5 px-4">
                             {rowData.type === 'opening' || rowData.type === 'closing' ? '-' :
                              rowData.credit.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </div>
                         )}
                       />
                       <Column
-                        label="Running Balance"
+                        label="Balance"
                         dataKey="runningBalance"
                         width={120}
                         headerRenderer={({ label }) => (
-                          <div className="text-center text-xs font-medium text-white uppercase tracking-wider py-2">
+                          <div className="text-center text-xs font-medium text-white uppercase tracking-wider py-1.5">
                             {label}
                           </div>
                         )}
                         cellRenderer={({ rowData }) => (
-                          <div className="text-right text-xs truncate py-4 px-4 font-medium">
+                          <div className="text-right text-xs truncate py-2.5 px-4 font-medium">
                             {rowData.type === 'opening' ? (
                               <span className="font-semibold text-amber-700">
                                 ₹ {cashInfo.openingBalance.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
