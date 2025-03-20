@@ -368,7 +368,8 @@ function CashBook({ isOpen, onClose }) {
                       }}
                       rowClassName={({ index }) => 
                         `${index === -1 ? 'bg-amber-500' : 
-                          index === 0 || index === filteredTransactions.length + 1 ? 'bg-amber-50/50' :
+                          index === 0 ? 'bg-amber-50/80 font-medium' :
+                          index === filteredTransactions.length + 1 ? 'bg-amber-50/80 font-medium' :
                           index % 2 === 0 ? 'bg-white' : 'bg-amber-50/40'} 
                          ${index !== -1 && index !== 0 && index !== filteredTransactions.length + 1 ? 'hover:bg-amber-50/70' : ''} 
                          transition-colors rounded-t-xl`
@@ -477,7 +478,7 @@ function CashBook({ isOpen, onClose }) {
                           </div>
                         )}
                         cellRenderer={({ rowData }) => (
-                          <div className="text-right text-xs text-amber-900 truncate py-4 px-4 font-medium">
+                          <div className="text-right text-xs truncate py-4 px-4 font-medium">
                             {rowData.type === 'opening' ? (
                               <span className="font-semibold text-amber-700">
                                 ₹ {cashInfo.openingBalance.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -487,7 +488,9 @@ function CashBook({ isOpen, onClose }) {
                                 ₹ {cashInfo.closingBalance.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                               </span>
                             ) : (
-                              <span>₹ {rowData.runningBalance.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                              <span className={rowData.runningBalance >= 0 ? "text-green-700" : "text-red-700"}>
+                                ₹ {rowData.runningBalance.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </span>
                             )}
                           </div>
                         )}
@@ -511,11 +514,20 @@ function CashBook({ isOpen, onClose }) {
                 <div className="p-4 space-y-3">
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-600">Opening Balance</span>
-                    <span className="text-sm font-medium text-gray-700">₹ {cashInfo.openingBalance.toFixed(2)}</span>
+                    <span className="text-sm font-medium text-gray-700">₹ {cashInfo.openingBalance.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Net Change</span>
+                    <span className="text-sm font-medium text-gray-700">
+                      <span className={cashInfo.closingBalance - cashInfo.openingBalance >= 0 ? "text-green-600" : "text-red-600"}>
+                        {cashInfo.closingBalance - cashInfo.openingBalance >= 0 ? "+" : ""}
+                        ₹ {(cashInfo.closingBalance - cashInfo.openingBalance).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </span>
                   </div>
                   <div className="flex justify-between items-center pt-2 border-t">
                     <span className="text-sm font-medium text-gray-700">Closing Balance</span>
-                    <span className="text-sm font-medium text-amber-600">₹ {cashInfo.closingBalance.toFixed(2)}</span>
+                    <span className="text-sm font-medium text-amber-600">₹ {cashInfo.closingBalance.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                   </div>
                 </div>
               </div>
