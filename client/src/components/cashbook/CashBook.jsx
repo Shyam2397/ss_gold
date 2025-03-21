@@ -426,194 +426,195 @@ function CashBook({ isOpen, onClose }) {
                         {new Date().toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })} Transactions
                       </h3>
                     </div>
-                    <div className="h-[calc(90vh-280px)]">
-                    <AutoSizer>
-                      {({ width, height }) => (
-                        <Table
-                          width={width}
-                          height={height}
-                          headerHeight={32}
-                          rowHeight={40}
-                          rowCount={filteredTransactions.length + 2}
-                          rowGetter={({ index }) => {
-                            if (index === 0) return { type: 'opening' };
-                            if (index === filteredTransactions.length + 1) return { type: 'closing' };
-                            return filteredTransactions[index - 1];
-                          }}
-                          rowClassName={({ index }) => 
-                            `${index === -1 ? 'bg-amber-500' : 
-                              index === 0 ? 'bg-amber-50/80 font-medium' :
-                              index === filteredTransactions.length + 1 ? 'bg-amber-50/80 font-medium' :
-                              index % 2 === 0 ? 'bg-white' : 'bg-amber-50/40'} 
-                             ${index !== -1 && index !== 0 && index !== filteredTransactions.length + 1 ? 'hover:bg-amber-50/70' : ''} 
-                             transition-colors rounded-t-xl`
-                          }
-                          overscanRowCount={5}
-                        >
-                          <Column
-                            label="Date"
-                            dataKey="date"
-                            width={120}
-                            headerRenderer={({ label }) => (
-                              <div className="text-center text-xs font-medium text-white uppercase tracking-wider py-1.5">
-                                {label}
-                              </div>
-                            )}
-                            cellRenderer={({ rowData }) => (
-                              <div className="text-center text-xs text-amber-900 truncate py-2.5">
-                                {rowData.type === 'opening' ? (
-                                  <span className="font-semibold">Opening Balance</span>
-                                ) : rowData.type === 'closing' ? (
-                                  <span className="font-semibold">Closing Balance</span>
-                                ) : (
-                                  new Date(rowData.date).toLocaleDateString('en-IN', {
-                                    day: '2-digit',
-                                    month: 'short',
-                                    year: 'numeric'
-                                  })
-                                )}
-                              </div>
-                            )}
-                          />
-                          <Column
-                            label="Particulars"
-                            dataKey="particulars"
-                            width={300}
-                            flexGrow={1}
-                            headerRenderer={({ label }) => (
-                              <div className="text-center text-xs font-medium text-white uppercase tracking-wider py-1.5">
-                                {label}
-                              </div>
-                            )}
-                            cellRenderer={({ rowData }) => {
-                              if (rowData.type === 'opening' || rowData.type === 'closing') {
-                                return (
-                                  <div className="text-xs text-amber-900 truncate py-2.5 px-4">
-                                    {rowData.particulars || '-'}
-                                  </div>
-                                );
-                              }
-                              
-                              if (rowData.particulars.test) { // For token transactions
-                                return (
-                                  <div className="text-xs text-amber-900 truncate py-2.5 px-4 flex items-center gap-1.5">
-                                    <span className="font-medium">{rowData.particulars.test}</span>
-                                    <span className="text-[10px] text-amber-600">•</span>
-                                    <span className="text-[10px] text-amber-800">#{rowData.particulars.tokenNo}</span>
-                                    <span className="text-[10px] text-amber-600">•</span>
-                                    <span className="text-[10px] text-amber-500">{rowData.particulars.name.substring(0, 15)}{rowData.particulars.name.length > 15 ? '...' : ''}</span>
-                                  </div>
-                                );
-                              }
-                              
-                              return ( // For expense transactions
-                                <div className="text-xs text-amber-900 truncate py-2.5 px-4">
-                                  {rowData.particulars}
-                                </div>
-                              );
+                    {/* Changed height calculation here */}
+                    <div className="h-[calc(92vh-200px)]">
+                      <AutoSizer>
+                        {({ width, height }) => (
+                          <Table
+                            width={width}
+                            height={height}
+                            headerHeight={32}
+                            rowHeight={40}
+                            rowCount={filteredTransactions.length + 2}
+                            rowGetter={({ index }) => {
+                              if (index === 0) return { type: 'opening' };
+                              if (index === filteredTransactions.length + 1) return { type: 'closing' };
+                              return filteredTransactions[index - 1];
                             }}
-                          />
-                          <Column
-                            label="Type"
-                            dataKey="type"
-                            width={120}
-                            headerRenderer={({ label }) => (
-                              <div className="text-center text-xs font-medium text-white uppercase tracking-wider py-1.5">
-                                {label}
-                              </div>
-                            )}
-                            cellRenderer={({ rowData }) => (
-                              <div className="text-center text-xs truncate py-2.5">
-                                {rowData.type === 'opening' || rowData.type === 'closing' ? '' :
-                                <span className={`px-2.5 py-0.5 rounded-full font-medium inline-block
-                                  ${rowData.type === 'Income' ? 'bg-green-100 text-green-800' : 
-                                    rowData.type === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
-                                    'bg-red-100 text-red-800'}`}>
-                                  {rowData.type}
-                                </span>}
-                              </div>
-                            )}
-                          />
-                          <Column
-                            label="Debit"
-                            dataKey="debit"
-                            width={120}
-                            headerRenderer={({ label }) => (
-                              <div className="text-center text-xs font-medium text-white uppercase tracking-wider py-1.5">
-                                {label}
-                              </div>
-                            )}
-                            cellRenderer={({ rowData }) => (
-                              <div className="text-right text-xs text-amber-900 truncate py-2.5 px-4">
-                                {rowData.type === 'opening' || rowData.type === 'closing' ? '-' :
-                                 rowData.debit.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                              </div>
-                            )}
-                          />
-                          <Column
-                            label="Credit"
-                            dataKey="credit"
-                            width={120}
-                            headerRenderer={({ label }) => (
-                              <div className="text-center text-xs font-medium text-white uppercase tracking-wider py-1.5">
-                                {label}
-                              </div>
-                            )}
-                            cellRenderer={({ rowData }) => (
-                              <div className="text-right text-xs text-amber-900 truncate py-2.5 px-4">
-                                {rowData.type === 'opening' || rowData.type === 'closing' ? '-' :
-                                 rowData.credit.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                              </div>
-                            )}
-                          />
-                          <Column
-                            label="Balance"
-                            dataKey="runningBalance"
-                            width={120}
-                            headerRenderer={({ label }) => (
-                              <div className="text-center text-xs font-medium text-white uppercase tracking-wider py-1.5">
-                                {label}
-                              </div>
-                            )}
-                            cellRenderer={({ rowData }) => {
-                              // Opening balance row with pending amount
-                              if (rowData.type === 'opening') {
+                            rowClassName={({ index }) => 
+                              `${index === -1 ? 'bg-amber-500' : 
+                                index === 0 ? 'bg-amber-50/80 font-medium' :
+                                index === filteredTransactions.length + 1 ? 'bg-amber-50/80 font-medium' :
+                                index % 2 === 0 ? 'bg-white' : 'bg-amber-50/40'} 
+                               ${index !== -1 && index !== 0 && index !== filteredTransactions.length + 1 ? 'hover:bg-amber-50/70' : ''} 
+                               transition-colors rounded-t-xl`
+                            }
+                            overscanRowCount={5}
+                          >
+                            <Column
+                              label="Date"
+                              dataKey="date"
+                              width={120}
+                              headerRenderer={({ label }) => (
+                                <div className="text-center text-xs font-medium text-white uppercase tracking-wider py-1.5">
+                                  {label}
+                                </div>
+                              )}
+                              cellRenderer={({ rowData }) => (
+                                <div className="text-center text-xs text-amber-900 truncate py-2.5">
+                                  {rowData.type === 'opening' ? (
+                                    <span className="font-semibold">Opening Balance</span>
+                                  ) : rowData.type === 'closing' ? (
+                                    <span className="font-semibold">Closing Balance</span>
+                                  ) : (
+                                    new Date(rowData.date).toLocaleDateString('en-IN', {
+                                      day: '2-digit',
+                                      month: 'short',
+                                      year: 'numeric'
+                                    })
+                                  )}
+                                </div>
+                              )}
+                            />
+                            <Column
+                              label="Particulars"
+                              dataKey="particulars"
+                              width={300}
+                              flexGrow={1}
+                              headerRenderer={({ label }) => (
+                                <div className="text-center text-xs font-medium text-white uppercase tracking-wider py-1.5">
+                                  {label}
+                                </div>
+                              )}
+                              cellRenderer={({ rowData }) => {
+                                if (rowData.type === 'opening' || rowData.type === 'closing') {
+                                  return (
+                                    <div className="text-xs text-amber-900 truncate py-2.5 px-4">
+                                      {rowData.particulars || '-'}
+                                    </div>
+                                  );
+                                }
+                                
+                                if (rowData.particulars.test) { // For token transactions
+                                  return (
+                                    <div className="text-xs text-amber-900 truncate py-2.5 px-4 flex items-center gap-1.5">
+                                      <span className="font-medium">{rowData.particulars.test}</span>
+                                      <span className="text-[10px] text-amber-600">•</span>
+                                      <span className="text-[10px] text-amber-800">#{rowData.particulars.tokenNo}</span>
+                                      <span className="text-[10px] text-amber-600">•</span>
+                                      <span className="text-[10px] text-amber-500">{rowData.particulars.name.substring(0, 15)}{rowData.particulars.name.length > 15 ? '...' : ''}</span>
+                                    </div>
+                                  );
+                                }
+                                
+                                return ( // For expense transactions
+                                  <div className="text-xs text-amber-900 truncate py-2.5 px-4">
+                                    {rowData.particulars}
+                                  </div>
+                                );
+                              }}
+                            />
+                            <Column
+                              label="Type"
+                              dataKey="type"
+                              width={120}
+                              headerRenderer={({ label }) => (
+                                <div className="text-center text-xs font-medium text-white uppercase tracking-wider py-1.5">
+                                  {label}
+                                </div>
+                              )}
+                              cellRenderer={({ rowData }) => (
+                                <div className="text-center text-xs truncate py-2.5">
+                                  {rowData.type === 'opening' || rowData.type === 'closing' ? '' :
+                                  <span className={`px-2.5 py-0.5 rounded-full font-medium inline-block
+                                    ${rowData.type === 'Income' ? 'bg-green-100 text-green-800' : 
+                                      rowData.type === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
+                                      'bg-red-100 text-red-800'}`}>
+                                    {rowData.type}
+                                  </span>}
+                                </div>
+                              )}
+                            />
+                            <Column
+                              label="Debit"
+                              dataKey="debit"
+                              width={120}
+                              headerRenderer={({ label }) => (
+                                <div className="text-center text-xs font-medium text-white uppercase tracking-wider py-1.5">
+                                  {label}
+                                </div>
+                              )}
+                              cellRenderer={({ rowData }) => (
+                                <div className="text-right text-xs text-amber-900 truncate py-2.5 px-4">
+                                  {rowData.type === 'opening' || rowData.type === 'closing' ? '-' :
+                                   rowData.debit.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </div>
+                              )}
+                            />
+                            <Column
+                              label="Credit"
+                              dataKey="credit"
+                              width={120}
+                              headerRenderer={({ label }) => (
+                                <div className="text-center text-xs font-medium text-white uppercase tracking-wider py-1.5">
+                                  {label}
+                                </div>
+                              )}
+                              cellRenderer={({ rowData }) => (
+                                <div className="text-right text-xs text-amber-900 truncate py-2.5 px-4">
+                                  {rowData.type === 'opening' || rowData.type === 'closing' ? '-' :
+                                   rowData.credit.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </div>
+                              )}
+                            />
+                            <Column
+                              label="Balance"
+                              dataKey="runningBalance"
+                              width={120}
+                              headerRenderer={({ label }) => (
+                                <div className="text-center text-xs font-medium text-white uppercase tracking-wider py-1.5">
+                                  {label}
+                                </div>
+                              )}
+                              cellRenderer={({ rowData }) => {
+                                // Opening balance row with pending amount
+                                if (rowData.type === 'opening') {
+                                  return (
+                                    <div className="text-right text-xs py-2.5 px-4">
+                                      <div className="font-medium text-amber-700">
+                                        ₹ {cashInfo.openingBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                      </div>
+                                      {cashInfo.openingPending > 0 && (
+                                        <div className="text-[10px] text-yellow-600 mt-0.5">
+                                          Pending: ₹ {cashInfo.openingPending.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                }
+                                
+                                // Closing balance row
+                                if (rowData.type === 'closing') {
+                                  return (
+                                    <div className="text-right text-xs py-2.5 px-4 font-medium text-amber-700">
+                                      ₹ {cashInfo.closingBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                    </div>
+                                  );
+                                }
+                                
+                                // Regular transaction row
                                 return (
                                   <div className="text-right text-xs py-2.5 px-4">
-                                    <div className="font-medium text-amber-700">
-                                      ₹ {cashInfo.openingBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                                    </div>
-                                    {cashInfo.openingPending > 0 && (
-                                      <div className="text-[10px] text-yellow-600 mt-0.5">
-                                        Pending: ₹ {cashInfo.openingPending.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                                      </div>
-                                    )}
+                                    <span className={`font-medium ${rowData.runningBalance >= 0 ? "text-green-700" : "text-red-700"}`}>
+                                      ₹ {rowData.runningBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                    </span>
                                   </div>
                                 );
-                              }
-                              
-                              // Closing balance row
-                              if (rowData.type === 'closing') {
-                                return (
-                                  <div className="text-right text-xs py-2.5 px-4 font-medium text-amber-700">
-                                    ₹ {cashInfo.closingBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                                  </div>
-                                );
-                              }
-                              
-                              // Regular transaction row
-                              return (
-                                <div className="text-right text-xs py-2.5 px-4">
-                                  <span className={`font-medium ${rowData.runningBalance >= 0 ? "text-green-700" : "text-red-700"}`}>
-                                    ₹ {rowData.runningBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                                  </span>
-                                </div>
-                              );
-                            }}
-                          />
-                        </Table>
-                      )}
-                    </AutoSizer>
+                              }}
+                            />
+                          </Table>
+                        )}
+                      </AutoSizer>
                     </div>
                   </div>
                 </div>
