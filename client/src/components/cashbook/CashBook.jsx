@@ -20,7 +20,8 @@ function CashBook({ isOpen, onClose }) {
     totalExpense: 0,
     totalPending: 0,
     netChange: 0,
-    closingBalance: 0
+    closingBalance: 0,
+    openingPending: 0
   });
   const [activeTab, setActiveTab] = useState('categorywise');
   const [showAdjustment, setShowAdjustment] = useState(false);
@@ -79,7 +80,17 @@ function CashBook({ isOpen, onClose }) {
       const previousIncome = previousTokensResponse.data.reduce((sum, token) => {
         const transactionDate = new Date(token.date);
         if (transactionDate <= lastDayOfPreviousMonth) {
-          return sum + parseFloat(token.amount || 0);
+          // Only include paid tokens in income
+          return token.isPaid ? sum + parseFloat(token.amount || 0) : sum;
+        }
+        return sum;
+      }, 0);
+      
+      const previousPending = previousTokensResponse.data.reduce((sum, token) => {
+        const transactionDate = new Date(token.date);
+        if (transactionDate <= lastDayOfPreviousMonth) {
+          // Sum up unpaid tokens separately
+          return !token.isPaid ? sum + parseFloat(token.amount || 0) : sum;
         }
         return sum;
       }, 0);
@@ -93,6 +104,7 @@ function CashBook({ isOpen, onClose }) {
       }, 0);
       
       const openingBalance = previousIncome - previousExpenses;
+      const openingPending = previousPending;
       
       console.log('Opening Balance Calculation:', {
         previousIncome,
@@ -103,7 +115,11 @@ function CashBook({ isOpen, onClose }) {
       });
       
       // Update opening balance in cashInfo
-      setCashInfo(prev => ({ ...prev, openingBalance }));
+      setCashInfo(prev => ({ 
+        ...prev, 
+        openingBalance,
+        openingPending
+      }));
       
       // 2. Fetch current month transactions to display
       const [tokensResponse, expensesResponse] = await Promise.all([
@@ -133,7 +149,8 @@ function CashBook({ isOpen, onClose }) {
         type: token.isPaid ? 'Income' : 'Pending',
         debit: token.isPaid ? 0 : parseFloat(token.amount) || 0,
         credit: token.isPaid ? parseFloat(token.amount) || 0 : 0,
-        isPaid: token.isPaid
+        isPaid: token.isPaid,
+        amount: parseFloat(token.amount) || 0
       }));
 
       // Transform expenses into transactions (Expense)
@@ -158,17 +175,26 @@ function CashBook({ isOpen, onClose }) {
 
       // Calculate running balance starting with opening balance
       let runningBalance = openingBalance;
+      let runningPending = openingPending;
       console.log('Starting running balance calculation with opening balance:', openingBalance);
       
       const currentMonthTransactionsWithBalance = currentMonthTransactions.map(transaction => {
-        // For each transaction, update running balance by adding credit and subtracting debit
-        const transactionAmount = (parseFloat(transaction.credit) || 0) - (parseFloat(transaction.debit) || 0);
-        runningBalance += transactionAmount;
-        console.log(`Transaction: ${transaction.particulars}, Date: ${transaction.date}, Credit: ${transaction.credit}, Debit: ${transaction.debit}, Amount: ${transactionAmount}, New Balance: ${runningBalance}`);
-        return {
-          ...transaction,
-          runningBalance
-        };
+        if (transaction.type === 'Pending') {
+          runningPending += transaction.debit;
+          return {
+            ...transaction,
+            runningBalance,
+            pendingBalance: runningPending
+          };
+        } else {
+          const transactionAmount = (transaction.credit || 0) - (transaction.debit || 0);
+          runningBalance += transactionAmount;
+          return {
+            ...transaction,
+            runningBalance,
+            pendingBalance: runningPending
+          };
+        }
       });
 
       // Combine with previous transactions (without running balance)
@@ -236,14 +262,17 @@ function CashBook({ isOpen, onClose }) {
     });
   
     const netChange = totals.totalIncome - totals.totalExpense;
+    const totalPending = cashInfo.openingPending + totals.totalPending;
     
     return {
       openingBalance: cashInfo.openingBalance,
+      openingPending: cashInfo.openingPending,
       ...totals,
+      totalPending,
       netChange,
       closingBalance: cashInfo.openingBalance + netChange
     };
-  }, [memoizedFilteredTransactions, cashInfo.openingBalance]);
+  }, [memoizedFilteredTransactions, cashInfo.openingBalance, cashInfo.openingPending]);
 
   useEffect(() => {
     setCashInfo(memoizedCashInfo);
@@ -546,23 +575,41 @@ function CashBook({ isOpen, onClose }) {
                                 {label}
                               </div>
                             )}
-                            cellRenderer={({ rowData }) => (
-                              <div className="text-right text-xs truncate py-2.5 px-4 font-medium">
-                                {rowData.type === 'opening' ? (
-                                  <span className="font-semibold text-amber-700">
-                                    ₹ {cashInfo.openingBalance.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            cellRenderer={({ rowData }) => {
+                              // Opening balance row with pending amount
+                              if (rowData.type === 'opening') {
+                                return (
+                                  <div className="text-right text-xs py-2.5 px-4">
+                                    <div className="font-medium text-amber-700">
+                                      ₹ {cashInfo.openingBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                    </div>
+                                    {cashInfo.openingPending > 0 && (
+                                      <div className="text-[10px] text-yellow-600 mt-0.5">
+                                        Pending: ₹ {cashInfo.openingPending.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              }
+                              
+                              // Closing balance row
+                              if (rowData.type === 'closing') {
+                                return (
+                                  <div className="text-right text-xs py-2.5 px-4 font-medium text-amber-700">
+                                    ₹ {cashInfo.closingBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                  </div>
+                                );
+                              }
+                              
+                              // Regular transaction row
+                              return (
+                                <div className="text-right text-xs py-2.5 px-4">
+                                  <span className={`font-medium ${rowData.runningBalance >= 0 ? "text-green-700" : "text-red-700"}`}>
+                                    ₹ {rowData.runningBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                                   </span>
-                                ) : rowData.type === 'closing' ? (
-                                  <span className="font-semibold text-amber-700">
-                                    ₹ {cashInfo.closingBalance.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                  </span>
-                                ) : (
-                                  <span className={rowData.runningBalance >= 0 ? "text-green-700" : "text-red-700"}>
-                                    ₹ {rowData.runningBalance.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                  </span>
-                                )}
-                              </div>
-                            )}
+                                </div>
+                              );
+                            }}
                           />
                         </Table>
                       )}
@@ -588,40 +635,61 @@ function CashBook({ isOpen, onClose }) {
                       <h3 className="text-sm font-medium text-amber-800">Balance Summary</h3>
                     </div>
                     <div className="p-3 space-y-2 text-xs">
-                      {/* Opening Balance */}
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-600">Opening Balance</span>
-                        <span className="font-medium text-gray-700">
-                          ₹ {cashInfo.openingBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                        </span>
-                      </div>
-                      
-                      {/* Income & Expense */}
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-600">Income</span>
-                        <span className="font-medium text-green-600">
-                          +₹ {cashInfo.totalIncome.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-600">Expense</span>
-                        <span className="font-medium text-red-600">
-                          -₹ {cashInfo.totalExpense.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                        </span>
-                      </div>
-
-                      {/* Pending if exists */}
-                      {cashInfo.totalPending > 0 && (
+                      {/* Opening Section */}
+                      <div className="space-y-1 pb-2 border-b">
                         <div className="flex justify-between items-center">
-                          <span className="text-gray-600">Pending</span>
-                          <span className="font-medium text-yellow-600">
-                            ₹ {cashInfo.totalPending.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          <span className="text-gray-600">Opening Balance</span>
+                          <span className="font-medium text-gray-700">
+                            ₹ {cashInfo.openingBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                           </span>
                         </div>
-                      )}
+                        {cashInfo.openingPending > 0 && (
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-500">Opening Pending</span>
+                            <span className="font-medium text-yellow-600">
+                              ₹ {cashInfo.openingPending.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Current Activity */}
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-600">Income</span>
+                          <span className="font-medium text-green-600">
+                            +₹ {cashInfo.totalIncome.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-600">Expense</span>
+                          <span className="font-medium text-red-600">
+                            -₹ {cashInfo.totalExpense.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Net Change & Pending */}
+                      <div className="pt-2 border-t space-y-1.5">
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-600">Net Change</span>
+                          <span className={`font-medium ${cashInfo.netChange >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            {cashInfo.netChange >= 0 ? '+' : ''}
+                            ₹ {cashInfo.netChange.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </span>
+                        </div>
+                        {cashInfo.totalPending > 0 && (
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-600">Total Pending</span>
+                            <span className="font-medium text-yellow-600">
+                              ₹ {cashInfo.totalPending.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            </span>
+                          </div>
+                        )}
+                      </div>
                       
                       {/* Closing Balance */}
-                      <div className="flex justify-between items-center pt-2 border-t">
+                      <div className="flex justify-between items-center pt-2 mt-1 border-t">
                         <span className="font-medium text-gray-700">Closing Balance</span>
                         <span className="font-medium text-amber-600">
                           ₹ {cashInfo.closingBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
