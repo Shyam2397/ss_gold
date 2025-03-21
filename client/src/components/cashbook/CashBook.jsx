@@ -115,9 +115,10 @@ function CashBook({ isOpen, onClose }) {
         id: `token-${token.id}`,
         date: token.date,
         particulars: `Token #${token.tokenNo} - ${token.name}`,
-        type: 'Income',
-        debit: 0,
-        credit: parseFloat(token.amount) || 0
+        type: token.isPaid ? 'Income' : 'Pending',
+        debit: token.isPaid ? 0 : parseFloat(token.amount) || 0,
+        credit: token.isPaid ? parseFloat(token.amount) || 0 : 0,
+        isPaid: token.isPaid
       }));
 
       // Transform expenses into transactions (Expense)
@@ -442,7 +443,9 @@ function CashBook({ isOpen, onClose }) {
                           <div className="text-center text-xs truncate py-2.5">
                             {rowData.type === 'opening' || rowData.type === 'closing' ? '' :
                             <span className={`px-2.5 py-0.5 rounded-full font-medium inline-block
-                              ${rowData.type === 'Income' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                              ${rowData.type === 'Income' ? 'bg-green-100 text-green-800' : 
+                                rowData.type === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
+                                'bg-red-100 text-red-800'}`}>
                               {rowData.type}
                             </span>}
                           </div>
