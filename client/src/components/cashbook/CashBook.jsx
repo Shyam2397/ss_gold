@@ -482,7 +482,7 @@ function CashBook({ isOpen, onClose }) {
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="px-4 md:px-7 py-3 border-b flex justify-between items-center bg-white sticky top-0 shadow-sm z-20">
+        <div className="px-4 md:px-7 py-2 border-b flex justify-between items-center bg-white sticky top-0 shadow-sm z-20">
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-semibold text-gray-800 tracking-tight">Cash Book</h1>
             <span className="text-sm px-3 py-1 bg-amber-50 text-amber-700 rounded-full font-medium ring-1 ring-amber-100/50">Report</span>
@@ -530,7 +530,7 @@ function CashBook({ isOpen, onClose }) {
           ) : (
             <>
               {/* Main Content */}
-              <div className="p-2 md:p-4 flex flex-col lg:flex-row gap-3 md:gap-4">
+              <div className="py-2 md:py-4 px-4 flex flex-col lg:flex-row gap-3 md:gap-4">
                 {/* Table Section */}
                 <div className="flex-1 order-2 lg:order-1">
                   <div className="border rounded-xl">
@@ -540,7 +540,7 @@ function CashBook({ isOpen, onClose }) {
                       </h3>
                     </div>
                     {/* Increased height for better table visibility */}
-                    <div className="h-[60vh] lg:h-[calc(92vh-200px)]">
+                    <div className="h-[65vh] lg:h-[calc(93vh-190px)]">
                       <AutoSizer>
                         {({ width, height }) => (
                           <Table
@@ -733,8 +733,8 @@ function CashBook({ isOpen, onClose }) {
 
                   {/* Balance Summary */}
                   <div className="bg-white border rounded-xl overflow-hidden">
-                    <div className="py-0.5 px-3 md:py-1.5 border-b bg-amber-50">
-                      <h3 className="text-sm font-medium text-amber-800">Balance Summary</h3>
+                    <div className="py-0.5 px-3 md:py-1.5 border-b bg-amber-500">
+                      <h3 className="text-sm font-medium text-white">Balance Summary</h3>
                     </div>
                     <div className="py-1 px-3 md:py-1.5 space-y-2 text-xs">
                       {/* Opening Section */}
@@ -805,7 +805,7 @@ function CashBook({ isOpen, onClose }) {
                     <div className="flex border-b">
                       <button 
                         onClick={() => setActiveTab('categorywise')}
-                        className={`flex-1 px-4 py-2 text-xs font-medium transition-colors relative
+                        className={`flex-1 px-4 py-1 text-xs font-medium transition-colors relative
                           ${activeTab === 'categorywise' ? 'text-amber-800' : 'text-gray-600'}`}
                       >
                         Top Expenses
@@ -815,7 +815,7 @@ function CashBook({ isOpen, onClose }) {
                       </button>
                       <button 
                         onClick={() => setActiveTab('monthwise')}
-                        className={`flex-1 px-4 py-2 text-xs font-medium transition-colors relative
+                        className={`flex-1 px-4 py-1 text-xs font-medium transition-colors relative
                           ${activeTab === 'monthwise' ? 'text-amber-800' : 'text-gray-600'}`}
                       >
                         Monthly Overview
@@ -825,7 +825,7 @@ function CashBook({ isOpen, onClose }) {
                       </button>
                     </div>
 
-                    <div className="max-h-[180px] md:max-h-[180px] overflow-y-auto scrollbar-thin scrollbar-thumb-amber-200 scrollbar-track-gray-50">
+                    <div className="max-h-[170px] md:max-h-[170px] overflow-y-auto scrollbar-thin scrollbar-thumb-amber-200 scrollbar-track-gray-50">
                       {activeTab === 'categorywise' ? (
                         <div className="divide-y">
                           {categorySummary.map(([category, amount], index) => (
