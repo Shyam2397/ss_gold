@@ -369,17 +369,6 @@ function CashBook({ isOpen, onClose }) {
             </div>
           ) : (
             <>
-              {/* Actions */}
-              <div className="p-4 flex justify-end border-b bg-white sticky top-0 z-10">
-                <button 
-                  onClick={() => setShowAdjustment(true)}
-                  className="bg-amber-500 hover:bg-amber-600 text-white px-4 py-1.5 rounded-lg flex items-center gap-2 text-sm font-medium transition-colors"
-                >
-                  <ArrowUpDown size={16} />
-                  Cash Adjustments
-                </button>
-              </div>
-
               {/* Main Content */}
               <div className="p-4 flex gap-4">
                 {/* Table Section */}
@@ -564,8 +553,18 @@ function CashBook({ isOpen, onClose }) {
                   </div>
                 </div>
 
-                {/* Balance Info Section */}
-                <div className="w-72">
+                {/* Right Side Panel */}
+                <div className="w-72 space-y-3">
+                  {/* Cash Adjustment Button */}
+                  <button 
+                    onClick={() => setShowAdjustment(true)}
+                    className="w-full bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-xl flex items-center justify-center gap-2 text-sm font-medium transition-colors"
+                  >
+                    <ArrowUpDown size={16} />
+                    Cash Adjustments
+                  </button>
+
+                  {/* Balance Summary */}
                   <div className="bg-white border rounded-xl overflow-hidden">
                     <div className="p-4 border-b bg-amber-50/50">
                       <h3 className="font-medium text-amber-800 flex items-center gap-2">
