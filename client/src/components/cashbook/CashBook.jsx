@@ -228,17 +228,38 @@ function CashBook({ isOpen, onClose }) {
   }, []);
 
   const memoizedFilteredTransactions = useMemo(() => {
-    // Only recalculate when transactions change
     const today = new Date();
     const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
     const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
     
-    return transactions
+    // Filter current month transactions and sort by date and time
+    const currentMonthTransactions = transactions
       .filter(transaction => {
         const transactionDate = new Date(transaction.date);
         return transactionDate >= firstDayOfMonth && transactionDate <= lastDayOfMonth;
       })
-      .sort((a, b) => new Date(a.date) - new Date(b.date));
+      .sort((a, b) => {
+        // First compare by date
+        const dateA = new Date(a.date);
+        const dateB = new Date(b.date);
+        if (dateA.getTime() !== dateB.getTime()) {
+          return dateA.getTime() - dateB.getTime();
+        }
+        
+        // If dates are equal, compare by time if available
+        const timeA = a.time ? new Date(`${a.date}T${a.time}`) : new Date(a.date);
+        const timeB = b.time ? new Date(`${b.date}T${b.time}`) : new Date(b.date);
+        if (timeA.getTime() !== timeB.getTime()) {
+          return timeA.getTime() - timeB.getTime();
+        }
+        
+        // If dates and times are equal, sort by id to maintain stable order
+        const idA = parseInt((a.id || '').replace(/\D/g, '') || '0');
+        const idB = parseInt((b.id || '').replace(/\D/g, '') || '0');
+        return idA - idB;
+      });
+
+    return currentMonthTransactions;
   }, [transactions]);
 
   useEffect(() => {
