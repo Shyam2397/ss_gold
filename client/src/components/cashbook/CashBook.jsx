@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { ArrowUpDown, FileSpreadsheet, Printer, Mail, X } from 'lucide-react';
 import CashAdjustment from './CashAdjustment';
 import { motion } from 'framer-motion';
 import axios from 'axios';
 import { AutoSizer, Table, Column } from 'react-virtualized';
 import 'react-virtualized/styles.css';
+import { debounce } from 'lodash';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 
@@ -31,8 +32,45 @@ function CashBook({ isOpen, onClose }) {
   
   const [categorySummary, setCategorySummary] = useState([]);
   const [monthlySummary, setMonthlySummary] = useState([]);
+
+  const handleBackdropClick = useCallback((e) => {
+    if (e.target === e.currentTarget) {
+      onClose();
+    }
+  }, [onClose]);
+
+  const getRowStyle = useCallback(({ index }) => {
+    return {
+      backgroundColor: 
+        index === 0 ? 'rgb(255, 251, 235)' :
+        index === filteredTransactions.length + 1 ? 'rgb(255, 251, 235)' :
+        index % 2 === 0 ? '#fff' : 'rgba(255, 251, 235, 0.4)'
+    };
+  }, [filteredTransactions.length]);
+
+  const rowGetter = useCallback(({ index }) => {
+    if (index === 0) return { type: 'opening' };
+    if (index === filteredTransactions.length + 1) return { type: 'closing' };
+    return filteredTransactions[index - 1];
+  }, [filteredTransactions]);
+
+  const DateCell = useCallback(({ rowData }) => (
+    <div className="text-center text-xs text-amber-900 truncate py-2.5">
+      {rowData.type === 'opening' ? (
+        <span className="font-semibold">Opening Balance</span>
+      ) : rowData.type === 'closing' ? (
+        <span className="font-semibold">Closing Balance</span>
+      ) : (
+        new Date(rowData.date).toLocaleDateString('en-IN', {
+          day: '2-digit',
+          month: 'short',
+          year: 'numeric'
+        })
+      )}
+    </div>
+  ), []);
   
-  const fetchTransactions = async (isRefresh = false) => {
+  const fetchTransactions = useCallback(async (isRefresh = false) => {
     if (isRefresh) {
       setIsRefreshing(true);
     } else {
@@ -219,16 +257,25 @@ function CashBook({ isOpen, onClose }) {
         setIsInitialLoading(false);
       }
     }
-  };
+  }, []);
+
+  // Debounce the refresh polling to prevent too frequent updates
+  const debouncedFetch = useMemo(
+    () => debounce((isRefresh) => fetchTransactions(isRefresh), 1000),
+    [fetchTransactions]
+  );
 
   useEffect(() => {
     fetchTransactions();
-    // Set up polling for real-time updates
+    // Set up polling with debounced fetch
     const pollInterval = setInterval(() => {
-      fetchTransactions(true); // Pass true to indicate refresh
-    }, 30000); // Poll every 30 seconds
-    return () => clearInterval(pollInterval);
-  }, []);
+      debouncedFetch(true);
+    }, 30000);
+    return () => {
+      clearInterval(pollInterval);
+      debouncedFetch.cancel();
+    };
+  }, [debouncedFetch]);
 
   const memoizedFilteredTransactions = useMemo(() => {
     const today = new Date();
@@ -350,7 +397,7 @@ function CashBook({ isOpen, onClose }) {
     setMonthlySummary(memoizedAnalytics.monthly);
   }, [memoizedAnalytics]);
 
-  const handleExport = (type) => {
+  const handleExport = useCallback((type) => {
     switch(type) {
       case 'excel':
         console.log('Exporting to Excel...');
@@ -364,9 +411,9 @@ function CashBook({ isOpen, onClose }) {
       default:
         break;
     }
-  };
+  }, []);
 
-  const handleAdjustmentSave = async (adjustmentData) => {
+  const handleAdjustmentSave = useCallback(async (adjustmentData) => {
     setLoading(true);
     try {
       // Convert adjustment to transaction format for UI
@@ -415,13 +462,7 @@ function CashBook({ isOpen, onClose }) {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleBackdropClick = (e) => {
-    if (e.target === e.currentTarget) {
-      onClose();
-    }
-  };
+  }, [fetchTransactions]);
 
   if (!isOpen) return null;
 
@@ -508,20 +549,10 @@ function CashBook({ isOpen, onClose }) {
                             headerHeight={32}
                             rowHeight={40}
                             rowCount={filteredTransactions.length + 2}
-                            rowGetter={({ index }) => {
-                              if (index === 0) return { type: 'opening' };
-                              if (index === filteredTransactions.length + 1) return { type: 'closing' };
-                              return filteredTransactions[index - 1];
-                            }}
-                            rowClassName={({ index }) => 
-                              `${index === -1 ? 'bg-amber-500' : 
-                                index === 0 ? 'bg-amber-50/80 font-medium' :
-                                index === filteredTransactions.length + 1 ? 'bg-amber-50/80 font-medium' :
-                                index % 2 === 0 ? 'bg-white' : 'bg-amber-50/40'} 
-                               ${index !== -1 && index !== 0 && index !== filteredTransactions.length + 1 ? 'hover:bg-amber-50/70' : ''} 
-                               transition-colors rounded-t-xl`
-                            }
-                            overscanRowCount={5}
+                            rowGetter={rowGetter}
+                            rowStyle={getRowStyle}
+                            overscanRowCount={10} // Increased for smoother scrolling
+                            headerClassName="bg-amber-600"
                           >
                             <Column
                               label="Date"
@@ -529,25 +560,11 @@ function CashBook({ isOpen, onClose }) {
                               width={100}
                               flexShrink={0}
                               headerRenderer={({ label }) => (
-                                <div className="text-center text-xs font-medium text-white uppercase tracking-wider py-1.5">
+                                <div className="text-xs font-medium text-white uppercase tracking-wider px-4 h-full flex items-center">
                                   {label}
                                 </div>
                               )}
-                              cellRenderer={({ rowData }) => (
-                                <div className="text-center text-xs text-amber-900 truncate py-2.5">
-                                  {rowData.type === 'opening' ? (
-                                    <span className="font-semibold">Opening Balance</span>
-                                  ) : rowData.type === 'closing' ? (
-                                    <span className="font-semibold">Closing Balance</span>
-                                  ) : (
-                                    new Date(rowData.date).toLocaleDateString('en-IN', {
-                                      day: '2-digit',
-                                      month: 'short',
-                                      year: 'numeric'
-                                    })
-                                  )}
-                                </div>
-                              )}
+                              cellRenderer={DateCell}
                             />
                             <Column
                               label="Particulars"
@@ -555,7 +572,7 @@ function CashBook({ isOpen, onClose }) {
                               width={300}
                               flexGrow={1}
                               headerRenderer={({ label }) => (
-                                <div className="text-center text-xs font-medium text-white uppercase tracking-wider py-1.5">
+                                <div className="text-xs font-medium text-white uppercase tracking-wider px-4 h-full flex items-center">
                                   {label}
                                 </div>
                               )}
@@ -592,7 +609,7 @@ function CashBook({ isOpen, onClose }) {
                               dataKey="type"
                               width={120}
                               headerRenderer={({ label }) => (
-                                <div className="text-center text-xs font-medium text-white uppercase tracking-wider py-1.5">
+                                <div className="text-xs font-medium text-white uppercase tracking-wider px-4 h-full flex items-center">
                                   {label}
                                 </div>
                               )}
@@ -613,7 +630,7 @@ function CashBook({ isOpen, onClose }) {
                               dataKey="debit"
                               width={120}
                               headerRenderer={({ label }) => (
-                                <div className="text-center text-xs font-medium text-white uppercase tracking-wider py-1.5">
+                                <div className="text-xs font-medium text-white uppercase tracking-wider px-4 h-full flex items-center justify-end">
                                   {label}
                                 </div>
                               )}
@@ -629,7 +646,7 @@ function CashBook({ isOpen, onClose }) {
                               dataKey="credit"
                               width={120}
                               headerRenderer={({ label }) => (
-                                <div className="text-center text-xs font-medium text-white uppercase tracking-wider py-1.5">
+                                <div className="text-xs font-medium text-white uppercase tracking-wider px-4 h-full flex items-center justify-end">
                                   {label}
                                 </div>
                               )}
@@ -645,7 +662,7 @@ function CashBook({ isOpen, onClose }) {
                               dataKey="runningBalance"
                               width={120}
                               headerRenderer={({ label }) => (
-                                <div className="text-center text-xs font-medium text-white uppercase tracking-wider py-1.5">
+                                <div className="text-xs font-medium text-white uppercase tracking-wider px-4 h-full flex items-center justify-end">
                                   {label}
                                 </div>
                               )}
