@@ -21,8 +21,15 @@ function CashBook({ isOpen, onClose }) {
   const [activeTab, setActiveTab] = useState('categorywise');
   const [showAdjustment, setShowAdjustment] = useState(false);
 
-  const fetchTransactions = async () => {
-    setLoading(true);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  
+  const fetchTransactions = async (isRefresh = false) => {
+    if (isRefresh) {
+      setIsRefreshing(true);
+    } else {
+      setIsInitialLoading(true);
+    }
     setError('');
     try {
       // Get current month dates
@@ -173,7 +180,11 @@ function CashBook({ isOpen, onClose }) {
       console.error('Error fetching transactions:', err);
       setError('Failed to fetch transactions. Please try again.');
     } finally {
-      setLoading(false);
+      if (isRefresh) {
+        setIsRefreshing(false);
+      } else {
+        setIsInitialLoading(false);
+      }
     }
   };
 
@@ -181,55 +192,44 @@ function CashBook({ isOpen, onClose }) {
     fetchTransactions();
     // Set up polling for real-time updates
     const pollInterval = setInterval(() => {
-      fetchTransactions();
+      fetchTransactions(true); // Pass true to indicate refresh
     }, 30000); // Poll every 30 seconds
     return () => clearInterval(pollInterval);
   }, []);
 
-  useEffect(() => {
-    // Filter transactions to show only current month transactions
+  const memoizedFilteredTransactions = useMemo(() => {
+    // Only recalculate when transactions change
     const today = new Date();
     const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
     const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
     
-    // Filter transactions to only include current month
-    const currentMonthTransactions = transactions.filter(transaction => {
-      const transactionDate = new Date(transaction.date);
-      return transactionDate >= firstDayOfMonth && transactionDate <= lastDayOfMonth;
-    });
-    
-    // Sort transactions by date for consistent display
-    const sortedTransactions = [...currentMonthTransactions].sort(
-      (a, b) => new Date(a.date) - new Date(b.date)
-    );
-    
-    setFilteredTransactions(sortedTransactions);
+    return transactions
+      .filter(transaction => {
+        const transactionDate = new Date(transaction.date);
+        return transactionDate >= firstDayOfMonth && transactionDate <= lastDayOfMonth;
+      })
+      .sort((a, b) => new Date(a.date) - new Date(b.date));
+  }, [transactions]);
 
-    // Calculate net change for current month (simplified from previous cashflow calculation)
-    const netChange = sortedTransactions.reduce(
+  useEffect(() => {
+    setFilteredTransactions(memoizedFilteredTransactions);
+  }, [memoizedFilteredTransactions]);
+
+  const memoizedCashInfo = useMemo(() => {
+    const netChange = memoizedFilteredTransactions.reduce(
       (acc, curr) => acc + ((curr.credit || 0) - (curr.debit || 0)),
       0
     );
     
-    // Set cash info with correct opening and closing balance only
-    setCashInfo(prev => {
-      const closingBalance = prev.openingBalance + netChange;
-      
-      console.log('Balance Calculation Summary:', {
-        month: new Date().toLocaleDateString('en-IN', { month: 'long', year: 'numeric' }),
-        openingBalance: prev.openingBalance,
-        netChange,
-        closingBalance
-      });
-      
-      return {
-        openingBalance: prev.openingBalance, // Keep the original opening balance
-        closingBalance: closingBalance
-      };
-    });
-  }, [transactions]);
+    return {
+      openingBalance: cashInfo.openingBalance,
+      closingBalance: cashInfo.openingBalance + netChange
+    };
+  }, [memoizedFilteredTransactions, cashInfo.openingBalance]);
 
-  // Search, reset, and quick filter functions removed as per requirement
+  useEffect(() => {
+    setCashInfo(memoizedCashInfo);
+  }, [memoizedCashInfo]);
 
   const handleExport = (type) => {
     switch(type) {
@@ -333,296 +333,319 @@ function CashBook({ isOpen, onClose }) {
           >
             <X className="h-5 w-5 text-gray-500" />
           </button>
+          {isRefreshing && (
+            <div className="absolute right-20 top-1/2 -translate-y-1/2">
+              <div className="animate-spin rounded-full h-4 w-4 border-2 border-amber-500 border-t-transparent"></div>
+            </div>
+          )}
         </div>
 
         {/* Content */}
         <div className="flex-1 overflow-auto">
-        {loading && (
-          <div className="flex items-center justify-center h-32">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-600"></div>
-          </div>
-        )}
-        {error && (
-          <div className="text-red-500 text-center p-4">{error}</div>
-        )}
-        {!loading && !error && transactions.length === 0 && (
-          <div className="text-gray-500 text-center p-4">No transactions found</div>
-        )}
-          {/* Actions */}
-          <div className="p-4 flex justify-end border-b bg-white sticky top-0 z-10">
-            <button 
-              onClick={() => setShowAdjustment(true)}
-              className="bg-amber-500 hover:bg-amber-600 text-white px-4 py-1.5 rounded-lg flex items-center gap-2 text-sm font-medium transition-colors"
-            >
-              <ArrowUpDown size={16} />
-              Cash Adjustments
-            </button>
-          </div>
+          {isInitialLoading ? (
+            <div className="flex flex-col items-center justify-center h-[50vh] gap-3">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-600"></div>
+              <p className="text-sm text-amber-600">Loading transactions...</p>
+            </div>
+          ) : error ? (
+            <div className="flex flex-col items-center justify-center h-[50vh] gap-3">
+              <div className="text-red-500 text-center">
+                <p className="text-lg font-medium">Error loading transactions</p>
+                <p className="text-sm mt-1">{error}</p>
+                <button 
+                  onClick={() => fetchTransactions()}
+                  className="mt-4 px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors"
+                >
+                  Retry
+                </button>
+              </div>
+            </div>
+          ) : transactions.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-[50vh] gap-3">
+              <div className="text-gray-500 text-center">
+                <p className="text-lg font-medium">No transactions found</p>
+                <p className="text-sm mt-1">There are no transactions recorded for this period.</p>
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* Actions */}
+              <div className="p-4 flex justify-end border-b bg-white sticky top-0 z-10">
+                <button 
+                  onClick={() => setShowAdjustment(true)}
+                  className="bg-amber-500 hover:bg-amber-600 text-white px-4 py-1.5 rounded-lg flex items-center gap-2 text-sm font-medium transition-colors"
+                >
+                  <ArrowUpDown size={16} />
+                  Cash Adjustments
+                </button>
+              </div>
 
-          {/* Main Content */}
-          <div className="p-4 flex gap-4">
-            {/* Table Section */}
-            <div className="flex-1">
-              <div className="border rounded-xl">
-                <div className="bg-amber-50 px-4 py-2 border-b">
-                  <h3 className="font-medium text-amber-800">
-                    {new Date().toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })} Transactions
-                  </h3>
-                </div>
-                <div className="h-[calc(90vh-280px)]">
-                <AutoSizer>
-                  {({ width, height }) => (
-                    <Table
-                      width={width}
-                      height={height}
-                      headerHeight={32}
-                      rowHeight={40}
-                      rowCount={filteredTransactions.length + 2}
-                      rowGetter={({ index }) => {
-                        if (index === 0) return { type: 'opening' };
-                        if (index === filteredTransactions.length + 1) return { type: 'closing' };
-                        return filteredTransactions[index - 1];
-                      }}
-                      rowClassName={({ index }) => 
-                        `${index === -1 ? 'bg-amber-500' : 
-                          index === 0 ? 'bg-amber-50/80 font-medium' :
-                          index === filteredTransactions.length + 1 ? 'bg-amber-50/80 font-medium' :
-                          index % 2 === 0 ? 'bg-white' : 'bg-amber-50/40'} 
-                         ${index !== -1 && index !== 0 && index !== filteredTransactions.length + 1 ? 'hover:bg-amber-50/70' : ''} 
-                         transition-colors rounded-t-xl`
-                      }
-                      overscanRowCount={5}
-                    >
-                      <Column
-                        label="Date"
-                        dataKey="date"
-                        width={120}
-                        headerRenderer={({ label }) => (
-                          <div className="text-center text-xs font-medium text-white uppercase tracking-wider py-1.5">
-                            {label}
-                          </div>
-                        )}
-                        cellRenderer={({ rowData }) => (
-                          <div className="text-center text-xs text-amber-900 truncate py-2.5">
-                            {rowData.type === 'opening' ? (
-                              <span className="font-semibold">Opening Balance</span>
-                            ) : rowData.type === 'closing' ? (
-                              <span className="font-semibold">Closing Balance</span>
-                            ) : (
-                              new Date(rowData.date).toLocaleDateString('en-IN', {
-                                day: '2-digit',
-                                month: 'short',
-                                year: 'numeric'
-                              })
+              {/* Main Content */}
+              <div className="p-4 flex gap-4">
+                {/* Table Section */}
+                <div className="flex-1">
+                  <div className="border rounded-xl">
+                    <div className="bg-amber-50 px-4 py-2 border-b">
+                      <h3 className="font-medium text-amber-800">
+                        {new Date().toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })} Transactions
+                      </h3>
+                    </div>
+                    <div className="h-[calc(90vh-280px)]">
+                    <AutoSizer>
+                      {({ width, height }) => (
+                        <Table
+                          width={width}
+                          height={height}
+                          headerHeight={32}
+                          rowHeight={40}
+                          rowCount={filteredTransactions.length + 2}
+                          rowGetter={({ index }) => {
+                            if (index === 0) return { type: 'opening' };
+                            if (index === filteredTransactions.length + 1) return { type: 'closing' };
+                            return filteredTransactions[index - 1];
+                          }}
+                          rowClassName={({ index }) => 
+                            `${index === -1 ? 'bg-amber-500' : 
+                              index === 0 ? 'bg-amber-50/80 font-medium' :
+                              index === filteredTransactions.length + 1 ? 'bg-amber-50/80 font-medium' :
+                              index % 2 === 0 ? 'bg-white' : 'bg-amber-50/40'} 
+                             ${index !== -1 && index !== 0 && index !== filteredTransactions.length + 1 ? 'hover:bg-amber-50/70' : ''} 
+                             transition-colors rounded-t-xl`
+                          }
+                          overscanRowCount={5}
+                        >
+                          <Column
+                            label="Date"
+                            dataKey="date"
+                            width={120}
+                            headerRenderer={({ label }) => (
+                              <div className="text-center text-xs font-medium text-white uppercase tracking-wider py-1.5">
+                                {label}
+                              </div>
                             )}
-                          </div>
-                        )}
-                      />
-                      <Column
-                        label="Particulars"
-                        dataKey="particulars"
-                        width={300}
-                        flexGrow={1}
-                        headerRenderer={({ label }) => (
-                          <div className="text-center text-xs font-medium text-white uppercase tracking-wider py-1.5">
-                            {label}
-                          </div>
-                        )}
-                        cellRenderer={({ rowData }) => {
-                          if (rowData.type === 'opening' || rowData.type === 'closing') {
-                            return (
-                              <div className="text-xs text-amber-900 truncate py-2.5 px-4">
-                                {rowData.particulars || '-'}
+                            cellRenderer={({ rowData }) => (
+                              <div className="text-center text-xs text-amber-900 truncate py-2.5">
+                                {rowData.type === 'opening' ? (
+                                  <span className="font-semibold">Opening Balance</span>
+                                ) : rowData.type === 'closing' ? (
+                                  <span className="font-semibold">Closing Balance</span>
+                                ) : (
+                                  new Date(rowData.date).toLocaleDateString('en-IN', {
+                                    day: '2-digit',
+                                    month: 'short',
+                                    year: 'numeric'
+                                  })
+                                )}
                               </div>
-                            );
-                          }
-                          
-                          if (rowData.particulars.test) { // For token transactions
-                            return (
-                              <div className="text-xs text-amber-900 truncate py-2.5 px-4 flex items-center gap-1.5">
-                                <span className="font-medium">{rowData.particulars.test}</span>
-                                <span className="text-[10px] text-amber-600">•</span>
-                                <span className="text-[10px] text-amber-800">#{rowData.particulars.tokenNo}</span>
-                                <span className="text-[10px] text-amber-600">•</span>
-                                <span className="text-[10px] text-amber-500">{rowData.particulars.name.substring(0, 15)}{rowData.particulars.name.length > 15 ? '...' : ''}</span>
+                            )}
+                          />
+                          <Column
+                            label="Particulars"
+                            dataKey="particulars"
+                            width={300}
+                            flexGrow={1}
+                            headerRenderer={({ label }) => (
+                              <div className="text-center text-xs font-medium text-white uppercase tracking-wider py-1.5">
+                                {label}
                               </div>
-                            );
-                          }
-                          
-                          return ( // For expense transactions
-                            <div className="text-xs text-amber-900 truncate py-2.5 px-4">
-                              {rowData.particulars}
+                            )}
+                            cellRenderer={({ rowData }) => {
+                              if (rowData.type === 'opening' || rowData.type === 'closing') {
+                                return (
+                                  <div className="text-xs text-amber-900 truncate py-2.5 px-4">
+                                    {rowData.particulars || '-'}
+                                  </div>
+                                );
+                              }
+                              
+                              if (rowData.particulars.test) { // For token transactions
+                                return (
+                                  <div className="text-xs text-amber-900 truncate py-2.5 px-4 flex items-center gap-1.5">
+                                    <span className="font-medium">{rowData.particulars.test}</span>
+                                    <span className="text-[10px] text-amber-600">•</span>
+                                    <span className="text-[10px] text-amber-800">#{rowData.particulars.tokenNo}</span>
+                                    <span className="text-[10px] text-amber-600">•</span>
+                                    <span className="text-[10px] text-amber-500">{rowData.particulars.name.substring(0, 15)}{rowData.particulars.name.length > 15 ? '...' : ''}</span>
+                                  </div>
+                                );
+                              }
+                              
+                              return ( // For expense transactions
+                                <div className="text-xs text-amber-900 truncate py-2.5 px-4">
+                                  {rowData.particulars}
+                                </div>
+                              );
+                            }}
+                          />
+                          <Column
+                            label="Type"
+                            dataKey="type"
+                            width={120}
+                            headerRenderer={({ label }) => (
+                              <div className="text-center text-xs font-medium text-white uppercase tracking-wider py-1.5">
+                                {label}
+                              </div>
+                            )}
+                            cellRenderer={({ rowData }) => (
+                              <div className="text-center text-xs truncate py-2.5">
+                                {rowData.type === 'opening' || rowData.type === 'closing' ? '' :
+                                <span className={`px-2.5 py-0.5 rounded-full font-medium inline-block
+                                  ${rowData.type === 'Income' ? 'bg-green-100 text-green-800' : 
+                                    rowData.type === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
+                                    'bg-red-100 text-red-800'}`}>
+                                  {rowData.type}
+                                </span>}
+                              </div>
+                            )}
+                          />
+                          <Column
+                            label="Debit"
+                            dataKey="debit"
+                            width={120}
+                            headerRenderer={({ label }) => (
+                              <div className="text-center text-xs font-medium text-white uppercase tracking-wider py-1.5">
+                                {label}
+                              </div>
+                            )}
+                            cellRenderer={({ rowData }) => (
+                              <div className="text-right text-xs text-amber-900 truncate py-2.5 px-4">
+                                {rowData.type === 'opening' || rowData.type === 'closing' ? '-' :
+                                 rowData.debit.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </div>
+                            )}
+                          />
+                          <Column
+                            label="Credit"
+                            dataKey="credit"
+                            width={120}
+                            headerRenderer={({ label }) => (
+                              <div className="text-center text-xs font-medium text-white uppercase tracking-wider py-1.5">
+                                {label}
+                              </div>
+                            )}
+                            cellRenderer={({ rowData }) => (
+                              <div className="text-right text-xs text-amber-900 truncate py-2.5 px-4">
+                                {rowData.type === 'opening' || rowData.type === 'closing' ? '-' :
+                                 rowData.credit.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </div>
+                            )}
+                          />
+                          <Column
+                            label="Balance"
+                            dataKey="runningBalance"
+                            width={120}
+                            headerRenderer={({ label }) => (
+                              <div className="text-center text-xs font-medium text-white uppercase tracking-wider py-1.5">
+                                {label}
+                              </div>
+                            )}
+                            cellRenderer={({ rowData }) => (
+                              <div className="text-right text-xs truncate py-2.5 px-4 font-medium">
+                                {rowData.type === 'opening' ? (
+                                  <span className="font-semibold text-amber-700">
+                                    ₹ {cashInfo.openingBalance.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </span>
+                                ) : rowData.type === 'closing' ? (
+                                  <span className="font-semibold text-amber-700">
+                                    ₹ {cashInfo.closingBalance.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </span>
+                                ) : (
+                                  <span className={rowData.runningBalance >= 0 ? "text-green-700" : "text-red-700"}>
+                                    ₹ {rowData.runningBalance.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          />
+                        </Table>
+                      )}
+                    </AutoSizer>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Balance Info Section */}
+                <div className="w-72">
+                  <div className="bg-white border rounded-xl overflow-hidden">
+                    <div className="p-4 border-b bg-amber-50/50">
+                      <h3 className="font-medium text-amber-800 flex items-center gap-2">
+                        <span className="text-amber-500">☀</span> 
+                        Balance Summary
+                      </h3>
+                    </div>
+                    <div className="p-4 space-y-3">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-gray-600">Opening Balance</span>
+                        <span className="text-sm font-medium text-gray-700">₹ {cashInfo.openingBalance.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-gray-600">Net Change</span>
+                        <span className="text-sm font-medium text-gray-700">
+                          <span className={cashInfo.closingBalance - cashInfo.openingBalance >= 0 ? "text-green-600" : "text-red-600"}>
+                            {cashInfo.closingBalance - cashInfo.openingBalance >= 0 ? "+" : ""}
+                            ₹ {(cashInfo.closingBalance - cashInfo.openingBalance).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </span>
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center pt-2 border-t">
+                        <span className="text-sm font-medium text-gray-700">Closing Balance</span>
+                        <span className="text-sm font-medium text-amber-600">₹ {cashInfo.closingBalance.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* View Toggle */}
+                  <div className="mt-3">
+                    <div className="bg-white border rounded-xl overflow-hidden">
+                      <div className="flex">
+                        <button 
+                          onClick={() => setActiveTab('categorywise')}
+                          className={`flex-1 px-4 py-2 text-sm font-medium transition-colors
+                            ${activeTab === 'categorywise' 
+                              ? 'bg-amber-500 text-white' 
+                              : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                            }`}
+                        >
+                          Category
+                        </button>
+                        <button 
+                          onClick={() => setActiveTab('monthwise')}
+                          className={`flex-1 px-4 py-2 text-sm font-medium transition-colors
+                            ${activeTab === 'monthwise' 
+                              ? 'bg-amber-500 text-white' 
+                              : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                            }`}
+                        >
+                          Monthly
+                        </button>
+                      </div>
+                      <div className="p-4">
+                        {activeTab === 'categorywise' ? (
+                          <div className="space-y-2">
+                            <div className="flex justify-between items-center">
+                              <span className="text-sm text-gray-600">Supplies</span>
+                              <span className="text-sm font-medium text-gray-700">₹ 1,000.00</span>
                             </div>
-                          );
-                        }}
-                      />
-                      <Column
-                        label="Type"
-                        dataKey="type"
-                        width={120}
-                        headerRenderer={({ label }) => (
-                          <div className="text-center text-xs font-medium text-white uppercase tracking-wider py-1.5">
-                            {label}
+                            <div className="flex justify-between items-center">
+                              <span className="text-sm text-gray-600">Sales</span>
+                              <span className="text-sm font-medium text-gray-700">₹ 5,000.00</span>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            <div className="flex justify-between items-center">
+                              <span className="text-sm text-gray-600">January 2025</span>
+                              <span className="text-sm font-medium text-gray-700">₹ 4,000.00</span>
+                            </div>
                           </div>
                         )}
-                        cellRenderer={({ rowData }) => (
-                          <div className="text-center text-xs truncate py-2.5">
-                            {rowData.type === 'opening' || rowData.type === 'closing' ? '' :
-                            <span className={`px-2.5 py-0.5 rounded-full font-medium inline-block
-                              ${rowData.type === 'Income' ? 'bg-green-100 text-green-800' : 
-                                rowData.type === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
-                                'bg-red-100 text-red-800'}`}>
-                              {rowData.type}
-                            </span>}
-                          </div>
-                        )}
-                      />
-                      <Column
-                        label="Debit"
-                        dataKey="debit"
-                        width={120}
-                        headerRenderer={({ label }) => (
-                          <div className="text-center text-xs font-medium text-white uppercase tracking-wider py-1.5">
-                            {label}
-                          </div>
-                        )}
-                        cellRenderer={({ rowData }) => (
-                          <div className="text-right text-xs text-amber-900 truncate py-2.5 px-4">
-                            {rowData.type === 'opening' || rowData.type === 'closing' ? '-' :
-                             rowData.debit.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </div>
-                        )}
-                      />
-                      <Column
-                        label="Credit"
-                        dataKey="credit"
-                        width={120}
-                        headerRenderer={({ label }) => (
-                          <div className="text-center text-xs font-medium text-white uppercase tracking-wider py-1.5">
-                            {label}
-                          </div>
-                        )}
-                        cellRenderer={({ rowData }) => (
-                          <div className="text-right text-xs text-amber-900 truncate py-2.5 px-4">
-                            {rowData.type === 'opening' || rowData.type === 'closing' ? '-' :
-                             rowData.credit.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </div>
-                        )}
-                      />
-                      <Column
-                        label="Balance"
-                        dataKey="runningBalance"
-                        width={120}
-                        headerRenderer={({ label }) => (
-                          <div className="text-center text-xs font-medium text-white uppercase tracking-wider py-1.5">
-                            {label}
-                          </div>
-                        )}
-                        cellRenderer={({ rowData }) => (
-                          <div className="text-right text-xs truncate py-2.5 px-4 font-medium">
-                            {rowData.type === 'opening' ? (
-                              <span className="font-semibold text-amber-700">
-                                ₹ {cashInfo.openingBalance.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                              </span>
-                            ) : rowData.type === 'closing' ? (
-                              <span className="font-semibold text-amber-700">
-                                ₹ {cashInfo.closingBalance.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                              </span>
-                            ) : (
-                              <span className={rowData.runningBalance >= 0 ? "text-green-700" : "text-red-700"}>
-                                ₹ {rowData.runningBalance.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                              </span>
-                            )}
-                          </div>
-                        )}
-                      />
-                    </Table>
-                  )}
-                </AutoSizer>
-                </div>
-              </div>
-            </div>
-
-            {/* Balance Info Section */}
-            <div className="w-72">
-              <div className="bg-white border rounded-xl overflow-hidden">
-                <div className="p-4 border-b bg-amber-50/50">
-                  <h3 className="font-medium text-amber-800 flex items-center gap-2">
-                    <span className="text-amber-500">☀</span> 
-                    Balance Summary
-                  </h3>
-                </div>
-                <div className="p-4 space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600">Opening Balance</span>
-                    <span className="text-sm font-medium text-gray-700">₹ {cashInfo.openingBalance.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600">Net Change</span>
-                    <span className="text-sm font-medium text-gray-700">
-                      <span className={cashInfo.closingBalance - cashInfo.openingBalance >= 0 ? "text-green-600" : "text-red-600"}>
-                        {cashInfo.closingBalance - cashInfo.openingBalance >= 0 ? "+" : ""}
-                        ₹ {(cashInfo.closingBalance - cashInfo.openingBalance).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </span>
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center pt-2 border-t">
-                    <span className="text-sm font-medium text-gray-700">Closing Balance</span>
-                    <span className="text-sm font-medium text-amber-600">₹ {cashInfo.closingBalance.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* View Toggle */}
-              <div className="mt-3">
-                <div className="bg-white border rounded-xl overflow-hidden">
-                  <div className="flex">
-                    <button 
-                      onClick={() => setActiveTab('categorywise')}
-                      className={`flex-1 px-4 py-2 text-sm font-medium transition-colors
-                        ${activeTab === 'categorywise' 
-                          ? 'bg-amber-500 text-white' 
-                          : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
-                        }`}
-                    >
-                      Category
-                    </button>
-                    <button 
-                      onClick={() => setActiveTab('monthwise')}
-                      className={`flex-1 px-4 py-2 text-sm font-medium transition-colors
-                        ${activeTab === 'monthwise' 
-                          ? 'bg-amber-500 text-white' 
-                          : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
-                        }`}
-                    >
-                      Monthly
-                    </button>
-                  </div>
-                  <div className="p-4">
-                    {activeTab === 'categorywise' ? (
-                      <div className="space-y-2">
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm text-gray-600">Supplies</span>
-                          <span className="text-sm font-medium text-gray-700">₹ 1,000.00</span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm text-gray-600">Sales</span>
-                          <span className="text-sm font-medium text-gray-700">₹ 5,000.00</span>
-                        </div>
                       </div>
-                    ) : (
-                      <div className="space-y-2">
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm text-gray-600">January 2025</span>
-                          <span className="text-sm font-medium text-gray-700">₹ 4,000.00</span>
-                        </div>
-                      </div>
-                    )}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          </div>
+            </>
+          )}
         </div>
 
         {/* Footer Actions */}
@@ -658,4 +681,4 @@ function CashBook({ isOpen, onClose }) {
   );
 }
 
-export default CashBook;
+export default React.memo(CashBook);
