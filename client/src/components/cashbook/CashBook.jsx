@@ -29,6 +29,9 @@ function CashBook({ isOpen, onClose }) {
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   
+  const [categorySummary, setCategorySummary] = useState([]);
+  const [monthlySummary, setMonthlySummary] = useState([]);
+  
   const fetchTransactions = async (isRefresh = false) => {
     if (isRefresh) {
       setIsRefreshing(true);
@@ -299,6 +302,54 @@ function CashBook({ isOpen, onClose }) {
     setCashInfo(memoizedCashInfo);
   }, [memoizedCashInfo]);
 
+  const memoizedAnalytics = useMemo(() => {
+    // Process expense categories
+    const categories = memoizedFilteredTransactions.reduce((acc, curr) => {
+      if (curr.type === 'Expense') {
+        const category = curr.particulars.split(' - ')[0];
+        if (!acc[category]) acc[category] = 0;
+        acc[category] += curr.debit;
+      }
+      return acc;
+    }, {});
+
+    const sortedCategories = Object.entries(categories)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5); // Top 5 categories
+
+    // Process monthly data - last 6 months
+    const monthlyData = Array.from({ length: 6 }, (_, i) => {
+      const date = new Date();
+      date.setMonth(date.getMonth() - i);
+      return {
+        month: date.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }),
+        income: 0,
+        expense: 0,
+        pending: 0
+      };
+    });
+
+    // Fill in the data
+    transactions.forEach(transaction => {
+      const transDate = new Date(transaction.date);
+      const monthKey = transDate.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' });
+      const monthData = monthlyData.find(m => m.month === monthKey);
+      
+      if (monthData) {
+        if (transaction.type === 'Income') monthData.income += transaction.credit;
+        else if (transaction.type === 'Expense') monthData.expense += transaction.debit;
+        else if (transaction.type === 'Pending') monthData.pending += transaction.debit;
+      }
+    });
+
+    return { categories: sortedCategories, monthly: monthlyData };
+  }, [memoizedFilteredTransactions, transactions]);
+
+  useEffect(() => {
+    setCategorySummary(memoizedAnalytics.categories);
+    setMonthlySummary(memoizedAnalytics.monthly);
+  }, [memoizedAnalytics]);
+
   const handleExport = (type) => {
     switch(type) {
       case 'excel':
@@ -386,11 +437,11 @@ function CashBook({ isOpen, onClose }) {
         initial={{ scale: 0.95, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.95, opacity: 0 }}
-        className="bg-white rounded-2xl shadow-2xl w-[92vw] max-w-7xl max-h-[92vh] overflow-hidden flex flex-col transition-transform duration-200"
+        className="bg-white rounded-2xl shadow-2xl w-[95vw] md:w-[92vw] max-w-7xl max-h-[95vh] md:max-h-[92vh] overflow-hidden flex flex-col transition-transform duration-200"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="px-7 py-5 border-b flex justify-between items-center bg-white sticky top-0 shadow-sm z-20">
+        <div className="px-4 md:px-7 py-3 border-b flex justify-between items-center bg-white sticky top-0 shadow-sm z-20">
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-semibold text-gray-800 tracking-tight">Cash Book</h1>
             <span className="text-sm px-3 py-1 bg-amber-50 text-amber-700 rounded-full font-medium ring-1 ring-amber-100/50">Report</span>
@@ -438,17 +489,17 @@ function CashBook({ isOpen, onClose }) {
           ) : (
             <>
               {/* Main Content */}
-              <div className="p-4 flex gap-4">
+              <div className="p-2 md:p-4 flex flex-col lg:flex-row gap-3 md:gap-4">
                 {/* Table Section */}
-                <div className="flex-1">
+                <div className="flex-1 order-2 lg:order-1">
                   <div className="border rounded-xl">
                     <div className="bg-amber-50 px-4 py-2 border-b">
                       <h3 className="font-medium text-amber-800">
                         {new Date().toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })} Transactions
                       </h3>
                     </div>
-                    {/* Changed height calculation here */}
-                    <div className="h-[calc(92vh-200px)]">
+                    {/* Increased height for better table visibility */}
+                    <div className="h-[60vh] lg:h-[calc(92vh-200px)]">
                       <AutoSizer>
                         {({ width, height }) => (
                           <Table
@@ -475,7 +526,8 @@ function CashBook({ isOpen, onClose }) {
                             <Column
                               label="Date"
                               dataKey="date"
-                              width={120}
+                              width={100}
+                              flexShrink={0}
                               headerRenderer={({ label }) => (
                                 <div className="text-center text-xs font-medium text-white uppercase tracking-wider py-1.5">
                                   {label}
@@ -640,8 +692,8 @@ function CashBook({ isOpen, onClose }) {
                   </div>
                 </div>
 
-                {/* Right Side Panel */}
-                <div className="w-72 space-y-3">
+                {/* Right Side Panel - Reduced width */}
+                <div className="w-full lg:w-64 space-y-3 order-1 lg:order-2">
                   {/* Cash Adjustment Button */}
                   <button 
                     onClick={() => setShowAdjustment(true)}
@@ -653,10 +705,10 @@ function CashBook({ isOpen, onClose }) {
 
                   {/* Balance Summary */}
                   <div className="bg-white border rounded-xl overflow-hidden">
-                    <div className="p-3 border-b bg-amber-50">
+                    <div className="py-0.5 px-3 md:py-1.5 border-b bg-amber-50">
                       <h3 className="text-sm font-medium text-amber-800">Balance Summary</h3>
                     </div>
-                    <div className="p-3 space-y-2 text-xs">
+                    <div className="py-1 px-3 md:py-1.5 space-y-2 text-xs">
                       {/* Opening Section */}
                       <div className="space-y-1 pb-2 border-b">
                         <div className="flex justify-between items-center">
@@ -720,52 +772,84 @@ function CashBook({ isOpen, onClose }) {
                     </div>
                   </div>
 
-                  {/* View Toggle */}
-                  <div className="mt-3">
-                    <div className="bg-white border rounded-xl overflow-hidden">
-                      <div className="flex">
-                        <button 
-                          onClick={() => setActiveTab('categorywise')}
-                          className={`flex-1 px-4 py-2 text-sm font-medium transition-colors
-                            ${activeTab === 'categorywise' 
-                              ? 'bg-amber-500 text-white' 
-                              : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
-                            }`}
-                        >
-                          Category
-                        </button>
-                        <button 
-                          onClick={() => setActiveTab('monthwise')}
-                          className={`flex-1 px-4 py-2 text-sm font-medium transition-colors
-                            ${activeTab === 'monthwise' 
-                              ? 'bg-amber-500 text-white' 
-                              : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
-                            }`}
-                        >
-                          Monthly
-                        </button>
-                      </div>
-                      <div className="p-4">
-                        {activeTab === 'categorywise' ? (
-                          <div className="space-y-2">
-                            <div className="flex justify-between items-center">
-                              <span className="text-sm text-gray-600">Supplies</span>
-                              <span className="text-sm font-medium text-gray-700">₹ 1,000.00</span>
-                            </div>
-                            <div className="flex justify-between items-center">
-                              <span className="text-sm text-gray-600">Sales</span>
-                              <span className="text-sm font-medium text-gray-700">₹ 5,000.00</span>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="space-y-2">
-                            <div className="flex justify-between items-center">
-                              <span className="text-sm text-gray-600">January 2025</span>
-                              <span className="text-sm font-medium text-gray-700">₹ 4,000.00</span>
-                            </div>
-                          </div>
+                  {/* Analytics Section */}
+                  <div className="bg-white border rounded-xl overflow-hidden">
+                    <div className="flex border-b">
+                      <button 
+                        onClick={() => setActiveTab('categorywise')}
+                        className={`flex-1 px-4 py-2 text-xs font-medium transition-colors relative
+                          ${activeTab === 'categorywise' ? 'text-amber-800' : 'text-gray-600'}`}
+                      >
+                        Top Expenses
+                        {activeTab === 'categorywise' && (
+                          <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-500"/>
                         )}
-                      </div>
+                      </button>
+                      <button 
+                        onClick={() => setActiveTab('monthwise')}
+                        className={`flex-1 px-4 py-2 text-xs font-medium transition-colors relative
+                          ${activeTab === 'monthwise' ? 'text-amber-800' : 'text-gray-600'}`}
+                      >
+                        Monthly Overview
+                        {activeTab === 'monthwise' && (
+                          <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-500"/>
+                        )}
+                      </button>
+                    </div>
+
+                    <div className="max-h-[180px] md:max-h-[180px] overflow-y-auto scrollbar-thin scrollbar-thumb-amber-200 scrollbar-track-gray-50">
+                      {activeTab === 'categorywise' ? (
+                        <div className="divide-y">
+                          {categorySummary.map(([category, amount], index) => (
+                            <div key={category} className="p-3 hover:bg-amber-50/30">
+                              <div className="flex justify-between items-center mb-1">
+                                <span className="text-xs text-gray-600">{category}</span>
+                                <span className="text-xs font-medium text-red-600">
+                                  ₹ {amount.toLocaleString('en-IN')}
+                                </span>
+                              </div>
+                              <div className="h-1 bg-gray-100 rounded-full overflow-hidden">
+                                <div 
+                                  className="h-full bg-red-400 rounded-full transition-all duration-500"
+                                  style={{ 
+                                    width: `${(amount / categorySummary[0][1]) * 100}%`,
+                                    opacity: 1 - (index * 0.15)
+                                  }}
+                                />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="divide-y">
+                          {monthlySummary.map((data) => (
+                            <div key={data.month} className="p-3 hover:bg-amber-50/30">
+                              <div className="flex justify-between items-center mb-1">
+                                <span className="text-xs font-medium text-gray-700">{data.month}</span>
+                                <span className={`text-xs font-medium ${
+                                  data.income - data.expense >= 0 ? 'text-green-600' : 'text-red-600'
+                                }`}>
+                                  {data.income - data.expense >= 0 ? '+' : ''}
+                                  ₹ {(data.income - data.expense).toLocaleString('en-IN')}
+                                </span>
+                              </div>
+                              <div className="flex gap-3 text-[10px]">
+                                <span className="text-green-600">+₹ {data.income.toLocaleString('en-IN')}</span>
+                                <span className="text-red-600">-₹ {data.expense.toLocaleString('en-IN')}</span>
+                                {data.pending > 0 && (
+                                  <span className="text-yellow-600">
+                                    ₹ {data.pending.toLocaleString('en-IN')} pending
+                                  </span>
+                                )}
+                              </div>
+                              <div className="mt-1.5 flex gap-0.5 h-1">
+                                <div className="bg-green-400 rounded-l" style={{ width: `${(data.income / (data.income + data.expense)) * 100}%` }} />
+                                <div className="bg-red-400 rounded-r" style={{ width: `${(data.expense / (data.income + data.expense)) * 100}%` }} />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -775,8 +859,8 @@ function CashBook({ isOpen, onClose }) {
         </div>
 
         {/* Footer Actions */}
-        <div className="border-t px-4 py-3 flex justify-between items-center bg-white sticky bottom-0 shadow-sm">
-          <div className="flex items-center gap-3">
+        <div className="border-t px-3 md:px-4 py-2 md:py-3 flex justify-between items-center bg-white sticky bottom-0 shadow-sm">
+          <div className="flex items-center gap-2 md:gap-3">
             <button onClick={() => handleExport('excel')} 
               className="flex items-center gap-1.5 text-gray-600 hover:text-amber-600 text-sm font-medium transition-colors">
               <FileSpreadsheet size={16} />
@@ -793,7 +877,7 @@ function CashBook({ isOpen, onClose }) {
               Email
             </button>
           </div>
-          <div className="flex items-center gap-2 text-xs text-gray-500">
+          <div className="hidden md:flex items-center gap-2 text-xs text-gray-500">
             <span className="px-2 py-1 bg-gray-100 rounded-full">Limited Version</span>
           </div>
         </div>
