@@ -16,6 +16,10 @@ function CashBook({ isOpen, onClose }) {
   const [filteredTransactions, setFilteredTransactions] = useState([]);
   const [cashInfo, setCashInfo] = useState({
     openingBalance: 0,
+    totalIncome: 0,
+    totalExpense: 0,
+    totalPending: 0,
+    netChange: 0,
     closingBalance: 0
   });
   const [activeTab, setActiveTab] = useState('categorywise');
@@ -216,13 +220,27 @@ function CashBook({ isOpen, onClose }) {
   }, [memoizedFilteredTransactions]);
 
   const memoizedCashInfo = useMemo(() => {
-    const netChange = memoizedFilteredTransactions.reduce(
-      (acc, curr) => acc + ((curr.credit || 0) - (curr.debit || 0)),
-      0
-    );
+    const totals = memoizedFilteredTransactions.reduce((acc, curr) => {
+      if (curr.type === 'Income') {
+        acc.totalIncome += (curr.credit || 0);
+      } else if (curr.type === 'Expense') {
+        acc.totalExpense += (curr.debit || 0);
+      } else if (curr.type === 'Pending') {
+        acc.totalPending += (curr.debit || 0);
+      }
+      return acc;
+    }, {
+      totalIncome: 0,
+      totalExpense: 0,
+      totalPending: 0
+    });
+  
+    const netChange = totals.totalIncome - totals.totalExpense;
     
     return {
       openingBalance: cashInfo.openingBalance,
+      ...totals,
+      netChange,
       closingBalance: cashInfo.openingBalance + netChange
     };
   }, [memoizedFilteredTransactions, cashInfo.openingBalance]);
@@ -566,29 +584,48 @@ function CashBook({ isOpen, onClose }) {
 
                   {/* Balance Summary */}
                   <div className="bg-white border rounded-xl overflow-hidden">
-                    <div className="p-4 border-b bg-amber-50/50">
-                      <h3 className="font-medium text-amber-800 flex items-center gap-2">
-                        <span className="text-amber-500">☀</span> 
-                        Balance Summary
-                      </h3>
+                    <div className="p-3 border-b bg-amber-50">
+                      <h3 className="text-sm font-medium text-amber-800">Balance Summary</h3>
                     </div>
-                    <div className="p-4 space-y-3">
+                    <div className="p-3 space-y-2 text-xs">
+                      {/* Opening Balance */}
                       <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-600">Opening Balance</span>
-                        <span className="text-sm font-medium text-gray-700">₹ {cashInfo.openingBalance.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-600">Net Change</span>
-                        <span className="text-sm font-medium text-gray-700">
-                          <span className={cashInfo.closingBalance - cashInfo.openingBalance >= 0 ? "text-green-600" : "text-red-600"}>
-                            {cashInfo.closingBalance - cashInfo.openingBalance >= 0 ? "+" : ""}
-                            ₹ {(cashInfo.closingBalance - cashInfo.openingBalance).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </span>
+                        <span className="text-gray-600">Opening Balance</span>
+                        <span className="font-medium text-gray-700">
+                          ₹ {cashInfo.openingBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                         </span>
                       </div>
+                      
+                      {/* Income & Expense */}
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600">Income</span>
+                        <span className="font-medium text-green-600">
+                          +₹ {cashInfo.totalIncome.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600">Expense</span>
+                        <span className="font-medium text-red-600">
+                          -₹ {cashInfo.totalExpense.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </span>
+                      </div>
+
+                      {/* Pending if exists */}
+                      {cashInfo.totalPending > 0 && (
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-600">Pending</span>
+                          <span className="font-medium text-yellow-600">
+                            ₹ {cashInfo.totalPending.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </span>
+                        </div>
+                      )}
+                      
+                      {/* Closing Balance */}
                       <div className="flex justify-between items-center pt-2 border-t">
-                        <span className="text-sm font-medium text-gray-700">Closing Balance</span>
-                        <span className="text-sm font-medium text-amber-600">₹ {cashInfo.closingBalance.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                        <span className="font-medium text-gray-700">Closing Balance</span>
+                        <span className="font-medium text-amber-600">
+                          ₹ {cashInfo.closingBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </span>
                       </div>
                     </div>
                   </div>
