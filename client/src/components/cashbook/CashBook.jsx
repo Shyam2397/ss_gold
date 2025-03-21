@@ -114,7 +114,11 @@ function CashBook({ isOpen, onClose }) {
       const tokenTransactions = tokensResponse.data.map(token => ({
         id: `token-${token.id}`,
         date: token.date,
-        particulars: `Token #${token.tokenNo} - ${token.name}`,
+        particulars: {
+          test: token.test || 'No Test',
+          tokenNo: token.tokenNo,
+          name: token.name
+        },
         type: token.isPaid ? 'Income' : 'Pending',
         debit: token.isPaid ? 0 : parseFloat(token.amount) || 0,
         credit: token.isPaid ? parseFloat(token.amount) || 0 : 0,
@@ -424,11 +428,33 @@ function CashBook({ isOpen, onClose }) {
                             {label}
                           </div>
                         )}
-                        cellRenderer={({ rowData }) => (
-                          <div className="text-xs text-amber-900 truncate py-2.5 px-4">
-                            {rowData.particulars || '-'}
-                          </div>
-                        )}
+                        cellRenderer={({ rowData }) => {
+                          if (rowData.type === 'opening' || rowData.type === 'closing') {
+                            return (
+                              <div className="text-xs text-amber-900 truncate py-2.5 px-4">
+                                {rowData.particulars || '-'}
+                              </div>
+                            );
+                          }
+                          
+                          if (rowData.particulars.test) { // For token transactions
+                            return (
+                              <div className="text-xs text-amber-900 truncate py-2.5 px-4 flex items-center gap-1.5">
+                                <span className="font-medium">{rowData.particulars.test}</span>
+                                <span className="text-[10px] text-amber-600">•</span>
+                                <span className="text-[10px] text-amber-800">#{rowData.particulars.tokenNo}</span>
+                                <span className="text-[10px] text-amber-600">•</span>
+                                <span className="text-[10px] text-amber-500">{rowData.particulars.name.substring(0, 15)}{rowData.particulars.name.length > 15 ? '...' : ''}</span>
+                              </div>
+                            );
+                          }
+                          
+                          return ( // For expense transactions
+                            <div className="text-xs text-amber-900 truncate py-2.5 px-4">
+                              {rowData.particulars}
+                            </div>
+                          );
+                        }}
                       />
                       <Column
                         label="Type"
