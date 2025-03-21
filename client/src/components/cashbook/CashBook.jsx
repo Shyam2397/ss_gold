@@ -13,7 +13,6 @@ function CashBook({ isOpen, onClose }) {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-
   const [filteredTransactions, setFilteredTransactions] = useState([]);
   const [cashInfo, setCashInfo] = useState({
     openingBalance: 0,
@@ -26,10 +25,9 @@ function CashBook({ isOpen, onClose }) {
   });
   const [activeTab, setActiveTab] = useState('categorywise');
   const [showAdjustment, setShowAdjustment] = useState(false);
-
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  
+
   const [categorySummary, setCategorySummary] = useState([]);
   const [monthlySummary, setMonthlySummary] = useState([]);
 
@@ -77,30 +75,25 @@ function CashBook({ isOpen, onClose }) {
       setIsInitialLoading(true);
     }
     setError('');
-    try {
-      // Get current month dates
+    try {// Get current month dates
+
+// Get current month dates
       const today = new Date();
       const currentMonth = today.getMonth();
-      const currentYear = today.getFullYear();
+      const currentYear = today.getFullYear();// Calculate first and last day of current month
+
       
-      // Calculate first and last day of current month
+// Calculate first and last day of current month
       const firstDayOfMonth = new Date(currentYear, currentMonth, 1);
       const lastDayOfMonth = new Date(currentYear, currentMonth + 1, 0);
       
-      // Calculate first and last day of previous month for opening balance
       const firstDayOfPreviousMonth = new Date(currentYear, currentMonth - 1, 1);
       const lastDayOfPreviousMonth = new Date(currentYear, currentMonth, 0);
       
-      // Format dates for API
       const firstDayFormatted = firstDayOfMonth.toISOString().split('T')[0];
       const lastDayFormatted = lastDayOfMonth.toISOString().split('T')[0];
-      const firstDayOfAllTime = new Date(2000, 0, 1).toISOString().split('T')[0]; // Start from a very early date
+      const firstDayOfAllTime = new Date(2000, 0, 1).toISOString().split('T')[0];
       const lastDayOfPreviousMonthFormatted = lastDayOfPreviousMonth.toISOString().split('T')[0];
-      
-      console.log('Date ranges for opening balance:', {
-        from: firstDayOfAllTime,
-        to: lastDayOfPreviousMonth
-      });
       
       const [previousTokensResponse, previousExpensesResponse] = await Promise.all([
         axios.get(`${API_BASE_URL}/tokens`, {
@@ -117,11 +110,9 @@ function CashBook({ isOpen, onClose }) {
         })
       ]);
       
-      // Calculate opening balance from previous transactions (up to last month)
       const previousIncome = previousTokensResponse.data.reduce((sum, token) => {
         const transactionDate = new Date(token.date);
         if (transactionDate <= lastDayOfPreviousMonth) {
-          // Only include paid tokens in income
           return token.isPaid ? sum + parseFloat(token.amount || 0) : sum;
         }
         return sum;
@@ -130,7 +121,6 @@ function CashBook({ isOpen, onClose }) {
       const previousPending = previousTokensResponse.data.reduce((sum, token) => {
         const transactionDate = new Date(token.date);
         if (transactionDate <= lastDayOfPreviousMonth) {
-          // Sum up unpaid tokens separately
           return !token.isPaid ? sum + parseFloat(token.amount || 0) : sum;
         }
         return sum;
@@ -147,22 +137,12 @@ function CashBook({ isOpen, onClose }) {
       const openingBalance = previousIncome - previousExpenses;
       const openingPending = previousPending;
       
-      console.log('Opening Balance Calculation:', {
-        previousIncome,
-        previousExpenses,
-        openingBalance,
-        calculatedForMonth: lastDayOfPreviousMonth.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' }),
-        upToDate: lastDayOfPreviousMonthFormatted
-      });
-      
-      // Update opening balance in cashInfo
       setCashInfo(prev => ({ 
         ...prev, 
         openingBalance,
         openingPending
       }));
       
-      // 2. Fetch current month transactions to display
       const [tokensResponse, expensesResponse] = await Promise.all([
         axios.get(`${API_BASE_URL}/tokens`, {
           params: {
@@ -178,7 +158,6 @@ function CashBook({ isOpen, onClose }) {
         })
       ]);
 
-      // Transform tokens into transactions (Income)
       const tokenTransactions = tokensResponse.data.map(token => ({
         id: `token-${token.id}`,
         date: token.date,
@@ -194,7 +173,6 @@ function CashBook({ isOpen, onClose }) {
         amount: parseFloat(token.amount) || 0
       }));
 
-      // Transform expenses into transactions (Expense)
       const expenseTransactions = expensesResponse.data.map(expense => ({
         id: `expense-${expense.id}`,
         date: expense.date,
@@ -204,20 +182,16 @@ function CashBook({ isOpen, onClose }) {
         credit: 0
       }));
 
-      // Combine and sort transactions by date (ascending for running balance)
       const allTransactions = [...tokenTransactions, ...expenseTransactions]
         .sort((a, b) => new Date(a.date) - new Date(b.date));
 
-      // Only process current month transactions for running balance
       const currentMonthTransactions = allTransactions.filter(transaction => {
         const transactionDate = new Date(transaction.date);
         return transactionDate >= firstDayOfMonth && transactionDate <= lastDayOfMonth;
       });
 
-      // Calculate running balance starting with opening balance
       let runningBalance = openingBalance;
       let runningPending = openingPending;
-      console.log('Starting running balance calculation with opening balance:', openingBalance);
       
       const currentMonthTransactionsWithBalance = currentMonthTransactions.map(transaction => {
         if (transaction.type === 'Pending') {
@@ -238,7 +212,6 @@ function CashBook({ isOpen, onClose }) {
         }
       });
 
-      // Combine with previous transactions (without running balance)
       const previousTransactions = allTransactions.filter(transaction => {
         const transactionDate = new Date(transaction.date);
         return transactionDate < firstDayOfMonth;
@@ -248,7 +221,6 @@ function CashBook({ isOpen, onClose }) {
 
       setTransactions(transactionsWithBalance);
     } catch (err) {
-      console.error('Error fetching transactions:', err);
       setError('Failed to fetch transactions. Please try again.');
     } finally {
       if (isRefresh) {
@@ -259,7 +231,6 @@ function CashBook({ isOpen, onClose }) {
     }
   }, []);
 
-  // Debounce the refresh polling to prevent too frequent updates
   const debouncedFetch = useMemo(
     () => debounce((isRefresh) => fetchTransactions(isRefresh), 1000),
     [fetchTransactions]
@@ -267,7 +238,6 @@ function CashBook({ isOpen, onClose }) {
 
   useEffect(() => {
     fetchTransactions();
-    // Set up polling with debounced fetch
     const pollInterval = setInterval(() => {
       debouncedFetch(true);
     }, 30000);
@@ -282,28 +252,24 @@ function CashBook({ isOpen, onClose }) {
     const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
     const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
     
-    // Filter current month transactions and sort by date and time
     const currentMonthTransactions = transactions
       .filter(transaction => {
         const transactionDate = new Date(transaction.date);
         return transactionDate >= firstDayOfMonth && transactionDate <= lastDayOfMonth;
       })
       .sort((a, b) => {
-        // First compare by date
         const dateA = new Date(a.date);
         const dateB = new Date(b.date);
         if (dateA.getTime() !== dateB.getTime()) {
           return dateA.getTime() - dateB.getTime();
         }
         
-        // If dates are equal, compare by time if available
         const timeA = a.time ? new Date(`${a.date}T${a.time}`) : new Date(a.date);
         const timeB = b.time ? new Date(`${b.date}T${b.time}`) : new Date(b.date);
         if (timeA.getTime() !== timeB.getTime()) {
           return timeA.getTime() - timeB.getTime();
         }
         
-        // If dates and times are equal, sort by id to maintain stable order
         const idA = parseInt((a.id || '').replace(/\D/g, '') || '0');
         const idB = parseInt((b.id || '').replace(/\D/g, '') || '0');
         return idA - idB;
@@ -350,7 +316,6 @@ function CashBook({ isOpen, onClose }) {
   }, [memoizedCashInfo]);
 
   const memoizedAnalytics = useMemo(() => {
-    // Process expense categories
     const categories = memoizedFilteredTransactions.reduce((acc, curr) => {
       if (curr.type === 'Expense') {
         const category = curr.particulars.split(' - ')[0];
@@ -362,9 +327,8 @@ function CashBook({ isOpen, onClose }) {
 
     const sortedCategories = Object.entries(categories)
       .sort((a, b) => b[1] - a[1])
-      .slice(0, 5); // Top 5 categories
+      .slice(0, 5);
 
-    // Process monthly data - last 6 months
     const monthlyData = Array.from({ length: 6 }, (_, i) => {
       const date = new Date();
       date.setMonth(date.getMonth() - i);
@@ -376,7 +340,6 @@ function CashBook({ isOpen, onClose }) {
       };
     });
 
-    // Fill in the data
     transactions.forEach(transaction => {
       const transDate = new Date(transaction.date);
       const monthKey = transDate.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' });
@@ -400,13 +363,10 @@ function CashBook({ isOpen, onClose }) {
   const handleExport = useCallback((type) => {
     switch(type) {
       case 'excel':
-        console.log('Exporting to Excel...');
-        break;
       case 'print':
         window.print();
         break;
       case 'email':
-        console.log('Preparing email...');
         break;
       default:
         break;
@@ -416,7 +376,6 @@ function CashBook({ isOpen, onClose }) {
   const handleAdjustmentSave = useCallback(async (adjustmentData) => {
     setLoading(true);
     try {
-      // Convert adjustment to transaction format for UI
       const transaction = {
         id: `adjustment-${Date.now()}`,
         date: adjustmentData.date,
@@ -427,10 +386,7 @@ function CashBook({ isOpen, onClose }) {
         isAdjustment: true
       };
 
-      // Save adjustment to backend - this ensures it's included in future opening balance calculations
-      // We'll save it as an expense with negative amount for debit or as a token for credit
       if (adjustmentData.type === 'debit') {
-        // Save as expense
         await axios.post(`${API_BASE_URL}/api/expenses`, {
           date: adjustmentData.date,
           expense_type: 'Cash Adjustment',
@@ -440,7 +396,6 @@ function CashBook({ isOpen, onClose }) {
           remarks: 'Manual cash adjustment'
         });
       } else {
-        // Save as token/income
         await axios.post(`${API_BASE_URL}/tokens`, {
           date: adjustmentData.date,
           tokenNo: `ADJ-${Date.now()}`,
@@ -451,13 +406,10 @@ function CashBook({ isOpen, onClose }) {
         });
       }
 
-      // Add to local transactions and refresh data
       setTransactions(prev => [...prev, transaction]);
-      // Refresh all transactions to ensure consistency
       fetchTransactions();
       setShowAdjustment(false);
     } catch (err) {
-      console.error('Error saving adjustment:', err);
       setError('Failed to save adjustment. Please try again.');
     } finally {
       setLoading(false);
@@ -481,7 +433,6 @@ function CashBook({ isOpen, onClose }) {
         className="bg-white rounded-2xl shadow-2xl w-[95vw] md:w-[92vw] max-w-7xl max-h-[95vh] md:max-h-[92vh] overflow-hidden flex flex-col transition-transform duration-200"
         onClick={e => e.stopPropagation()}
       >
-        {/* Header */}
         <div className="px-4 md:px-7 py-2 border-b flex justify-between items-center bg-white sticky top-0 shadow-sm z-20">
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-semibold text-gray-800 tracking-tight">Cash Book</h1>
@@ -500,7 +451,6 @@ function CashBook({ isOpen, onClose }) {
           )}
         </div>
 
-        {/* Content */}
         <div className="flex-1 overflow-auto">
           {isInitialLoading ? (
             <div className="flex flex-col items-center justify-center h-[50vh] gap-3">
@@ -529,9 +479,7 @@ function CashBook({ isOpen, onClose }) {
             </div>
           ) : (
             <>
-              {/* Main Content */}
               <div className="py-2 md:py-4 px-4 flex flex-col lg:flex-row gap-3 md:gap-4">
-                {/* Table Section */}
                 <div className="flex-1 order-2 lg:order-1">
                   <div className="border rounded-xl">
                     <div className="bg-amber-50 px-4 py-2 border-b">
@@ -539,7 +487,6 @@ function CashBook({ isOpen, onClose }) {
                         {new Date().toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })} Transactions
                       </h3>
                     </div>
-                    {/* Increased height for better table visibility */}
                     <div className="h-[65vh] lg:h-[calc(93vh-190px)]">
                       <AutoSizer>
                         {({ width, height }) => (
@@ -596,7 +543,7 @@ function CashBook({ isOpen, onClose }) {
                                   );
                                 }
                                 
-                                if (rowData.particulars.test) { // For token transactions
+                                if (rowData.particulars.test) {
                                   return (
                                     <div className="text-xs text-amber-900 truncate py-2.5 px-4 flex items-center gap-1.5">
                                       <span className="font-medium">{rowData.particulars.test}</span>
@@ -608,7 +555,7 @@ function CashBook({ isOpen, onClose }) {
                                   );
                                 }
                                 
-                                return ( // For expense transactions
+                                return (
                                   <div className="text-xs text-amber-900 truncate py-3.5 px-4">
                                     {rowData.particulars}
                                   </div>
@@ -678,7 +625,6 @@ function CashBook({ isOpen, onClose }) {
                                 </div>
                               )}
                               cellRenderer={({ rowData }) => {
-                                // Opening balance row with pending amount
                                 if (rowData.type === 'opening') {
                                   return (
                                     <div className="text-right text-xs py-3.5 px-4">
@@ -694,7 +640,6 @@ function CashBook({ isOpen, onClose }) {
                                   );
                                 }
                                 
-                                // Closing balance row
                                 if (rowData.type === 'closing') {
                                   return (
                                     <div className="text-right text-xs py-2.5 px-4 font-medium text-amber-700">
@@ -703,7 +648,6 @@ function CashBook({ isOpen, onClose }) {
                                   );
                                 }
                                 
-                                // Regular transaction row
                                 return (
                                   <div className="text-right text-xs py-3.5 px-4">
                                     <span className={`font-medium ${rowData.runningBalance >= 0 ? "text-green-700" : "text-red-700"}`}>
@@ -720,9 +664,7 @@ function CashBook({ isOpen, onClose }) {
                   </div>
                 </div>
 
-                {/* Right Side Panel - Reduced width */}
                 <div className="w-full lg:w-64 space-y-3 order-1 lg:order-2">
-                  {/* Cash Adjustment Button */}
                   <button 
                     onClick={() => setShowAdjustment(true)}
                     className="w-full bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-xl flex items-center justify-center gap-2 text-sm font-medium transition-colors"
@@ -731,13 +673,11 @@ function CashBook({ isOpen, onClose }) {
                     Cash Adjustments
                   </button>
 
-                  {/* Balance Summary */}
                   <div className="bg-white border rounded-xl overflow-hidden">
                     <div className="py-0.5 px-3 md:py-1.5 border-b bg-amber-500">
                       <h3 className="text-sm font-medium text-white">Balance Summary</h3>
                     </div>
                     <div className="py-1 px-3 md:py-1.5 space-y-2 text-xs">
-                      {/* Opening Section */}
                       <div className="space-y-1 pb-2 border-b">
                         <div className="flex justify-between items-center">
                           <span className="text-gray-600">Opening Balance</span>
@@ -755,7 +695,6 @@ function CashBook({ isOpen, onClose }) {
                         )}
                       </div>
                       
-                      {/* Current Activity */}
                       <div className="space-y-1.5">
                         <div className="flex justify-between items-center">
                           <span className="text-gray-600">Income</span>
@@ -771,7 +710,6 @@ function CashBook({ isOpen, onClose }) {
                         </div>
                       </div>
 
-                      {/* Net Change & Pending */}
                       <div className="pt-2 border-t space-y-1.5">
                         <div className="flex justify-between items-center">
                           <span className="text-gray-600">Net Change</span>
@@ -790,7 +728,6 @@ function CashBook({ isOpen, onClose }) {
                         )}
                       </div>
                       
-                      {/* Closing Balance */}
                       <div className="flex justify-between items-center pt-2 mt-1 border-t">
                         <span className="font-medium text-gray-700">Closing Balance</span>
                         <span className="font-medium text-amber-600">
@@ -800,7 +737,6 @@ function CashBook({ isOpen, onClose }) {
                     </div>
                   </div>
 
-                  {/* Analytics Section */}
                   <div className="bg-white border rounded-xl overflow-hidden">
                     <div className="flex border-b">
                       <button 
@@ -886,7 +822,6 @@ function CashBook({ isOpen, onClose }) {
           )}
         </div>
 
-        {/* Footer Actions */}
         <div className="border-t px-3 md:px-4 py-2 md:py-3 flex justify-between items-center bg-white sticky bottom-0 shadow-sm">
           <div className="flex items-center gap-2 md:gap-3">
             <button onClick={() => handleExport('excel')} 
