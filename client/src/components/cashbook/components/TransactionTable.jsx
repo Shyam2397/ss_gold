@@ -56,11 +56,15 @@ const TransactionTable = ({ filteredTransactions, cashInfo, rowGetter }) => {
       }
 
       if (transaction.type === 'closing') {
+        const finalBalance = filteredTransactions.reduce((total, t) => {
+          return total + (t.credit || 0) - (t.debit || 0);
+        }, cashInfo?.openingBalance || 0);
+
         switch (columnIndex) {
           case 0: return <span className="text-gray-600">Closing Balance</span>;
           case 1: return '';
           case 2: return '';
-          case 3: return <span className="font-medium text-gray-900">{formatCurrency(transaction?.runningBalance || cashInfo?.openingBalance || 0)}</span>;
+          case 3: return <span className="font-medium text-gray-900">{formatCurrency(finalBalance)}</span>;
           default: return '';
         }
       }
@@ -85,7 +89,13 @@ const TransactionTable = ({ filteredTransactions, cashInfo, rowGetter }) => {
         case 3:
           return formatCurrency(transaction.credit || 0);
         case 4:
-          return formatCurrency(transaction.runningBalance || 0);
+          const currentIndex = filteredTransactions.findIndex(t => t.id === transaction.id);
+          const runningBalance = filteredTransactions
+            .slice(0, currentIndex + 1)
+            .reduce((total, t) => {
+              return total + (t.credit || 0) - (t.debit || 0);
+            }, cashInfo?.openingBalance || 0);
+          return formatCurrency(runningBalance);
         default:
           return '';
       }
@@ -203,7 +213,7 @@ const TransactionTable = ({ filteredTransactions, cashInfo, rowGetter }) => {
                 </div>
               )}
               cellRenderer={({ rowData }) => (
-                <div className="text-right text-xs text-amber-900 truncate py-3.5 px-4">
+                <div className="text-right text-xs text-amber-700 truncate py-3.5 px-4">
                   {rowData.type === 'opening' || rowData.type === 'closing' ? '-' :
                    rowData.debit?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                 </div>
@@ -219,7 +229,7 @@ const TransactionTable = ({ filteredTransactions, cashInfo, rowGetter }) => {
                 </div>
               )}
               cellRenderer={({ rowData }) => (
-                <div className="text-right text-xs text-amber-900 truncate py-3.5 px-4">
+                <div className="text-right text-xs text-amber-700 truncate py-3.5 px-4">
                   {rowData.type === 'opening' || rowData.type === 'closing' ? '-' :
                    rowData.credit?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                 </div>
@@ -249,11 +259,11 @@ const TransactionTable = ({ filteredTransactions, cashInfo, rowGetter }) => {
                     </div>
                   ) : rowData.type === 'closing' ? (
                     <div className="font-medium text-amber-700">
-                      ₹ {(cashInfo?.openingBalance || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      ₹ {(filteredTransactions.reduce((total, t) => total + (t.credit || 0) - (t.debit || 0), cashInfo?.openingBalance || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                     </div>
                   ) : (
-                    <span className={`font-medium text-amber-700`}>
-                      ₹ {((rowData?.credit || 0) - (rowData?.debit || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    <span className={`font-medium text-green-600`}>
+                      ₹ {(filteredTransactions.slice(0, filteredTransactions.findIndex(t => t.id === rowData.id) + 1).reduce((total, t) => total + (t.credit || 0) - (t.debit || 0), cashInfo?.openingBalance || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                     </span>
                   )}
                 </div>

@@ -246,7 +246,16 @@ function CashBook({ isOpen, onClose }) {
         return idA - idB;
       });
 
-    return currentMonthTransactions;
+    // Calculate running balance
+    let runningBalance = cashInfo.openingBalance || 0;
+    return currentMonthTransactions.map(transaction => {
+      if (transaction.type === 'Income') {
+        runningBalance += transaction.credit || 0;
+      } else if (transaction.type === 'Expense') {
+        runningBalance -= transaction.debit || 0;
+      }
+      return { ...transaction, runningBalance };
+    });
   }, [transactions]);
 
   useEffect(() => {
