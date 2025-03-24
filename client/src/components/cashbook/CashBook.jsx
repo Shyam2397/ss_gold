@@ -4,7 +4,6 @@ import { motion } from 'framer-motion';
 import axios from 'axios';
 import { debounce } from 'lodash';
 import TransactionTable from './components/TransactionTable';
-import BalanceSummary from './components/BalanceSummary';
 import AnalyticsPanel from './components/AnalyticsPanel';
 import CashAdjustment from './CashAdjustment';
 
@@ -17,11 +16,6 @@ function CashBook({ isOpen, onClose }) {
   const [filteredTransactions, setFilteredTransactions] = useState([]);
   const [cashInfo, setCashInfo] = useState({
     openingBalance: 0,
-    totalIncome: 0,
-    totalExpense: 0,
-    totalPending: 0,
-    netChange: 0,
-    closingBalance: 0,
     openingPending: 0
   });
   const [activeTab, setActiveTab] = useState('categorywise');
@@ -166,26 +160,11 @@ function CashBook({ isOpen, onClose }) {
         return transactionDate >= firstDayOfMonth && transactionDate <= lastDayOfMonth;
       });
 
-      let runningBalance = openingBalance;
-      let runningPending = openingPending;
-      
-      const currentMonthTransactionsWithBalance = currentMonthTransactions.map(transaction => {
-        if (transaction.type === 'Pending') {
-          runningPending += transaction.debit;
-          return {
-            ...transaction,
-            runningBalance,
-            pendingBalance: runningPending
-          };
-        } else {
-          const transactionAmount = (transaction.credit || 0) - (transaction.debit || 0);
-          runningBalance += transactionAmount;
-          return {
-            ...transaction,
-            runningBalance,
-            pendingBalance: runningPending
-          };
-        }
+      const currentMonthTransactionsWithBalance = currentMonthTransactions.map((transaction) => {
+        return {
+          ...transaction,
+          pendingBalance: transaction.type === 'Pending' ? transaction.debit : 0
+        };
       });
 
       const previousTransactions = allTransactions.filter(transaction => {
@@ -224,28 +203,44 @@ function CashBook({ isOpen, onClose }) {
   }, [debouncedFetch]);
 
   const memoizedFilteredTransactions = useMemo(() => {
+    if (!transactions.length) return [];
+    
     const today = new Date();
     const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
     const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
     
     const currentMonthTransactions = transactions
       .filter(transaction => {
+        if (!transaction?.date) return false;
         const transactionDate = new Date(transaction.date);
         return transactionDate >= firstDayOfMonth && transactionDate <= lastDayOfMonth;
       })
       .sort((a, b) => {
-        const dateA = new Date(a.date);
-        const dateB = new Date(b.date);
-        if (dateA.getTime() !== dateB.getTime()) {
-          return dateA.getTime() - dateB.getTime();
+        if (!a?.date || !b?.date) return 0;
+        
+        // Convert dates to ISO string for consistent timezone handling
+        const dateA = new Date(a.date).toISOString().split('T')[0];
+        const dateB = new Date(b.date).toISOString().split('T')[0];
+        
+        if (dateA !== dateB) {
+          return new Date(dateA) - new Date(dateB);
         }
         
-        const timeA = a.time ? new Date(`${a.date}T${a.time}`) : new Date(a.date);
-        const timeB = b.time ? new Date(`${b.date}T${b.time}`) : new Date(b.date);
-        if (timeA.getTime() !== timeB.getTime()) {
-          return timeA.getTime() - timeB.getTime();
+        // If same date, compare times if available
+        const timeA = a.time || '00:00:00';
+        const timeB = b.time || '00:00:00';
+        
+        if (timeA !== timeB) {
+          return new Date(`${dateA}T${timeA}`) - new Date(`${dateB}T${timeB}`);
         }
         
+        // If same time, sort by transaction type
+        const typeOrder = { 'Income': 1, 'Expense': 2, 'Pending': 3 };
+        if (a.type !== b.type) {
+          return (typeOrder[a.type] || 0) - (typeOrder[b.type] || 0);
+        }
+        
+        // If same type, sort by ID
         const idA = parseInt((a.id || '').replace(/\D/g, '') || '0');
         const idB = parseInt((b.id || '').replace(/\D/g, '') || '0');
         return idA - idB;
@@ -258,45 +253,14 @@ function CashBook({ isOpen, onClose }) {
     setFilteredTransactions(memoizedFilteredTransactions);
   }, [memoizedFilteredTransactions]);
 
-  const memoizedCashInfo = useMemo(() => {
-    const totals = memoizedFilteredTransactions.reduce((acc, curr) => {
-      if (curr.type === 'Income') {
-        acc.totalIncome += (curr.credit || 0);
-      } else if (curr.type === 'Expense') {
-        acc.totalExpense += (curr.debit || 0);
-      } else if (curr.type === 'Pending') {
-        acc.totalPending += (curr.debit || 0);
-      }
-      return acc;
-    }, {
-      totalIncome: 0,
-      totalExpense: 0,
-      totalPending: 0
-    });
-  
-    const netChange = totals.totalIncome - totals.totalExpense;
-    const totalPending = cashInfo.openingPending + totals.totalPending;
-    
-    return {
-      openingBalance: cashInfo.openingBalance,
-      openingPending: cashInfo.openingPending,
-      ...totals,
-      totalPending,
-      netChange,
-      closingBalance: cashInfo.openingBalance + netChange
-    };
-  }, [memoizedFilteredTransactions, cashInfo.openingBalance, cashInfo.openingPending]);
-
-  useEffect(() => {
-    setCashInfo(memoizedCashInfo);
-  }, [memoizedCashInfo]);
-
   const memoizedAnalytics = useMemo(() => {
     const categories = memoizedFilteredTransactions.reduce((acc, curr) => {
-      if (curr.type === 'Expense') {
-        const category = curr.particulars.split(' - ')[0];
+      if (curr?.type === 'Expense' && curr?.particulars) {
+        const category = typeof curr.particulars === 'string' 
+          ? curr.particulars.split(' - ')[0]
+          : 'Other';
         if (!acc[category]) acc[category] = 0;
-        acc[category] += curr.debit;
+        acc[category] += curr.debit || 0;
       }
       return acc;
     }, {});
@@ -317,14 +281,16 @@ function CashBook({ isOpen, onClose }) {
     });
 
     transactions.forEach(transaction => {
+      if (!transaction?.date) return;
+      
       const transDate = new Date(transaction.date);
       const monthKey = transDate.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' });
       const monthData = monthlyData.find(m => m.month === monthKey);
       
-      if (monthData) {
-        if (transaction.type === 'Income') monthData.income += transaction.credit;
-        else if (transaction.type === 'Expense') monthData.expense += transaction.debit;
-        else if (transaction.type === 'Pending') monthData.pending += transaction.debit;
+      if (monthData && transaction?.type) {
+        if (transaction.type === 'Income') monthData.income += transaction.credit || 0;
+        else if (transaction.type === 'Expense') monthData.expense += transaction.debit || 0;
+        else if (transaction.type === 'Pending') monthData.pending += transaction.debit || 0;
       }
     });
 
@@ -478,7 +444,6 @@ function CashBook({ isOpen, onClose }) {
                   <ArrowUpDown size={16} />
                   Cash Adjustments
                 </button>
-                <BalanceSummary cashInfo={cashInfo} />
                 <AnalyticsPanel
                   activeTab={activeTab}
                   setActiveTab={setActiveTab}

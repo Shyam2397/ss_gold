@@ -19,6 +19,85 @@ const TransactionTable = ({ filteredTransactions, cashInfo, rowGetter }) => {
     </div>
   ), []);
 
+  const cellRenderer = ({ columnIndex, rowIndex, key, style }) => {
+    const transaction = rowGetter({ index: rowIndex });
+    if (!transaction) return null;
+
+    const formatCurrency = (value) => {
+      if (typeof value !== 'number') return '0.00';
+      return value.toLocaleString('en-IN', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      });
+    };
+
+    const formatDate = (date) => {
+      if (!date) return '';
+      try {
+        return new Date(date).toLocaleDateString('en-IN', {
+          day: '2-digit',
+          month: 'short',
+          year: 'numeric'
+        });
+      } catch (e) {
+        return '';
+      }
+    };
+
+    const getContent = () => {
+      if (transaction.type === 'opening') {
+        switch (columnIndex) {
+          case 0: return <span className="text-gray-600">Opening Balance</span>;
+          case 1: return '';
+          case 2: return '';
+          case 3: return <span className="font-medium text-gray-900">{formatCurrency(cashInfo?.openingBalance || 0)}</span>;
+          default: return '';
+        }
+      }
+
+      if (transaction.type === 'closing') {
+        switch (columnIndex) {
+          case 0: return <span className="text-gray-600">Closing Balance</span>;
+          case 1: return '';
+          case 2: return '';
+          case 3: return <span className="font-medium text-gray-900">{formatCurrency(transaction?.runningBalance || cashInfo?.openingBalance || 0)}</span>;
+          default: return '';
+        }
+      }
+
+      switch (columnIndex) {
+        case 0:
+          return formatDate(transaction.date);
+        case 1:
+          if (typeof transaction.particulars === 'object') {
+            return (
+              <div>
+                <div className="font-medium">{transaction.particulars?.test || 'N/A'}</div>
+                <div className="text-sm text-gray-500">
+                  #{transaction.particulars?.tokenNo || 'N/A'} - {transaction.particulars?.name || 'N/A'}
+                </div>
+              </div>
+            );
+          }
+          return transaction.particulars || '';
+        case 2:
+          return formatCurrency(transaction.debit || 0);
+        case 3:
+          return formatCurrency(transaction.credit || 0);
+        case 4:
+          return formatCurrency(transaction.runningBalance || 0);
+        default:
+          return '';
+      }
+    };
+
+    return (
+      <div key={key} style={style} className="cell">
+        {getContent()}
+      </div>
+    );
+  };
+
   return (
     <div className="h-[65vh] lg:h-[calc(93vh-190px)]">
       <AutoSizer>
@@ -160,21 +239,21 @@ const TransactionTable = ({ filteredTransactions, cashInfo, rowGetter }) => {
                   {rowData.type === 'opening' ? (
                     <div>
                       <div className="font-medium text-amber-700">
-                        ₹ {cashInfo.openingBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        ₹ {(cashInfo?.openingBalance || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                       </div>
-                      {cashInfo.openingPending > 0 && (
+                      {(cashInfo?.openingPending || 0) > 0 && (
                         <div className="text-[10px] text-yellow-600 mt-0.5">
-                          Pending: ₹ {cashInfo.openingPending.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          Pending: ₹ {(cashInfo?.openingPending || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                         </div>
                       )}
                     </div>
                   ) : rowData.type === 'closing' ? (
                     <div className="font-medium text-amber-700">
-                      ₹ {cashInfo.closingBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      ₹ {(cashInfo?.openingBalance || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                     </div>
                   ) : (
-                    <span className={`font-medium ${rowData.runningBalance >= 0 ? 'text-green-700' : 'text-red-700'}`}>
-                      ₹ {rowData.runningBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    <span className={`font-medium text-amber-700`}>
+                      ₹ {((rowData?.credit || 0) - (rowData?.debit || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                     </span>
                   )}
                 </div>
