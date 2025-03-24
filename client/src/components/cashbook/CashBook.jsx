@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { ArrowUpDown, FileSpreadsheet, Printer, Mail, X } from 'lucide-react';
-import CashAdjustment from './CashAdjustment';
 import { motion } from 'framer-motion';
 import axios from 'axios';
-import { AutoSizer, Table, Column } from 'react-virtualized';
-import 'react-virtualized/styles.css';
 import { debounce } from 'lodash';
+import TransactionTable from './components/TransactionTable';
+import BalanceSummary from './components/BalanceSummary';
+import AnalyticsPanel from './components/AnalyticsPanel';
+import CashAdjustment from './CashAdjustment';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 
@@ -37,37 +38,12 @@ function CashBook({ isOpen, onClose }) {
     }
   }, [onClose]);
 
-  const getRowStyle = useCallback(({ index }) => {
-    return {
-      backgroundColor: 
-        index === 0 ? 'rgb(255, 251, 235)' :
-        index === filteredTransactions.length + 1 ? 'rgb(255, 251, 235)' :
-        index % 2 === 0 ? '#fff' : 'rgba(255, 251, 235, 0.4)'
-    };
-  }, [filteredTransactions.length]);
-
   const rowGetter = useCallback(({ index }) => {
     if (index === 0) return { type: 'opening' };
     if (index === filteredTransactions.length + 1) return { type: 'closing' };
     return filteredTransactions[index - 1];
   }, [filteredTransactions]);
 
-  const DateCell = useCallback(({ rowData }) => (
-    <div className="text-center text-xs text-amber-900 truncate py-3.5 px-4">
-      {rowData.type === 'opening' ? (
-        <span className="font-semibold">Opening Balance</span>
-      ) : rowData.type === 'closing' ? (
-        <span className="font-semibold">Closing Balance</span>
-      ) : (
-        new Date(rowData.date).toLocaleDateString('en-IN', {
-          day: '2-digit',
-          month: 'short',
-          year: 'numeric'
-        })
-      )}
-    </div>
-  ), []);
-  
   const fetchTransactions = useCallback(async (isRefresh = false) => {
     if (isRefresh) {
       setIsRefreshing(true);
@@ -478,347 +454,39 @@ function CashBook({ isOpen, onClose }) {
               </div>
             </div>
           ) : (
-            <>
-              <div className="py-2 md:py-4 px-4 flex flex-col lg:flex-row gap-3 md:gap-4">
-                <div className="flex-1 order-2 lg:order-1">
-                  <div className="border rounded-xl">
-                    <div className="bg-amber-50 px-4 py-2 border-b">
-                      <h3 className="font-medium text-amber-800">
-                        {new Date().toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })} Transactions
-                      </h3>
-                    </div>
-                    <div className="h-[65vh] lg:h-[calc(93vh-190px)]">
-                      <AutoSizer>
-                        {({ width, height }) => (
-                          <Table
-                            width={width}
-                            height={height}
-                            headerHeight={32}
-                            rowHeight={40}
-                            rowCount={filteredTransactions.length + 2}
-                            rowGetter={rowGetter}
-                            overscanRowCount={5}
-                            scrollToIndex={0}
-                            estimatedRowSize={48}
-                            defaultHeight={450}
-                            rowClassName={({ index }) => 
-                              `${index === -1 
-                                ? 'bg-amber-500' 
-                                : index === 0 || index === filteredTransactions.length + 1
-                                ? 'bg-amber-50 hover:bg-amber-100/40'
-                                : index % 2 === 0 
-                                ? 'bg-white hover:bg-amber-100/40' 
-                                : 'bg-amber-50/40 hover:bg-amber-100/40'
-                            } transition-colors text-amber-900 text-xs font-medium rounded`
-                            }
-                        >
-                          <Column
-                            label="Date"
-                            dataKey="date"
-                            width={100}
-                            flexShrink={0}
-                            headerRenderer={({ label }) => (
-                              <div className="text-xs font-medium text-white uppercase tracking-wider px-4 h-full flex items-center">
-                                {label}
-                              </div>
-                            )}
-                            cellRenderer={DateCell}
-                          />
-                            <Column
-                              label="Particulars"
-                              dataKey="particulars"
-                              width={300}
-                              flexGrow={1}
-                              headerRenderer={({ label }) => (
-                                <div className="text-xs font-medium text-white uppercase tracking-wider px-4 h-full flex items-center pointer-events-none">
-                                  {label}
-                                </div>
-                              )}
-                              cellRenderer={({ rowData }) => {
-                                if (rowData.type === 'opening' || rowData.type === 'closing') {
-                                  return (
-                                    <div className="text-xs text-amber-900 truncate py-3.5 px-4">
-                                      {rowData.particulars || '-'}
-                                    </div>
-                                  );
-                                }
-                                
-                                if (rowData.particulars.test) {
-                                  return (
-                                    <div className="text-xs text-amber-900 truncate py-2.5 px-4 flex items-center gap-1.5">
-                                      <span className="font-medium">{rowData.particulars.test}</span>
-                                      <span className="text-[10px] text-amber-600">•</span>
-                                      <span className="text-[10px] text-amber-800">#{rowData.particulars.tokenNo}</span>
-                                      <span className="text-[10px] text-amber-600">•</span>
-                                      <span className="text-[10px] text-amber-500">{rowData.particulars.name.substring(0, 15)}{rowData.particulars.name.length > 15 ? '...' : ''}</span>
-                                    </div>
-                                  );
-                                }
-                                
-                                return (
-                                  <div className="text-xs text-amber-900 truncate py-3.5 px-4">
-                                    {rowData.particulars}
-                                  </div>
-                                );
-                              }}
-                            />
-                            <Column
-                              label="Type"
-                              dataKey="type"
-                              width={120}
-                              headerRenderer={({ label }) => (
-                                <div className="text-xs font-medium text-white uppercase tracking-wider px-4 h-full flex items-center pointer-events-none">
-                                  {label}
-                                </div>
-                              )}
-                              cellRenderer={({ rowData }) => (
-                                <div className="text-center text-xs truncate py-3.5 px-4">
-                                  {rowData.type === 'opening' || rowData.type === 'closing' ? '' :
-                                  <span className={`px-2.5 py-0.5 rounded-full font-medium inline-block
-                                    ${rowData.type === 'Income' ? 'bg-green-100 text-green-800' : 
-                                      rowData.type === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
-                                      'bg-red-100 text-red-800'}`}>
-                                    {rowData.type}
-                                  </span>}
-                                </div>
-                              )}
-                            />
-                            <Column
-                              label="Debit"
-                              dataKey="debit"
-                              width={120}
-                              headerRenderer={({ label }) => (
-                                <div className="text-xs font-medium text-white uppercase tracking-wider px-4 h-full flex items-center justify-end">
-                                  {label}
-                                </div>
-                              )}
-                              cellRenderer={({ rowData }) => (
-                                <div className="text-right text-xs text-amber-900 truncate py-3.5 px-4">
-                                  {rowData.type === 'opening' || rowData.type === 'closing' ? '-' :
-                                   rowData.debit.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                </div>
-                              )}
-                            />
-                            <Column
-                              label="Credit"
-                              dataKey="credit"
-                              width={120}
-                              headerRenderer={({ label }) => (
-                                <div className="text-xs font-medium text-white uppercase tracking-wider px-4 h-full flex items-center justify-end">
-                                  {label}
-                                </div>
-                              )}
-                              cellRenderer={({ rowData }) => (
-                                <div className="text-right text-xs text-amber-900 truncate py-3.5 px-4">
-                                  {rowData.type === 'opening' || rowData.type === 'closing' ? '-' :
-                                   rowData.credit.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                </div>
-                              )}
-                            />
-                            <Column
-                              label="Balance"
-                              dataKey="runningBalance"
-                              width={120}
-                              headerRenderer={({ label }) => (
-                                <div className="text-xs font-medium text-white uppercase tracking-wider px-4 h-full flex items-center justify-end">
-                                  {label}
-                                </div>
-                              )}
-                              cellRenderer={({ rowData }) => {
-                                if (rowData.type === 'opening') {
-                                  return (
-                                    <div className="text-right text-xs py-3.5 px-4">
-                                      <div className="font-medium text-amber-700">
-                                        ₹ {cashInfo.openingBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                                      </div>
-                                      {cashInfo.openingPending > 0 && (
-                                        <div className="text-[10px] text-yellow-600 mt-0.5">
-                                          Pending: ₹ {cashInfo.openingPending.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                                        </div>
-                                      )}
-                                    </div>
-                                  );
-                                }
-                                
-                                if (rowData.type === 'closing') {
-                                  return (
-                                    <div className="text-right text-xs py-2.5 px-4 font-medium text-amber-700">
-                                      ₹ {cashInfo.closingBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                                    </div>
-                                  );
-                                }
-                                
-                                return (
-                                  <div className="text-right text-xs py-3.5 px-4">
-                                    <span className={`font-medium ${rowData.runningBalance >= 0 ? "text-green-700" : "text-red-700"}`}>
-                                      ₹ {rowData.runningBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                                    </span>
-                                  </div>
-                                );
-                              }}
-                            />
-                          </Table>
-                        )}
-                      </AutoSizer>
-                    </div>
+            <div className="py-2 md:py-4 px-4 flex flex-col lg:flex-row gap-3 md:gap-4">
+              <div className="flex-1 order-2 lg:order-1">
+                <div className="border rounded-xl">
+                  <div className="bg-amber-50 px-4 py-2 border-b">
+                    <h3 className="font-medium text-amber-800">
+                      {new Date().toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })} Transactions
+                    </h3>
                   </div>
-                </div>
-
-                <div className="w-full lg:w-64 space-y-3 order-1 lg:order-2">
-                  <button 
-                    onClick={() => setShowAdjustment(true)}
-                    className="w-full bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-xl flex items-center justify-center gap-2 text-sm font-medium transition-colors"
-                  >
-                    <ArrowUpDown size={16} />
-                    Cash Adjustments
-                  </button>
-
-                  <div className="bg-white border rounded-xl overflow-hidden">
-                    <div className="py-0.5 px-3 md:py-1.5 border-b bg-amber-500">
-                      <h3 className="text-sm font-medium text-white">Balance Summary</h3>
-                    </div>
-                    <div className="py-1 px-3 md:py-1.5 space-y-2 text-xs">
-                      <div className="space-y-1 pb-2 border-b">
-                        <div className="flex justify-between items-center">
-                          <span className="text-gray-600">Opening Balance</span>
-                          <span className="font-medium text-gray-700">
-                            ₹ {cashInfo.openingBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                          </span>
-                        </div>
-                        {cashInfo.openingPending > 0 && (
-                          <div className="flex justify-between items-center">
-                            <span className="text-gray-500">Opening Pending</span>
-                            <span className="font-medium text-yellow-600">
-                              ₹ {cashInfo.openingPending.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                      
-                      <div className="space-y-1.5">
-                        <div className="flex justify-between items-center">
-                          <span className="text-gray-600">Income</span>
-                          <span className="font-medium text-green-600">
-                            +₹ {cashInfo.totalIncome.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                          </span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-gray-600">Expense</span>
-                          <span className="font-medium text-red-600">
-                            -₹ {cashInfo.totalExpense.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="pt-2 border-t space-y-1.5">
-                        <div className="flex justify-between items-center">
-                          <span className="text-gray-600">Net Change</span>
-                          <span className={`font-medium ${cashInfo.netChange >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                            {cashInfo.netChange >= 0 ? '+' : ''}
-                            ₹ {cashInfo.netChange.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                          </span>
-                        </div>
-                        {cashInfo.totalPending > 0 && (
-                          <div className="flex justify-between items-center">
-                            <span className="text-gray-600">Total Pending</span>
-                            <span className="font-medium text-yellow-600">
-                              ₹ {cashInfo.totalPending.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                      
-                      <div className="flex justify-between items-center pt-2 mt-1 border-t">
-                        <span className="font-medium text-gray-700">Closing Balance</span>
-                        <span className="font-medium text-amber-600">
-                          ₹ {cashInfo.closingBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="bg-white border rounded-xl overflow-hidden">
-                    <div className="flex border-b">
-                      <button 
-                        onClick={() => setActiveTab('categorywise')}
-                        className={`flex-1 px-4 py-1 text-xs font-medium transition-colors relative
-                          ${activeTab === 'categorywise' ? 'text-amber-800' : 'text-gray-600'}`}
-                      >
-                        Top Expenses
-                        {activeTab === 'categorywise' && (
-                          <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-500"/>
-                        )}
-                      </button>
-                      <button 
-                        onClick={() => setActiveTab('monthwise')}
-                        className={`flex-1 px-4 py-1 text-xs font-medium transition-colors relative
-                          ${activeTab === 'monthwise' ? 'text-amber-800' : 'text-gray-600'}`}
-                      >
-                        Monthly Overview
-                        {activeTab === 'monthwise' && (
-                          <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-500"/>
-                        )}
-                      </button>
-                    </div>
-
-                    <div className="max-h-[170px] md:max-h-[170px] overflow-y-auto scrollbar-thin scrollbar-thumb-amber-200 scrollbar-track-gray-50">
-                      {activeTab === 'categorywise' ? (
-                        <div className="divide-y">
-                          {categorySummary.map(([category, amount], index) => (
-                            <div key={category} className="p-3 hover:bg-amber-50/30">
-                              <div className="flex justify-between items-center mb-1">
-                                <span className="text-xs text-gray-600">{category}</span>
-                                <span className="text-xs font-medium text-red-600">
-                                  ₹ {amount.toLocaleString('en-IN')}
-                                </span>
-                              </div>
-                              <div className="h-1 bg-gray-100 rounded-full overflow-hidden">
-                                <div 
-                                  className="h-full bg-red-400 rounded-full transition-all duration-500"
-                                  style={{ 
-                                    width: `${(amount / categorySummary[0][1]) * 100}%`,
-                                    opacity: 1 - (index * 0.15)
-                                  }}
-                                />
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="divide-y">
-                          {monthlySummary.map((data) => (
-                            <div key={data.month} className="p-3 hover:bg-amber-50/30">
-                              <div className="flex justify-between items-center mb-1">
-                                <span className="text-xs font-medium text-gray-700">{data.month}</span>
-                                <span className={`text-xs font-medium ${
-                                  data.income - data.expense >= 0 ? 'text-green-600' : 'text-red-600'
-                                }`}>
-                                  {data.income - data.expense >= 0 ? '+' : ''}
-                                  ₹ {(data.income - data.expense).toLocaleString('en-IN')}
-                                </span>
-                              </div>
-                              <div className="flex gap-3 text-[10px]">
-                                <span className="text-green-600">+₹ {data.income.toLocaleString('en-IN')}</span>
-                                <span className="text-red-600">-₹ {data.expense.toLocaleString('en-IN')}</span>
-                                {data.pending > 0 && (
-                                  <span className="text-yellow-600">
-                                    ₹ {data.pending.toLocaleString('en-IN')} pending
-                                  </span>
-                                )}
-                              </div>
-                              <div className="mt-1.5 flex gap-0.5 h-1">
-                                <div className="bg-green-400 rounded-l" style={{ width: `${(data.income / (data.income + data.expense)) * 100}%` }} />
-                                <div className="bg-red-400 rounded-r" style={{ width: `${(data.expense / (data.income + data.expense)) * 100}%` }} />
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
+                  <TransactionTable
+                    filteredTransactions={filteredTransactions}
+                    cashInfo={cashInfo}
+                    rowGetter={rowGetter}
+                  />
                 </div>
               </div>
-            </>
+              
+              <div className="w-full lg:w-64 space-y-3 order-1 lg:order-2">
+                <button 
+                  onClick={() => setShowAdjustment(true)}
+                  className="w-full bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-xl flex items-center justify-center gap-2 text-sm font-medium transition-colors"
+                >
+                  <ArrowUpDown size={16} />
+                  Cash Adjustments
+                </button>
+                <BalanceSummary cashInfo={cashInfo} />
+                <AnalyticsPanel
+                  activeTab={activeTab}
+                  setActiveTab={setActiveTab}
+                  categorySummary={categorySummary}
+                  monthlySummary={monthlySummary}
+                />
+              </div>
+            </div>
           )}
         </div>
 
