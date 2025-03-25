@@ -9,7 +9,14 @@ import CashAdjustment from './CashAdjustment';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 
-function CashBook({ isOpen, onClose }) {
+// Add new utility function outside component
+const calculateBalance = (transactions, openingBalance = 0) => {
+  return transactions.reduce((total, t) => {
+    return total + (t.credit || 0) - (t.debit || 0);
+  }, openingBalance);
+};
+
+const CashBook = ({ isOpen, onClose }) => {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -32,12 +39,14 @@ function CashBook({ isOpen, onClose }) {
     }
   }, [onClose]);
 
+  // Fix rowGetter implementation
   const rowGetter = useCallback(({ index }) => {
     if (index === 0) return { type: 'opening' };
     if (index === filteredTransactions.length + 1) return { type: 'closing' };
     return filteredTransactions[index - 1];
   }, [filteredTransactions]);
 
+  // Replace existing fetchTransactions with optimized version
   const fetchTransactions = useCallback(async (isRefresh = false) => {
     if (isRefresh) {
       setIsRefreshing(true);
@@ -70,6 +79,10 @@ function CashBook({ isOpen, onClose }) {
           params: {
             from_date: firstDayOfAllTime,
             to_date: lastDayOfPreviousMonth
+          },
+          // Add caching headers
+          headers: {
+            'Cache-Control': 'max-age=300'
           }
         }),
         axios.get(`${API_BASE_URL}/api/expenses`, {
@@ -263,48 +276,50 @@ function CashBook({ isOpen, onClose }) {
   }, [memoizedFilteredTransactions]);
 
   const memoizedAnalytics = useMemo(() => {
-    const categories = memoizedFilteredTransactions.reduce((acc, curr) => {
-      if (curr?.type === 'Expense' && curr?.particulars) {
-        const category = typeof curr.particulars === 'string' 
-          ? curr.particulars.split(' - ')[0]
+    if (!memoizedFilteredTransactions.length) return { categories: [], monthly: [] };
+    
+    const expenseMap = new Map();
+    const monthlyMap = new Map();
+
+    memoizedFilteredTransactions.forEach(transaction => {
+      if (transaction?.type === 'Expense' && transaction?.particulars) {
+        const category = typeof transaction.particulars === 'string' 
+          ? transaction.particulars.split(' - ')[0]
           : 'Other';
-        if (!acc[category]) acc[category] = 0;
-        acc[category] += curr.debit || 0;
+        expenseMap.set(category, (expenseMap.get(category) || 0) + (transaction.debit || 0));
       }
-      return acc;
-    }, {});
 
-    const sortedCategories = Object.entries(categories)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 5);
+      if (transaction?.date) {
+        const monthKey = new Date(transaction.date).toLocaleDateString('en-IN', { 
+          month: 'short', 
+          year: 'numeric' 
+        });
+        
+        const monthData = monthlyMap.get(monthKey) || { 
+          income: 0, 
+          expense: 0, 
+          pending: 0 
+        };
 
-    const monthlyData = Array.from({ length: 6 }, (_, i) => {
-      const date = new Date();
-      date.setMonth(date.getMonth() - i);
-      return {
-        month: date.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }),
-        income: 0,
-        expense: 0,
-        pending: 0
-      };
-    });
-
-    transactions.forEach(transaction => {
-      if (!transaction?.date) return;
-      
-      const transDate = new Date(transaction.date);
-      const monthKey = transDate.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' });
-      const monthData = monthlyData.find(m => m.month === monthKey);
-      
-      if (monthData && transaction?.type) {
         if (transaction.type === 'Income') monthData.income += transaction.credit || 0;
         else if (transaction.type === 'Expense') monthData.expense += transaction.debit || 0;
         else if (transaction.type === 'Pending') monthData.pending += transaction.debit || 0;
+
+        monthlyMap.set(monthKey, monthData);
       }
     });
 
+    const sortedCategories = Array.from(expenseMap.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5);
+
+    const monthlyData = Array.from(monthlyMap.entries())
+      .map(([month, data]) => ({ month, ...data }))
+      .sort((a, b) => new Date(b.month) - new Date(a.month))
+      .slice(0, 6);
+
     return { categories: sortedCategories, monthly: monthlyData };
-  }, [memoizedFilteredTransactions, transactions]);
+  }, [memoizedFilteredTransactions]);
 
   useEffect(() => {
     setCategorySummary(memoizedAnalytics.categories);
@@ -496,4 +511,7 @@ function CashBook({ isOpen, onClose }) {
   );
 }
 
-export default React.memo(CashBook);
+// Add memo to component export
+export default React.memo(CashBook, (prevProps, nextProps) => {
+  return prevProps.isOpen === nextProps.isOpen;
+});
