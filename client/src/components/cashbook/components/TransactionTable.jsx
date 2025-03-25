@@ -1,4 +1,5 @@
 import React, { useCallback, useMemo } from 'react';
+import PropTypes from 'prop-types';
 import { AutoSizer, Table, Column } from 'react-virtualized';
 import 'react-virtualized/styles.css';
 
@@ -230,6 +231,18 @@ const TransactionTable = ({ filteredTransactions, cashInfo, rowGetter }) => {
     );
   };
 
+  // Move header renderer to separate memoized component
+  const HeaderRenderer = React.memo(({ label, alignRight }) => (
+    <div className={`text-xs font-medium text-white uppercase tracking-wider px-4 h-full flex items-center ${alignRight ? 'justify-end' : ''}`}>
+      {label}
+    </div>
+  ));
+
+  HeaderRenderer.propTypes = {
+    label: PropTypes.string.isRequired,
+    alignRight: PropTypes.bool
+  };
+
   return (
     <div className="h-[65vh] lg:h-[calc(93vh-190px)]">
       <AutoSizer>
@@ -253,9 +266,7 @@ const TransactionTable = ({ filteredTransactions, cashInfo, rowGetter }) => {
               width={100}
               flexShrink={0}
               headerRenderer={({ label }) => (
-                <div className="text-xs font-medium text-white uppercase tracking-wider px-4 h-full flex items-center">
-                  {label}
-                </div>
+                <HeaderRenderer label={label} />
               )}
               cellRenderer={columnRenderers.date}
             />
@@ -265,9 +276,7 @@ const TransactionTable = ({ filteredTransactions, cashInfo, rowGetter }) => {
               width={300}
               flexGrow={1}
               headerRenderer={({ label }) => (
-                <div className="text-xs font-medium text-white uppercase tracking-wider px-4 h-full flex items-center">
-                  {label}
-                </div>
+                <HeaderRenderer label={label} />
               )}
               cellRenderer={columnRenderers.particulars}
             />
@@ -276,9 +285,7 @@ const TransactionTable = ({ filteredTransactions, cashInfo, rowGetter }) => {
               dataKey="type"
               width={120}
               headerRenderer={({ label }) => (
-                <div className="text-xs font-medium text-white uppercase tracking-wider px-4 h-full flex items-center">
-                  {label}
-                </div>
+                <HeaderRenderer label={label} />
               )}
               cellRenderer={columnRenderers.type}
             />
@@ -287,9 +294,7 @@ const TransactionTable = ({ filteredTransactions, cashInfo, rowGetter }) => {
               dataKey="debit"
               width={120}
               headerRenderer={({ label }) => (
-                <div className="text-xs font-medium text-white uppercase tracking-wider px-4 h-full flex items-center justify-end">
-                  {label}
-                </div>
+                <HeaderRenderer label={label} alignRight />
               )}
               cellRenderer={columnRenderers.debit}
             />
@@ -298,9 +303,7 @@ const TransactionTable = ({ filteredTransactions, cashInfo, rowGetter }) => {
               dataKey="credit"
               width={120}
               headerRenderer={({ label }) => (
-                <div className="text-xs font-medium text-white uppercase tracking-wider px-4 h-full flex items-center justify-end">
-                  {label}
-                </div>
+                <HeaderRenderer label={label} alignRight />
               )}
               cellRenderer={columnRenderers.credit}
             />
@@ -309,9 +312,7 @@ const TransactionTable = ({ filteredTransactions, cashInfo, rowGetter }) => {
               dataKey="runningBalance"
               width={120}
               headerRenderer={({ label }) => (
-                <div className="text-xs font-medium text-white uppercase tracking-wider px-4 h-full flex items-center justify-end">
-                  {label}
-                </div>
+                <HeaderRenderer label={label} alignRight />
               )}
               cellRenderer={columnRenderers.runningBalance}
             />
@@ -320,6 +321,29 @@ const TransactionTable = ({ filteredTransactions, cashInfo, rowGetter }) => {
       </AutoSizer>
     </div>
   );
+};
+
+TransactionTable.propTypes = {
+  filteredTransactions: PropTypes.arrayOf(PropTypes.shape({
+    id: PropTypes.string,
+    date: PropTypes.string,
+    particulars: PropTypes.oneOfType([
+      PropTypes.string,
+      PropTypes.shape({
+        test: PropTypes.string,
+        tokenNo: PropTypes.string,
+        name: PropTypes.string
+      })
+    ]),
+    type: PropTypes.oneOf(['Income', 'Expense', 'Pending', 'opening', 'closing']),
+    debit: PropTypes.number,
+    credit: PropTypes.number
+  })).isRequired,
+  cashInfo: PropTypes.shape({
+    openingBalance: PropTypes.number,
+    openingPending: PropTypes.number
+  }).isRequired,
+  rowGetter: PropTypes.func.isRequired
 };
 
 export default React.memo(TransactionTable);

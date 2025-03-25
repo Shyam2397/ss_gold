@@ -1,11 +1,11 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { ArrowUp, ArrowDown, CircleDollarSign } from 'lucide-react';
 import PropTypes from 'prop-types';
 
 const BalanceSummary = ({ cashInfo }) => {
   const formatAmount = (amount) => amount.toLocaleString('en-IN', { minimumFractionDigits: 2 });
 
-  const summaryItems = [
+  const summaryItems = useMemo(() => [
     {
       label: 'Opening Balance',
       value: cashInfo.openingBalance,
@@ -51,7 +51,7 @@ const BalanceSummary = ({ cashInfo }) => {
       type: 'total',
       className: 'border-t pt-2 mt-1 bg-amber-50/50 -mx-3 px-3 py-1.5 font-medium'
     }
-  ];
+  ], [cashInfo]);
 
   const getAmountColor = (type) => {
     switch (type) {

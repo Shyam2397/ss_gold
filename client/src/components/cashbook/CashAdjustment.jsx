@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Save, X } from 'lucide-react';
+import PropTypes from 'prop-types';
 
-function CashAdjustment({ isOpen, onClose, onSave }) {
+function CashAdjustment({ isOpen, onClose, onSave, isLoading }) {
   const [adjustmentData, setAdjustmentData] = useState({
     type: 'credit',
     date: new Date().toISOString().split('T')[0],
@@ -9,25 +10,20 @@ function CashAdjustment({ isOpen, onClose, onSave }) {
     remarks: ''
   });
 
-  if (!isOpen) return null;
+  // Add form validation
+  const isValid = useCallback((data) => {
+    return data.amount > 0 && data.date && data.type;
+  }, []);
 
-  const handleSave = () => {
-    if (!adjustmentData.amount) return;
-
-    // Pass the data to parent component
+  const handleSave = useCallback(() => {
+    if (!isValid(adjustmentData)) return;
     onSave({
       ...adjustmentData,
       amount: parseFloat(adjustmentData.amount)
     });
+  }, [adjustmentData, isValid, onSave]);
 
-    // Reset form
-    setAdjustmentData({
-      type: 'credit',
-      date: new Date().toISOString().split('T')[0],
-      amount: '',
-      remarks: ''
-    });
-  };
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -145,11 +141,15 @@ function CashAdjustment({ isOpen, onClose, onSave }) {
         <div className="px-6 py-3 bg-amber-50/50 rounded-b-lg flex justify-end border-t border-amber-100">
           <button
             onClick={handleSave}
-            disabled={!adjustmentData.amount}
-            className="bg-amber-500 text-white px-4 py-2 rounded flex items-center gap-2 disabled:opacity-50 hover:bg-amber-600 transition-colors"
+            disabled={!isValid(adjustmentData) || isLoading}
+            className="bg-amber-500 text-white px-4 py-2 rounded flex items-center gap-2 disabled:opacity-50"
           >
-            <Save size={20} />
-            Save
+            {isLoading ? (
+              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <Save size={20} />
+            )}
+            {isLoading ? 'Saving...' : 'Save'}
           </button>
         </div>
       </div>
@@ -157,4 +157,11 @@ function CashAdjustment({ isOpen, onClose, onSave }) {
   );
 }
 
-export default CashAdjustment;
+CashAdjustment.propTypes = {
+  isOpen: PropTypes.bool.isRequired,
+  onClose: PropTypes.func.isRequired,
+  onSave: PropTypes.func.isRequired,
+  isLoading: PropTypes.bool
+};
+
+export default React.memo(CashAdjustment);
