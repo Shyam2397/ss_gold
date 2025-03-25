@@ -276,12 +276,13 @@ const CashBook = ({ isOpen, onClose }) => {
   }, [memoizedFilteredTransactions]);
 
   const memoizedAnalytics = useMemo(() => {
-    if (!memoizedFilteredTransactions.length) return { categories: [], monthly: [] };
+    // Consider all transactions, not just filtered ones
+    if (!transactions.length) return { categories: [], monthly: [] };
     
     const expenseMap = new Map();
     const monthlyMap = new Map();
 
-    memoizedFilteredTransactions.forEach(transaction => {
+    transactions.forEach(transaction => {
       if (transaction?.type === 'Expense' && transaction?.particulars) {
         const category = typeof transaction.particulars === 'string' 
           ? transaction.particulars.split(' - ')[0]
@@ -290,20 +291,30 @@ const CashBook = ({ isOpen, onClose }) => {
       }
 
       if (transaction?.date) {
-        const monthKey = new Date(transaction.date).toLocaleDateString('en-IN', { 
+        const date = new Date(transaction.date);
+        const monthKey = date.toLocaleDateString('en-IN', { 
           month: 'short', 
           year: 'numeric' 
         });
         
         const monthData = monthlyMap.get(monthKey) || { 
+          month: monthKey,
+          timestamp: date.getTime(), // Add timestamp for better sorting
           income: 0, 
           expense: 0, 
-          pending: 0 
+          pending: 0,
+          total: 0
         };
 
-        if (transaction.type === 'Income') monthData.income += transaction.credit || 0;
-        else if (transaction.type === 'Expense') monthData.expense += transaction.debit || 0;
-        else if (transaction.type === 'Pending') monthData.pending += transaction.debit || 0;
+        if (transaction.type === 'Income') {
+          monthData.income += transaction.credit || 0;
+          monthData.total += transaction.credit || 0;
+        } else if (transaction.type === 'Expense') {
+          monthData.expense += transaction.debit || 0;
+          monthData.total -= transaction.debit || 0;
+        } else if (transaction.type === 'Pending') {
+          monthData.pending += transaction.debit || 0;
+        }
 
         monthlyMap.set(monthKey, monthData);
       }
@@ -313,13 +324,11 @@ const CashBook = ({ isOpen, onClose }) => {
       .sort((a, b) => b[1] - a[1])
       .slice(0, 5);
 
-    const monthlyData = Array.from(monthlyMap.entries())
-      .map(([month, data]) => ({ month, ...data }))
-      .sort((a, b) => new Date(b.month) - new Date(a.month))
-      .slice(0, 6);
+    const monthlyData = Array.from(monthlyMap.values())
+      .sort((a, b) => b.timestamp - a.timestamp); // Sort by timestamp instead of parsing date string
 
     return { categories: sortedCategories, monthly: monthlyData };
-  }, [memoizedFilteredTransactions]);
+  }, [transactions]); // Change dependency from memoizedFilteredTransactions to transactions
 
   useEffect(() => {
     setCategorySummary(memoizedAnalytics.categories);

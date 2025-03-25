@@ -61,10 +61,10 @@ const AnalyticsPanel = ({
                 <div className="flex justify-between items-center mb-1">
                   <span className="text-xs font-medium text-gray-700">{data.month}</span>
                   <span className={`text-xs font-medium ${
-                    data.income - data.expense >= 0 ? 'text-green-600' : 'text-red-600'
+                    data.total >= 0 ? 'text-green-600' : 'text-red-600'
                   }`}>
-                    {data.income - data.expense >= 0 ? '+' : ''}
-                    ₹ {(data.income - data.expense).toLocaleString('en-IN')}
+                    {data.total >= 0 ? '+' : ''}
+                    ₹ {Math.abs(data.total).toLocaleString('en-IN')}
                   </span>
                 </div>
                 <div className="flex gap-3 text-[10px]">
@@ -77,8 +77,16 @@ const AnalyticsPanel = ({
                   )}
                 </div>
                 <div className="mt-1.5 flex gap-0.5 h-1">
-                  <div className="bg-green-400 rounded-l" style={{ width: `${(data.income / (data.income + data.expense)) * 100}%` }} />
-                  <div className="bg-red-400 rounded-r" style={{ width: `${(data.expense / (data.income + data.expense)) * 100}%` }} />
+                  <div className="bg-green-400 rounded-l" 
+                    style={{ 
+                      width: `${(data.income / Math.max(data.income + data.expense, 1)) * 100}%` 
+                    }} 
+                  />
+                  <div className="bg-red-400 rounded-r" 
+                    style={{ 
+                      width: `${(data.expense / Math.max(data.income + data.expense, 1)) * 100}%` 
+                    }} 
+                  />
                 </div>
               </div>
             ))}
