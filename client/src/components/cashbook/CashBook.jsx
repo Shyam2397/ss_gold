@@ -6,14 +6,18 @@ import { debounce } from 'lodash';
 import TransactionTable from './components/TransactionTable';
 import AnalyticsPanel from './components/AnalyticsPanel';
 import CashAdjustment from './CashAdjustment';
+import BalanceSummary from './components/BalanceSummary';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 
 // Add new utility function outside component
 const calculateBalance = (transactions, openingBalance = 0) => {
   return transactions.reduce((total, t) => {
-    return total + (t.credit || 0) - (t.debit || 0);
-  }, openingBalance);
+    // Ensure we're using the same logic everywhere for balance calculation
+    if (t.type === 'Income') return total + parseFloat(t.credit || 0);
+    if (t.type === 'Expense') return total - parseFloat(t.debit || 0);
+    return total;
+  }, parseFloat(openingBalance));
 };
 
 const CashBook = ({ isOpen, onClose }) => {
@@ -23,7 +27,12 @@ const CashBook = ({ isOpen, onClose }) => {
   const [filteredTransactions, setFilteredTransactions] = useState([]);
   const [cashInfo, setCashInfo] = useState({
     openingBalance: 0,
-    openingPending: 0
+    openingPending: 0,
+    totalIncome: 0,
+    totalExpense: 0,
+    totalPending: 0,
+    netChange: 0,
+    closingBalance: 0
   });
   const [activeTab, setActiveTab] = useState('categorywise');
   const [showAdjustment, setShowAdjustment] = useState(false);
@@ -261,19 +270,55 @@ const CashBook = ({ isOpen, onClose }) => {
 
     // Calculate running balance
     let runningBalance = cashInfo.openingBalance || 0;
-    return currentMonthTransactions.map(transaction => {
-      if (transaction.type === 'Income') {
-        runningBalance += transaction.credit || 0;
-      } else if (transaction.type === 'Expense') {
-        runningBalance -= transaction.debit || 0;
-      }
-      return { ...transaction, runningBalance };
-    });
-  }, [transactions]);
+    return currentMonthTransactions.map(transaction => ({
+      ...transaction,
+      runningBalance: calculateBalance([transaction], runningBalance)
+    }));
+  }, [transactions, cashInfo.openingBalance]);
 
   useEffect(() => {
     setFilteredTransactions(memoizedFilteredTransactions);
   }, [memoizedFilteredTransactions]);
+
+  useEffect(() => {
+    if (!memoizedFilteredTransactions.length) return;
+
+    // Calculate totals from current month transactions
+    const totals = memoizedFilteredTransactions.reduce((acc, transaction) => {
+      const amount = parseFloat(transaction.amount || 0);
+      
+      switch(transaction.type) {
+        case 'Income':
+          acc.totalIncome += parseFloat(transaction.credit || 0);
+          break;
+        case 'Expense':
+          acc.totalExpense += parseFloat(transaction.debit || 0);
+          break;
+        case 'Pending':
+          acc.totalPending += parseFloat(transaction.debit || 0);
+          break;
+      }
+      return acc;
+    }, {
+      totalIncome: 0,
+      totalExpense: 0,
+      totalPending: 0
+    });
+
+    // Calculate balances
+    const netChange = totals.totalIncome - totals.totalExpense;
+    const openingBalance = parseFloat(cashInfo.openingBalance || 0);
+    const closingBalance = openingBalance + netChange - totals.totalPending;
+    const totalPending = parseFloat(cashInfo.openingPending || 0) + parseFloat(totals.totalPending || 0);
+
+    setCashInfo(prev => ({
+      ...prev,
+      ...totals,
+      netChange,
+      closingBalance,
+      totalPending
+    }));
+  }, [memoizedFilteredTransactions, cashInfo.openingBalance, cashInfo.openingPending]);
 
   const memoizedAnalytics = useMemo(() => {
     // Consider all transactions, not just filtered ones
@@ -469,7 +514,7 @@ const CashBook = ({ isOpen, onClose }) => {
                 </div>
               </div>
               
-              <div className="w-full lg:w-64 space-y-3 order-1 lg:order-2">
+              <div className="w-full lg:w-72 space-y-3 order-1 lg:order-2">
                 <button 
                   onClick={() => setShowAdjustment(true)}
                   className="w-full bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-xl flex items-center justify-center gap-2 text-sm font-medium transition-colors"
@@ -477,6 +522,9 @@ const CashBook = ({ isOpen, onClose }) => {
                   <ArrowUpDown size={16} />
                   Cash Adjustments
                 </button>
+                
+                <BalanceSummary cashInfo={cashInfo} />
+                
                 <AnalyticsPanel
                   activeTab={activeTab}
                   setActiveTab={setActiveTab}
