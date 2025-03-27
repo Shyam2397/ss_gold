@@ -4,32 +4,35 @@ import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
 
+// Optimize metric reporting
+const reportMetric = (metric) => {
+  // Only report metrics that exceed thresholds
+  const thresholds = {
+    FCP: 2000,
+    LCP: 2500,
+    CLS: 0.1,
+    FID: 100,
+    TTFB: 600
+  };
+
+  if (metric.value > (thresholds[metric.name] || 0)) {
+    console.warn(`${metric.name} exceeded threshold:`, metric.value);
+  }
+};
+
+// Create root with concurrent features
 const root = ReactDOM.createRoot(document.getElementById('root'));
+
+// Render with selective StrictMode
 root.render(
-  <React.StrictMode>
+  process.env.NODE_ENV === 'development' ? (
+    <React.StrictMode>
+      <App />
+    </React.StrictMode>
+  ) : (
     <App />
-  </React.StrictMode>
+  )
 );
 
 // Performance monitoring
-reportWebVitals(metric => {
-  // Log performance metrics
-  console.log(metric);
-  
-  // You can send metrics to your analytics service here
-  if (metric.name === 'FCP') {
-    console.log('First Contentful Paint:', metric.value);
-  }
-  if (metric.name === 'LCP') {
-    console.log('Largest Contentful Paint:', metric.value);
-  }
-  if (metric.name === 'CLS') {
-    console.log('Cumulative Layout Shift:', metric.value);
-  }
-  if (metric.name === 'FID') {
-    console.log('First Input Delay:', metric.value);
-  }
-  if (metric.name === 'TTFB') {
-    console.log('Time to First Byte:', metric.value);
-  }
-});
+reportWebVitals(reportMetric);

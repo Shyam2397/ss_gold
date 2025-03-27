@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, memo, useEffect } from 'react';
+import React, { useState, useMemo, useCallback, memo, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   FiHome,
@@ -22,8 +22,9 @@ import MasterExpense from '../expenses/MasterExpense';
 import ViewExpense from '../expenses/ViewExpense';
 import CashBook from '../cashbook/CashBook';
 import { AnimatePresence, motion } from "framer-motion";
-import { cn } from "../../lib/utils";
+import { cn, throttle } from "../../lib/utils";
 import Logo from '../../asset/logo.png';
+import { SCROLL_BEHAVIOR } from '../../routes';
 
 // Define components before they are used
 const MenuSection = memo(({ children }) => (
@@ -70,50 +71,64 @@ const Sidebar = ({ open = true, setOpen, animate = true, user, setLoggedIn }) =>
   const [showMasterExpense, setShowMasterExpense] = useState(false);
   const [showViewExpense, setShowViewExpense] = useState(false);
   const [showCashBook, setShowCashBook] = useState(false);
+  const scrollPositionsRef = useRef(new Map());
 
-  // Add scroll position management
+  const throttledScroll = useMemo(
+    () =>
+      throttle((pathname, scrollY) => {
+        scrollPositionsRef.current.set(pathname, scrollY);
+      }, 100),
+    []
+  );
+
   useEffect(() => {
-    const scrollPositions = new Map();
+    let lastKnownPosition = window.scrollY;
+    
+    const handleScroll = throttle(() => {
+      lastKnownPosition = window.scrollY;
+      scrollPositionsRef.current.set(location.pathname, lastKnownPosition);
+    }, 100);
 
-    const handleScroll = () => {
-      scrollPositions.set(location.pathname, window.scrollY);
+    const handleBeforeUnload = () => {
+      // Save final scroll position before unload
+      scrollPositionsRef.current.set(location.pathname, lastKnownPosition);
     };
 
-    const restoreScrollPosition = () => {
-      const savedPosition = scrollPositions.get(location.pathname) || 0;
-      window.scrollTo(0, savedPosition);
-    };
-
-    window.addEventListener('scroll', handleScroll);
-    window.addEventListener('popstate', restoreScrollPosition);
-
-    // Restore scroll position after route change
-    restoreScrollPosition();
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    window.addEventListener('beforeunload', handleBeforeUnload);
 
     return () => {
       window.removeEventListener('scroll', handleScroll);
-      window.removeEventListener('popstate', restoreScrollPosition);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
     };
   }, [location.pathname]);
 
-  // Optimize navigation
+  // Enhanced navigation handling with special case for entries
   const handleNavigation = useCallback((to) => {
-    // Pre-fetch the next route
-    const prefetchRoute = new Promise((resolve) => {
+    const currentPosition = window.scrollY;
+    scrollPositionsRef.current.set(location.pathname, currentPosition);
+
+    const scrollBehavior = SCROLL_BEHAVIOR[to];
+    
+    if (scrollBehavior?.maintainScroll) {
+      // For routes that need to maintain scroll
       requestAnimationFrame(() => {
         navigate(to);
-        resolve();
+        // Restore last known position for this route
+        const savedPosition = scrollPositionsRef.current.get(to) || 0;
+        window.scrollTo({
+          top: savedPosition,
+          behavior: 'instant'
+        });
       });
-    });
-
-    // Smooth transition
-    return prefetchRoute.then(() => {
-      window.scrollTo({
-        top: 0,
-        behavior: 'instant' // Use 'instant' instead of 'smooth' to prevent lag
+    } else {
+      // Default behavior
+      window.scrollTo(0, 0);
+      requestAnimationFrame(() => {
+        navigate(to);
       });
-    });
-  }, [navigate]);
+    }
+  }, [navigate, location.pathname]);
 
   const handleLogout = useCallback(() => {
     localStorage.removeItem('isLoggedIn');

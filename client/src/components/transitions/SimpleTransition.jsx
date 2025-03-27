@@ -1,6 +1,7 @@
-import React from 'react';
-import { motion } from 'framer-motion';
+import React, { memo, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useLocation } from 'react-router-dom';
+import { SCROLL_BEHAVIOR } from '../../routes';
 
 const routes = {
     "/": "Login",
@@ -16,24 +17,41 @@ const routes = {
     "/exchange-data": "Exchange Data"
 };
 
-const SimpleTransition = () => {
-    const location = useLocation();
-    
-    return (
-        <motion.div
-            className='page-transition'
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{
-                duration: 0.4,
-                ease: [0.43, 0.13, 0.23, 0.96],
-                staggerChildren: 0.1
-            }}
-        >
-            
-        </motion.div>
-    );
+// Optimize transition variants
+const pageTransitionVariants = {
+  initial: { opacity: 0, y: 10 },
+  animate: { opacity: 1, y: 0 },
+  exit: { opacity: 0, y: -10 }
 };
+
+const SimpleTransition = memo(({ children }) => {
+  const location = useLocation();
+  
+  useEffect(() => {
+    // Only force scroll to top for routes that don't maintain scroll
+    if (!SCROLL_BEHAVIOR[location.pathname]?.maintainScroll) {
+      window.scrollTo(0, 0);
+    }
+  }, [location.pathname]);
+
+  return (
+    <AnimatePresence mode="wait" initial={false}>
+      <motion.div
+        key={location.pathname}
+        className="page-transition"
+        variants={pageTransitionVariants}
+        initial="initial"
+        animate="animate"
+        exit="exit"
+        transition={{
+          duration: 0.15, // Reduced duration
+          ease: "easeInOut"
+        }}
+      >
+        {children}
+      </motion.div>
+    </AnimatePresence>
+  );
+});
 
 export default SimpleTransition;

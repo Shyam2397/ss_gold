@@ -32,6 +32,13 @@ const PreFetchComponent = () => {
 const AppRoutes = ({ loggedIn, setLoggedIn }) => {
   const location = useLocation();
 
+  useEffect(() => {
+    // Ensure proper scroll restoration
+    if ('scrollRestoration' in window.history) {
+      window.history.scrollRestoration = 'manual';
+    }
+  }, []);
+
   return (
     <ErrorBoundary>
       <Routes location={location} key={location.pathname}>
@@ -45,7 +52,7 @@ const AppRoutes = ({ loggedIn, setLoggedIn }) => {
             )
           }
         >
-          {routes.map(({ path, component: Component }) => (
+          {routes.map(({ path, Component }) => (
             <Route
               key={path}
               path={path}
