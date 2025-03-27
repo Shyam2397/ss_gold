@@ -1,5 +1,5 @@
-import React, { useState, useMemo, useCallback, memo } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import React, { useState, useMemo, useCallback, memo, useEffect } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   FiHome,
   FiUsers,
@@ -25,10 +25,25 @@ import { AnimatePresence, motion } from "framer-motion";
 import { cn } from "../../lib/utils";
 import Logo from '../../asset/logo.png';
 
-const MenuItem = memo(({ icon: Icon, label, to, isActive, onClick }) => (
+// Define components before they are used
+const MenuSection = memo(({ children }) => (
+  <div className="py-0.5">
+    <nav className="space-y-1 px-3.5">{children}</nav>
+  </div>
+));
+
+const MenuItem = memo(({ icon: Icon, label, to, isActive, onClick, handleNavigation }) => (
   <Link
     to={to}
-    onClick={onClick}
+    onClick={(e) => {
+      e.preventDefault();
+      if (onClick) {
+        onClick();
+      }
+      if (to && handleNavigation) {
+        handleNavigation(to);
+      }
+    }}
     className={cn(
       "flex items-center h-8 px-2 rounded-xl transition-all duration-200",
       "relative group",
@@ -46,20 +61,59 @@ const MenuItem = memo(({ icon: Icon, label, to, isActive, onClick }) => (
   </Link>
 ));
 
-const MenuSection = memo(({ children }) => (
-  <div className="py-0.5">
-    <nav className="space-y-1 px-3.5">{children}</nav>
-  </div>
-));
-
 const Sidebar = ({ open = true, setOpen, animate = true, user, setLoggedIn }) => {
   const location = useLocation();
+  const navigate = useNavigate();
   const [isDataOpen, setIsDataOpen] = useState(false);
   const [isExpensesOpen, setIsExpensesOpen] = useState(false);
   const [showAddExpense, setShowAddExpense] = useState(false);
   const [showMasterExpense, setShowMasterExpense] = useState(false);
   const [showViewExpense, setShowViewExpense] = useState(false);
   const [showCashBook, setShowCashBook] = useState(false);
+
+  // Add scroll position management
+  useEffect(() => {
+    const scrollPositions = new Map();
+
+    const handleScroll = () => {
+      scrollPositions.set(location.pathname, window.scrollY);
+    };
+
+    const restoreScrollPosition = () => {
+      const savedPosition = scrollPositions.get(location.pathname) || 0;
+      window.scrollTo(0, savedPosition);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    window.addEventListener('popstate', restoreScrollPosition);
+
+    // Restore scroll position after route change
+    restoreScrollPosition();
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('popstate', restoreScrollPosition);
+    };
+  }, [location.pathname]);
+
+  // Optimize navigation
+  const handleNavigation = useCallback((to) => {
+    // Pre-fetch the next route
+    const prefetchRoute = new Promise((resolve) => {
+      requestAnimationFrame(() => {
+        navigate(to);
+        resolve();
+      });
+    });
+
+    // Smooth transition
+    return prefetchRoute.then(() => {
+      window.scrollTo({
+        top: 0,
+        behavior: 'instant' // Use 'instant' instead of 'smooth' to prevent lag
+      });
+    });
+  }, [navigate]);
 
   const handleLogout = useCallback(() => {
     localStorage.removeItem('isLoggedIn');
@@ -124,6 +178,7 @@ const Sidebar = ({ open = true, setOpen, animate = true, user, setLoggedIn }) =>
             label={open ? item.label : ""}
             to={item.path}
             isActive={isActive(item.path)}
+            handleNavigation={handleNavigation}
           />
         ))}
       </MenuSection>
@@ -166,6 +221,7 @@ const Sidebar = ({ open = true, setOpen, animate = true, user, setLoggedIn }) =>
                     label={item.label}
                     to={item.path}
                     isActive={isActive(item.path)}
+                    handleNavigation={handleNavigation}
                   />
                 ))}
               </div>
@@ -255,11 +311,19 @@ const Sidebar = ({ open = true, setOpen, animate = true, user, setLoggedIn }) =>
             label={open ? "Settings" : ""}
             to="/settings"
             isActive={isActive("/settings")}
+            handleNavigation={handleNavigation}
           />
         </MenuSection>
       </div>
     </div>
-  ), [mainMenuItems, open, isActive, dataMenuItems, expenseMenuItems, isDataOpen, isExpensesOpen, user]);
+  ), [mainMenuItems, open, isActive, dataMenuItems, expenseMenuItems, isDataOpen, isExpensesOpen, user, handleNavigation]);
+
+  // Update motion.div transition settings
+  const sidebarTransition = {
+    type: "tween", // Change from default spring to tween
+    duration: 0.15, // Reduce duration
+    ease: "easeInOut"
+  };
 
   return (
     <>
@@ -272,7 +336,8 @@ const Sidebar = ({ open = true, setOpen, animate = true, user, setLoggedIn }) =>
         animate={{
           width: animate ? (open ? "260px" : "70px") : "260px",
         }}
-        transition={{ duration: 0.2 }}
+        transition={sidebarTransition}
+        initial={false} // Disable initial animation
         onMouseEnter={() => animate && setOpen(true)}
         onMouseLeave={() => animate && setOpen(false)}
       >
@@ -299,6 +364,7 @@ const Sidebar = ({ open = true, setOpen, animate = true, user, setLoggedIn }) =>
               label={open ? "Logout" : ""}
               onClick={handleLogout}
               isActive={false}
+              handleNavigation={handleNavigation}
             />
           </div>
         </div>
@@ -315,13 +381,17 @@ const Sidebar = ({ open = true, setOpen, animate = true, user, setLoggedIn }) =>
       </div>
 
       {/* Mobile Sidebar */}
-      <AnimatePresence>
+      <AnimatePresence mode="wait"> {/* Add mode="wait" */}
         {open && (
           <motion.div
             className="fixed inset-0 z-50 md:hidden"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            transition={{
+              duration: 0.15,
+              ease: "easeInOut"
+            }}
           >
             {/* Backdrop */}
             <motion.div
@@ -370,6 +440,7 @@ const Sidebar = ({ open = true, setOpen, animate = true, user, setLoggedIn }) =>
                         to={item.path}
                         isActive={isActive(item.path)}
                         onClick={() => setOpen(false)}
+                        handleNavigation={handleNavigation}
                       />
                     ))}
                   </MenuSection>
@@ -408,6 +479,7 @@ const Sidebar = ({ open = true, setOpen, animate = true, user, setLoggedIn }) =>
                               to={item.path}
                               isActive={isActive(item.path)}
                               onClick={() => setOpen(false)}
+                              handleNavigation={handleNavigation}
                             />
                           ))}
                         </div>
@@ -488,6 +560,7 @@ const Sidebar = ({ open = true, setOpen, animate = true, user, setLoggedIn }) =>
                         label="Settings"
                         to="/settings"
                         isActive={isActive("/settings")}
+                        handleNavigation={handleNavigation}
                       />
                     </MenuSection>
                   </div>
@@ -500,6 +573,7 @@ const Sidebar = ({ open = true, setOpen, animate = true, user, setLoggedIn }) =>
                     label="Logout"
                     onClick={handleLogout}
                     isActive={false}
+                    handleNavigation={handleNavigation}
                   />
                 </div>
               </div>
