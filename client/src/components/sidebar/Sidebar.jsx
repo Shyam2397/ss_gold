@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, memo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useCallback, memo, useEffect, useRef, createContext, useContext } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   FiHome,
@@ -26,6 +26,55 @@ import { cn, throttle } from "../../lib/utils";
 import Logo from '../../asset/logo.png';
 import { SCROLL_BEHAVIOR } from '../../routes';
 
+// Create sidebar context
+const SidebarContext = createContext();
+
+const useSidebar = () => {
+  const context = useContext(SidebarContext);
+  if (!context) {
+    throw new Error("useSidebar must be used within SidebarProvider");
+  }
+  return context;
+};
+
+// Sidebar provider component
+const SidebarProvider = memo(({ children, openProp, setOpenProp, animate = true }) => {
+  const [openState, setOpenState] = useState(false);
+  const open = openProp !== undefined ? openProp : openState;
+  const setOpen = setOpenProp !== undefined ? setOpenProp : setOpenState;
+
+  return (
+    <SidebarContext.Provider value={{ open, setOpen, animate }}>
+      {children}
+    </SidebarContext.Provider>
+  );
+});
+
+// Motion variants
+const sidebarVariants = {
+  expanded: {
+    width: "260px",
+    transition: { duration: 0.2, ease: [0.4, 0, 0.2, 1] }
+  },
+  collapsed: {
+    width: "70px",
+    transition: { duration: 0.2, ease: [0.4, 0, 0.2, 1] }
+  }
+};
+
+const labelVariants = {
+  visible: { 
+    opacity: 1, 
+    display: "block",
+    transition: { duration: 0.2 }
+  },
+  hidden: { 
+    opacity: 0, 
+    display: "none",
+    transition: { duration: 0.2 }
+  }
+};
+
 // Define components before they are used
 const MenuSection = memo(({ children }) => (
   <div className="py-0.5">
@@ -33,36 +82,54 @@ const MenuSection = memo(({ children }) => (
   </div>
 ));
 
-const MenuItem = memo(({ icon: Icon, label, to, isActive, onClick, handleNavigation }) => (
-  <Link
-    to={to}
-    onClick={(e) => {
-      e.preventDefault();
-      if (onClick) {
-        onClick();
-      }
-      if (to && handleNavigation) {
-        handleNavigation(to);
-      }
-    }}
-    className={cn(
-      "flex items-center h-8 px-2 rounded-xl transition-all duration-200",
-      "relative group",
-      isActive
-        ? "bg-amber-100 text-amber-900"
-        : "text-gray-600 hover:bg-amber-50 hover:text-amber-900"
-    )}
-  >
-    <div className="flex items-center justify-center w-5 pl-1">
-      <Icon className={cn("h-5 w-5 flex-shrink-0", isActive && "text-amber-600")} />
-    </div>
-    {label && (
-      <span className="font-medium text-md ml-3 whitespace-nowrap">{label}</span>
-    )}
-  </Link>
-));
+// Update MenuItem component
+const MenuItem = memo(({ icon: Icon, label, to, isActive, onClick, handleNavigation }) => {
+  const { open } = useSidebar();
+  
+  return (
+    <Link
+      to={to}
+      onClick={(e) => {
+        e.preventDefault();
+        if (onClick) {
+          onClick();
+        }
+        if (to && handleNavigation) {
+          handleNavigation(to);
+        }
+      }}
+      className={cn(
+        "flex items-center h-8 px-2 rounded-xl transition-all duration-200",
+        "relative group",
+        isActive
+          ? "bg-amber-100 text-amber-900"
+          : "text-gray-600 hover:bg-amber-50 hover:text-amber-900"
+      )}
+    >
+      <div className="flex items-center justify-center w-5 pl-1">
+        <Icon className={cn("h-5 w-5 flex-shrink-0", isActive && "text-amber-600")} />
+      </div>
+      <motion.span
+        variants={labelVariants}
+        animate={open ? "visible" : "hidden"}
+        className="font-medium text-md ml-3 whitespace-nowrap"
+      >
+        {label}
+      </motion.span>
+    </Link>
+  );
+});
 
-const Sidebar = ({ open = true, setOpen, animate = true, user, setLoggedIn }) => {
+const Sidebar = ({ open: openProp, setOpen: setOpenProp, animate = true, user, setLoggedIn }) => {
+  return (
+    <SidebarProvider openProp={openProp} setOpenProp={setOpenProp} animate={animate}>
+      <SidebarContent user={user} setLoggedIn={setLoggedIn} />
+    </SidebarProvider>
+  );
+};
+
+const SidebarContent = memo(({ user, setLoggedIn }) => {
+  const { open, setOpen, animate } = useSidebar();
   const location = useLocation();
   const navigate = useNavigate();
   const [isDataOpen, setIsDataOpen] = useState(false);
@@ -72,6 +139,8 @@ const Sidebar = ({ open = true, setOpen, animate = true, user, setLoggedIn }) =>
   const [showViewExpense, setShowViewExpense] = useState(false);
   const [showCashBook, setShowCashBook] = useState(false);
   const scrollPositionsRef = useRef(new Map());
+  const expandTimeoutRef = useRef(null);
+  const isAnimatingRef = useRef(false);
 
   const throttledScroll = useMemo(
     () =>
@@ -333,12 +402,49 @@ const Sidebar = ({ open = true, setOpen, animate = true, user, setLoggedIn }) =>
     </div>
   ), [mainMenuItems, open, isActive, dataMenuItems, expenseMenuItems, isDataOpen, isExpensesOpen, user, handleNavigation]);
 
-  // Update motion.div transition settings
-  const sidebarTransition = {
-    type: "tween", // Change from default spring to tween
-    duration: 0.15, // Reduce duration
-    ease: "easeInOut"
-  };
+  // Enhanced hover handling
+  const handleMouseEnter = useCallback(() => {
+    if (!animate || isAnimatingRef.current) return;
+    clearTimeout(expandTimeoutRef.current);
+    expandTimeoutRef.current = setTimeout(() => {
+      setOpen(true);
+    }, 50);
+  }, [animate, setOpen]);
+
+  const handleMouseLeave = useCallback(() => {
+    if (!animate) return;
+    clearTimeout(expandTimeoutRef.current);
+    expandTimeoutRef.current = setTimeout(() => {
+      setOpen(false);
+    }, 150);
+  }, [animate, setOpen]);
+
+  // Cleanup timeouts
+  useEffect(() => {
+    return () => {
+      clearTimeout(expandTimeoutRef.current);
+    };
+  }, []);
+
+  // Optimized transition settings
+  const sidebarTransition = useMemo(() => ({
+    type: "tween",
+    duration: 0.2,
+    ease: [0.4, 0, 0.2, 1],
+    onStart: () => {
+      isAnimatingRef.current = true;
+    },
+    onComplete: () => {
+      isAnimatingRef.current = false;
+    }
+  }), []);
+
+  // Prevent content reflow during animation
+  const contentStyle = useMemo(() => ({
+    willChange: 'width',
+    backfaceVisibility: 'hidden',
+    WebkitFontSmoothing: 'subpixel-antialiased'
+  }), []);
 
   return (
     <>
@@ -346,15 +452,15 @@ const Sidebar = ({ open = true, setOpen, animate = true, user, setLoggedIn }) =>
       <motion.div
         className={cn(
           "h-screen border-r border-gray-200 hidden md:flex md:flex-col bg-white overflow-hidden",
+          "transform-gpu", // Force GPU acceleration
           open ? "w-80" : "w-20"
         )}
-        animate={{
-          width: animate ? (open ? "260px" : "70px") : "260px",
-        }}
-        transition={sidebarTransition}
+        style={contentStyle}
+        variants={sidebarVariants}
+        animate={open ? "expanded" : "collapsed"}
         initial={false} // Disable initial animation
-        onMouseEnter={() => animate && setOpen(true)}
-        onMouseLeave={() => animate && setOpen(false)}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
       >
         {/* Logo Section */}
         <div className="flex items-center h-20 px-4 border-b border-amber-100 flex-shrink-0">
@@ -604,6 +710,6 @@ const Sidebar = ({ open = true, setOpen, animate = true, user, setLoggedIn }) =>
       <CashBook isOpen={showCashBook} onClose={() => setShowCashBook(false)} />
     </>
   );
-};
+});
 
 export default memo(Sidebar);

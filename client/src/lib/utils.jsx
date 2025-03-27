@@ -25,3 +25,16 @@ export const throttle = (fn, delay) => {
     }
   };
 };
+
+export const TRANSITIONS = {
+  sidebar: {
+    type: "tween",
+    duration: 0.2,
+    ease: [0.4, 0, 0.2, 1], // Custom easing curve
+  },
+  smooth: {
+    type: "tween",
+    duration: 0.15,
+    ease: "easeInOut",
+  }
+};
