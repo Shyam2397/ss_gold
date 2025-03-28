@@ -12,19 +12,33 @@ const useTrends = ({ tokens, expenses, entries, exchanges }) => {
   const calculateTrend = (current, previous) => 
     previous ? ((current - previous) / previous * 100).toFixed(2) : 0;
 
+  // Optimize by using Set for faster lookups
+  const uniqueDates = new Set();
+  
+  // Cache date parsing results
+  const dateCache = new Map();
+  
+  // Add date parsing memoization
+  const parseDate = (dateStr) => {
+    if (!dateCache.has(dateStr)) {
+      dateCache.set(dateStr, new Date(dateStr.split('-').reverse().join('-')));
+    }
+    return dateCache.get(dateStr);
+  };
+
   // Memoize all trend calculations to avoid recalculating unnecessarily
   const trends = useMemo(() => {
     // Revenue trend
     const currentRevenue = tokens
       .filter(token => {
-        const tokenDate = new Date(token.date.split('-').reverse().join('-'));
+        const tokenDate = parseDate(token.date);
         return tokenDate >= sevenDaysAgo && tokenDate <= today;
       })
       .reduce((sum, token) => sum + (token.totalAmount || 0), 0);
 
     const previousRevenue = tokens
       .filter(token => {
-        const tokenDate = new Date(token.date.split('-').reverse().join('-'));
+        const tokenDate = parseDate(token.date);
         return tokenDate >= fourteenDaysAgo && tokenDate < sevenDaysAgo;
       })
       .reduce((sum, token) => sum + (token.totalAmount || 0), 0);
@@ -73,12 +87,12 @@ const useTrends = ({ tokens, expenses, entries, exchanges }) => {
 
     // Token trend
     const currentTokens = tokens.filter(token => {
-      const tokenDate = new Date(token.date.split('-').reverse().join('-'));
+      const tokenDate = parseDate(token.date);
       return tokenDate >= sevenDaysAgo && tokenDate <= today;
     }).length;
 
     const previousTokens = tokens.filter(token => {
-      const tokenDate = new Date(token.date.split('-').reverse().join('-'));
+      const tokenDate = parseDate(token.date);
       return tokenDate >= fourteenDaysAgo && tokenDate < sevenDaysAgo;
     }).length;
 
@@ -86,12 +100,12 @@ const useTrends = ({ tokens, expenses, entries, exchanges }) => {
 
     // Exchange trend
     const currentExchanges = exchanges.filter(exchange => {
-      const exchangeDate = new Date(exchange.date.split('-').reverse().join('-'));
+      const exchangeDate = parseDate(exchange.date);
       return exchangeDate >= sevenDaysAgo && exchangeDate <= today;
     }).length;
 
     const previousExchanges = exchanges.filter(exchange => {
-      const exchangeDate = new Date(exchange.date.split('-').reverse().join('-'));
+      const exchangeDate = parseDate(exchange.date);
       return exchangeDate >= fourteenDaysAgo && exchangeDate < sevenDaysAgo;
     }).length;
 
@@ -100,14 +114,14 @@ const useTrends = ({ tokens, expenses, entries, exchanges }) => {
     // Weight trend
     const currentWeight = exchanges
       .filter(exchange => {
-        const exchangeDate = new Date(exchange.date.split('-').reverse().join('-'));
+        const exchangeDate = parseDate(exchange.date);
         return exchangeDate >= sevenDaysAgo && exchangeDate <= today;
       })
       .reduce((sum, exchange) => sum + parseFloat(exchange.weight || '0'), 0);
 
     const previousWeight = exchanges
       .filter(exchange => {
-        const exchangeDate = new Date(exchange.date.split('-').reverse().join('-'));
+        const exchangeDate = parseDate(exchange.date);
         return exchangeDate >= fourteenDaysAgo && exchangeDate < sevenDaysAgo;
       })
       .reduce((sum, exchange) => sum + parseFloat(exchange.weight || '0'), 0);

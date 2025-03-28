@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import TimeSelector from './TimeSelector';
 
@@ -55,8 +55,18 @@ const getDateKey = (date, format) => {
   return dateCache.get(key);
 };
 
-const DashboardCharts = ({ tokens = [], expenses = [], entries = [], exchanges = [] }) => {
+const DashboardCharts = ({ tokens, expenses, entries, exchanges }) => {
   const [period, setPeriod] = useState('daily');
+
+  // Add worker for data processing
+  const worker = useMemo(() => {
+    return new Worker(new URL('../workers/chartProcessor.js', import.meta.url));
+  }, []);
+
+  // Move heavy processing to worker
+  useEffect(() => {
+    worker.postMessage({ tokens, expenses, entries, exchanges });
+  }, [tokens, expenses, entries, exchanges]);
 
   const chartData = useMemo(() => {
     try {
