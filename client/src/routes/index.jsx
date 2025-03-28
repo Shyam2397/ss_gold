@@ -1,6 +1,6 @@
 import React from 'react';
 import { markRouteStart, measureRouteLoad } from '../utils/performance';
-import { ROUTE_PRIORITIES, ROUTE_CONFIG } from './config';
+import { ROUTE_PRIORITIES, ROUTE_CONFIG, SCROLL_BEHAVIOR } from './config';
 
 // Define components with proper naming
 const Dashboard = React.lazy(() => 
@@ -54,13 +54,7 @@ const ExchangeDataPage = React.lazy(() =>
   }))
 );
 
-// Enhanced route priorities with contextual information
-const SCROLL_BEHAVIOR = {
-  '/entries': {
-    restorePosition: true,
-    maintainScroll: true
-  }
-};
+// Enhanced route priorities with contextual information from config
 
 // Preload queue with better memory management
 const preloadQueue = new Map(); // Using Map for better metadata storage
