@@ -1,15 +1,21 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { motion } from 'framer-motion';
 import { Toaster } from 'react-hot-toast';
 import useDashboardData from './components/useDashboardData';
 import useSparklineData from './hooks/useSparklineData';
 import DashboardHeader from './components/DashboardHeader';
 import MetricsGrid from './components/MetricsGrid';
-import DashboardCharts from './components/DashboardCharts';
 import RecentActivity from './components/RecentActivity';
 import UnpaidCustomers from './components/UnpaidCustomers';
+import ErrorBoundary from './ErrorBoundary';
+import usePerformanceMonitor from './hooks/usePerformanceMonitor';
+
+// Lazy load heavy components
+const DashboardCharts = lazy(() => import('./components/DashboardCharts'));
 
 function Dashboard() {
+  usePerformanceMonitor('Dashboard');
+
   const {
     tokens, entries, expenses, exchanges, loading, error, recentActivities,
     todayTotal, dateRange, setDateRange, metrics, selectedPeriod
@@ -38,24 +44,35 @@ function Dashboard() {
   }
 
   return (
-    <motion.div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-6">
-      <Toaster />
-      <DashboardHeader todayTotal={todayTotal} dateRange={dateRange} onDateRangeChange={setDateRange} />
-      <MetricsGrid 
-        metrics={metrics} 
-        tokens={tokens} 
-        expenses={expenses} 
-        entries={entries} 
-        exchanges={exchanges} 
-        sparklineData={sparklineData} 
-        selectedPeriod={selectedPeriod}
-      />
-      <DashboardCharts tokens={tokens} expenses={expenses} entries={entries} exchanges={exchanges} />
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <RecentActivity activities={recentActivities} />
-        <UnpaidCustomers tokens={tokens} />
-      </div>
-    </motion.div>
+    <ErrorBoundary>
+      <motion.div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-6">
+        <Toaster />
+        <DashboardHeader todayTotal={todayTotal} dateRange={dateRange} onDateRangeChange={setDateRange} />
+        <MetricsGrid 
+          metrics={metrics} 
+          tokens={tokens} 
+          expenses={expenses} 
+          entries={entries} 
+          exchanges={exchanges} 
+          sparklineData={sparklineData} 
+          selectedPeriod={selectedPeriod}
+        />
+        <ErrorBoundary>
+          <Suspense fallback={<div>Loading charts...</div>}>
+            <DashboardCharts 
+              tokens={tokens} 
+              expenses={expenses} 
+              entries={entries} 
+              exchanges={exchanges} 
+            />
+          </Suspense>
+        </ErrorBoundary>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <RecentActivity activities={recentActivities} loading={loading} />
+          <UnpaidCustomers tokens={tokens} loading={loading} />
+        </div>
+      </motion.div>
+    </ErrorBoundary>
   );
 }
 

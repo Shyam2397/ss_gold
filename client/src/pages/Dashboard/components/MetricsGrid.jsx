@@ -1,16 +1,28 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import DashboardCard from './DashboardCard';
 import { 
   CurrencyRupeeIcon, ScaleIcon, ReceiptPercentIcon, 
   UserGroupIcon, BeakerIcon, ArrowsRightLeftIcon 
 } from '@heroicons/react/24/solid';
 import useTrends from '../hooks/useTrends';
+import usePerformanceMonitor from '../hooks/usePerformanceMonitor';
 
 const MetricsGrid = ({ metrics, tokens, expenses, entries, exchanges, sparklineData, selectedPeriod }) => {
-  const totalRevenue = tokens.reduce((sum, token) => sum + (parseFloat(token.totalAmount) || 0), 0);
-  const totalExpenses = expenses.reduce((sum, expense) => sum + (parseFloat(expense.amount) || 0), 0);
-  const netProfit = totalRevenue - totalExpenses;
-  const profitMargin = totalRevenue ? ((netProfit / totalRevenue) * 100).toFixed(2) : 0;
+  usePerformanceMonitor('MetricsGrid');
+
+  const calculations = useMemo(() => {
+    const totalRevenue = tokens.reduce((sum, token) => sum + (parseFloat(token.totalAmount) || 0), 0);
+    const totalExpenses = expenses.reduce((sum, expense) => sum + (parseFloat(expense.amount) || 0), 0);
+    const netProfit = totalRevenue - totalExpenses;
+    const profitMargin = totalRevenue ? ((netProfit / totalRevenue) * 100).toFixed(2) : 0;
+
+    return {
+      totalRevenue,
+      totalExpenses,
+      netProfit,
+      profitMargin
+    };
+  }, [tokens, expenses]);
 
   const trends = useTrends({ tokens, expenses, entries, exchanges });
 
@@ -18,7 +30,7 @@ const MetricsGrid = ({ metrics, tokens, expenses, entries, exchanges, sparklineD
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       <DashboardCard 
         title="Total Revenue" 
-        value={`₹${totalRevenue.toLocaleString()}`}
+        value={`₹${calculations.totalRevenue.toLocaleString()}`}
         trend={trends.revenueGrowth}
         icon={CurrencyRupeeIcon}
         description="Total revenue from tokens"
@@ -29,7 +41,7 @@ const MetricsGrid = ({ metrics, tokens, expenses, entries, exchanges, sparklineD
       />
       <DashboardCard 
         title="Total Expenses" 
-        value={`₹${totalExpenses.toLocaleString()}`}
+        value={`₹${calculations.totalExpenses.toLocaleString()}`}
         trend={trends.expensesGrowth}
         icon={ScaleIcon}
         description="Total expenses this month"
@@ -40,7 +52,7 @@ const MetricsGrid = ({ metrics, tokens, expenses, entries, exchanges, sparklineD
       />
       <DashboardCard 
         title="Net Profit" 
-        value={`₹${netProfit.toLocaleString()}`}
+        value={`₹${calculations.netProfit.toLocaleString()}`}
         trend={trends.profitGrowth}
         icon={ReceiptPercentIcon}
         description="Net profit this month"
@@ -51,7 +63,7 @@ const MetricsGrid = ({ metrics, tokens, expenses, entries, exchanges, sparklineD
       />
       <DashboardCard 
         title="Profit Margin" 
-        value={`${profitMargin}%`}
+        value={`${calculations.profitMargin}%`}
         trend={trends.marginGrowth}
         icon={UserGroupIcon}
         description="Current profit margin"
@@ -136,4 +148,4 @@ const MetricsGrid = ({ metrics, tokens, expenses, entries, exchanges, sparklineD
   );
 };
 
-export default MetricsGrid;
+export default React.memo(MetricsGrid);
