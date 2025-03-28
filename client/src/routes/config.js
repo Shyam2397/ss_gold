@@ -12,6 +12,13 @@ export const SCROLL_BEHAVIOR = {
   }
 };
 
+// Export all configurations together for better Fast Refresh compatibility
+export default {
+  ROUTE_PRIORITIES,
+  ROUTE_CONFIG,
+  SCROLL_BEHAVIOR
+};
+
 export const ROUTE_CONFIG = {
   dashboard: {
     path: '/dashboard',

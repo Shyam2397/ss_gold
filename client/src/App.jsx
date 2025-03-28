@@ -5,7 +5,8 @@ import MainLayout from './components/mainLayout/MainLayout';
 import LoadingSpinner from './components/common/LoadingSpinner';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import routes, { preloadRoute } from './routes';
-import { SCROLL_BEHAVIOR } from './routes/config';
+import config from './routes/config';
+const { SCROLL_BEHAVIOR } = config;
 import { metrics } from './utils/performance';
 
 // Prefetch component for route preloading

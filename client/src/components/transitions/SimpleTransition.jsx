@@ -1,7 +1,8 @@
 import React, { memo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLocation } from 'react-router-dom';
-import { SCROLL_BEHAVIOR } from '../../routes';
+import config from '../../routes/config';
+const { SCROLL_BEHAVIOR } = config;
 
 const routes = {
     "/": "Login",

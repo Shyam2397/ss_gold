@@ -54,15 +54,7 @@ const ExchangeDataPage = React.lazy(() =>
   }))
 );
 
-// Enhanced route priorities with contextual information
-const SCROLL_BEHAVIOR = {
-  '/entries': {
-    restorePosition: true,
-    maintainScroll: true
-  }
-};
 
-export { SCROLL_BEHAVIOR };
 
 // Preload queue with better memory management
 const preloadQueue = new Map(); // Using Map for better metadata storage
