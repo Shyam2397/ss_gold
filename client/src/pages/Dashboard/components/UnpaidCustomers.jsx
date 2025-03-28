@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { CurrencyRupeeIcon, ExclamationCircleIcon, MagnifyingGlassIcon } from '@heroicons/react/24/solid';
 import { debounce } from 'lodash';
 import { FixedSizeList as List } from 'react-window';
-import { CustomerSkeleton } from '../../../components/LoadingSkeleton';
+import { CustomerSkeleton } from './LoadingSkeleton';
 
 const CustomerRow = ({ data, index, style }) => {
   const customer = data[index];

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { FixedSizeList as List } from 'react-window';
-import { ActivitySkeleton } from '../../../components/LoadingSkeleton';
+import { ActivitySkeleton } from './LoadingSkeleton';
 
 const ActivityIcon = ({ type }) => {
   const iconClass = {
