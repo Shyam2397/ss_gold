@@ -62,8 +62,6 @@ const SCROLL_BEHAVIOR = {
   }
 };
 
-export { SCROLL_BEHAVIOR };
-
 // Preload queue with better memory management
 const preloadQueue = new Map(); // Using Map for better metadata storage
 
@@ -186,3 +184,4 @@ const routesConfig = [
 ];
 
 export default routesConfig;
+export { SCROLL_BEHAVIOR };
