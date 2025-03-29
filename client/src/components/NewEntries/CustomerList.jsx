@@ -4,6 +4,7 @@ import { BsQrCode } from 'react-icons/bs';
 import { AutoSizer, Table, Column } from 'react-virtualized';
 import 'react-virtualized/styles.css';
 import LoadingSpinner from './LoadingSpinner';
+import useDebounce from './hooks/useDebounce';
 
 const CustomerList = ({
   loading,
@@ -13,10 +14,20 @@ const CustomerList = ({
   handleEdit,
   confirmDelete
 }) => {
-  // Sort customers alphabetically by name
-  const sortedCustomers = [...customers].sort((a, b) => 
-    a.name.localeCompare(b.name)
-  );
+  // Add debouncing to search
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
+
+  // Sort customers alphabetically by name and filter based on debounced search
+  const sortedCustomers = useMemo(() => {
+    return [...customers]
+      .filter((customer) =>
+        Object.values(customer)
+          .join(" ")
+          .toLowerCase()
+          .includes(debouncedSearchQuery.toLowerCase())
+      )
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [customers, debouncedSearchQuery]);
 
   const columns = useMemo(() => [
     { label: "Actions", key: "actions", width: 130, flexGrow: 0, minWidth: 130 },
@@ -148,4 +159,4 @@ const CustomerList = ({
   );
 };
 
-export default CustomerList;
+export default React.memo(CustomerList);
