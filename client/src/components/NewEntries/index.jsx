@@ -4,7 +4,7 @@ import CustomerForm from './CustomerForm';
 import CustomerList from './CustomerList';
 import DeleteConfirmationModal from './DeleteConfirmationModal';
 import { customerReducer, initialState, ActionTypes } from './customerReducer';
-import useCustomerAPI from './hooks/useCustomerAPI';
+import useCustomerAPI from './hooks/useCustomerAPI';  // <-- Updated import path
 
 const API_URL = import.meta.env.VITE_API_URL;
 axios.defaults.baseURL = API_URL;
@@ -43,20 +43,17 @@ const NewEntries = () => {
     fetchCustomers();
   }, []);
 
-  // Memoize filteredCustomers computation
-  const filteredCustomers = useMemo(() => 
-    state.customers.filter((customer) =>
-      Object.values(customer)
-        .join(" ")
-        .toLowerCase()
-        .includes(state.searchQuery.toLowerCase())
-    ),
-    [state.customers, state.searchQuery]
+  // Filter customers based on search query
+  const filteredCustomers = state.customers.filter((customer) =>
+    Object.values(customer)
+      .join(" ")
+      .toLowerCase()
+      .includes(state.searchQuery.toLowerCase())
   );
 
-  // Memoize form validation
-  const validateForm = useCallback(() => {
-    if (!state.code?.trim()) {
+  // Validate form data
+  const validateForm = () => {
+    if (!state.code || state.code.trim().length === 0) {
       dispatch({ type: ActionTypes.SET_ERROR, payload: "Customer code is required" });
       return false;
     }
@@ -84,18 +81,10 @@ const NewEntries = () => {
     }
 
     return true;
-  }, [state.code, state.name, state.phoneNumber, state.place]);
+  };
 
-  // Memoize handlers
-  const handleInputChange = useCallback((field) => (e) => {
-    dispatch({ 
-      type: ActionTypes.SET_FIELD, 
-      field, 
-      value: e.target.value 
-    });
-  }, []);
-
-  const handleSubmit = useCallback(async (e) => {
+  // Handle form submission (create/update)
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
 
@@ -115,30 +104,34 @@ const NewEntries = () => {
       dispatch({ type: ActionTypes.RESET_FORM });
     }
     dispatch({ type: ActionTypes.SET_LOADING, payload: false });
-  }, [state.code, state.name, state.phoneNumber, state.place, state.editMode, state.editId, validateForm, updateCustomer, createCustomer]);
+  };
 
-  const handleEdit = useCallback((customer) => {
+  // Handle customer edit
+  const handleEdit = (customer) => {
     dispatch({
       type: ActionTypes.SET_EDIT_MODE,
       payload: { customer }
     });
-  }, []);
+  };
 
-  const confirmDelete = useCallback((id) => {
+  // Handle delete confirmation
+  const confirmDelete = (id) => {
     dispatch({
       type: ActionTypes.SET_DELETE_CONFIRMATION,
       payload: { isOpen: true, customerId: id }
     });
-  }, []);
+  };
 
-  const cancelDelete = useCallback(() => {
+  // Handle delete cancellation
+  const cancelDelete = () => {
     dispatch({
       type: ActionTypes.SET_DELETE_CONFIRMATION,
       payload: { isOpen: false, customerId: null }
     });
-  }, []);
+  };
 
-  const proceedDelete = useCallback(async () => {
+  // Handle delete confirmation
+  const proceedDelete = async () => {
     if (!state.deleteConfirmation.customerId) return;
     
     dispatch({ type: ActionTypes.SET_LOADING, payload: true });
@@ -149,12 +142,15 @@ const NewEntries = () => {
       payload: { isOpen: false, customerId: null }
     });
     dispatch({ type: ActionTypes.SET_LOADING, payload: false });
-  }, [state.deleteConfirmation.customerId, deleteCustomer]);
+  };
 
-  // Memoize form reset handler
-  const handleReset = useCallback(() => {
-    dispatch({ type: ActionTypes.RESET_FORM });
-  }, []);
+  const handleInputChange = (field) => (e) => {
+    dispatch({ 
+      type: ActionTypes.SET_FIELD, 
+      field, 
+      value: e.target.value 
+    });
+  };
 
   return (
     <div className="container mx-auto px-8 py-5">
@@ -167,7 +163,7 @@ const NewEntries = () => {
         place={state.place}
         handleInputChange={handleInputChange}
         handleSubmit={handleSubmit}
-        resetForm={handleReset}
+        resetForm={() => dispatch({ type: ActionTypes.RESET_FORM })}
         error={state.error}
         success={state.success}
       />
@@ -203,4 +199,4 @@ const NewEntries = () => {
   );
 };
 
-export default memo(NewEntries);
+export default NewEntries;

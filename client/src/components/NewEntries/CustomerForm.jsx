@@ -1,4 +1,4 @@
-import React, { memo } from 'react';
+import React from 'react';
 import { MdPersonAdd } from 'react-icons/md';
 import { FiAlertCircle, FiUser, FiHash, FiPhone, FiMapPin,FiSave, FiRotateCcw } from 'react-icons/fi';
 import FormField from './components/FormField';
@@ -101,4 +101,4 @@ const CustomerForm = ({
   );
 };
 
-export default memo(CustomerForm);
+export default CustomerForm;
