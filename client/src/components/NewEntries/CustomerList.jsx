@@ -1,9 +1,11 @@
-import React, { useMemo } from 'react';
+import React, { memo, useMemo, useState, useEffect } from 'react';
+import PropTypes from 'prop-types';
 import { FiSearch, FiEdit2, FiTrash2 } from 'react-icons/fi';
 import { BsQrCode } from 'react-icons/bs';
 import { AutoSizer, Table, Column } from 'react-virtualized';
 import 'react-virtualized/styles.css';
 import LoadingSpinner from './LoadingSpinner';
+import useDebounce from './hooks/useDebounce';
 
 const CustomerList = ({
   loading,
@@ -13,6 +15,17 @@ const CustomerList = ({
   handleEdit,
   confirmDelete
 }) => {
+  // Add local state for immediate input value
+  const [searchInput, setSearchInput] = useState(searchQuery);
+  
+  // Debounce the search input
+  const debouncedSearch = useDebounce(searchInput, 300);
+
+  // Update parent state when debounced value changes
+  useEffect(() => {
+    setSearchQuery(debouncedSearch);
+  }, [debouncedSearch, setSearchQuery]);
+
   // Sort customers alphabetically by name
   const sortedCustomers = [...customers].sort((a, b) => 
     a.name.localeCompare(b.name)
@@ -94,8 +107,8 @@ const CustomerList = ({
           </div>
           <input
             type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
             placeholder="Search customers..."
             className="w-full rounded-md border border-amber-200 bg-white pl-10 shadow-sm focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 py-2 text-sm text-amber-900"
           />
@@ -148,4 +161,19 @@ const CustomerList = ({
   );
 };
 
-export default CustomerList;
+CustomerList.propTypes = {
+  loading: PropTypes.bool.isRequired,
+  customers: PropTypes.arrayOf(PropTypes.shape({
+    id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+    code: PropTypes.string.isRequired,
+    name: PropTypes.string.isRequired,
+    phoneNumber: PropTypes.string.isRequired,
+    place: PropTypes.string.isRequired
+  })).isRequired,
+  searchQuery: PropTypes.string.isRequired,
+  setSearchQuery: PropTypes.func.isRequired,
+  handleEdit: PropTypes.func.isRequired,
+  confirmDelete: PropTypes.func.isRequired
+};
+
+export default memo(CustomerList);

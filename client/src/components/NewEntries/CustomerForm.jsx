@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { memo } from 'react';
+import PropTypes from 'prop-types';
 import { MdPersonAdd } from 'react-icons/md';
-import { FiAlertCircle, FiUser, FiHash, FiPhone, FiMapPin,FiSave, FiRotateCcw } from 'react-icons/fi';
+import { FiAlertCircle, FiUser, FiHash, FiPhone, FiMapPin, FiSave, FiRotateCcw } from 'react-icons/fi';
 import FormField from './components/FormField';
 
 const CustomerForm = ({
@@ -14,11 +15,7 @@ const CustomerForm = ({
   success,
   handleInputChange,
   handleSubmit,
-  resetForm,
-  setName,
-  setCode,
-  setPhoneNumber,
-  setPlace
+  resetForm
 }) => {
   return (
     <div className="bg-white rounded-2xl p-3 border border-amber-100">
@@ -48,7 +45,7 @@ const CustomerForm = ({
             label="Name"
             id="name"
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={handleInputChange('name')}
             placeholder="Enter customer name"
             icon={FiUser}
           />
@@ -57,7 +54,7 @@ const CustomerForm = ({
             label="Code"
             id="code"
             value={code}
-            onChange={(e) => setCode(e.target.value)}
+            onChange={handleInputChange('code')}
             placeholder="Enter customer code"
             icon={FiHash}
           />
@@ -66,7 +63,7 @@ const CustomerForm = ({
             label="Phone Number"
             id="phoneNumber"
             value={phoneNumber}
-            onChange={(e) => setPhoneNumber(e.target.value)}
+            onChange={handleInputChange('phoneNumber')}
             placeholder="Enter phone number"
             icon={FiPhone}
           />
@@ -75,7 +72,7 @@ const CustomerForm = ({
             label="Place"
             id="place"
             value={place}
-            onChange={(e) => setPlace(e.target.value)}
+            onChange={handleInputChange('place')}
             placeholder="Enter place"
             icon={FiMapPin}
           />
@@ -105,4 +102,18 @@ const CustomerForm = ({
   );
 };
 
-export default CustomerForm;
+CustomerForm.propTypes = {
+  editMode: PropTypes.bool.isRequired,
+  loading: PropTypes.bool.isRequired,
+  name: PropTypes.string.isRequired,
+  code: PropTypes.string.isRequired,
+  phoneNumber: PropTypes.string.isRequired,
+  place: PropTypes.string.isRequired,
+  error: PropTypes.string,
+  success: PropTypes.string,
+  handleInputChange: PropTypes.func.isRequired,
+  handleSubmit: PropTypes.func.isRequired,
+  resetForm: PropTypes.func.isRequired
+};
+
+export default memo(CustomerForm);

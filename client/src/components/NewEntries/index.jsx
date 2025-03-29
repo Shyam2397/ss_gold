@@ -1,30 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useReducer, useEffect, useCallback, useMemo, memo } from 'react';
 import axios from 'axios';
 import CustomerForm from './CustomerForm';
 import CustomerList from './CustomerList';
 import DeleteConfirmationModal from './DeleteConfirmationModal';
+import { customerReducer, initialState, ActionTypes } from './customerReducer';
+import useCustomerAPI from './hooks/useCustomerAPI';
 
-// Get the current port from the window location or use default ports
 const API_URL = import.meta.env.VITE_API_URL;
-// Add axios default configuration
 axios.defaults.baseURL = API_URL;
 
 const NewEntries = () => {
-  const [code, setCode] = useState("");
-  const [name, setName] = useState("");
-  const [phoneNumber, setPhoneNumber] = useState("");
-  const [place, setPlace] = useState("");
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [customers, setCustomers] = useState([]);
-  const [editMode, setEditMode] = useState(false);
-  const [editId, setEditId] = useState(null);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [deleteConfirmation, setDeleteConfirmation] = useState({
-    isOpen: false,
-    customerId: null
-  });
+  const [state, dispatch] = useReducer(customerReducer, initialState);
+  const { fetchCustomers, createCustomer, updateCustomer, deleteCustomer } = useCustomerAPI(dispatch, ActionTypes);
 
   // Message timeout duration
   const MESSAGE_TIMEOUT = 5000;
@@ -33,15 +20,15 @@ const NewEntries = () => {
   useEffect(() => {
     let errorTimer, successTimer;
 
-    if (error) {
+    if (state.error) {
       errorTimer = setTimeout(() => {
-        setError("");
+        dispatch({ type: ActionTypes.SET_ERROR, payload: '' });
       }, MESSAGE_TIMEOUT);
     }
 
-    if (success) {
+    if (state.success) {
       successTimer = setTimeout(() => {
-        setSuccess("");
+        dispatch({ type: ActionTypes.SET_SUCCESS, payload: '' });
       }, MESSAGE_TIMEOUT);
     }
 
@@ -49,227 +36,171 @@ const NewEntries = () => {
       if (errorTimer) clearTimeout(errorTimer);
       if (successTimer) clearTimeout(successTimer);
     };
-  }, [error, success]);
+  }, [state.error, state.success]);
 
   // Fetch customers on component mount
   useEffect(() => {
     fetchCustomers();
   }, []);
 
-  // Filter customers based on search query
-  const filteredCustomers = customers.filter((customer) =>
-    Object.values(customer)
-      .join(" ")
-      .toLowerCase()
-      .includes(searchQuery.toLowerCase())
+  // Memoize filteredCustomers computation
+  const filteredCustomers = useMemo(() => 
+    state.customers.filter((customer) =>
+      Object.values(customer)
+        .join(" ")
+        .toLowerCase()
+        .includes(state.searchQuery.toLowerCase())
+    ),
+    [state.customers, state.searchQuery]
   );
 
-  // Validate form data
-  const validateForm = () => {
-    if (!code || code.trim().length === 0) {
-      setError("Customer code is required");
+  // Memoize form validation
+  const validateForm = useCallback(() => {
+    if (!state.code?.trim()) {
+      dispatch({ type: ActionTypes.SET_ERROR, payload: "Customer code is required" });
       return false;
     }
 
-    if (!name || name.trim().length === 0) {
-      setError("Customer name is required");
+    if (!state.name || state.name.trim().length === 0) {
+      dispatch({ type: ActionTypes.SET_ERROR, payload: "Customer name is required" });
       return false;
     }
 
-    if (!phoneNumber || phoneNumber.trim().length === 0) {
-      setError("Phone number is required");
+    if (!state.phoneNumber || state.phoneNumber.trim().length === 0) {
+      dispatch({ type: ActionTypes.SET_ERROR, payload: "Phone number is required" });
       return false;
     }
 
     // Phone number validation (allow only numbers and optional +)
     const phoneRegex = /^\+?\d{10,12}$/;
-    if (!phoneRegex.test(phoneNumber)) {
-      setError("Invalid phone number format. Please enter 10-12 digits with optional + prefix");
+    if (!phoneRegex.test(state.phoneNumber)) {
+      dispatch({ type: ActionTypes.SET_ERROR, payload: "Invalid phone number format. Please enter 10-12 digits with optional + prefix" });
       return false;
     }
 
-    if (!place || place.trim().length === 0) {
-      setError("Place is required");
+    if (!state.place || state.place.trim().length === 0) {
+      dispatch({ type: ActionTypes.SET_ERROR, payload: "Place is required" });
       return false;
     }
 
     return true;
-  };
+  }, [state.code, state.name, state.phoneNumber, state.place]);
 
-  // Fetch all customers
-  const fetchCustomers = async () => {
-    try {
-      setLoading(true);
-      const response = await axios.get('/entries');
-      setCustomers(response.data || []);
-    } catch (err) {
-      console.error("Error fetching customers:", err);
-      setError(err.response?.data?.error || "Error fetching customers");
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Memoize handlers
+  const handleInputChange = useCallback((field) => (e) => {
+    dispatch({ 
+      type: ActionTypes.SET_FIELD, 
+      field, 
+      value: e.target.value 
+    });
+  }, []);
 
-  // Handle form submission (create/update)
-  const handleSubmit = async (e) => {
+  const handleSubmit = useCallback(async (e) => {
     e.preventDefault();
-    setError("");
-    setSuccess("");
+    if (!validateForm()) return;
 
-    // Validate form
-    if (!validateForm()) {
-      return;
-    }
-
-    setLoading(true);
-
+    dispatch({ type: ActionTypes.SET_LOADING, payload: true });
     const customerData = {
-      code: code.trim(),
-      name: name.trim(),
-      phoneNumber: phoneNumber.trim(),
-      place: place.trim(),
+      code: state.code.trim(),
+      name: state.name.trim(),
+      phoneNumber: state.phoneNumber.trim(),
+      place: state.place.trim(),
     };
 
-    try {
-      if (editMode) {
-        const response = await axios.put(`/entries/${editId}`, customerData);
-        if (response.data.success) {
-          setSuccess(response.data.message || "Customer updated successfully!");
-          resetForm();
-          fetchCustomers();
-        } else {
-          setError(response.data.error || "Failed to update customer");
-        }
-      } else {
-        const response = await axios.post('/entries', customerData);
-        if (response.data.success) {
-          setSuccess(response.data.message || "Customer added successfully!");
-          resetForm();
-          fetchCustomers();
-        } else {
-          setError(response.data.error || "Failed to add customer");
-        }
-      }
-    } catch (err) {
-      console.error("Error saving customer:", err);
-      setError(err.response?.data?.error || "Error saving customer");
-    } finally {
-      setLoading(false);
+    const success = state.editMode 
+      ? await updateCustomer(state.editId, customerData)
+      : await createCustomer(customerData);
+
+    if (success) {
+      dispatch({ type: ActionTypes.RESET_FORM });
     }
-  };
+    dispatch({ type: ActionTypes.SET_LOADING, payload: false });
+  }, [state.code, state.name, state.phoneNumber, state.place, state.editMode, state.editId, validateForm, updateCustomer, createCustomer]);
 
-  // Handle customer edit
-  const handleEdit = (customer) => {
-    setCode(customer.code);
-    setName(customer.name);
-    setPhoneNumber(customer.phoneNumber);
-    setPlace(customer.place);
-    setEditMode(true);
-    setEditId(customer.id);
-    setError("");
-    setSuccess("");
-  };
-
-  // Handle delete confirmation
-  const confirmDelete = (id) => {
-    setDeleteConfirmation({
-      isOpen: true,
-      customerId: id
+  const handleEdit = useCallback((customer) => {
+    dispatch({
+      type: ActionTypes.SET_EDIT_MODE,
+      payload: { customer }
     });
-  };
+  }, []);
 
-  // Handle delete cancellation
-  const cancelDelete = () => {
-    setDeleteConfirmation({
-      isOpen: false,
-      customerId: null
+  const confirmDelete = useCallback((id) => {
+    dispatch({
+      type: ActionTypes.SET_DELETE_CONFIRMATION,
+      payload: { isOpen: true, customerId: id }
     });
-  };
+  }, []);
 
-  // Handle delete confirmation
-  const proceedDelete = async () => {
-    if (!deleteConfirmation.customerId) return;
+  const cancelDelete = useCallback(() => {
+    dispatch({
+      type: ActionTypes.SET_DELETE_CONFIRMATION,
+      payload: { isOpen: false, customerId: null }
+    });
+  }, []);
 
-    try {
-      setLoading(true);
-      const response = await axios.delete(`/entries/${deleteConfirmation.customerId}`);
-      
-      if (response.data.success) {
-        setSuccess(response.data.message || "Customer deleted successfully!");
-        fetchCustomers();
-      } else {
-        setError(response.data.error || "Failed to delete customer");
-      }
-    } catch (err) {
-      console.error("Error deleting customer:", err);
-      setError(err.response?.data?.error || "Error deleting customer");
-    } finally {
-      setDeleteConfirmation({
-        isOpen: false,
-        customerId: null
-      });
-      setLoading(false);
-    }
-  };
+  const proceedDelete = useCallback(async () => {
+    if (!state.deleteConfirmation.customerId) return;
+    
+    dispatch({ type: ActionTypes.SET_LOADING, payload: true });
+    await deleteCustomer(state.deleteConfirmation.customerId);
+    
+    dispatch({
+      type: ActionTypes.SET_DELETE_CONFIRMATION,
+      payload: { isOpen: false, customerId: null }
+    });
+    dispatch({ type: ActionTypes.SET_LOADING, payload: false });
+  }, [state.deleteConfirmation.customerId, deleteCustomer]);
 
-  // Reset form fields
-  const resetForm = () => {
-    setCode("");
-    setName("");
-    setPhoneNumber("");
-    setPlace("");
-    setEditMode(false);
-    setEditId(null);
-    setError("");
-    setSuccess("");
-  };
-
-  const handleInputChange = (setter) => (e) => {
-    setter(e.target.value);
-    if (error) {
-      setError("");
-    }
-  };
+  // Memoize form reset handler
+  const handleReset = useCallback(() => {
+    dispatch({ type: ActionTypes.RESET_FORM });
+  }, []);
 
   return (
     <div className="container mx-auto px-8 py-5">
-      {/* Customer Form */}
       <CustomerForm
-        editMode={editMode}
-        loading={loading}
-        name={name}
-        code={code}
-        phoneNumber={phoneNumber}
-        place={place}
+        editMode={state.editMode}
+        loading={state.loading}
+        name={state.name}
+        code={state.code}
+        phoneNumber={state.phoneNumber}
+        place={state.place}
         handleInputChange={handleInputChange}
         handleSubmit={handleSubmit}
-        resetForm={resetForm}
-        setName={setName}
-        setCode={setCode}
-        setPhoneNumber={setPhoneNumber}
-        setPlace={setPlace}
-        error={error}
-        success={success}
+        resetForm={handleReset}
+        error={state.error}
+        success={state.success}
       />
 
-      {/* Customer List */}
       <CustomerList
-        loading={loading}
+        loading={state.loading}
         customers={filteredCustomers}
-        searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
-        handleEdit={handleEdit}
-        confirmDelete={confirmDelete}
+        searchQuery={state.searchQuery}
+        setSearchQuery={(value) => dispatch({ 
+          type: ActionTypes.SET_FIELD, 
+          field: 'searchQuery', 
+          value 
+        })}
+        handleEdit={(customer) => dispatch({
+          type: ActionTypes.SET_EDIT_MODE,
+          payload: { customer }
+        })}
+        confirmDelete={(id) => dispatch({
+          type: ActionTypes.SET_DELETE_CONFIRMATION,
+          payload: { isOpen: true, customerId: id }
+        })}
       />
 
-      {/* Delete Confirmation Modal */}
       <DeleteConfirmationModal
-        isOpen={deleteConfirmation.isOpen}
-        onCancel={cancelDelete}
+        isOpen={state.deleteConfirmation.isOpen}
+        onCancel={() => dispatch({
+          type: ActionTypes.SET_DELETE_CONFIRMATION,
+          payload: { isOpen: false, customerId: null }
+        })}
         onConfirm={proceedDelete}
       />
     </div>
   );
 };
 
-export default NewEntries;
+export default memo(NewEntries);
