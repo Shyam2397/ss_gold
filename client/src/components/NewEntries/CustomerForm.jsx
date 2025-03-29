@@ -1,7 +1,6 @@
 import React, { memo } from 'react';
-import PropTypes from 'prop-types';
 import { MdPersonAdd } from 'react-icons/md';
-import { FiAlertCircle, FiUser, FiHash, FiPhone, FiMapPin, FiSave, FiRotateCcw } from 'react-icons/fi';
+import { FiAlertCircle, FiUser, FiHash, FiPhone, FiMapPin,FiSave, FiRotateCcw } from 'react-icons/fi';
 import FormField from './components/FormField';
 
 const CustomerForm = ({
@@ -100,20 +99,6 @@ const CustomerForm = ({
       </form>
     </div>
   );
-};
-
-CustomerForm.propTypes = {
-  editMode: PropTypes.bool.isRequired,
-  loading: PropTypes.bool.isRequired,
-  name: PropTypes.string.isRequired,
-  code: PropTypes.string.isRequired,
-  phoneNumber: PropTypes.string.isRequired,
-  place: PropTypes.string.isRequired,
-  error: PropTypes.string,
-  success: PropTypes.string,
-  handleInputChange: PropTypes.func.isRequired,
-  handleSubmit: PropTypes.func.isRequired,
-  resetForm: PropTypes.func.isRequired
 };
 
 export default memo(CustomerForm);

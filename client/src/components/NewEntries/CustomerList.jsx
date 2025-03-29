@@ -1,5 +1,4 @@
 import React, { memo, useMemo, useState, useEffect } from 'react';
-import PropTypes from 'prop-types';
 import { FiSearch, FiEdit2, FiTrash2 } from 'react-icons/fi';
 import { BsQrCode } from 'react-icons/bs';
 import { AutoSizer, Table, Column } from 'react-virtualized';
@@ -159,21 +158,6 @@ const CustomerList = ({
       )}
     </div>
   );
-};
-
-CustomerList.propTypes = {
-  loading: PropTypes.bool.isRequired,
-  customers: PropTypes.arrayOf(PropTypes.shape({
-    id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
-    code: PropTypes.string.isRequired,
-    name: PropTypes.string.isRequired,
-    phoneNumber: PropTypes.string.isRequired,
-    place: PropTypes.string.isRequired
-  })).isRequired,
-  searchQuery: PropTypes.string.isRequired,
-  setSearchQuery: PropTypes.func.isRequired,
-  handleEdit: PropTypes.func.isRequired,
-  confirmDelete: PropTypes.func.isRequired
 };
 
 export default memo(CustomerList);

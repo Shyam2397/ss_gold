@@ -1,5 +1,4 @@
-import React, { memo } from 'react';
-import PropTypes from 'prop-types';
+import React from 'react';
 
 const FormField = ({
   label,
@@ -49,15 +48,4 @@ const FormField = ({
   </div>
 );
 
-FormField.propTypes = {
-  label: PropTypes.string.isRequired,
-  id: PropTypes.string.isRequired,
-  value: PropTypes.string.isRequired,
-  onChange: PropTypes.func.isRequired,
-  placeholder: PropTypes.string,
-  icon: PropTypes.elementType,
-  required: PropTypes.bool,
-  type: PropTypes.string
-};
-
-export default memo(FormField);
+export default FormField;
