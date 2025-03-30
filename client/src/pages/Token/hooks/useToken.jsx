@@ -1,11 +1,48 @@
-import { useReducer, useCallback, useEffect } from 'react';
+import { useReducer, useCallback, useEffect, useRef } from 'react';
 import axios from 'axios';
 import debounce from 'lodash/debounce';
+import { unstable_batchedUpdates as batch } from 'react-dom';
 
 const API_URL = import.meta.env.VITE_API_URL;
 
-// Add request cache
-const requestCache = new Map();
+// Add cache configuration
+const CACHE_CONFIG = {
+  MAX_AGE: 5 * 60 * 1000, // 5 minutes
+  STALE_WHILE_REVALIDATE: true
+};
+
+// Enhanced cache implementation
+class Cache {
+  constructor() {
+    this.store = new Map();
+  }
+
+  set(key, value) {
+    this.store.set(key, {
+      value,
+      timestamp: Date.now()
+    });
+  }
+
+  get(key) {
+    const item = this.store.get(key);
+    if (!item) return null;
+    
+    if (Date.now() - item.timestamp > CACHE_CONFIG.MAX_AGE) {
+      if (!CACHE_CONFIG.STALE_WHILE_REVALIDATE) {
+        this.store.delete(key);
+        return null;
+      }
+    }
+    return item.value;
+  }
+
+  clear() {
+    this.store.clear();
+  }
+}
+
+const requestCache = new Cache();
 
 const initialState = {
   tokens: [],
@@ -31,6 +68,7 @@ const tokenHookReducer = (state, action) => {
 
 const useToken = () => {
   const [state, dispatch] = useReducer(tokenHookReducer, initialState);
+  const abortControllerRef = useRef(null);
   const MESSAGE_TIMEOUT = 5000;
 
   useEffect(() => {
@@ -45,26 +83,55 @@ const useToken = () => {
     };
   }, [state.success]);
 
+  // Batch multiple dispatches
+  const batchedDispatch = useCallback((actions) => {
+    batch(() => {
+      actions.forEach(action => dispatch(action));
+    });
+  }, []);
+
+  // Enhance fetchTokens with better caching and error handling
   const fetchTokens = useCallback(async () => {
     const cacheKey = 'tokens';
-    if (requestCache.has(cacheKey)) {
-      dispatch({ type: 'SET_TOKENS', tokens: requestCache.get(cacheKey) });
+    const cachedData = requestCache.get(cacheKey);
+    
+    if (cachedData) {
+      dispatch({ type: 'SET_TOKENS', tokens: cachedData });
+      
+      // Revalidate in background if stale
+      if (CACHE_CONFIG.STALE_WHILE_REVALIDATE) {
+        fetchTokens().catch(console.error);
+      }
       return;
     }
     
+    // Cancel previous request if exists
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+
     dispatch({ type: 'SET_LOADING', value: true });
     try {
-      const response = await axios.get(`${API_URL}/tokens`);
-      dispatch({ type: 'SET_TOKENS', tokens: response.data });
+      const response = await axios.get(`${API_URL}/tokens`, {
+        signal: abortControllerRef.current.signal
+      });
+      
+      batchedDispatch([
+        { type: 'SET_TOKENS', tokens: response.data },
+        { type: 'SET_ERROR', error: '' }
+      ]);
+      
       requestCache.set(cacheKey, response.data);
-      dispatch({ type: 'SET_ERROR', error: '' });
     } catch (error) {
-      console.error('Error fetching tokens:', error);
-      dispatch({ type: 'SET_ERROR', error: 'Failed to fetch tokens' });
+      if (!axios.isCancel(error)) {
+        console.error('Error fetching tokens:', error);
+        dispatch({ type: 'SET_ERROR', error: 'Failed to fetch tokens' });
+      }
     } finally {
       dispatch({ type: 'SET_LOADING', value: false });
     }
-  }, []);
+  }, [batchedDispatch]);
 
   const generateTokenNumber = useCallback(async () => {
     try {
@@ -81,30 +148,35 @@ const useToken = () => {
     }
   }, []);
 
-  const saveToken = async (tokenData, editId = null) => {
+  // Optimize saveToken with batch updates
+  const saveToken = useCallback(async (tokenData, editId = null) => {
     try {
-      if (editId) {
-        await axios.put(`${API_URL}/tokens/${editId}`, tokenData);
-      } else {
-        await axios.post(`${API_URL}/tokens`, tokenData);
-      }
-      dispatch({ type: 'SET_SUCCESS', message: 'Token saved successfully!' });
-      invalidateCache();
-      await fetchTokens(); // Refresh token list
+      const endpoint = editId ? `${API_URL}/tokens/${editId}` : `${API_URL}/tokens`;
+      const method = editId ? 'put' : 'post';
+      
+      await axios[method](endpoint, tokenData);
+      
+      batchedDispatch([
+        { type: 'SET_SUCCESS', message: 'Token saved successfully!' },
+        { type: 'SET_ERROR', error: '' }
+      ]);
+      
+      requestCache.clear();
+      await fetchTokens();
       return true;
     } catch (error) {
       console.error('Error saving token:', error);
       dispatch({ type: 'SET_ERROR', error: 'Failed to save token' });
       return false;
     }
-  };
+  }, [batchedDispatch, fetchTokens]);
 
   const deleteToken = async (tokenId) => {
     try {
       dispatch({ type: 'SET_LOADING', value: true });
       await axios.delete(`${API_URL}/tokens/${tokenId}`);
       dispatch({ type: 'SET_SUCCESS', message: 'Token deleted successfully!' });
-      invalidateCache();
+      requestCache.clear();
       await fetchTokens(); // Refresh token list
       return true;
     } catch (error) {
@@ -146,7 +218,7 @@ const useToken = () => {
       dispatch({ type: 'SET_LOADING', value: true });
       await axios.patch(`${API_URL}/tokens/${tokenId}/payment`, { isPaid });
       dispatch({ type: 'SET_SUCCESS', message: 'Payment status updated successfully!' });
-      invalidateCache();
+      requestCache.clear();
       await fetchTokens(); // Refresh token list
       return true;
     } catch (error) {
@@ -157,6 +229,15 @@ const useToken = () => {
       dispatch({ type: 'SET_LOADING', value: false });
     }
   };
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
 
   return {
     ...state,
