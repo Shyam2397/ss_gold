@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import TimeSelector from './TimeSelector';
 
@@ -55,24 +55,26 @@ const getDateKey = (date, format) => {
   return dateCache.get(key);
 };
 
+const THROTTLE_THRESHOLD = 1000; // Maximum points to display at once
+const VIEWPORT_SIZE = 50; // Number of points to show in viewport
+
 const DashboardCharts = ({ tokens, expenses, entries, exchanges }) => {
   const [period, setPeriod] = useState('daily');
   const [workerData, setWorkerData] = useState(null);
+  const [viewportStart, setViewportStart] = useState(0);
+  const chartRef = useRef(null);
   
-  // Initialize worker
+  // Initialize worker with cleanup
   const worker = useMemo(() => {
-    try {
-      return new Worker(
-        new URL('../workers/chartProcessor.js', import.meta.url),
-        { type: 'module' }
-      );
-    } catch (error) {
-      console.error('Worker initialization failed:', error);
-      return null;
-    }
+    const newWorker = new Worker(
+      new URL('../workers/chartProcessor.js', import.meta.url),
+      { type: 'module' }
+    );
+
+    return newWorker;
   }, []);
 
-  // Handle worker communication
+  // Improved worker communication with error handling and cleanup
   useEffect(() => {
     if (!worker) return;
 
@@ -86,8 +88,16 @@ const DashboardCharts = ({ tokens, expenses, entries, exchanges }) => {
 
     worker.addEventListener('message', handleWorkerMessage);
     
-    // Send initial data to worker
-    worker.postMessage({ tokens, expenses, entries, exchanges });
+    // Send initial data to worker with chunking
+    const sendChunkedData = async () => {
+      const chunks = chunkData({ tokens, expenses, entries, exchanges });
+      for (const chunk of chunks) {
+        await new Promise(resolve => setTimeout(resolve, 0)); // Yield to main thread
+        worker.postMessage(chunk);
+      }
+    };
+
+    sendChunkedData();
 
     return () => {
       worker.removeEventListener('message', handleWorkerMessage);
@@ -95,12 +105,37 @@ const DashboardCharts = ({ tokens, expenses, entries, exchanges }) => {
     };
   }, [worker, tokens, expenses, entries, exchanges]);
 
-  // Add data chunking for large datasets
-  const chunkData = (data, size = 50) => {
-    return Array.from({ length: Math.ceil(data.length / size) }, (_, i) =>
-      data.slice(i * size, (i + 1) * size)
-    );
-  };
+  // Improved data chunking with memory management
+  const chunkData = useCallback((data, size = 50) => {
+    const chunks = [];
+    let currentChunk = {};
+    
+    Object.keys(data).forEach(key => {
+      if (!Array.isArray(data[key])) return;
+      
+      const items = data[key];
+      for (let i = 0; i < items.length; i += size) {
+        const chunk = items.slice(i, i + size);
+        if (!currentChunk[key]) currentChunk[key] = [];
+        currentChunk[key].push(...chunk);
+        
+        if (Object.keys(currentChunk).length === Object.keys(data).length) {
+          chunks.push({ ...currentChunk });
+          currentChunk = {};
+        }
+      }
+    });
+    
+    return chunks;
+  }, []);
+
+  // Throttle data points for better performance
+  const throttleDataPoints = useCallback((data) => {
+    if (!data || data.length <= THROTTLE_THRESHOLD) return data;
+
+    const step = Math.ceil(data.length / THROTTLE_THRESHOLD);
+    return data.filter((_, index) => index % step === 0);
+  }, []);
 
   const chartData = useMemo(() => {
     try {
@@ -226,6 +261,23 @@ const DashboardCharts = ({ tokens, expenses, entries, exchanges }) => {
     }
   }, [tokens, expenses, exchanges, period]);
 
+  // Calculate visible data based on viewport
+  const visibleData = useMemo(() => {
+    if (!chartData || !chartData.length) return [];
+    
+    const throttledData = throttleDataPoints(chartData);
+    const end = Math.min(viewportStart + VIEWPORT_SIZE, throttledData.length);
+    return throttledData.slice(viewportStart, end);
+  }, [chartData, viewportStart]);
+
+  // Handle viewport scrolling
+  const handleScroll = useCallback((direction) => {
+    setViewportStart(prev => {
+      const next = direction === 'forward' ? prev + VIEWPORT_SIZE / 2 : prev - VIEWPORT_SIZE / 2;
+      return Math.max(0, Math.min(next, (chartData?.length || 0) - VIEWPORT_SIZE));
+    });
+  }, [chartData]);
+
   const formatDate = useCallback((date) => {
     try {
       const d = new Date(date);
@@ -254,12 +306,30 @@ const DashboardCharts = ({ tokens, expenses, entries, exchanges }) => {
       <div className="bg-white p-4 rounded-lg shadow-sm">
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-lg font-semibold text-yellow-900 px-5">Statistics</h3>
-          <TimeSelector period={period} setPeriod={setPeriod} />
+          <div className="flex items-center space-x-4">
+            <TimeSelector period={period} setPeriod={setPeriod} />
+            <div className="flex space-x-2">
+              <button
+                onClick={() => handleScroll('backward')}
+                disabled={viewportStart === 0}
+                className="p-1 rounded bg-yellow-100 disabled:opacity-50"
+              >
+                ←
+              </button>
+              <button
+                onClick={() => handleScroll('forward')}
+                disabled={viewportStart + VIEWPORT_SIZE >= (chartData?.length || 0)}
+                className="p-1 rounded bg-yellow-100 disabled:opacity-50"
+              >
+                →
+              </button>
+            </div>
+          </div>
         </div>
-        <div className="h-[400px]">
+        <div className="h-[400px]" ref={chartRef}>
           <ResponsiveContainer>
             <AreaChart 
-              data={chartData} 
+              data={visibleData} 
               margin={{ top: 20, right: 30, left: 10, bottom: 0 }}
               baseValue="dataMin"
             >
@@ -359,6 +429,14 @@ const DashboardCharts = ({ tokens, expenses, entries, exchanges }) => {
   );
 };
 
-export default React.memo(DashboardCharts);
+// Add performance monitoring
+const MemoizedDashboardCharts = React.memo(DashboardCharts, (prevProps, nextProps) => {
+  // Deep compare only the necessary props
+  return ['tokens', 'expenses', 'entries', 'exchanges'].every(key => 
+    JSON.stringify(prevProps[key]) === JSON.stringify(nextProps[key])
+  );
+});
+
+export default MemoizedDashboardCharts;
 
 
