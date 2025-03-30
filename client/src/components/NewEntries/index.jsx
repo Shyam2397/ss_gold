@@ -108,31 +108,28 @@ const NewEntries = () => {
     dispatch({ type: ActionTypes.SET_LOADING, payload: false });
   };
 
-  // Handle customer edit
-  const handleEdit = (customer) => {
+  // Simplify these handlers to use dispatch directly
+  const handleEdit = useCallback((customer) => {
     dispatch({
       type: ActionTypes.SET_EDIT_MODE,
       payload: { customer }
     });
-  };
+  }, []);
 
-  // Handle delete confirmation
-  const confirmDelete = (id) => {
+  const confirmDelete = useCallback((id) => {
     dispatch({
       type: ActionTypes.SET_DELETE_CONFIRMATION,
       payload: { isOpen: true, customerId: id }
     });
-  };
+  }, []);
 
-  // Handle delete cancellation
-  const cancelDelete = () => {
+  const cancelDelete = useCallback(() => {
     dispatch({
       type: ActionTypes.SET_DELETE_CONFIRMATION,
       payload: { isOpen: false, customerId: null }
     });
-  };
+  }, []);
 
-  // Handle delete confirmation
   const proceedDelete = async () => {
     if (!state.deleteConfirmation.customerId) return;
     
@@ -184,23 +181,14 @@ const NewEntries = () => {
             field: 'searchQuery', 
             value 
           })}
-          handleEdit={(customer) => dispatch({
-            type: ActionTypes.SET_EDIT_MODE,
-            payload: { customer }
-          })}
-          confirmDelete={(id) => dispatch({
-            type: ActionTypes.SET_DELETE_CONFIRMATION,
-            payload: { isOpen: true, customerId: id }
-          })}
+          handleEdit={handleEdit}
+          confirmDelete={confirmDelete}
           onReset={handleReset}
         />
 
         <DeleteConfirmationModal
           isOpen={state.deleteConfirmation.isOpen}
-          onCancel={() => dispatch({
-            type: ActionTypes.SET_DELETE_CONFIRMATION,
-            payload: { isOpen: false, customerId: null }
-          })}
+          onCancel={cancelDelete}
           onConfirm={proceedDelete}
         />
       </Suspense>
