@@ -1,10 +1,12 @@
-import React, { useReducer, useEffect, useCallback, useMemo, memo } from 'react';
+import React, { useReducer, useEffect, useCallback, useMemo, memo, Suspense } from 'react';
 import axios from 'axios';
-import CustomerForm from './CustomerForm';
-import CustomerList from './CustomerList';
-import DeleteConfirmationModal from './DeleteConfirmationModal';
+import LoadingSpinner from './LoadingSpinner';
 import { customerReducer, initialState, ActionTypes } from './customerReducer';
-import useCustomerAPI from './hooks/useCustomerAPI';  // <-- Updated import path
+import useCustomerAPI from './hooks/useCustomerAPI';
+
+const CustomerForm = React.lazy(() => import('./CustomerForm'));
+const CustomerList = React.lazy(() => import('./CustomerList'));
+const DeleteConfirmationModal = React.lazy(() => import('./DeleteConfirmationModal'));
 
 const API_URL = import.meta.env.VITE_API_URL;
 axios.defaults.baseURL = API_URL;
@@ -154,47 +156,49 @@ const NewEntries = () => {
 
   return (
     <div className="container mx-auto px-8 py-5">
-      <CustomerForm
-        editMode={state.editMode}
-        loading={state.loading}
-        name={state.name}
-        code={state.code}
-        phoneNumber={state.phoneNumber}
-        place={state.place}
-        handleInputChange={handleInputChange}
-        handleSubmit={handleSubmit}
-        resetForm={() => dispatch({ type: ActionTypes.RESET_FORM })}
-        error={state.error}
-        success={state.success}
-      />
+      <Suspense fallback={<LoadingSpinner />}>
+        <CustomerForm
+          editMode={state.editMode}
+          loading={state.loading}
+          name={state.name}
+          code={state.code}
+          phoneNumber={state.phoneNumber}
+          place={state.place}
+          handleInputChange={handleInputChange}
+          handleSubmit={handleSubmit}
+          resetForm={() => dispatch({ type: ActionTypes.RESET_FORM })}
+          error={state.error}
+          success={state.success}
+        />
 
-      <CustomerList
-        loading={state.loading}
-        customers={filteredCustomers}
-        searchQuery={state.searchQuery}
-        setSearchQuery={(value) => dispatch({ 
-          type: ActionTypes.SET_FIELD, 
-          field: 'searchQuery', 
-          value 
-        })}
-        handleEdit={(customer) => dispatch({
-          type: ActionTypes.SET_EDIT_MODE,
-          payload: { customer }
-        })}
-        confirmDelete={(id) => dispatch({
-          type: ActionTypes.SET_DELETE_CONFIRMATION,
-          payload: { isOpen: true, customerId: id }
-        })}
-      />
+        <CustomerList
+          loading={state.loading}
+          customers={filteredCustomers}
+          searchQuery={state.searchQuery}
+          setSearchQuery={(value) => dispatch({ 
+            type: ActionTypes.SET_FIELD, 
+            field: 'searchQuery', 
+            value 
+          })}
+          handleEdit={(customer) => dispatch({
+            type: ActionTypes.SET_EDIT_MODE,
+            payload: { customer }
+          })}
+          confirmDelete={(id) => dispatch({
+            type: ActionTypes.SET_DELETE_CONFIRMATION,
+            payload: { isOpen: true, customerId: id }
+          })}
+        />
 
-      <DeleteConfirmationModal
-        isOpen={state.deleteConfirmation.isOpen}
-        onCancel={() => dispatch({
-          type: ActionTypes.SET_DELETE_CONFIRMATION,
-          payload: { isOpen: false, customerId: null }
-        })}
-        onConfirm={proceedDelete}
-      />
+        <DeleteConfirmationModal
+          isOpen={state.deleteConfirmation.isOpen}
+          onCancel={() => dispatch({
+            type: ActionTypes.SET_DELETE_CONFIRMATION,
+            payload: { isOpen: false, customerId: null }
+          })}
+          onConfirm={proceedDelete}
+        />
+      </Suspense>
     </div>
   );
 };
