@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback } from 'react';
+import React, { useMemo, useCallback, memo } from 'react';
 import { FiEdit2, FiTrash2, FiCheckCircle, FiXCircle } from 'react-icons/fi';
 import { AutoSizer, Table, Column } from 'react-virtualized';
 import 'react-virtualized/styles.css';
@@ -41,6 +41,56 @@ const formatTimeToIST = (timeString) => {
   });
 };
 
+// Memoize formatters outside component to prevent recreation
+const formatters = {
+  date: formatDateToIST,
+  time: formatTimeToIST,
+  weight: (val) => parseFloat(val || 0).toFixed(3),
+  amount: (val) => typeof val === 'number' ? val.toFixed(2) : val
+};
+
+// Memoize ActionsCell component
+const ActionsCell = memo(({ rowData, onEdit, onDelete, onPaymentStatusChange }) => (
+  <div className="flex items-center justify-center space-x-2">
+    <input
+      type="checkbox"
+      checked={Boolean(rowData.isPaid)}
+      onChange={(e) => onPaymentStatusChange(rowData.id, e.target.checked)}
+      className="h-4 w-4 text-amber-600 focus:ring-amber-500 border-gray-300 rounded cursor-pointer"
+    />
+    <span className={`flex items-center ${rowData.isPaid ? 'text-green-600' : 'text-red-600'}`}>
+      {rowData.isPaid ? <FiCheckCircle className="w-4 h-4" /> : <FiXCircle className="w-4 h-4" />}
+    </span>
+    <button
+      onClick={() => onEdit(rowData)}
+      className="text-amber-600 hover:text-amber-900 p-1 rounded hover:bg-amber-50"
+    >
+      <FiEdit2 className="w-3.5 h-3.5" />
+    </button>
+    <button
+      onClick={() => onDelete(rowData.id)}
+      className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50"
+    >
+      <FiTrash2 className="w-3.5 h-3.5" />
+    </button>
+  </div>
+));
+
+// Memoize DataCell component
+const DataCell = memo(({ value, formatter }) => {
+  if (value === null || value === undefined) {
+    return <div className="text-center text-xs text-gray-400">-</div>;
+  }
+
+  const formattedValue = formatter ? formatter(value) : value;
+  
+  return (
+    <div className="text-center text-xs text-amber-900 truncate py-4">
+      {formattedValue}
+    </div>
+  );
+});
+
 const TokenTable = ({ tokens = [], onEdit, onDelete, onPaymentStatusChange }) => {
   if (!tokens || tokens.length === 0) {
     return (
@@ -50,7 +100,7 @@ const TokenTable = ({ tokens = [], onEdit, onDelete, onPaymentStatusChange }) =>
     );
   }
 
-  const columns = [
+  const columns = useMemo(() => [
     { label: "Actions", key: "actions", width: 130, flexGrow: 0 },
     { label: "Token No", key: "tokenNo", width: 100, flexGrow: 0 },
     { label: "Date", key: "date", width: 100, flexGrow: 0 },
@@ -61,7 +111,7 @@ const TokenTable = ({ tokens = [], onEdit, onDelete, onPaymentStatusChange }) =>
     { label: "Weight", key: "weight", width: 100, flexGrow: 0 },
     { label: "Sample", key: "sample", width: 150, flexGrow: 1 },
     { label: "Amount", key: "amount", width: 100, flexGrow: 0 }
-  ];
+  ], []);
 
   // Calculate minimum width needed
   const minTableWidth = useMemo(() => 
@@ -69,108 +119,79 @@ const TokenTable = ({ tokens = [], onEdit, onDelete, onPaymentStatusChange }) =>
     [columns]
   );
 
-  // Memoize formatters
-  const formatters = useMemo(() => ({
-    date: formatDateToIST,
-    time: formatTimeToIST,
-    weight: (val) => parseFloat(val || 0).toFixed(3),
-    amount: (val) => typeof val === 'number' ? val.toFixed(2) : val
-  }), []);
-
-  // Memoize cell renderer
-  const cellRendererMemo = useCallback(({ rowData, dataKey, columnIndex }) => {
+  const cellRenderer = useCallback(({ rowData, dataKey }) => {
     if (dataKey === 'actions') {
       return (
-        <div className="flex items-center justify-center space-x-2">
-          <input
-            type="checkbox"
-            checked={Boolean(rowData.isPaid)}
-            onChange={(e) => onPaymentStatusChange(rowData.id, e.target.checked)}
-            className="h-4 w-4 text-amber-600 focus:ring-amber-500 border-gray-300 rounded cursor-pointer"
-          />
-          <span className={`flex items-center ${rowData.isPaid ? 'text-green-600' : 'text-red-600'}`}>
-            {rowData.isPaid ? <FiCheckCircle className="w-4 h-4" /> : <FiXCircle className="w-4 h-4" />}
-          </span>
-          <button
-            onClick={() => onEdit(rowData)}
-            className="text-amber-600 hover:text-amber-900 p-1 rounded hover:bg-amber-50"
-          >
-            <FiEdit2 className="w-3.5 h-3.5" />
-          </button>
-          <button
-            onClick={() => onDelete(rowData.id)}
-            className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50"
-          >
-            <FiTrash2 className="w-3.5 h-3.5" />
-          </button>
-        </div>
+        <ActionsCell
+          rowData={rowData}
+          onEdit={onEdit}
+          onDelete={onDelete}
+          onPaymentStatusChange={onPaymentStatusChange}
+        />
       );
     }
 
-    let value = rowData[dataKey];
-    
-    // Handle null/undefined values
-    if (value === null || value === undefined) {
-      return <div className="text-center text-xs text-gray-400">-</div>;
-    }
-
-    // Format specific columns
-    if (formatters[dataKey]) {
-      value = formatters[dataKey](value);
-    }
-
     return (
-      <div className="text-center text-xs text-amber-900 truncate py-4">
-        {value}
-      </div>
+      <DataCell
+        value={rowData[dataKey]}
+        formatter={formatters[dataKey]}
+      />
     );
-  }, [onEdit, onDelete, onPaymentStatusChange, formatters]);
+  }, [onEdit, onDelete, onPaymentStatusChange]);
 
-  const headerRenderer = ({ label }) => (
+  const headerRenderer = useCallback(({ label }) => (
     <div className="text-center text-xs font-medium text-white uppercase tracking-wider py-2">
       {label}
     </div>
+  ), []);
+
+  const getRowClassName = useCallback(({ index }) => 
+    `${index === -1 ? 'bg-amber-500' : index % 2 === 0 ? 'bg-white' : 'bg-amber-50/40'} 
+     ${index !== -1 ? 'hover:bg-amber-50/40' : ''} transition-colors`,
+    []
   );
 
   return (
     <div className="rounded border border-amber-100" style={{ height: '450px' }}>
-      <div style={{ width: '100%', height: '100%', overflow: 'hidden' }}>
-        <AutoSizer>
-          {({ height, width }) => (
-            <div style={{ height, width, overflowX: 'auto', overflowY: 'hidden' }}>
-              <Table
-                width={Math.max(width, minTableWidth)}
-                height={height}
-                headerHeight={40}
-                rowHeight={50}
-                rowCount={tokens.length}
-                rowGetter={({ index }) => tokens[index]}
-                rowClassName={({ index }) => 
-                  `${index === -1 ? 'bg-amber-500' : index % 2 === 0 ? 'bg-white' : 'bg-amber-50/40'} 
-                   ${index !== -1 ? 'hover:bg-amber-50/40' : ''} transition-colors`
-                }
-                overscanRowCount={5}
-              >
-                {columns.map(({ label, key, width, flexGrow }) => (
-                  <Column
-                    key={key}
-                    label={label}
-                    dataKey={key}
-                    width={width}
-                    flexGrow={flexGrow}
-                    cellRenderer={cellRendererMemo}
-                    headerRenderer={headerRenderer}
-                    className="divide-x divide-amber-100"
-                    style={{ overflow: 'hidden' }}
-                  />
-                ))}
-              </Table>
-            </div>
-          )}
-        </AutoSizer>
-      </div>
+      <AutoSizer>
+        {({ height, width }) => (
+          <div style={{ height, width, overflowX: 'auto', overflowY: 'hidden' }}>
+            <Table
+              width={Math.max(width, minTableWidth)}
+              height={height}
+              headerHeight={40}
+              rowHeight={50}
+              rowCount={tokens.length}
+              rowGetter={({ index }) => tokens[index]}
+              rowClassName={getRowClassName}
+              overscanRowCount={5}
+            >
+              {columns.map(({ label, key, width, flexGrow }) => (
+                <Column
+                  key={key}
+                  label={label}
+                  dataKey={key}
+                  width={width}
+                  flexGrow={flexGrow}
+                  cellRenderer={cellRenderer}
+                  headerRenderer={headerRenderer}
+                  className="divide-x divide-amber-100"
+                  style={{ overflow: 'hidden' }}
+                />
+              ))}
+            </Table>
+          </div>
+        )}
+      </AutoSizer>
     </div>
   );
 };
 
-export default TokenTable;
+// Memoize the entire component
+export default memo(TokenTable, (prevProps, nextProps) => {
+  if (prevProps.tokens.length !== nextProps.tokens.length) return false;
+  return prevProps.tokens.every((token, index) => 
+    token.id === nextProps.tokens[index]?.id &&
+    token.isPaid === nextProps.tokens[index]?.isPaid
+  );
+});
