@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useReducer, useEffect, useMemo, useCallback } from "react";
 import { unstable_batchedUpdates as batch } from 'react-dom';
 import debounce from 'lodash/debounce';
 import {
@@ -30,35 +30,17 @@ import useToken from './hooks/useToken';
 // Utils
 import { preloadImages, convertImageToBase64, generatePrintContent } from './utils/printUtils';
 
-const TokenPage = () => {
-  // Form state
-  const [code, setCode] = useState("");
-  const [tokenNo, setTokenNo] = useState("");
-  const [date, setDate] = useState("");
-  const [time, setTime] = useState("");
-  const [name, setName] = useState("");
-  const [test, setTest] = useState("Skin Testing");
-  const [weight, setWeight] = useState("");
-  const [sample, setSample] = useState("");
-  const [amount, setAmount] = useState("50");
-  
-  // UI state
-  const [editMode, setEditMode] = useState(false);
-  const [editId, setEditId] = useState(null);
-  const [filteredTokens, setFilteredTokens] = useState([]);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [deleteConfirmation, setDeleteConfirmation] = useState({
-    isOpen: false,
-    tokenId: null
-  });
+import { tokenReducer, initialState } from './reducers/tokenReducer';
 
+const TokenPage = () => {
+  const [state, dispatch] = useReducer(tokenReducer, initialState);
+  
   // Custom hook for token operations
   const {
     tokens,
     loading,
     error,
     success,
-    setError,
     fetchTokens,
     generateTokenNumber,
     saveToken,
@@ -73,7 +55,7 @@ const TokenPage = () => {
       await fetchTokens();
       const newTokenNo = await generateTokenNumber();
       if (newTokenNo) {
-        setTokenNo(newTokenNo);
+        dispatch({ type: 'SET_FIELD', field: 'tokenNo', value: newTokenNo });
       }
       getCurrentDateTime();
     };
@@ -83,24 +65,26 @@ const TokenPage = () => {
 
   // Initialize filteredTokens with tokens
   useEffect(() => {
-    setFilteredTokens(tokens);
+    dispatch({ type: 'SET_FIELD', field: 'filteredTokens', value: tokens });
   }, [tokens]);
 
   // Search filter
   useEffect(() => {
-    if (searchQuery.trim() === '') {
-      setFilteredTokens(tokens);
+    if (state.searchQuery.trim() === '') {
+      dispatch({ type: 'SET_FIELD', field: 'filteredTokens', value: tokens });
     } else {
-      setFilteredTokens(
-        tokens.filter((token) =>
+      dispatch({
+        type: 'SET_FIELD',
+        field: 'filteredTokens',
+        value: tokens.filter((token) =>
           Object.values(token)
             .join(" ")
             .toLowerCase()
-            .includes(searchQuery.toLowerCase())
+            .includes(state.searchQuery.toLowerCase())
         )
-      );
+      });
     }
-  }, [searchQuery, tokens]);
+  }, [state.searchQuery, tokens]);
 
   const getCurrentDateTime = () => {
     const currentDate = new Date();
@@ -116,39 +100,43 @@ const TokenPage = () => {
     const minutes = currentDate.getMinutes().toString().padStart(2, '0');
     const formattedTime = `${hours}:${minutes}`;
 
-    setDate(formattedDate);
-    setTime(formattedTime);
+    dispatch({ type: 'SET_FIELD', field: 'date', value: formattedDate });
+    dispatch({ type: 'SET_FIELD', field: 'time', value: formattedTime });
   };
 
-  // Memoize callback functions
+  // Handle form field changes
+  const handleFieldChange = (field, value) => {
+    dispatch({ type: 'SET_FIELD', field, value });
+  };
+
+  // Handle code change with name fetch
   const handleCodeChange = useCallback(async (e) => {
     const inputCode = e.target.value;
-    setCode(inputCode);
-    setError("");
+    handleFieldChange('code', inputCode);
 
     if (inputCode.length === 4) {
       const fetchedName = await fetchNameByCode(inputCode);
-      setName(fetchedName);
+      handleFieldChange('name', fetchedName);
     } else {
-      setName("");
+      handleFieldChange('name', '');
     }
   }, [fetchNameByCode]);
 
   const validateForm = () => {
-    if (code.length !== 4 || isNaN(code)) {
-      setError("Code must be a 4-digit number.");
+    if (state.code.length !== 4 || isNaN(state.code)) {
+      dispatch({ type: 'SET_FIELD', field: 'error', value: "Code must be a 4-digit number." });
       return false;
     }
-    if (name === "Not Found") {
-      setError("Name not found for the entered code.");
+    if (state.name === "Not Found") {
+      dispatch({ type: 'SET_FIELD', field: 'error', value: "Name not found for the entered code." });
       return false;
     }
-    if (weight <= 0) {
-      setError("Weight must be a positive number.");
+    if (state.weight <= 0) {
+      dispatch({ type: 'SET_FIELD', field: 'error', value: "Weight must be a positive number." });
       return false;
     }
-    if (!sample) {
-      setError("Sample cannot be empty.");
+    if (!state.sample) {
+      dispatch({ type: 'SET_FIELD', field: 'error', value: "Sample cannot be empty." });
       return false;
     }
     return true;
@@ -160,34 +148,34 @@ const TokenPage = () => {
 
     // Create tokenData object before using it
     const tokenData = {
-      tokenNo,
-      date,
-      time,
-      code,
-      name,
-      test,
-      weight: parseFloat(weight).toFixed(3),
-      sample,
-      amount,
+      tokenNo: state.tokenNo,
+      date: state.date,
+      time: state.time,
+      code: state.code,
+      name: state.name,
+      test: state.test,
+      weight: parseFloat(state.weight).toFixed(3),
+      sample: state.sample,
+      amount: state.amount,
     };
 
     try {
-      if (editMode && !editId) {
-        setEditMode(false);
+      if (state.editMode && !state.editId) {
+        dispatch({ type: 'SET_FIELD', field: 'editMode', value: false });
       }
 
-      const success = await saveToken(tokenData, editMode ? editId : null);
+      const success = await saveToken(tokenData, state.editMode ? state.editId : null);
       
       if (success) {
-        setEditMode(false);
+        dispatch({ type: 'SET_FIELD', field: 'editMode', value: false });
         resetForm();
-        await generateTokenNumber().then(setTokenNo);
+        await generateTokenNumber().then((newTokenNo) => dispatch({ type: 'SET_FIELD', field: 'tokenNo', value: newTokenNo }));
         await fetchTokens(); // Refresh table data
       } else {
-        setError('Failed to save token. Please try again.');
+        dispatch({ type: 'SET_FIELD', field: 'error', value: 'Failed to save token. Please try again.' });
       }
     } catch (error) {
-      setError(`Unexpected error: ${error.message}`);
+      dispatch({ type: 'SET_FIELD', field: 'error', value: `Unexpected error: ${error.message}` });
     }
   };
 
@@ -200,59 +188,26 @@ const TokenPage = () => {
     return () => clearInterval(interval);
   }, [fetchTokens]);
 
-  const handleEdit = (token) => {
-    setEditMode(true);
-    setEditId(token.id);
-    setCode(token.code);
-    setTokenNo(token.tokenNo);
-    
-    // Ensure consistent date formatting
-    const editDate = new Date(token.date);
-    const day = editDate.getDate().toString().padStart(2, '0');
-    const month = (editDate.getMonth() + 1).toString().padStart(2, '0');
-    const year = editDate.getFullYear();
-    const formattedDate = `${day}-${month}-${year}`;
-
-    // Ensure consistent time formatting
-    const [hours, minutes] = token.time.split(':');
-    const formattedTime = `${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}`;
-    setTime(formattedTime);
-
-    setName(token.name);
-    setTest(token.test);
-    setWeight(token.weight);
-    setSample(token.sample);
-    setAmount(token.amount);
-  };
+  const handleEdit = useCallback((token) => {
+    dispatch({ type: 'SET_EDIT_MODE', token });
+  }, []);
 
   const handleConfirmDelete = async () => {
-    if (!deleteConfirmation.tokenId) return;
+    if (!state.deleteConfirmation.tokenId) return;
 
-    const success = await deleteToken(deleteConfirmation.tokenId);
+    const success = await deleteToken(state.deleteConfirmation.tokenId);
     
     if (success) {
-      setDeleteConfirmation({
-        isOpen: false,
-        tokenId: null
-      });
+      dispatch({ type: 'SET_FIELD', field: 'deleteConfirmation', value: { isOpen: false, tokenId: null } });
       resetForm();
-      generateTokenNumber().then(setTokenNo);
+      generateTokenNumber().then((newTokenNo) => dispatch({ type: 'SET_FIELD', field: 'tokenNo', value: newTokenNo }));
     }
   };
 
   // Batch state updates
   const resetForm = useCallback(() => {
-    batch(() => {
-      setCode("");
-      setName("");
-      setTest("Skin Testing");
-      setWeight("");
-      setSample("");
-      setAmount("50");
-      setEditMode(false);
-      setError("");
-    });
-  }, [setCode, setName, setTest, setWeight, setSample, setAmount, setEditMode, setError]);
+    dispatch({ type: 'RESET_FORM' });
+  }, []);
 
   const handlePrint = async () => {
     try {
@@ -261,14 +216,14 @@ const TokenPage = () => {
       const base64Logo = await convertImageToBase64(logoPath);
       
       const tokenData = {
-        tokenNo,
-        date,
-        time,
-        name,
-        test,
-        weight,
-        sample,
-        amount
+        tokenNo: state.tokenNo,
+        date: state.date,
+        time: state.time,
+        name: state.name,
+        test: state.test,
+        weight: state.weight,
+        sample: state.sample,
+        amount: state.amount
       };
 
       const printContent = generatePrintContent(tokenData, base64Logo);
@@ -283,7 +238,7 @@ const TokenPage = () => {
       }, 250);
     } catch (error) {
       console.error('Print error:', error);
-      setError('Failed to print token');
+      dispatch({ type: 'SET_FIELD', field: 'error', value: 'Failed to print token' });
     }
   };
 
@@ -293,20 +248,20 @@ const TokenPage = () => {
 
   // Add memoization for expensive operations
   const memoizedTokenData = useMemo(() => ({
-    tokenNo,
-    date,
-    time,
-    name,
-    test,
-    weight,
-    sample,
-    amount
-  }), [tokenNo, date, time, name, test, weight, sample, amount]);
+    tokenNo: state.tokenNo,
+    date: state.date,
+    time: state.time,
+    name: state.name,
+    test: state.test,
+    weight: state.weight,
+    sample: state.sample,
+    amount: state.amount
+  }), [state.tokenNo, state.date, state.time, state.name, state.test, state.weight, state.sample, state.amount]);
 
   // Add debouncing for search
   const debouncedSearch = useCallback(
     debounce((query) => {
-      setSearchQuery(query);
+      dispatch({ type: 'SET_FIELD', field: 'searchQuery', value: query });
     }, 300),
     []
   );
@@ -318,7 +273,7 @@ const TokenPage = () => {
           <div className="flex items-center">
             <BsReceipt className="w-6 h-6 text-amber-600 mr-3" />
             <h2 className="text-xl font-bold text-amber-900">
-              {editMode ? "Edit Token" : "New Token"}
+              {state.editMode ? "Edit Token" : "New Token"}
             </h2>
           </div>
           {error && (
@@ -348,7 +303,7 @@ const TokenPage = () => {
             <FormField
               label="Token No"
               icon={FiHash}
-              value={tokenNo}
+              value={state.tokenNo}
               readOnly
               required
               size="lg"
@@ -356,7 +311,7 @@ const TokenPage = () => {
             <FormField
               label="Date"
               icon={FiCalendar}
-              value={date}
+              value={state.date}
               readOnly
               required
               size="lg"
@@ -364,7 +319,7 @@ const TokenPage = () => {
             <FormField
               label="Time"
               icon={FiClock}
-              value={time}
+              value={state.time}
               readOnly
               required
               size="lg"
@@ -372,7 +327,7 @@ const TokenPage = () => {
             <FormField
               label="Code"
               icon={FiHash}
-              value={code}
+              value={state.code}
               onChange={handleCodeChange}
               required
               size="lg"
@@ -380,7 +335,7 @@ const TokenPage = () => {
             <FormField
               label="Name"
               icon={FiUser}
-              value={name}
+              value={state.name}
               readOnly
               required
               size="lg"
@@ -388,8 +343,8 @@ const TokenPage = () => {
             <FormSelect
               label="Test"
               icon={FiClipboard}
-              value={test}
-              onChange={(e) => setTest(e.target.value)}
+              value={state.test}
+              onChange={(e) => handleFieldChange('test', e.target.value)}
               options={["Skin Testing", "Photo Testing"]}
               size="lg"
             />
@@ -398,24 +353,24 @@ const TokenPage = () => {
               icon={FiPackage}
               type="number"
               step="0.001"
-              value={weight}
-              onChange={(e) => setWeight(e.target.value)}
+              value={state.weight}
+              onChange={(e) => handleFieldChange('weight', e.target.value)}
               required
               size="lg"
             />
             <FormField
               label="Sample"
               icon={FiPackage}
-              value={sample}
-              onChange={(e) => setSample(e.target.value)}
+              value={state.sample}
+              onChange={(e) => handleFieldChange('sample', e.target.value)}
               required
               size="lg"
             />
             <FormField
               label="Amount"
               icon={FiDollarSign}
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
+              value={state.amount}
+              onChange={(e) => handleFieldChange('amount', e.target.value)}
               required
               size="lg"
             />
@@ -435,7 +390,7 @@ const TokenPage = () => {
               className="inline-flex items-center px-3 py-1.5 text-sm bg-gradient-to-r from-amber-600 to-yellow-500 text-white rounded-xl hover:from-amber-700 hover:to-yellow-600 transition-all"
             >
               <FiSave className="mr-1.5 h-4 w-4" />
-              {editMode ? "Update Token" : "Save Token"}
+              {state.editMode ? "Update Token" : "Save Token"}
             </button>
             <button
               type="button"
@@ -461,7 +416,7 @@ const TokenPage = () => {
             <input
               type="text"
               placeholder="Search tokens..."
-              value={searchQuery}
+              value={state.searchQuery}
               onChange={(e) => debouncedSearch(e.target.value)}
               className="w-full pl-8 pr-3 py-1.5 rounded border border-amber-200 focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition-all text-sm"
             />
@@ -494,18 +449,18 @@ const TokenPage = () => {
         ) : (
           <div>
             <TokenTable
-              tokens={filteredTokens}
+              tokens={state.filteredTokens}
               onEdit={handleEdit}
-              onDelete={(id) => setDeleteConfirmation({ isOpen: true, tokenId: id })}
+              onDelete={(id) => dispatch({ type: 'SET_FIELD', field: 'deleteConfirmation', value: { isOpen: true, tokenId: id } })}
               onPaymentStatusChange={handlePaymentStatusChange}
             />
           </div>
         )}
       </div>
 
-      {deleteConfirmation.isOpen && (
+      {state.deleteConfirmation.isOpen && (
         <DeleteConfirmationModal
-          onCancel={() => setDeleteConfirmation({ isOpen: false, tokenId: null })}
+          onCancel={() => dispatch({ type: 'SET_FIELD', field: 'deleteConfirmation', value: { isOpen: false, tokenId: null } })}
           onConfirm={handleConfirmDelete}
         />
       )}

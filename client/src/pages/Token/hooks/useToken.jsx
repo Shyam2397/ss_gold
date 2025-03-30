@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useReducer, useCallback, useEffect } from 'react';
 import axios from 'axios';
 import debounce from 'lodash/debounce';
 
@@ -7,43 +7,62 @@ const API_URL = import.meta.env.VITE_API_URL;
 // Add request cache
 const requestCache = new Map();
 
+const initialState = {
+  tokens: [],
+  loading: false,
+  error: '',
+  success: ''
+};
+
+const tokenHookReducer = (state, action) => {
+  switch (action.type) {
+    case 'SET_LOADING':
+      return { ...state, loading: action.value };
+    case 'SET_TOKENS':
+      return { ...state, tokens: action.tokens };
+    case 'SET_ERROR':
+      return { ...state, error: action.error };
+    case 'SET_SUCCESS':
+      return { ...state, success: action.message };
+    default:
+      return state;
+  }
+};
+
 const useToken = () => {
-  const [tokens, setTokens] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const [state, dispatch] = useReducer(tokenHookReducer, initialState);
   const MESSAGE_TIMEOUT = 5000;
 
   useEffect(() => {
     let successTimer;
-    if (success) {
+    if (state.success) {
       successTimer = setTimeout(() => {
-        setSuccess('');
+        dispatch({ type: 'SET_SUCCESS', message: '' });
       }, MESSAGE_TIMEOUT);
     }
     return () => {
       if (successTimer) clearTimeout(successTimer);
     };
-  }, [success]);
+  }, [state.success]);
 
   const fetchTokens = useCallback(async () => {
     const cacheKey = 'tokens';
     if (requestCache.has(cacheKey)) {
-      setTokens(requestCache.get(cacheKey));
+      dispatch({ type: 'SET_TOKENS', tokens: requestCache.get(cacheKey) });
       return;
     }
     
-    setLoading(true);
+    dispatch({ type: 'SET_LOADING', value: true });
     try {
       const response = await axios.get(`${API_URL}/tokens`);
-      setTokens(response.data);
+      dispatch({ type: 'SET_TOKENS', tokens: response.data });
       requestCache.set(cacheKey, response.data);
-      setError('');
+      dispatch({ type: 'SET_ERROR', error: '' });
     } catch (error) {
       console.error('Error fetching tokens:', error);
-      setError('Failed to fetch tokens');
+      dispatch({ type: 'SET_ERROR', error: 'Failed to fetch tokens' });
     } finally {
-      setLoading(false);
+      dispatch({ type: 'SET_LOADING', value: false });
     }
   }, []);
 
@@ -51,13 +70,13 @@ const useToken = () => {
     try {
       const response = await axios.get(`${API_URL}/tokens/generate`);
       if (response.data.error) {
-        setError(response.data.error);
+        dispatch({ type: 'SET_ERROR', error: response.data.error });
         return null;
       }
       return response.data.tokenNo;
     } catch (error) {
       console.error('Error generating token number:', error);
-      setError(error.response?.data?.error || 'Failed to generate token number');
+      dispatch({ type: 'SET_ERROR', error: error.response?.data?.error || 'Failed to generate token number' });
       return null;
     }
   }, []);
@@ -69,31 +88,31 @@ const useToken = () => {
       } else {
         await axios.post(`${API_URL}/tokens`, tokenData);
       }
-      setSuccess('Token saved successfully!');
+      dispatch({ type: 'SET_SUCCESS', message: 'Token saved successfully!' });
       invalidateCache();
       await fetchTokens(); // Refresh token list
       return true;
     } catch (error) {
       console.error('Error saving token:', error);
-      setError('Failed to save token');
+      dispatch({ type: 'SET_ERROR', error: 'Failed to save token' });
       return false;
     }
   };
 
   const deleteToken = async (tokenId) => {
     try {
-      setLoading(true);
+      dispatch({ type: 'SET_LOADING', value: true });
       await axios.delete(`${API_URL}/tokens/${tokenId}`);
-      setSuccess('Token deleted successfully!');
+      dispatch({ type: 'SET_SUCCESS', message: 'Token deleted successfully!' });
       invalidateCache();
       await fetchTokens(); // Refresh token list
       return true;
     } catch (error) {
       console.error('Error deleting token:', error);
-      setError('Failed to delete token');
+      dispatch({ type: 'SET_ERROR', error: 'Failed to delete token' });
       return false;
     } finally {
-      setLoading(false);
+      dispatch({ type: 'SET_LOADING', value: false });
     }
   };
 
@@ -103,7 +122,7 @@ const useToken = () => {
       return response.data.data?.name || 'Not Found';
     } catch (error) {
       console.error('Error fetching name by code:', error);
-      setError('Failed to fetch name');
+      dispatch({ type: 'SET_ERROR', error: 'Failed to fetch name' });
       return 'Not Found';
     }
   };
@@ -124,28 +143,23 @@ const useToken = () => {
 
   const updatePaymentStatus = async (tokenId, isPaid) => {
     try {
-      setLoading(true);
+      dispatch({ type: 'SET_LOADING', value: true });
       await axios.patch(`${API_URL}/tokens/${tokenId}/payment`, { isPaid });
-      setSuccess('Payment status updated successfully!');
+      dispatch({ type: 'SET_SUCCESS', message: 'Payment status updated successfully!' });
       invalidateCache();
       await fetchTokens(); // Refresh token list
       return true;
     } catch (error) {
       console.error('Error updating payment status:', error);
-      setError('Failed to update payment status');
+      dispatch({ type: 'SET_ERROR', error: 'Failed to update payment status' });
       return false;
     } finally {
-      setLoading(false);
+      dispatch({ type: 'SET_LOADING', value: false });
     }
   };
 
   return {
-    tokens,
-    loading,
-    error,
-    success,
-    setError,
-    setSuccess,
+    ...state,
     fetchTokens,
     generateTokenNumber,
     saveToken,
