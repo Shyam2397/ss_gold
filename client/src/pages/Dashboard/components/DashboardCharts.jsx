@@ -57,16 +57,43 @@ const getDateKey = (date, format) => {
 
 const DashboardCharts = ({ tokens, expenses, entries, exchanges }) => {
   const [period, setPeriod] = useState('daily');
-
-  // Add worker for data processing
+  const [workerData, setWorkerData] = useState(null);
+  
+  // Initialize worker
   const worker = useMemo(() => {
-    return new Worker(new URL('../workers/chartProcessor.js', import.meta.url));
+    try {
+      return new Worker(
+        new URL('../workers/chartProcessor.js', import.meta.url),
+        { type: 'module' }
+      );
+    } catch (error) {
+      console.error('Worker initialization failed:', error);
+      return null;
+    }
   }, []);
 
-  // Move heavy processing to worker
+  // Handle worker communication
   useEffect(() => {
+    if (!worker) return;
+
+    const handleWorkerMessage = (event) => {
+      if (event.data.error) {
+        console.error('Worker error:', event.data.error);
+        return;
+      }
+      setWorkerData(event.data);
+    };
+
+    worker.addEventListener('message', handleWorkerMessage);
+    
+    // Send initial data to worker
     worker.postMessage({ tokens, expenses, entries, exchanges });
-  }, [tokens, expenses, entries, exchanges]);
+
+    return () => {
+      worker.removeEventListener('message', handleWorkerMessage);
+      worker.terminate();
+    };
+  }, [worker, tokens, expenses, entries, exchanges]);
 
   // Add data chunking for large datasets
   const chunkData = (data, size = 50) => {
