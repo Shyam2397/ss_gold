@@ -1,6 +1,8 @@
 import React, { Suspense, lazy, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Toaster } from 'react-hot-toast';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import useDashboardData from './components/useDashboardData';
 import useSparklineData from './hooks/useSparklineData';
 import DashboardHeader from './components/DashboardHeader';
@@ -13,7 +15,16 @@ import usePerformanceMonitor from './hooks/usePerformanceMonitor';
 // Lazy load heavy components
 const DashboardCharts = lazy(() => import('./components/DashboardCharts'));
 
-function Dashboard() {
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
+
+function DashboardContent() {
   usePerformanceMonitor('Dashboard');
 
   const {
@@ -81,6 +92,15 @@ function Dashboard() {
         </div>
       </motion.div>
     </ErrorBoundary>
+  );
+}
+
+function Dashboard() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <DashboardContent />
+      <ReactQueryDevtools initialIsOpen={false} />
+    </QueryClientProvider>
   );
 }
 

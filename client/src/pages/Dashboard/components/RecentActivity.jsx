@@ -1,6 +1,11 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { FixedSizeList as List } from 'react-window';
+import React, { useEffect, useRef, useState, Suspense } from 'react';
 import { ActivitySkeleton } from './LoadingSkeleton';
+import SimpleList from './SimpleList';
+
+// Lazy load react-window
+const FixedSizeList = React.lazy(() => import('react-window').then(mod => ({ 
+  default: mod.FixedSizeList 
+})));
 
 const ActivityIcon = ({ type }) => {
   const iconClass = {
@@ -97,15 +102,17 @@ const RecentActivity = ({ activities = [], loading = false }) => {
         </span>
       </div>
       <div className="w-full" style={{ height: listHeight }}>
-        <List
-          height={listHeight}
-          itemCount={activities.length}
-          itemSize={80}
-          width="100%"
-          itemData={activities}
-        >
-          {ActivityRow}
-        </List>
+        <Suspense fallback={<SimpleList data={activities} rowComponent={ActivityRow} height={listHeight} />}>
+          <FixedSizeList
+            height={listHeight}
+            itemCount={activities.length}
+            itemSize={80}
+            width="100%"
+            itemData={activities}
+          >
+            {ActivityRow}
+          </FixedSizeList>
+        </Suspense>
       </div>
     </div>
   );
