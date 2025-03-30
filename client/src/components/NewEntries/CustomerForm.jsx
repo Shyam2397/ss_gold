@@ -1,7 +1,8 @@
 import React from 'react';
 import { MdPersonAdd } from 'react-icons/md';
-import { FiAlertCircle, FiUser, FiHash, FiPhone, FiMapPin,FiSave, FiRotateCcw } from 'react-icons/fi';
+import { FiAlertCircle, FiUser, FiHash, FiPhone, FiMapPin, FiSave, FiRotateCcw } from 'react-icons/fi';
 import FormField from './components/FormField';
+import PropTypes from 'prop-types';
 
 const CustomerForm = ({
   editMode,
@@ -101,4 +102,30 @@ const CustomerForm = ({
   );
 };
 
-export default CustomerForm;
+CustomerForm.propTypes = {
+  editMode: PropTypes.bool.isRequired,
+  loading: PropTypes.bool.isRequired,
+  name: PropTypes.string.isRequired,
+  code: PropTypes.string.isRequired,
+  phoneNumber: PropTypes.string.isRequired,
+  place: PropTypes.string.isRequired,
+  error: PropTypes.string,
+  success: PropTypes.string,
+  handleInputChange: PropTypes.func.isRequired,
+  handleSubmit: PropTypes.func.isRequired,
+  resetForm: PropTypes.func.isRequired
+};
+
+export default React.memo(CustomerForm, (prevProps, nextProps) => {
+  // Custom comparison function to prevent unnecessary re-renders
+  return (
+    prevProps.editMode === nextProps.editMode &&
+    prevProps.loading === nextProps.loading &&
+    prevProps.name === nextProps.name &&
+    prevProps.code === nextProps.code &&
+    prevProps.phoneNumber === nextProps.phoneNumber &&
+    prevProps.place === nextProps.place &&
+    prevProps.error === nextProps.error &&
+    prevProps.success === nextProps.success
+  );
+});

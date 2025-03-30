@@ -1,4 +1,5 @@
 import React from 'react';
+import PropTypes from 'prop-types';
 import { FiAlertCircle } from 'react-icons/fi';
 
 const DeleteConfirmationModal = ({ isOpen, onCancel, onConfirm }) => {
@@ -40,4 +41,10 @@ const DeleteConfirmationModal = ({ isOpen, onCancel, onConfirm }) => {
   );
 };
 
-export default DeleteConfirmationModal;
+DeleteConfirmationModal.propTypes = {
+  isOpen: PropTypes.bool.isRequired,
+  onCancel: PropTypes.func.isRequired,
+  onConfirm: PropTypes.func.isRequired
+};
+
+export default React.memo(DeleteConfirmationModal);
