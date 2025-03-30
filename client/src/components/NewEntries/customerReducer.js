@@ -80,7 +80,8 @@ export const customerReducer = (state, action) => {
         editMode: false,
         editId: null,
         error: '',
-        success: ''
+        success: '',
+        searchQuery: '' // Added searchQuery reset
       };
     case ActionTypes.SET_DELETE_CONFIRMATION:
       return {

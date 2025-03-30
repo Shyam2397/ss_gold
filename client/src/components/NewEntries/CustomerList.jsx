@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { FiSearch, FiEdit2, FiTrash2 } from 'react-icons/fi';
+import { FiSearch, FiEdit2, FiTrash2, FiRotateCcw } from 'react-icons/fi';
 import { BsQrCode } from 'react-icons/bs';
 import { AutoSizer, Table, Column } from 'react-virtualized';
 import 'react-virtualized/styles.css';
@@ -12,7 +12,8 @@ const CustomerList = ({
   searchQuery,
   setSearchQuery,
   handleEdit,
-  confirmDelete
+  confirmDelete,
+  onReset
 }) => {
   // Add debouncing to search
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
@@ -99,17 +100,28 @@ const CustomerList = ({
             Customer List
           </h3>
         </div>
-        <div className="relative rounded-md shadow-sm w-full sm:w-64">
-          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-            <FiSearch className="h-5 w-5 text-amber-600" aria-hidden="true" />
+        <div className="flex gap-2">
+          <div className="relative rounded-md shadow-sm w-full sm:w-64">
+            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+              <FiSearch className="h-5 w-5 text-amber-600" aria-hidden="true" />
+            </div>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search customers..."
+              className="w-full rounded-md border border-amber-200 bg-white pl-10 shadow-sm focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 py-2 text-sm text-amber-900"
+            />
           </div>
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search customers..."
-            className="w-full rounded-md border border-amber-200 bg-white pl-10 shadow-sm focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 py-2 text-sm text-amber-900"
-          />
+          {searchQuery && (
+            <button
+              onClick={onReset}
+              className="inline-flex items-center px-3 py-2 text-sm border border-amber-200 text-amber-700 rounded-md hover:bg-amber-50 transition-all"
+            >
+              <FiRotateCcw className="mr-1.5 h-4 w-4" />
+              Clear
+            </button>
+          )}
         </div>
       </div>
 

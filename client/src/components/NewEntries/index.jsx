@@ -154,6 +154,10 @@ const NewEntries = () => {
     });
   };
 
+  const handleReset = useCallback(() => {
+    dispatch({ type: ActionTypes.RESET_FORM });
+  }, []);
+
   return (
     <div className="container mx-auto px-8 py-5">
       <Suspense fallback={<LoadingSpinner />}>
@@ -166,7 +170,7 @@ const NewEntries = () => {
           place={state.place}
           handleInputChange={handleInputChange}
           handleSubmit={handleSubmit}
-          resetForm={() => dispatch({ type: ActionTypes.RESET_FORM })}
+          resetForm={handleReset}
           error={state.error}
           success={state.success}
         />
@@ -188,6 +192,7 @@ const NewEntries = () => {
             type: ActionTypes.SET_DELETE_CONFIRMATION,
             payload: { isOpen: true, customerId: id }
           })}
+          onReset={handleReset}
         />
 
         <DeleteConfirmationModal
