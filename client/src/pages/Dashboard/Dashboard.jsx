@@ -4,7 +4,7 @@ import { Toaster } from 'react-hot-toast';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { LoadingSpinner } from './components/LoadingSkeleton';
-import useDashboardData from './components/useDashboardData';
+import { useDashboardData } from './components/useDashboardData';
 import useSparklineData from './hooks/useSparklineData';
 import ErrorBoundary from './ErrorBoundary';
 import usePerformanceMonitor from './hooks/usePerformanceMonitor';

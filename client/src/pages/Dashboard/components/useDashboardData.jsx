@@ -1,8 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
+import { useQueries, useQueryClient } from '@tanstack/react-query';
+import { debounce } from 'lodash';
 
-const useDashboardData = () => {
+// Constants for pagination and caching
+const PAGE_SIZE = 50;
+const CACHE_TIME = 5 * 60 * 1000; // 5 minutes
+const STALE_TIME = 2 * 60 * 1000; // 2 minutes
+
+function useDashboardData() {
   const [tokens, setTokens] = useState([]);
   const [entries, setEntries] = useState([]);
   const [expenses, setExpenses] = useState([]);
@@ -25,6 +32,81 @@ const useDashboardData = () => {
   const [sparklineData, setSparklineData] = useState({
     revenue: [], expenses: [], profit: [], customers: [],
     skinTests: [], photoTests: [], weights: []
+  });
+
+  const queryClient = useQueryClient();
+  const abortControllersRef = useRef(new Map());
+  const [currentPage, setCurrentPage] = useState(1);
+
+  // Memoized axios instance with interceptors
+  const api = useMemo(() => {
+    const instance = axios.create({
+      baseURL: import.meta.env.VITE_API_URL
+    });
+
+    // Add request interceptor for abort controller
+    instance.interceptors.request.use(config => {
+      const controller = new AbortController();
+      config.signal = controller.signal;
+      abortControllersRef.current.set(config.url, controller);
+      return config;
+    });
+
+    return instance;
+  }, []);
+
+  // Memoized query functions with pagination
+  const queryFns = useMemo(() => ({
+    tokens: async () => {
+      const { data } = await api.get(`/tokens?page=${currentPage}&limit=${PAGE_SIZE}`);
+      return data;
+    },
+    expenses: async () => {
+      const { data } = await api.get(`/api/expenses?page=${currentPage}&limit=${PAGE_SIZE}`);
+      return data;
+    },
+    entries: async () => {
+      const { data } = await api.get(`/entries?page=${currentPage}&limit=${PAGE_SIZE}`);
+      return data;
+    },
+    exchanges: async () => {
+      const { data } = await api.get(`/pure-exchange?page=${currentPage}&limit=${PAGE_SIZE}`);
+      return data.data || [];
+    }
+  }), [currentPage]);
+
+  // Enhanced queries with proper caching and staleness
+  const queries = useQueries({
+    queries: [
+      {
+        queryKey: ['tokens', currentPage],
+        queryFn: queryFns.tokens,
+        staleTime: STALE_TIME,
+        cacheTime: CACHE_TIME,
+        keepPreviousData: true
+      },
+      {
+        queryKey: ['expenses', currentPage],
+        queryFn: queryFns.expenses,
+        staleTime: STALE_TIME,
+        cacheTime: CACHE_TIME,
+        keepPreviousData: true
+      },
+      {
+        queryKey: ['entries', currentPage],
+        queryFn: queryFns.entries,
+        staleTime: STALE_TIME,
+        cacheTime: CACHE_TIME,
+        keepPreviousData: true
+      },
+      {
+        queryKey: ['exchanges', currentPage],
+        queryFn: queryFns.exchanges,
+        staleTime: STALE_TIME,
+        cacheTime: CACHE_TIME,
+        keepPreviousData: true
+      }
+    ]
   });
 
   const getFilteredExchanges = (exchanges, period = 'daily') => {
@@ -198,6 +280,41 @@ const useDashboardData = () => {
       }));
   };
 
+  const processTokenData = useCallback((tokens) => {
+    return tokens.map(token => ({
+      ...token,
+      totalAmount: parseFloat(token.amount || '0'),
+      weight: parseFloat(token.weight || '0')
+    }));
+  }, []);
+
+  const processExchangeData = useCallback((exchanges) => {
+    return exchanges.map(exchange => {
+      try {
+        const isoDate = new Date(exchange.date);
+        return {
+          ...exchange,
+          date: `${isoDate.getDate().toString().padStart(2, '0')}/${(isoDate.getMonth() + 1).toString().padStart(2, '0')}/${isoDate.getFullYear()}`,
+          weight: parseFloat(exchange.weight || '0'),
+          exweight: parseFloat(exchange.exweight || '0')
+        };
+      } catch (err) {
+        console.error('Error processing exchange:', err);
+        return null;
+      }
+    }).filter(Boolean);
+  }, []);
+
+  const debouncedDataUpdate = useMemo(
+    () => debounce((newData) => {
+      // Update state with new data
+      Object.entries(newData).forEach(([key, value]) => {
+        queryClient.setQueryData([key, currentPage], value);
+      });
+    }, 300),
+    [currentPage]
+  );
+
   const fetchDashboardData = async () => {
     try {
       const [tokensRes, expensesRes, entriesRes, exchangesRes] = await Promise.all([
@@ -314,10 +431,38 @@ const useDashboardData = () => {
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    return () => {
+      // Cancel all pending requests
+      abortControllersRef.current.forEach(controller => {
+        controller.abort();
+      });
+      // Clear cache older than 5 minutes
+      queryClient.clear();
+    };
+  }, []);
+
+  // Handle page changes
+  const handlePageChange = useCallback((newPage) => {
+    setCurrentPage(newPage);
+  }, []);
+
+  // Pre-fetch next page
+  useEffect(() => {
+    const prefetchNextPage = async () => {
+      await queryClient.prefetchQuery(['tokens', currentPage + 1], queryFns.tokens);
+      await queryClient.prefetchQuery(['expenses', currentPage + 1], queryFns.expenses);
+      await queryClient.prefetchQuery(['entries', currentPage + 1], queryFns.entries);
+      await queryClient.prefetchQuery(['exchanges', currentPage + 1], queryFns.exchanges);
+    };
+    prefetchNextPage();
+  }, [currentPage]);
+
   return {
     tokens, entries, expenses, exchanges, loading, error, recentActivities,
-    todayTotal, dateRange, setDateRange, metrics, sparklineData, selectedPeriod, setSelectedPeriod
+    todayTotal, dateRange, setDateRange, metrics, sparklineData, selectedPeriod, setSelectedPeriod,
+    currentPage, handlePageChange, hasNextPage: queries[0].hasNextPage, isFetchingNextPage: queries[0].isFetchingNextPage
   };
-};
+}
 
-export default useDashboardData;
+export { useDashboardData };
