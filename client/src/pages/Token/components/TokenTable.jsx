@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useCallback } from 'react';
 import { FiEdit2, FiTrash2, FiCheckCircle, FiXCircle } from 'react-icons/fi';
 import { AutoSizer, Table, Column } from 'react-virtualized';
 import 'react-virtualized/styles.css';
@@ -69,7 +69,16 @@ const TokenTable = ({ tokens = [], onEdit, onDelete, onPaymentStatusChange }) =>
     [columns]
   );
 
-  const cellRenderer = ({ rowData, dataKey, columnIndex }) => {
+  // Memoize formatters
+  const formatters = useMemo(() => ({
+    date: formatDateToIST,
+    time: formatTimeToIST,
+    weight: (val) => parseFloat(val || 0).toFixed(3),
+    amount: (val) => typeof val === 'number' ? val.toFixed(2) : val
+  }), []);
+
+  // Memoize cell renderer
+  const cellRendererMemo = useCallback(({ rowData, dataKey, columnIndex }) => {
     if (dataKey === 'actions') {
       return (
         <div className="flex items-center justify-center space-x-2">
@@ -106,14 +115,8 @@ const TokenTable = ({ tokens = [], onEdit, onDelete, onPaymentStatusChange }) =>
     }
 
     // Format specific columns
-    if (dataKey === 'date') {
-      value = formatDateToIST(value);
-    } else if (dataKey === 'time') {
-      value = formatTimeToIST(value);
-    } else if (dataKey === 'weight') {
-      value = parseFloat(value || 0).toFixed(3);
-    } else if (dataKey === 'amount') {
-      value = typeof value === 'number' ? value.toFixed(2) : value;
+    if (formatters[dataKey]) {
+      value = formatters[dataKey](value);
     }
 
     return (
@@ -121,7 +124,7 @@ const TokenTable = ({ tokens = [], onEdit, onDelete, onPaymentStatusChange }) =>
         {value}
       </div>
     );
-  };
+  }, [onEdit, onDelete, onPaymentStatusChange, formatters]);
 
   const headerRenderer = ({ label }) => (
     <div className="text-center text-xs font-medium text-white uppercase tracking-wider py-2">
@@ -155,7 +158,7 @@ const TokenTable = ({ tokens = [], onEdit, onDelete, onPaymentStatusChange }) =>
                     dataKey={key}
                     width={width}
                     flexGrow={flexGrow}
-                    cellRenderer={cellRenderer}
+                    cellRenderer={cellRendererMemo}
                     headerRenderer={headerRenderer}
                     className="divide-x divide-amber-100"
                     style={{ overflow: 'hidden' }}

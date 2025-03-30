@@ -48,4 +48,7 @@ const FormField = ({
   </div>
 );
 
-export default FormField;
+export default React.memo(FormField, (prevProps, nextProps) => {
+  return prevProps.value === nextProps.value && 
+         prevProps.readOnly === nextProps.readOnly;
+});

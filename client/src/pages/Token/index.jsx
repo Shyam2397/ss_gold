@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { unstable_batchedUpdates as batch } from 'react-dom';
+import debounce from 'lodash/debounce';
 import {
   FiUser,
   FiHash,
@@ -118,7 +120,8 @@ const TokenPage = () => {
     setTime(formattedTime);
   };
 
-  const handleCodeChange = async (e) => {
+  // Memoize callback functions
+  const handleCodeChange = useCallback(async (e) => {
     const inputCode = e.target.value;
     setCode(inputCode);
     setError("");
@@ -129,7 +132,7 @@ const TokenPage = () => {
     } else {
       setName("");
     }
-  };
+  }, [fetchNameByCode]);
 
   const validateForm = () => {
     if (code.length !== 4 || isNaN(code)) {
@@ -153,14 +156,9 @@ const TokenPage = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!validateForm()) return;
 
-    console.log('Form Validation Started');
-    if (!validateForm()) {
-      console.error('Form Validation Failed');
-      return;
-    }
-
-    console.log('Preparing Token Data');
+    // Create tokenData object before using it
     const tokenData = {
       tokenNo,
       date,
@@ -173,33 +171,34 @@ const TokenPage = () => {
       amount,
     };
 
-    console.log('Edit Mode:', editMode);
-    console.log('Edit ID:', editId);
-    console.log('Token Data:', JSON.stringify(tokenData, null, 2));
-
     try {
-      // If in edit mode but no editId, reset edit mode
       if (editMode && !editId) {
-        console.warn('Edit mode is on but no edit ID found. Switching to create mode.');
         setEditMode(false);
       }
 
       const success = await saveToken(tokenData, editMode ? editId : null);
       
       if (success) {
-        console.log('Token Save Successful');
         setEditMode(false);
         resetForm();
         await generateTokenNumber().then(setTokenNo);
+        await fetchTokens(); // Refresh table data
       } else {
-        console.error('Token Save Failed');
         setError('Failed to save token. Please try again.');
       }
     } catch (error) {
-      console.error('Unexpected Error in Token Save:', error);
       setError(`Unexpected error: ${error.message}`);
     }
   };
+
+  // Add table refresh interval (optional)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchTokens();
+    }, 30000); // Refresh every 30 seconds
+
+    return () => clearInterval(interval);
+  }, [fetchTokens]);
 
   const handleEdit = (token) => {
     setEditMode(true);
@@ -241,16 +240,19 @@ const TokenPage = () => {
     }
   };
 
-  const resetForm = () => {
-    setCode("");
-    setName("");
-    setTest("Skin Testing");
-    setWeight("");
-    setSample("");
-    setAmount("50");
-    setEditMode(false);
-    setError("");
-  };
+  // Batch state updates
+  const resetForm = useCallback(() => {
+    batch(() => {
+      setCode("");
+      setName("");
+      setTest("Skin Testing");
+      setWeight("");
+      setSample("");
+      setAmount("50");
+      setEditMode(false);
+      setError("");
+    });
+  }, [setCode, setName, setTest, setWeight, setSample, setAmount, setEditMode, setError]);
 
   const handlePrint = async () => {
     try {
@@ -288,6 +290,26 @@ const TokenPage = () => {
   const handlePaymentStatusChange = async (tokenId, isPaid) => {
     await updatePaymentStatus(tokenId, isPaid);
   };
+
+  // Add memoization for expensive operations
+  const memoizedTokenData = useMemo(() => ({
+    tokenNo,
+    date,
+    time,
+    name,
+    test,
+    weight,
+    sample,
+    amount
+  }), [tokenNo, date, time, name, test, weight, sample, amount]);
+
+  // Add debouncing for search
+  const debouncedSearch = useCallback(
+    debounce((query) => {
+      setSearchQuery(query);
+    }, 300),
+    []
+  );
 
   return (
     <div className="container mx-auto px-4 py-3">
@@ -440,7 +462,7 @@ const TokenPage = () => {
               type="text"
               placeholder="Search tokens..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => debouncedSearch(e.target.value)}
               className="w-full pl-8 pr-3 py-1.5 rounded border border-amber-200 focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition-all text-sm"
             />
             <FiSearch className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />

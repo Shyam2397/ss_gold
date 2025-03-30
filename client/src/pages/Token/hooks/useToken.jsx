@@ -1,7 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
+import debounce from 'lodash/debounce';
 
 const API_URL = import.meta.env.VITE_API_URL;
+
+// Add request cache
+const requestCache = new Map();
 
 const useToken = () => {
   const [tokens, setTokens] = useState([]);
@@ -23,10 +27,17 @@ const useToken = () => {
   }, [success]);
 
   const fetchTokens = useCallback(async () => {
+    const cacheKey = 'tokens';
+    if (requestCache.has(cacheKey)) {
+      setTokens(requestCache.get(cacheKey));
+      return;
+    }
+    
     setLoading(true);
     try {
       const response = await axios.get(`${API_URL}/tokens`);
       setTokens(response.data);
+      requestCache.set(cacheKey, response.data);
       setError('');
     } catch (error) {
       console.error('Error fetching tokens:', error);
@@ -59,7 +70,8 @@ const useToken = () => {
         await axios.post(`${API_URL}/tokens`, tokenData);
       }
       setSuccess('Token saved successfully!');
-      await fetchTokens();
+      invalidateCache();
+      await fetchTokens(); // Refresh token list
       return true;
     } catch (error) {
       console.error('Error saving token:', error);
@@ -73,7 +85,8 @@ const useToken = () => {
       setLoading(true);
       await axios.delete(`${API_URL}/tokens/${tokenId}`);
       setSuccess('Token deleted successfully!');
-      await fetchTokens();
+      invalidateCache();
+      await fetchTokens(); // Refresh token list
       return true;
     } catch (error) {
       console.error('Error deleting token:', error);
@@ -95,12 +108,27 @@ const useToken = () => {
     }
   };
 
+  // Add request debouncing for frequent calls
+  const debouncedFetchName = useCallback(
+    debounce(async (code) => {
+      const response = await axios.get(`${API_URL}/entries/${code}`);
+      return response.data.data?.name || 'Not Found';
+    }, 300),
+    []
+  );
+
+  // Fix cache reference
+  const invalidateCache = useCallback(() => {
+    requestCache.clear();
+  }, []);
+
   const updatePaymentStatus = async (tokenId, isPaid) => {
     try {
       setLoading(true);
       await axios.patch(`${API_URL}/tokens/${tokenId}/payment`, { isPaid });
       setSuccess('Payment status updated successfully!');
-      await fetchTokens();
+      invalidateCache();
+      await fetchTokens(); // Refresh token list
       return true;
     } catch (error) {
       console.error('Error updating payment status:', error);
@@ -123,6 +151,8 @@ const useToken = () => {
     saveToken,
     deleteToken,
     fetchNameByCode,
+    debouncedFetchName,
+    invalidateCache,
     updatePaymentStatus
   };
 };
