@@ -457,9 +457,11 @@ const TokenPage = () => {
                   placeholder="Search tokens..."
                   value={state.searchQuery}
                   onChange={(e) => debouncedSearch(e.target.value)}
-                  className="w-full pl-8 pr-3 py-1.5 rounded border border-amber-200 focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition-all text-sm"
+                  onDoubleClick={resetForm}  // Add double-click to reset
+                  className="w-full pl-8 pr-3 py-1.5 rounded border border-amber-200 focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition-all text-sm text-amber-900"
+                  title="Double click to reset search"  // Add tooltip
                 />
-                <FiSearch className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <FiSearch className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-amber-400 w-4 h-4" />
               </div>
             </div>
 

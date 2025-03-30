@@ -39,6 +39,7 @@ export const tokenReducer = (state, action) => {
         weight: "",
         sample: "",
         amount: "50",
+        searchQuery: "", // Add searchQuery reset
         editMode: false,
         editId: null,
         error: ""
