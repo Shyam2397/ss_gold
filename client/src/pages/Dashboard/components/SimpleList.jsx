@@ -15,4 +15,7 @@ const SimpleList = ({ data, rowComponent: RowComponent, height = 400 }) => {
   );
 };
 
-export default SimpleList;
+export default React.memo(SimpleList, (prev, next) => {
+  return prev.data === next.data && 
+         prev.height === next.height;
+});

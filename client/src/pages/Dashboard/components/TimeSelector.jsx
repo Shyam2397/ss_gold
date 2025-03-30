@@ -20,4 +20,6 @@ const TimeSelector = ({ period, setPeriod }) => {
   );
 };
 
-export default TimeSelector;
+export default React.memo(TimeSelector, (prev, next) => {
+  return prev.period === next.period;
+});

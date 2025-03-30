@@ -1,35 +1,14 @@
 import React, { useEffect, useRef, useState, Suspense } from 'react';
 import { ActivitySkeleton } from './LoadingSkeleton';
 import SimpleList from './SimpleList';
+import ActivityIcon from './ActivityIcon';
 
 // Lazy load react-window
 const FixedSizeList = React.lazy(() => import('react-window').then(mod => ({ 
   default: mod.FixedSizeList 
 })));
 
-const ActivityIcon = ({ type }) => {
-  const iconClass = {
-    token: "bg-green-100 text-green-600",
-    expense: "bg-red-100 text-red-600",
-    exchange: "bg-blue-100 text-blue-600",
-    entry: "bg-purple-100 text-purple-600"
-  }[type] || "bg-gray-100 text-gray-600";
-
-  const icon = {
-    token: "₹",
-    expense: "-",
-    exchange: "↔",
-    entry: "+"
-  }[type] || "•";
-
-  return (
-    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${iconClass}`}>
-      {icon}
-    </div>
-  );
-};
-
-const ActivityRow = ({ data, index, style }) => {
+const ActivityRow = React.memo(({ data, index, style }) => {
   const activity = data[index];
   return (
     <div style={style}>
@@ -55,7 +34,7 @@ const ActivityRow = ({ data, index, style }) => {
       </div>
     </div>
   );
-};
+});
 
 const RecentActivity = ({ activities = [], loading = false }) => {
   const [listHeight, setListHeight] = useState(350);

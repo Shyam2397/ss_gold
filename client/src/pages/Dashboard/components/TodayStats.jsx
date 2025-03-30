@@ -21,4 +21,6 @@ const TodayStats = ({ todayTotal }) => {
   );
 };
 
-export default TodayStats;
+export default React.memo(TodayStats, (prev, next) => {
+  return JSON.stringify(prev.todayTotal) === JSON.stringify(next.todayTotal);
+});
