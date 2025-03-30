@@ -3,17 +3,18 @@ import { motion } from 'framer-motion';
 import { Toaster } from 'react-hot-toast';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+import { LoadingSpinner } from './components/LoadingSkeleton';
 import useDashboardData from './components/useDashboardData';
 import useSparklineData from './hooks/useSparklineData';
-import DashboardHeader from './components/DashboardHeader';
-import MetricsGrid from './components/MetricsGrid';
-import RecentActivity from './components/RecentActivity';
-import UnpaidCustomers from './components/UnpaidCustomers';
 import ErrorBoundary from './ErrorBoundary';
 import usePerformanceMonitor from './hooks/usePerformanceMonitor';
 
-// Lazy load heavy components
+// Lazy load components
+const DashboardHeader = lazy(() => import('./components/DashboardHeader'));
+const MetricsGrid = lazy(() => import('./components/MetricsGrid'));
 const DashboardCharts = lazy(() => import('./components/DashboardCharts'));
+const RecentActivity = lazy(() => import('./components/RecentActivity'));
+const UnpaidCustomers = lazy(() => import('./components/UnpaidCustomers'));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -43,15 +44,7 @@ function DashboardContent() {
   }, [dateRange]);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <motion.div
-          className="h-32 w-32 border-4 border-yellow-500 rounded-full border-t-transparent"
-          animate={{ rotate: 360 }}
-          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-        />
-      </div>
-    );
+    return <LoadingSpinner />;
   }
 
   if (error) {
@@ -66,18 +59,24 @@ function DashboardContent() {
     <ErrorBoundary>
       <motion.div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-6">
         <Toaster />
-        <DashboardHeader todayTotal={todayTotal} dateRange={dateRange} onDateRangeChange={setDateRange} />
-        <MetricsGrid 
-          metrics={metrics} 
-          tokens={tokens} 
-          expenses={expenses} 
-          entries={entries} 
-          exchanges={exchanges} 
-          sparklineData={sparklineData} 
-          selectedPeriod={selectedPeriod}
-        />
+        <Suspense fallback={<LoadingSpinner />}>
+          <DashboardHeader todayTotal={todayTotal} dateRange={dateRange} onDateRangeChange={setDateRange} />
+        </Suspense>
+        
+        <Suspense fallback={<LoadingSpinner />}>
+          <MetricsGrid 
+            metrics={metrics} 
+            tokens={tokens} 
+            expenses={expenses} 
+            entries={entries} 
+            exchanges={exchanges} 
+            sparklineData={sparklineData} 
+            selectedPeriod={selectedPeriod}
+          />
+        </Suspense>
+
         <ErrorBoundary>
-          <Suspense fallback={<div>Loading charts...</div>}>
+          <Suspense fallback={<LoadingSpinner />}>
             <DashboardCharts 
               tokens={tokens} 
               expenses={expenses} 
@@ -86,9 +85,14 @@ function DashboardContent() {
             />
           </Suspense>
         </ErrorBoundary>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <RecentActivity activities={recentActivities} loading={loading} />
-          <UnpaidCustomers tokens={tokens} loading={loading} />
+          <Suspense fallback={<LoadingSpinner />}>
+            <RecentActivity activities={recentActivities} loading={loading} />
+          </Suspense>
+          <Suspense fallback={<LoadingSpinner />}>
+            <UnpaidCustomers tokens={tokens} loading={loading} />
+          </Suspense>
         </div>
       </motion.div>
     </ErrorBoundary>
