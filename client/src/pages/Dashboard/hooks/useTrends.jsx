@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 
-const useTrends = ({ tokens, expenses, entries, exchanges }) => {
+function useTrends({ tokens, expenses, entries, exchanges }) {
   // Get dates for last 7 days and previous 7 days
   const today = new Date();
   const sevenDaysAgo = new Date(today);
@@ -26,50 +26,37 @@ const useTrends = ({ tokens, expenses, entries, exchanges }) => {
     return dateCache.get(dateStr);
   };
 
+  // Add batch processing for better performance
+  const batchProcess = (items, dateField, processFn) => {
+    return items.reduce((acc, item) => {
+      const date = parseDate(item[dateField]);
+      if (date >= sevenDaysAgo && date <= today) {
+        acc.current += processFn(item);
+      } else if (date >= fourteenDaysAgo && date < sevenDaysAgo) {
+        acc.previous += processFn(item);
+      }
+      return acc;
+    }, { current: 0, previous: 0 });
+  };
+
   // Memoize all trend calculations to avoid recalculating unnecessarily
   const trends = useMemo(() => {
     // Revenue trend
-    const currentRevenue = tokens
-      .filter(token => {
-        const tokenDate = parseDate(token.date);
-        return tokenDate >= sevenDaysAgo && tokenDate <= today;
-      })
-      .reduce((sum, token) => sum + (token.totalAmount || 0), 0);
-
-    const previousRevenue = tokens
-      .filter(token => {
-        const tokenDate = parseDate(token.date);
-        return tokenDate >= fourteenDaysAgo && tokenDate < sevenDaysAgo;
-      })
-      .reduce((sum, token) => sum + (token.totalAmount || 0), 0);
-
-    const revenueGrowth = calculateTrend(currentRevenue, previousRevenue);
+    const revenue = batchProcess(tokens, 'date', token => token.totalAmount || 0);
+    const revenueGrowth = calculateTrend(revenue.current, revenue.previous);
 
     // Expenses trend
-    const currentExpenses = expenses
-      .filter(expense => {
-        const expenseDate = new Date(expense.date);
-        return expenseDate >= sevenDaysAgo && expenseDate <= today;
-      })
-      .reduce((sum, expense) => sum + (expense.amount || 0), 0);
-
-    const previousExpenses = expenses
-      .filter(expense => {
-        const expenseDate = new Date(expense.date);
-        return expenseDate >= fourteenDaysAgo && expenseDate < sevenDaysAgo;
-      })
-      .reduce((sum, expense) => sum + (expense.amount || 0), 0);
-
-    const expensesGrowth = calculateTrend(currentExpenses, previousExpenses);
+    const expenseData = batchProcess(expenses, 'date', expense => expense.amount || 0);
+    const expensesGrowth = calculateTrend(expenseData.current, expenseData.previous);
 
     // Net Profit trend
-    const currentProfit = currentRevenue - currentExpenses;
-    const previousProfit = previousRevenue - previousExpenses;
+    const currentProfit = revenue.current - expenseData.current;
+    const previousProfit = revenue.previous - expenseData.previous;
     const profitGrowth = calculateTrend(currentProfit, previousProfit);
 
     // Profit Margin trend
-    const currentMargin = currentRevenue ? (currentProfit / currentRevenue) * 100 : 0;
-    const previousMargin = previousRevenue ? (previousProfit / previousRevenue) * 100 : 0;
+    const currentMargin = revenue.current ? (currentProfit / revenue.current) * 100 : 0;
+    const previousMargin = revenue.previous ? (previousProfit / revenue.previous) * 100 : 0;
     const marginGrowth = calculateTrend(currentMargin, previousMargin);
 
     // Customer trend
@@ -141,6 +128,6 @@ const useTrends = ({ tokens, expenses, entries, exchanges }) => {
   }, [tokens, expenses, entries, exchanges]);
 
   return trends;
-};
+}
 
 export default useTrends;

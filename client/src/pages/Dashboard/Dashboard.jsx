@@ -1,4 +1,4 @@
-import React, { Suspense, lazy } from 'react';
+import React, { Suspense, lazy, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Toaster } from 'react-hot-toast';
 import useDashboardData from './components/useDashboardData';
@@ -22,6 +22,14 @@ function Dashboard() {
   } = useDashboardData();
 
   const sparklineData = useSparklineData({ tokens, expenseData: expenses, entries, exchanges });
+
+  // Add data prefetching
+  useEffect(() => {
+    const prefetchData = async () => {
+      // Prefetch next day's data
+    };
+    prefetchData();
+  }, [dateRange]);
 
   if (loading) {
     return (

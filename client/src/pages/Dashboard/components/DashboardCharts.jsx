@@ -68,6 +68,13 @@ const DashboardCharts = ({ tokens, expenses, entries, exchanges }) => {
     worker.postMessage({ tokens, expenses, entries, exchanges });
   }, [tokens, expenses, entries, exchanges]);
 
+  // Add data chunking for large datasets
+  const chunkData = (data, size = 50) => {
+    return Array.from({ length: Math.ceil(data.length / size) }, (_, i) =>
+      data.slice(i * size, (i + 1) * size)
+    );
+  };
+
   const chartData = useMemo(() => {
     try {
       const today = new Date();
