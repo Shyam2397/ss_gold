@@ -76,6 +76,14 @@ export const tokenReducer = (state, action) => {
         ...state,
         filteredTokens: action.tokens
       };
+    case 'RESET_AFTER_EDIT':
+      return {
+        ...initialState,
+        tokenNo: action.tokenNo,
+        date: state.date,
+        time: state.time,
+        filteredTokens: state.filteredTokens
+      };
     default:
       return state;
   }

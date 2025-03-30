@@ -1,5 +1,4 @@
-import React, { useReducer, useEffect, useMemo, useCallback } from "react";
-import { unstable_batchedUpdates as batch } from 'react-dom';
+import React, { useReducer, useEffect, useMemo, useCallback, Suspense } from "react";
 import debounce from 'lodash/debounce';
 import {
   FiUser,
@@ -49,19 +48,29 @@ const TokenPage = () => {
     updatePaymentStatus
   } = useToken();
 
-  // Initial setup
+  // Optimize initial data fetching
   useEffect(() => {
     const initializeData = async () => {
-      await fetchTokens();
-      const newTokenNo = await generateTokenNumber();
-      if (newTokenNo) {
-        dispatch({ type: 'SET_FIELD', field: 'tokenNo', value: newTokenNo });
+      try {
+        dispatch({ type: 'SET_FIELD', field: 'loading', value: true });
+        const [tokensResponse, newTokenNo] = await Promise.all([
+          fetchTokens(),
+          generateTokenNumber()
+        ]);
+        
+        if (newTokenNo) {
+          dispatch({ type: 'SET_FIELD', field: 'tokenNo', value: newTokenNo });
+        }
+        getCurrentDateTime();
+      } catch (error) {
+        dispatch({ type: 'SET_FIELD', field: 'error', value: error.message });
+      } finally {
+        dispatch({ type: 'SET_FIELD', field: 'loading', value: false });
       }
-      getCurrentDateTime();
     };
     
     initializeData();
-  }, [fetchTokens, generateTokenNumber]);
+  }, []); // Remove dependencies since we're handling everything in the effect
 
   // Initialize filteredTokens with tokens
   useEffect(() => {
@@ -142,11 +151,11 @@ const TokenPage = () => {
     return true;
   };
 
-  const handleSubmit = async (e) => {
+  // Optimize form submission
+  const handleSubmit = useCallback(async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
 
-    // Create tokenData object before using it
     const tokenData = {
       tokenNo: state.tokenNo,
       date: state.date,
@@ -160,24 +169,25 @@ const TokenPage = () => {
     };
 
     try {
-      if (state.editMode && !state.editId) {
-        dispatch({ type: 'SET_FIELD', field: 'editMode', value: false });
-      }
-
       const success = await saveToken(tokenData, state.editMode ? state.editId : null);
       
       if (success) {
-        dispatch({ type: 'SET_FIELD', field: 'editMode', value: false });
-        resetForm();
-        await generateTokenNumber().then((newTokenNo) => dispatch({ type: 'SET_FIELD', field: 'tokenNo', value: newTokenNo }));
-        await fetchTokens(); // Refresh table data
-      } else {
-        dispatch({ type: 'SET_FIELD', field: 'error', value: 'Failed to save token. Please try again.' });
+        // If it was an edit operation
+        if (state.editMode) {
+          const newTokenNo = await generateTokenNumber();
+          dispatch({ type: 'RESET_AFTER_EDIT', tokenNo: newTokenNo });
+        } else {
+          dispatch({ type: 'RESET_FORM' });
+          await generateTokenNumber().then(newTokenNo => 
+            dispatch({ type: 'SET_FIELD', field: 'tokenNo', value: newTokenNo })
+          );
+        }
+        await fetchTokens();
       }
     } catch (error) {
-      dispatch({ type: 'SET_FIELD', field: 'error', value: `Unexpected error: ${error.message}` });
+      dispatch({ type: 'SET_FIELD', field: 'error', value: error.message });
     }
-  };
+  }, [state, validateForm, saveToken, generateTokenNumber, fetchTokens]);
 
   // Add table refresh interval (optional)
   useEffect(() => {
@@ -258,214 +268,265 @@ const TokenPage = () => {
     amount: state.amount
   }), [state.tokenNo, state.date, state.time, state.name, state.test, state.weight, state.sample, state.amount]);
 
-  // Add debouncing for search
-  const debouncedSearch = useCallback(
+  // Optimize search with debounce and memo
+  const debouncedSearch = useMemo(() => 
     debounce((query) => {
       dispatch({ type: 'SET_FIELD', field: 'searchQuery', value: query });
     }, 300),
     []
   );
 
+  // Memoize all handlers
+  const handlers = useMemo(() => ({
+    handleEdit,
+    handlePrint,
+    handlePaymentStatusChange,
+    handleCodeChange,
+    handleFieldChange: (field, value) => {
+      dispatch({ type: 'SET_FIELD', field, value });
+    },
+    handleConfirmDelete: async () => {
+      if (!state.deleteConfirmation.tokenId) return;
+      const success = await deleteToken(state.deleteConfirmation.tokenId);
+      if (success) {
+        dispatch({ type: 'SET_DELETE_CONFIRMATION', value: { isOpen: false, tokenId: null } });
+        dispatch({ type: 'RESET_FORM' });
+        const newTokenNo = await generateTokenNumber();
+        dispatch({ type: 'SET_FIELD', field: 'tokenNo', value: newTokenNo });
+      }
+    }
+  }), [state.deleteConfirmation.tokenId, deleteToken, generateTokenNumber]);
+
+  // Add error boundary wrapper
   return (
-    <div className="container mx-auto px-4 py-3">
-      <div className="bg-white rounded-xl shadow-sm p-4 border border-amber-100">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center">
-            <BsReceipt className="w-6 h-6 text-amber-600 mr-3" />
-            <h2 className="text-xl font-bold text-amber-900">
-              {state.editMode ? "Edit Token" : "New Token"}
-            </h2>
-          </div>
-          {error && (
-            <div className="p-1.5 bg-red-50 border-l-3 border-red-500 rounded">
-              <div className="flex">
-                <div className="ml-2">
-                  <p className="text-xs text-red-700">{error}</p>
+    <ErrorBoundary
+      fallback={<div>Something went wrong. Please try again.</div>}
+    >
+      <Suspense fallback={<div>Loading...</div>}>
+        <div className="container mx-auto px-4 py-3">
+          <div className="bg-white rounded-xl shadow-sm p-4 border border-amber-100">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center">
+                <BsReceipt className="w-6 h-6 text-amber-600 mr-3" />
+                <h2 className="text-xl font-bold text-amber-900">
+                  {state.editMode ? "Edit Token" : "New Token"}
+                </h2>
+              </div>
+              {error && (
+                <div className="p-1.5 bg-red-50 border-l-3 border-red-500 rounded">
+                  <div className="flex">
+                    <div className="ml-2">
+                      <p className="text-xs text-red-700">{error}</p>
+                    </div>
+                  </div>
                 </div>
+              )}
+              {success && (
+                <div className="p-1.5 bg-green-50 border-l-3 border-green-500 rounded">
+                  <div className="flex">
+                    <div className="ml-2">
+                      <p className="text-xs text-green-700">{success}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div 
+                className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 gap-4 p-3 bg-amber-50/50 rounded-lg border border-amber-100"
+              >
+                <FormField
+                  label="Token No"
+                  icon={FiHash}
+                  value={state.tokenNo}
+                  readOnly
+                  required
+                  size="lg"
+                />
+                <FormField
+                  label="Date"
+                  icon={FiCalendar}
+                  value={state.date}
+                  readOnly
+                  required
+                  size="lg"
+                />
+                <FormField
+                  label="Time"
+                  icon={FiClock}
+                  value={state.time}
+                  readOnly
+                  required
+                  size="lg"
+                />
+                <FormField
+                  label="Code"
+                  icon={FiHash}
+                  value={state.code}
+                  onChange={handleCodeChange}
+                  required
+                  size="lg"
+                />
+                <FormField
+                  label="Name"
+                  icon={FiUser}
+                  value={state.name}
+                  readOnly
+                  required
+                  size="lg"
+                />
+                <FormSelect
+                  label="Test"
+                  icon={FiClipboard}
+                  value={state.test}
+                  onChange={(e) => handleFieldChange('test', e.target.value)}
+                  options={["Skin Testing", "Photo Testing"]}
+                  size="lg"
+                />
+                <FormField
+                  label="Weight"
+                  icon={FiPackage}
+                  type="number"
+                  step="0.001"
+                  value={state.weight}
+                  onChange={(e) => handleFieldChange('weight', e.target.value)}
+                  required
+                  size="lg"
+                />
+                <FormField
+                  label="Sample"
+                  icon={FiPackage}
+                  value={state.sample}
+                  onChange={(e) => handleFieldChange('sample', e.target.value)}
+                  required
+                  size="lg"
+                />
+                <FormField
+                  label="Amount"
+                  icon={FiDollarSign}
+                  value={state.amount}
+                  onChange={(e) => handleFieldChange('amount', e.target.value)}
+                  required
+                  size="lg"
+                />
+              </div>
+
+              <div className="flex justify-end space-x-3 pt-2">
+                <button
+                  type="button"
+                  onClick={resetForm}
+                  className="inline-flex items-center px-3 py-1.5 text-sm border border-amber-200 text-amber-700 rounded-xl hover:bg-amber-50 transition-all"
+                >
+                  <FiRotateCcw className="mr-1.5 h-4 w-4" />
+                  Reset
+                </button>
+                <button
+                  type="submit"
+                  className="inline-flex items-center px-3 py-1.5 text-sm bg-gradient-to-r from-amber-600 to-yellow-500 text-white rounded-xl hover:from-amber-700 hover:to-yellow-600 transition-all"
+                >
+                  <FiSave className="mr-1.5 h-4 w-4" />
+                  {state.editMode ? "Update Token" : "Save Token"}
+                </button>
+                <button
+                  type="button"
+                  onClick={handlePrint}
+                  className="inline-flex items-center px-3 py-1.5 text-sm bg-gradient-to-r from-amber-600 to-yellow-500 text-white rounded-xl hover:from-amber-700 hover:to-yellow-600 transition-all"
+                >
+                  <FiPrinter className="mr-1.5 h-4 w-4" />
+                  Print
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <div className="mt-6 bg-white rounded-xl shadow-sm p-4 border border-amber-100">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center">
+                <FiList className="w-5 h-5 text-amber-600 mr-2" />
+                <h3 className="text-lg font-bold text-amber-900">
+                  Token List
+                </h3>
+              </div>
+              <div className="relative w-64">
+                <input
+                  type="text"
+                  placeholder="Search tokens..."
+                  value={state.searchQuery}
+                  onChange={(e) => debouncedSearch(e.target.value)}
+                  className="w-full pl-8 pr-3 py-1.5 rounded border border-amber-200 focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition-all text-sm"
+                />
+                <FiSearch className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               </div>
             </div>
-          )}
-          {success && (
-            <div className="p-1.5 bg-green-50 border-l-3 border-green-500 rounded">
-              <div className="flex">
-                <div className="ml-2">
-                  <p className="text-xs text-green-700">{success}</p>
-                </div>
+
+            {loading ? (
+              <div className="flex justify-center py-8">
+                <svg
+                  className="animate-spin h-6 w-6 text-amber-600"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                    fill="none"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  />
+                </svg>
               </div>
-            </div>
+            ) : (
+              <div>
+                <TokenTable
+                  tokens={state.filteredTokens}
+                  onEdit={handleEdit}
+                  onDelete={(id) => dispatch({ type: 'SET_FIELD', field: 'deleteConfirmation', value: { isOpen: true, tokenId: id } })}
+                  onPaymentStatusChange={handlePaymentStatusChange}
+                />
+              </div>
+            )}
+          </div>
+
+          {state.deleteConfirmation.isOpen && (
+            <DeleteConfirmationModal
+              onCancel={() => dispatch({ type: 'SET_FIELD', field: 'deleteConfirmation', value: { isOpen: false, tokenId: null } })}
+              onConfirm={handleConfirmDelete}
+            />
           )}
         </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div 
-            className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 gap-4 p-3 bg-amber-50/50 rounded-lg border border-amber-100"
-          >
-            <FormField
-              label="Token No"
-              icon={FiHash}
-              value={state.tokenNo}
-              readOnly
-              required
-              size="lg"
-            />
-            <FormField
-              label="Date"
-              icon={FiCalendar}
-              value={state.date}
-              readOnly
-              required
-              size="lg"
-            />
-            <FormField
-              label="Time"
-              icon={FiClock}
-              value={state.time}
-              readOnly
-              required
-              size="lg"
-            />
-            <FormField
-              label="Code"
-              icon={FiHash}
-              value={state.code}
-              onChange={handleCodeChange}
-              required
-              size="lg"
-            />
-            <FormField
-              label="Name"
-              icon={FiUser}
-              value={state.name}
-              readOnly
-              required
-              size="lg"
-            />
-            <FormSelect
-              label="Test"
-              icon={FiClipboard}
-              value={state.test}
-              onChange={(e) => handleFieldChange('test', e.target.value)}
-              options={["Skin Testing", "Photo Testing"]}
-              size="lg"
-            />
-            <FormField
-              label="Weight"
-              icon={FiPackage}
-              type="number"
-              step="0.001"
-              value={state.weight}
-              onChange={(e) => handleFieldChange('weight', e.target.value)}
-              required
-              size="lg"
-            />
-            <FormField
-              label="Sample"
-              icon={FiPackage}
-              value={state.sample}
-              onChange={(e) => handleFieldChange('sample', e.target.value)}
-              required
-              size="lg"
-            />
-            <FormField
-              label="Amount"
-              icon={FiDollarSign}
-              value={state.amount}
-              onChange={(e) => handleFieldChange('amount', e.target.value)}
-              required
-              size="lg"
-            />
-          </div>
-
-          <div className="flex justify-end space-x-3 pt-2">
-            <button
-              type="button"
-              onClick={resetForm}
-              className="inline-flex items-center px-3 py-1.5 text-sm border border-amber-200 text-amber-700 rounded-xl hover:bg-amber-50 transition-all"
-            >
-              <FiRotateCcw className="mr-1.5 h-4 w-4" />
-              Reset
-            </button>
-            <button
-              type="submit"
-              className="inline-flex items-center px-3 py-1.5 text-sm bg-gradient-to-r from-amber-600 to-yellow-500 text-white rounded-xl hover:from-amber-700 hover:to-yellow-600 transition-all"
-            >
-              <FiSave className="mr-1.5 h-4 w-4" />
-              {state.editMode ? "Update Token" : "Save Token"}
-            </button>
-            <button
-              type="button"
-              onClick={handlePrint}
-              className="inline-flex items-center px-3 py-1.5 text-sm bg-gradient-to-r from-amber-600 to-yellow-500 text-white rounded-xl hover:from-amber-700 hover:to-yellow-600 transition-all"
-            >
-              <FiPrinter className="mr-1.5 h-4 w-4" />
-              Print
-            </button>
-          </div>
-        </form>
-      </div>
-
-      <div className="mt-6 bg-white rounded-xl shadow-sm p-4 border border-amber-100">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center">
-            <FiList className="w-5 h-5 text-amber-600 mr-2" />
-            <h3 className="text-lg font-bold text-amber-900">
-              Token List
-            </h3>
-          </div>
-          <div className="relative w-64">
-            <input
-              type="text"
-              placeholder="Search tokens..."
-              value={state.searchQuery}
-              onChange={(e) => debouncedSearch(e.target.value)}
-              className="w-full pl-8 pr-3 py-1.5 rounded border border-amber-200 focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition-all text-sm"
-            />
-            <FiSearch className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-          </div>
-        </div>
-
-        {loading ? (
-          <div className="flex justify-center py-8">
-            <svg
-              className="animate-spin h-6 w-6 text-amber-600"
-              viewBox="0 0 24 24"
-            >
-              <circle
-                className="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                strokeWidth="4"
-                fill="none"
-              />
-              <path
-                className="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-              />
-            </svg>
-          </div>
-        ) : (
-          <div>
-            <TokenTable
-              tokens={state.filteredTokens}
-              onEdit={handleEdit}
-              onDelete={(id) => dispatch({ type: 'SET_FIELD', field: 'deleteConfirmation', value: { isOpen: true, tokenId: id } })}
-              onPaymentStatusChange={handlePaymentStatusChange}
-            />
-          </div>
-        )}
-      </div>
-
-      {state.deleteConfirmation.isOpen && (
-        <DeleteConfirmationModal
-          onCancel={() => dispatch({ type: 'SET_FIELD', field: 'deleteConfirmation', value: { isOpen: false, tokenId: null } })}
-          onConfirm={handleConfirmDelete}
-        />
-      )}
-    </div>
+      </Suspense>
+    </ErrorBoundary>
   );
 };
 
-export default TokenPage;
+// Add ErrorBoundary component
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error('Token page error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return this.props.fallback;
+    }
+    return this.props.children;
+  }
+}
+
+export default React.memo(TokenPage);
