@@ -1,9 +1,10 @@
-import { useMemo } from 'react';
+import { useReducer, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useQueries } from '@tanstack/react-query';
 import * as dashboardService from '../services/dashboardService';
+import { dashboardReducer, initialState, actionTypes } from '../reducers/dashboardReducer';
 
 const useDashboardData = () => {
-  // ...existing state code...
+  const [state, dispatch] = useReducer(dashboardReducer, initialState);
 
   const queries = useQueries({
     queries: [
@@ -35,45 +36,25 @@ const useDashboardData = () => {
   const loading = queries.some(query => query.isLoading);
   const error = queries.find(query => query.error)?.error;
 
-  // Process data when available
-  useMemo(() => {
+  useEffect(() => {
     if (!loading && !error) {
-      const processedTokens = processTokenData(tokensQuery.data);
-      const processedExchanges = processExchangeData(exchangesQuery.data);
-      
-      setTokens(processedTokens);
-      setExpenses(expensesQuery.data);
-      setEntries(entriesQuery.data);
-      setExchanges(processedExchanges);
-      
-      // Update metrics and activities
-      updateMetrics(processedTokens, entriesQuery.data, processedExchanges);
-      const activities = processRecentActivities(
-        processedTokens,
-        expensesQuery.data,
-        processedExchanges,
-        entriesQuery.data
-      );
-      setRecentActivities(activities);
+      dispatch({
+        type: actionTypes.SET_DATA_WITH_METRICS,
+        payload: {
+          tokens: tokensQuery.data,
+          expenses: expensesQuery.data,
+          entries: entriesQuery.data,
+          exchanges: exchangesQuery.data
+        }
+      });
     }
-  }, [queries]);
-
-  // ...rest of the existing code...
+  }, [tokensQuery.data, expensesQuery.data, entriesQuery.data, exchangesQuery.data, loading, error]);
 
   return {
-    tokens,
-    entries,
-    expenses,
-    exchanges,
+    ...state,
+    dispatch,
     loading,
     error: error?.message,
-    recentActivities,
-    todayTotal,
-    dateRange,
-    setDateRange,
-    metrics,
-    selectedPeriod,
-    setSelectedPeriod,
     isRefetching: queries.some(query => query.isRefetching)
   };
 };

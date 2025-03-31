@@ -8,6 +8,7 @@ import { useDashboardData } from './components/useDashboardData';
 import useSparklineData from './hooks/useSparklineData';
 import ErrorBoundary from './ErrorBoundary';
 import usePerformanceMonitor from './hooks/usePerformanceMonitor';
+import { actionTypes } from './reducers/dashboardReducer';
 
 // Lazy load components
 const DashboardHeader = lazy(() => import('./components/DashboardHeader'));
@@ -27,11 +28,11 @@ const queryClient = new QueryClient({
 
 function DashboardContent() {
   usePerformanceMonitor('Dashboard');
-
+  const dashboardData = useDashboardData();
   const {
     tokens, entries, expenses, exchanges, loading, error, recentActivities,
-    todayTotal, dateRange, setDateRange, metrics, selectedPeriod
-  } = useDashboardData();
+    todayTotal, dateRange, metrics, selectedPeriod
+  } = dashboardData;
 
   const sparklineData = useSparklineData({ tokens, expenseData: expenses, entries, exchanges });
 
@@ -60,7 +61,14 @@ function DashboardContent() {
       <motion.div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-6">
         <Toaster />
         <Suspense fallback={<LoadingSpinner />}>
-          <DashboardHeader todayTotal={todayTotal} dateRange={dateRange} onDateRangeChange={setDateRange} />
+          <DashboardHeader 
+            todayTotal={todayTotal} 
+            dateRange={dateRange} 
+            onDateRangeChange={(range) => dashboardData.dispatch({ 
+              type: actionTypes.SET_DATE_RANGE, 
+              payload: range 
+            })} 
+          />
         </Suspense>
         
         <Suspense fallback={<LoadingSpinner />}>
