@@ -58,4 +58,13 @@ const FormInput = ({
   );
 };
 
-export default FormInput;
+const areEqual = (prevProps, nextProps) => {
+  return (
+    prevProps.value === nextProps.value &&
+    prevProps.error === nextProps.error &&
+    prevProps.readOnly === nextProps.readOnly &&
+    prevProps.name === nextProps.name
+  );
+};
+
+export default React.memo(FormInput, areEqual);

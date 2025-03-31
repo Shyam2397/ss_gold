@@ -40,4 +40,12 @@ const DeleteConfirmationModal = ({ isOpen, onCancel, onConfirm }) => {
   );
 };
 
-export default DeleteConfirmationModal;
+const areEqual = (prevProps, nextProps) => {
+  return (
+    prevProps.isOpen === nextProps.isOpen &&
+    prevProps.onCancel === nextProps.onCancel &&
+    prevProps.onConfirm === nextProps.onConfirm
+  );
+};
+
+export default React.memo(DeleteConfirmationModal, areEqual);
