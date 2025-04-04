@@ -110,7 +110,9 @@ export const deleteSkinTest = async (tokenNo) => {
 };
 
 export const fetchTokenData = async (tokenNo) => {
-  return await axios.get(`${API_URL}/tokens/${tokenNo}`);
+  const response = await axios.get(`${API_URL}/tokens/${tokenNo}`);
+  // Return the response as-is, without any date manipulation
+  return response;
 };
 
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));

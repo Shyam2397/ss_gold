@@ -79,8 +79,22 @@ const getAllTokens = async (req, res) => {
 
 const getTokenByNumber = async (req, res) => {
   try {
+    // Use TO_CHAR to explicitly format the date
     const result = await pool.query(
-      "SELECT * FROM tokens WHERE token_no = $1",
+      `SELECT 
+        id, 
+        token_no,
+        TO_CHAR(date, 'YYYY-MM-DD') as date,
+        time,
+        code,
+        name,
+        test,
+        weight,
+        sample,
+        amount,
+        is_paid
+      FROM tokens 
+      WHERE token_no = $1`,
       [req.params.tokenNo]
     );
 
@@ -96,7 +110,7 @@ const getTokenByNumber = async (req, res) => {
     const transformedRow = {
       id: row.id,
       tokenNo: row.token_no,
-      date: row.date,
+      date: row.date,  // This is now already formatted as YYYY-MM-DD
       time: row.time,
       code: row.code,
       name: row.name,

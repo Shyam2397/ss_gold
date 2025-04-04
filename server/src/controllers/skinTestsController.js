@@ -26,7 +26,6 @@ const createSkinTest = async (req, res) => {
   const data = req.body;
   
   try {
-    // Get token number from either tokenNo or token_no
     const tokenNo = data.tokenNo || data.token_no;
     if (!tokenNo) {
       return res.status(400).json({ 
@@ -45,7 +44,7 @@ const createSkinTest = async (req, res) => {
 
     const processedData = {
       token_no: tokenNo,
-      date: data.date ? new Date(data.date).toISOString().split('T')[0] : null,
+      date: data.date || null, // Don't convert date, use as-is
       time: data.time || null,
       name: data.name || '',
       sample: data.sample || '',
@@ -128,7 +127,12 @@ const updateSkinTest = async (req, res) => {
       WHERE token_no = $${columns.length + 1}
       RETURNING *
     `;
-    const params = [...columns.map(col => data[col] || null), tokenNo];
+    const params = [...columns.map(col => {
+      if (col === 'date') {
+        return data.date || null;  // Use date as-is
+      }
+      return data[col] || null;
+    }), tokenNo];
 
     const result = await pool.query(sql, params);
     

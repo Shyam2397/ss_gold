@@ -75,22 +75,9 @@ export const useSkinTest = () => {
         if (response.data.success && response.data.data) {
           const { date, time, name, weight, sample, code } = response.data.data;
           
-          // Format date to YYYY-MM-DD if it's not already in that format
-          let formattedDate = date;
-          if (date) {
-            const dateParts = date.split(/[-/]/);
-            if (dateParts.length === 3) {
-              // Check if date is in DD-MM-YYYY or DD/MM/YYYY format
-              if (dateParts[0].length === 2) {
-                formattedDate = `${dateParts[2]}-${dateParts[1].padStart(2, '0')}-${dateParts[0].padStart(2, '0')}`;
-              }
-              // If it's already in YYYY-MM-DD format, keep it as is
-            }
-          }
-
           setFormData((prevFormData) => ({
             ...prevFormData,
-            date: formattedDate || '',
+            date: date || '',  // Use the date directly from the server without any conversion
             time: time || '',
             name: name || '',
             weight: weight ? parseFloat(weight).toFixed(3) : '',
@@ -109,7 +96,7 @@ export const useSkinTest = () => {
                 }));
               }
             } catch (phoneErr) {
-              // Remove console.error for phone number fetch
+              // Handle phone number error silently
             }
           }
         } else {

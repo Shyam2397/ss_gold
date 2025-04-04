@@ -106,8 +106,14 @@ export const processFormData = (formData) => {
 // Date formatting utilities
 export const formatDateForDisplay = (dateStr) => {
   if (!dateStr) return '';
+  
+  // Create date in local timezone
   const date = new Date(dateStr);
   if (isNaN(date.getTime())) return dateStr;
+  
+  // Adjust for timezone to get correct local date
+  date.setMinutes(date.getMinutes() + date.getTimezoneOffset());
+  
   const day = date.getDate().toString().padStart(2, '0');
   const month = (date.getMonth() + 1).toString().padStart(2, '0');
   const year = date.getFullYear();
@@ -146,8 +152,14 @@ export const formatTimeForDisplay = (timeStr) => {
 
 export const formatDateForInput = (dateStr) => {
   if (!dateStr) return '';
+  
+  // Create date in local timezone
   const date = new Date(dateStr);
   if (isNaN(date.getTime())) return dateStr;
+  
+  // Adjust for timezone to get correct local date
+  date.setMinutes(date.getMinutes() + date.getTimezoneOffset());
+  
   const year = date.getFullYear();
   const month = (date.getMonth() + 1).toString().padStart(2, '0');
   const day = date.getDate().toString().padStart(2, '0');
