@@ -56,7 +56,8 @@ export const validateForm = (formData, setError, isEditing = false) => {
 export const processFormData = (formData) => {
   const processed = {
     tokenNo: (formData.tokenNo || formData.tokenno || '').trim(),
-    date: (formData.date || '').trim(),
+    // Pass date directly without any manipulation
+    date: formData.date,
     time: formatTimeForInput(formData.time || '').trim(),
     name: (formData.name || '').trim(),
     weight: formData.weight ? parseFloat(formData.weight) : 0,

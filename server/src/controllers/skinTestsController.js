@@ -44,7 +44,7 @@ const createSkinTest = async (req, res) => {
 
     const processedData = {
       token_no: tokenNo,
-      date: data.date || null, // Don't convert date, use as-is
+      date: data.date, // Store date as-is from client
       time: data.time || null,
       name: data.name || '',
       sample: data.sample || '',
@@ -84,11 +84,45 @@ const createSkinTest = async (req, res) => {
     const sql = `
       INSERT INTO skin_tests (${columns.join(', ')}) 
       VALUES (${placeholders}) 
-      RETURNING *
+      RETURNING 
+        token_no,
+        TO_CHAR(date, 'YYYY-MM-DD') as date,
+        time,
+        name,
+        weight,
+        sample,
+        highest,
+        average,
+        gold_fineness,
+        karat,
+        silver,
+        copper,
+        zinc,
+        cadmium,
+        nickel,
+        tungsten,
+        iridium,
+        ruthenium,
+        osmium,
+        rhodium,
+        rhenium,
+        indium,
+        titanium,
+        palladium,
+        platinum,
+        others,
+        remarks,
+        code
     `;
 
     const result = await pool.query(sql, values);
-    res.status(201).json({ message: "Success", data: result.rows[0] });
+    res.status(201).json({ 
+      message: "Success", 
+      data: {
+        ...result.rows[0],
+        date: result.rows[0].date // Use formatted date from TO_CHAR
+      }
+    });
   } catch (err) {
     return handleDatabaseError(err, res);
   }
@@ -123,16 +157,41 @@ const updateSkinTest = async (req, res) => {
 
     const sql = `
       UPDATE skin_tests 
-      SET ${columns.map((col, i) => `${col} = $${i + 1}`).join(', ')} 
+      SET ${columns.map((col, i) => 
+        col === 'date' ? `date = $${i + 1}::date` : `${col} = $${i + 1}`
+      ).join(', ')} 
       WHERE token_no = $${columns.length + 1}
-      RETURNING *
+      RETURNING 
+        token_no,
+        TO_CHAR(date, 'YYYY-MM-DD') as date,
+        time,
+        name,
+        weight,
+        sample,
+        highest,
+        average,
+        gold_fineness,
+        karat,
+        silver,
+        copper,
+        zinc,
+        cadmium,
+        nickel,
+        tungsten,
+        iridium,
+        ruthenium,
+        osmium,
+        rhodium,
+        rhenium,
+        indium,
+        titanium,
+        palladium,
+        platinum,
+        others,
+        remarks,
+        code
     `;
-    const params = [...columns.map(col => {
-      if (col === 'date') {
-        return data.date || null;  // Use date as-is
-      }
-      return data[col] || null;
-    }), tokenNo];
+    const params = [...columns.map(col => data[col] || null), tokenNo];
 
     const result = await pool.query(sql, params);
     

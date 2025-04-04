@@ -26,8 +26,9 @@ export const createSkinTest = async (data) => {
 
     // Process data
     const formattedData = {
+      ...data,
       tokenNo: data.tokenNo || data.token_no, // Keep tokenNo for consistency
-      date: data.date,
+      date: data.date, // Pass date directly without manipulation
       time: data.time,
       name: data.name || '',
       sample: data.sample || '',
@@ -60,10 +61,8 @@ export const createSkinTest = async (data) => {
 
 export const updateSkinTest = async (tokenNo, data) => {
   try {
-    const response = await axios.put(`${API_URL}/skin-tests/${tokenNo}`, data, {
-      headers: { 'Content-Type': 'application/json' }
-    });
-
+    // Pass date directly without manipulation
+    const response = await axios.put(`${API_URL}/skin-tests/${tokenNo}`, data);
     return response.data;
   } catch (error) {
     if (error.response?.status === 404) {
