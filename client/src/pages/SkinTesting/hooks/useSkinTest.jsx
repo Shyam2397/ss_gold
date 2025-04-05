@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { initialFormData } from '../constants/initialState';
 import { validateForm, processFormData } from '../utils/validation';
 import { calculateSum, calculateKarat } from '../utils/calculations';
@@ -16,8 +16,31 @@ export const useSkinTest = () => {
   const [skinTests, setSkinTests] = useState([]);
   const [isEditing, setIsEditing] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
   const [sum, setSum] = useState(0);
+  
+  // Clear error messages after a timeout
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => {
+        setError('');
+      }, 5000); // 5 seconds timeout
+      
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
+  
+  // Clear success messages after a timeout
+  useEffect(() => {
+    if (success) {
+      const timer = setTimeout(() => {
+        setSuccess('');
+      }, 5000); // 5 seconds timeout
+      
+      return () => clearTimeout(timer);
+    }
+  }, [success]);
 
   const loadSkinTests = useCallback(async () => {
     setLoading(true);
@@ -162,6 +185,7 @@ export const useSkinTest = () => {
         await loadSkinTests();
         setFormData(initialFormData);
         setError('');
+        setSuccess(`Skin test #${processedData.tokenNo} updated successfully!`);
         setSum(0);
       } else {
         const processedData = processFormData(formData);
@@ -174,6 +198,7 @@ export const useSkinTest = () => {
         await loadSkinTests();
         setFormData(initialFormData);
         setError('');
+        setSuccess(`Skin test #${processedData.tokenNo} saved successfully!`);
         setSum(0);
       }
     } catch (err) {
@@ -252,6 +277,7 @@ export const useSkinTest = () => {
           handleReset();
         }
         await loadSkinTests();
+        setSuccess(`Skin test #${normalizedTokenNo} deleted successfully!`);
       } else {
         throw new Error(response.data?.message || 'Failed to delete skin test');
       }
@@ -266,6 +292,7 @@ export const useSkinTest = () => {
     setFormData(initialFormData);
     setIsEditing(false);
     setError('');
+    setSuccess('');
     setSum(0);
   };
 
@@ -274,6 +301,7 @@ export const useSkinTest = () => {
     skinTests,
     isEditing,
     error,
+    success,
     loading,
     sum,
     handleTokenChange,

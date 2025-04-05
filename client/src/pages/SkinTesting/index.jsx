@@ -6,6 +6,7 @@ import {
   FiRotateCcw,
   FiPrinter,
   FiAlertCircle,
+  FiCheckCircle,
   FiList,
   FiHash,
   FiCalendar,
@@ -32,6 +33,7 @@ const SkinTesting = () => {
     skinTests,
     isEditing,
     error,
+    success,
     loading,
     sum,
     handleTokenChange,
@@ -119,6 +121,16 @@ const SkinTesting = () => {
                 <FiAlertCircle className="h-5 w-5 text-red-400" />
                 <div className="ml-2">
                   <p className="text-sm text-red-700">{error}</p>
+                </div>
+              </div>
+            </div>
+          )}
+          {success && (
+            <div className="p-2 bg-green-50 border-l-4 border-green-500 rounded">
+              <div className="flex">
+                <FiCheckCircle className="h-5 w-5 text-green-400" />
+                <div className="ml-2">
+                  <p className="text-sm text-green-700">{success}</p>
                 </div>
               </div>
             </div>
