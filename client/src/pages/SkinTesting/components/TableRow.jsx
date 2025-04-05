@@ -26,7 +26,7 @@ const TableRow = ({
     const messageLines = [
       '*Dear Customer,*',
       '',
-      `🔖 *Token No:* ${rowData.tokenNo || rowData.tokenno}`,
+      `🔖 *Token No:* ${rowData.tokenNo || rowData.tokenno || rowData.token_no}`,
       `📅 *Date:* ${formatDateForDisplay(rowData.date)}`,
       `👤 *Name:* ${rowData.name}`,
       `⚖️ *Weight:* ${parseFloat(rowData.weight).toFixed(3)} g`,
