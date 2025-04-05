@@ -56,8 +56,8 @@ export const validateForm = (formData, setError, isEditing = false) => {
 export const processFormData = (formData) => {
   const processed = {
     tokenNo: (formData.tokenNo || formData.tokenno || '').trim(),
-    // Pass date directly without any manipulation
-    date: formData.date,
+    // Ensure date is in YYYY-MM-DD format for the server
+    date: formatDateForInput(formData.date),
     time: formatTimeForInput(formData.time || '').trim(),
     name: (formData.name || '').trim(),
     weight: formData.weight ? parseFloat(formData.weight) : 0,
@@ -112,9 +112,7 @@ export const formatDateForDisplay = (dateStr) => {
   const date = new Date(dateStr);
   if (isNaN(date.getTime())) return dateStr;
   
-  // Adjust for timezone to get correct local date
-  date.setMinutes(date.getMinutes() + date.getTimezoneOffset());
-  
+  // Get the date components directly without timezone adjustment
   const day = date.getDate().toString().padStart(2, '0');
   const month = (date.getMonth() + 1).toString().padStart(2, '0');
   const year = date.getFullYear();
@@ -158,9 +156,7 @@ export const formatDateForInput = (dateStr) => {
   const date = new Date(dateStr);
   if (isNaN(date.getTime())) return dateStr;
   
-  // Adjust for timezone to get correct local date
-  date.setMinutes(date.getMinutes() + date.getTimezoneOffset());
-  
+  // Get date components without timezone adjustment
   const year = date.getFullYear();
   const month = (date.getMonth() + 1).toString().padStart(2, '0');
   const day = date.getDate().toString().padStart(2, '0');

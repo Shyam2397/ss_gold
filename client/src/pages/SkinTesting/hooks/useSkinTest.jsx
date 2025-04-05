@@ -195,14 +195,13 @@ export const useSkinTest = () => {
         throw new Error('Token number is required for editing');
       }
       
+      // Preserve the original date format from the server
+      // The server returns dates in YYYY-MM-DD format
       let formattedDate = test.date;
-      if (formattedDate) {
+      // Only reformat if it's in DD-MM-YYYY format
+      if (formattedDate && /^\d{2}[-/]\d{2}[-/]\d{4}$/.test(formattedDate)) {
         const dateParts = formattedDate.split(/[-/]/);
-        if (dateParts.length === 3) {
-          if (dateParts[0].length === 2) {
-            formattedDate = `${dateParts[2]}-${dateParts[1].padStart(2, '0')}-${dateParts[0].padStart(2, '0')}`;
-          }
-        }
+        formattedDate = `${dateParts[2]}-${dateParts[1].padStart(2, '0')}-${dateParts[0].padStart(2, '0')}`;
       }
 
       const editData = {
