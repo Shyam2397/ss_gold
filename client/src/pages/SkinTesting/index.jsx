@@ -36,6 +36,8 @@ const SkinTesting = () => {
     success,
     loading,
     sum,
+    searchQuery,
+    setSearchQuery,
     handleTokenChange,
     handleChange,
     handleSubmit,
@@ -44,8 +46,6 @@ const SkinTesting = () => {
     handleReset,
     loadSkinTests,
   } = useSkinTest();
-
-  const [searchQuery, setSearchQuery] = useState('');
   const [filteredSkinTests, setFilteredSkinTests] = useState([]);
   const [deleteConfirmation, setDeleteConfirmation] = useState({
     isOpen: false,
@@ -256,14 +256,26 @@ const SkinTesting = () => {
               Skin Test List
             </h3>
           </div>
-          <div className="relative w-64">
-            <input
-              type="text"
-              placeholder="Search tests..."
-              onChange={handleSearchChange}
-              className="w-full pl-8 pr-3 py-2 rounded border border-amber-200 focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition-all text-sm text-amber-900"
-            />
-            <FiSearch className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-amber-500 h-4 w-4" />
+          <div className="flex items-center space-x-2">
+            <div className="relative w-64">
+              <input
+                type="text"
+                placeholder="Search tests..."
+                onChange={handleSearchChange}
+                value={searchQuery}
+                className="w-full pl-8 pr-3 py-2 rounded border border-amber-200 focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition-all text-sm text-amber-900"
+              />
+              <FiSearch className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-amber-500 h-4 w-4" />
+            </div>
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={handleReset}
+                className="inline-flex items-center px-3 py-2 border border-amber-200 text-amber-700 rounded-md hover:bg-amber-50 transition-all"
+              >
+                <FiRotateCcw className="h-4 w-4" />
+              </button>
+            )}
           </div>
         </div>
 

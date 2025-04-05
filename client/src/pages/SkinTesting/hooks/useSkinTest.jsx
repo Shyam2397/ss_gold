@@ -19,6 +19,7 @@ export const useSkinTest = () => {
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
   const [sum, setSum] = useState(0);
+  const [searchQuery, setSearchQuery] = useState('');
   
   // Clear error messages after a timeout
   useEffect(() => {
@@ -294,6 +295,7 @@ export const useSkinTest = () => {
     setError('');
     setSuccess('');
     setSum(0);
+    setSearchQuery('');
   };
 
   return {
@@ -304,6 +306,8 @@ export const useSkinTest = () => {
     success,
     loading,
     sum,
+    searchQuery,
+    setSearchQuery,
     handleTokenChange,
     handleChange,
     handleSubmit,
