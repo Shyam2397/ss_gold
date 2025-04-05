@@ -155,9 +155,10 @@ export const useSkinTest = () => {
   const loadSkinTests = useCallback(async () => {
     dispatch({ type: ACTIONS.SET_LOADING, payload: true });
     try {
+      // fetchSkinTests now handles caching internally
       const sortedData = await fetchSkinTests();
       
-      // Fetch phone numbers for each test that has a code
+      // Fetch phone numbers for each test that has a code (phone numbers are also cached)
       const testsWithPhoneNumbers = await Promise.all(
         sortedData.map(async (test) => {
           if (test.code) {

@@ -1,17 +1,44 @@
 import axios from 'axios';
+import { skinTestCache, tokenCache, phoneNumberCache } from '../utils/cacheUtils';
 
 const API_URL = import.meta.env.VITE_API_URL;
-// Add phone number cache
-const phoneNumberCache = new Map();
 
 export const fetchSkinTests = async () => {
-  const response = await axios.get(`${API_URL}/skin-tests`);
-  // Response data is directly the array, no need for .data property
-  return response.data.sort((a, b) => {
+  // Check cache first
+  const cacheKey = 'skin-tests';
+  const cachedData = skinTestCache.get(cacheKey);
+  
+  if (cachedData) {
+    // If data is stale, revalidate in background but return cached data immediately
+    if (skinTestCache.isStale(cacheKey)) {
+      // Use Promise to fetch in background without awaiting
+      fetchSkinTestsFromApi().catch(console.error);
+    }
+    return cachedData;
+  }
+  
+  return fetchSkinTestsFromApi();
+};
+
+// Helper function to fetch skin tests from API
+const fetchSkinTestsFromApi = async () => {
+  const response = await axios.get(`${API_URL}/skin-tests`, {
+    headers: {
+      'Cache-Control': 'no-cache',
+      'Pragma': 'no-cache'
+    }
+  });
+  
+  const sortedData = response.data.sort((a, b) => {
     const tokenA = a.token_no || a.tokenNo;
     const tokenB = b.token_no || b.tokenNo;
     return parseFloat(tokenB) - parseFloat(tokenA);
   });
+  
+  // Store in cache
+  skinTestCache.set('skin-tests', sortedData);
+  
+  return sortedData;
 };
 
 export const createSkinTest = async (data) => {
@@ -48,10 +75,13 @@ export const createSkinTest = async (data) => {
         parseFloat(value) || 0;
     });
 
-    // Removed console.log for formatted data
     const response = await axios.post(`${API_URL}/skin-tests`, formattedData, {
       headers: { 'Content-Type': 'application/json' }
     });
+    
+    // Invalidate cache after successful creation
+    skinTestCache.clearResource('skin-tests');
+    
     return response;
   } catch (error) {
     // Simplified error handling
@@ -63,6 +93,10 @@ export const updateSkinTest = async (tokenNo, data) => {
   try {
     // Pass date directly without manipulation
     const response = await axios.put(`${API_URL}/skin-tests/${tokenNo}`, data);
+    
+    // Invalidate cache after successful update
+    skinTestCache.clearResource('skin-tests');
+    
     return response.data;
   } catch (error) {
     if (error.response?.status === 404) {
@@ -88,6 +122,9 @@ export const deleteSkinTest = async (tokenNo) => {
     
     // The server returns { message: 'Deleted' } on success
     if (response.data?.message === 'Deleted') {
+      // Invalidate cache after successful deletion
+      skinTestCache.clearResource('skin-tests');
+      
       return {
         data: {
           success: true,
@@ -109,7 +146,38 @@ export const deleteSkinTest = async (tokenNo) => {
 };
 
 export const fetchTokenData = async (tokenNo) => {
-  const response = await axios.get(`${API_URL}/tokens/${tokenNo}`);
+  if (!tokenNo) {
+    throw new Error('Token number is required');
+  }
+  
+  // Check cache first
+  const cacheKey = `token-${tokenNo}`;
+  const cachedData = tokenCache.get(cacheKey);
+  
+  if (cachedData) {
+    // If data is stale, revalidate in background but return cached data immediately
+    if (tokenCache.isStale(cacheKey)) {
+      // Use Promise to fetch in background without awaiting
+      fetchTokenDataFromApi(tokenNo).catch(console.error);
+    }
+    return cachedData;
+  }
+  
+  return fetchTokenDataFromApi(tokenNo);
+};
+
+// Helper function to fetch token data from API
+const fetchTokenDataFromApi = async (tokenNo) => {
+  const response = await axios.get(`${API_URL}/tokens/${tokenNo}`, {
+    headers: {
+      'Cache-Control': 'no-cache',
+      'Pragma': 'no-cache'
+    }
+  });
+  
+  // Store in cache
+  tokenCache.set(`token-${tokenNo}`, response);
+  
   // Return the response as-is, without any date manipulation
   return response;
 };
@@ -120,8 +188,11 @@ export const fetchPhoneNumber = async (code, retries = 2, backoff = 2000) => {
   if (!code) return null;
 
   // Check cache first
-  if (phoneNumberCache.has(code)) {
-    return phoneNumberCache.get(code);
+  const cacheKey = `phone-${code}`;
+  const cachedData = phoneNumberCache.get(cacheKey);
+  
+  if (cachedData) {
+    return cachedData;
   }
 
   for (let attempt = 0; attempt < retries; attempt++) {
@@ -148,7 +219,7 @@ export const fetchPhoneNumber = async (code, retries = 2, backoff = 2000) => {
 
       if (phoneNumber) {
         // Cache the successful result
-        phoneNumberCache.set(code, phoneNumber);
+        phoneNumberCache.set(`phone-${code}`, phoneNumber);
         return phoneNumber;
       }
 
@@ -160,7 +231,6 @@ export const fetchPhoneNumber = async (code, retries = 2, backoff = 2000) => {
         !err.response;
 
       if (!isRetryable || attempt === retries - 1) {
-        // Remove console.error for failed phone number fetch
         return null;
       }
 
@@ -170,6 +240,3 @@ export const fetchPhoneNumber = async (code, retries = 2, backoff = 2000) => {
 
   return null;
 };
-
-// Clear cache periodically (every 30 minutes)
-setInterval(() => phoneNumberCache.clear(), 30 * 60 * 1000);
