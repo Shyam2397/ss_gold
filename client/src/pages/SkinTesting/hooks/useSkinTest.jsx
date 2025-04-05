@@ -8,7 +8,7 @@ import {
   updateSkinTest,
   deleteSkinTest,
   fetchTokenData,
-  fetchPhoneNumbers,
+  fetchPhoneNumber,
 } from '../api/skinTestApi';
 
 // Action types
@@ -158,29 +158,20 @@ export const useSkinTest = () => {
       // fetchSkinTests now handles caching internally
       const sortedData = await fetchSkinTests();
       
-      // Collect all codes that need phone numbers
-      const testsWithCodes = sortedData.filter(test => test.code);
-      const codes = testsWithCodes.map(test => test.code);
-      
-      // Batch fetch all phone numbers at once
-      let phoneNumbers = {};
-      if (codes.length > 0) {
-        try {
-          // Use the new batch function to fetch all phone numbers in one request
-          phoneNumbers = await fetchPhoneNumbers(codes);
-        } catch (err) {
-          // Silent fail for phone numbers - we'll still show the tests
-          console.error('Error fetching phone numbers in batch:', err);
-        }
-      }
-      
-      // Merge phone numbers with test data
-      const testsWithPhoneNumbers = sortedData.map(test => {
-        if (test.code && phoneNumbers[test.code]) {
-          return { ...test, phoneNumber: phoneNumbers[test.code] || '' };
-        }
-        return test;
-      });
+      // Fetch phone numbers for each test that has a code (phone numbers are also cached)
+      const testsWithPhoneNumbers = await Promise.all(
+        sortedData.map(async (test) => {
+          if (test.code) {
+            try {
+              const phoneNumber = await fetchPhoneNumber(test.code);
+              return { ...test, phoneNumber: phoneNumber || '' };
+            } catch (err) {
+              return test;
+            }
+          }
+          return test;
+        })
+      );
       
       dispatch({ type: ACTIONS.SET_SKIN_TESTS, payload: testsWithPhoneNumbers });
     } catch (err) {
@@ -225,12 +216,11 @@ export const useSkinTest = () => {
 
           if (code) {
             try {
-              // Use the batch function for better performance
-              const phoneNumbers = await fetchPhoneNumbers([code]);
-              if (phoneNumbers[code]) {
+              const phoneNumber = await fetchPhoneNumber(code);
+              if (phoneNumber) {
                 dispatch({ 
                   type: ACTIONS.SET_FORM_DATA, 
-                  payload: { ...updatedFormData, phoneNumber: phoneNumbers[code] }
+                  payload: { ...updatedFormData, phoneNumber }
                 });
               }
             } catch (phoneErr) {
@@ -350,10 +340,9 @@ export const useSkinTest = () => {
 
       if (editData.code) {
         try {
-          // Use the batch function for better performance
-          const phoneNumbers = await fetchPhoneNumbers([editData.code]);
-          if (phoneNumbers[editData.code]) {
-            editData.phoneNumber = phoneNumbers[editData.code];
+          const phoneNumber = await fetchPhoneNumber(editData.code);
+          if (phoneNumber) {
+            editData.phoneNumber = phoneNumber;
           }
         } catch (phoneErr) {
           // Remove console.error for phone number fetch
