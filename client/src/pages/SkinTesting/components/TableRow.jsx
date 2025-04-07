@@ -10,7 +10,6 @@ const TableRow = ({
   initialFormData,
   onEdit, 
   onDelete,
-  onPrint
 }) => {
   // Optimize sorting with simpler logic
   const sortedTests = useMemo(() => {
@@ -23,6 +22,17 @@ const TableRow = ({
   }, [skinTests]);
 
   const handleWhatsAppShare = (rowData) => {
+    let resultMessage;
+    
+    // Check for melting defect in remarks
+    if (rowData.remarks && rowData.remarks.toLowerCase().includes('melting defect')) {
+      resultMessage = '✨ *RESULT:* *Melting Defect*\n👉 \n *Please collect the sample, remelt it, and return it.*';
+    } else if (parseFloat(rowData.gold_fineness) === 0 && rowData.silver) {
+      resultMessage = `✨ *RESULT:* *${parseFloat(rowData.silver).toFixed(2)}* %`;
+    } else {
+      resultMessage = `✨ *RESULT:* *${parseFloat(rowData.gold_fineness).toFixed(2)}* %`;
+    }
+
     const messageLines = [
       '*Dear Customer,*',
       '',
@@ -32,17 +42,20 @@ const TableRow = ({
       `⚖️ *Weight:* ${parseFloat(rowData.weight).toFixed(3)} g`,
       `🔍 *Sample:* ${rowData.sample}`,
       '',
-      `✨ *RESULT:* *${parseFloat(rowData.gold_fineness).toFixed(2)}* %`,
+      resultMessage
+    ];
+
+    if (rowData.remarks && !rowData.remarks.toLowerCase().includes('melting defect')) {
+      messageLines.push('', `📝 *Remarks:* ${rowData.remarks}`);
+    }
+
+    messageLines.push(
       '',
       'SS GOLD TESTING,',
       'Nilakottai.',
       'For any doubt/clarification, please contact',
       '8903225544'
-    ];
-
-    if (rowData.remarks) {
-      messageLines.push(`📝 *Remarks:* ${rowData.remarks}`);
-    }
+    );
 
     const message = encodeURIComponent(messageLines.join('\n'));
     
