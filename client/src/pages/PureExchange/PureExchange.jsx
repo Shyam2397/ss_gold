@@ -8,38 +8,22 @@ import {
 import { GiGoldBar } from 'react-icons/gi';
 import { usePureExchange } from './hooks/usePureExchange';
 import { fetchSkinTests } from '../SkinTesting/api/skinTestApi';
+import MemoizedFormInput from './components/MemoizedFormInput';
+import TableRow from './components/TableRow';
+import { FormInputSkeleton, TableSkeleton, ButtonSkeleton } from './components/SkeletonLoaders';
 const ThermalPrinter = React.lazy(() => import('./ThermalPrinter'));
 
 // Suspense fallback component
 const PrinterFallback = () => (
   <button
-    className="px-2 py-1 border border-amber-300 text-amber-700 text-sm rounded hover:bg-amber-50 transition-colors flex items-center space-x-1 h-[30px] opacity-50 cursor-not-allowed"
-    disabled
+    className="disabled px-2 py-1 border border-amber-300 border-solid text-amber-700 text-sm rounded hover:bg-amber-50 transition-colors flex items-center space-x-1 h-[30px] opacity-50 cursor-not-allowed"
   >
-    <div className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-amber-500 border-t-transparent" />
+    <div className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-amber-500 border-solid border-t-transparent" />
     <span>Loading Printer...</span>
   </button>
 );
 
-const FormInput = ({ label, name, value, onChange, readOnly = false, className }) => {
-    return (
-        <div className={`form-control ${className}`}>
-            <label className="block text-xs font-medium text-amber-900 mb-0.5">
-                {label}
-            </label>
-            <input
-                type="text"
-                name={name}
-                value={value}
-                onChange={onChange}
-                readOnly={readOnly}
-                className={`w-full px-2 py-1 text-sm rounded border border-amber-200 focus:ring-1 focus:ring-amber-500 focus:border-amber-500 text-amber-900 transition-all duration-200 ${
-                    readOnly ? 'bg-gray-50' : ''
-                }`}
-            />
-        </div>
-    );
-};
+// Using the memoized FormInput component instead of the inline version
 
 // Action types
 const ACTIONS = {
@@ -112,6 +96,9 @@ const PureExchange = () => {
     const [state, dispatch] = useReducer(pureExchangeReducer, initialState);
     const { tokenNo, point, tableData, error, loading } = state;
     const { checkExists, createPureExchange: createExchange, isCreating } = usePureExchange();
+    
+    // Combine local loading state with API creating state for UI feedback
+    const isLoading = loading || isCreating;
 
     // Function to set error with auto-clear timeout
     const setErrorWithTimeout = (message) => {
@@ -276,7 +263,7 @@ const PureExchange = () => {
         <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-8">
             
             {/* Form Section */}
-            <div className="bg-white rounded-lg shadow-sm p-3 border border-amber-100">
+            <div className="bg-white rounded-lg shadow-sm p-3 border border-amber-100 border-solid">
                 <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center">
                         <div
@@ -299,42 +286,52 @@ const PureExchange = () => {
                 {/* Input Section */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3 p-2 bg-amber-50/50 rounded mb-3">
                     <div className="flex items-end space-x-2">
-                    <FormInput
-                            label="Token Number"
-                        name="tokenNo"
-                        value={tokenNo}
-                        onChange={(e) => dispatch({ type: ACTIONS.SET_TOKEN_NO, payload: e.target.value })}
-                            className="flex-1"
-                    />
-                    <FormInput
-                        label="Point"
-                        name="point"
-                        value={point}
-                        onChange={(e) => dispatch({ type: ACTIONS.SET_POINT, payload: e.target.value })}
-                            className="w-20"
-                        />
-                        <button
-                            onClick={handleAdd}
-                            className="px-2 py-1 bg-amber-500 text-white text-sm rounded hover:bg-amber-600 transition-colors flex items-center space-x-1 h-[30px]"
-                            disabled={loading}
-                        >
-                            {loading ? (
-                                <>
-                                    <div className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-white border-t-transparent" />
-                                    <span>Adding...</span>
-                                </>
-                            ) : (
-                                <>
-                                    <FiPlus className="w-3.5 h-3.5" />
-                                    <span>Add</span>
-                                </>
-                            )}
-                        </button>
+                    {isLoading ? (
+                        <>
+                            <FormInputSkeleton className="flex-1" />
+                            <FormInputSkeleton className="w-20" />
+                            <ButtonSkeleton />
+                        </>
+                    ) : (
+                        <>
+                            <MemoizedFormInput
+                                label="Token Number"
+                                name="tokenNo"
+                                value={tokenNo}
+                                onChange={(e) => dispatch({ type: ACTIONS.SET_TOKEN_NO, payload: e.target.value })}
+                                className="flex-1"
+                            />
+                            <MemoizedFormInput
+                                label="Point"
+                                name="point"
+                                value={point}
+                                onChange={(e) => dispatch({ type: ACTIONS.SET_POINT, payload: e.target.value })}
+                                className="w-20"
+                            />
+                            <button
+                                onClick={handleAdd}
+                                className="px-2 py-1 bg-amber-500 text-white text-sm rounded hover:bg-amber-600 transition-colors flex items-center space-x-1 h-[30px]"
+                                disabled={isLoading}
+                            >
+                                {isLoading ? (
+                                    <>
+                                        <div className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-white border-solid border-t-transparent" />
+                                        <span>Adding...</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <FiPlus className="w-3.5 h-3.5" />
+                                        <span>Add</span>
+                                    </>
+                                )}
+                            </button>
+                        </>
+                    )}
                     </div>
                 </div>
 
                 {/* Table Section */}
-                <div className="overflow-hidden rounded-xl border border-amber-100 mt-2">
+                <div className="overflow-hidden rounded-xl border border-amber-100 border-solid mt-2">
                     <div className="overflow-x-auto">
                         <div className="flex flex-col h-[calc(100vh-280px)]">
                             <div className="flex-grow overflow-y-auto scrollbar-thin scrollbar-thumb-amber-500 scrollbar-track-amber-100">
@@ -356,52 +353,17 @@ const PureExchange = () => {
                                         </tr>
                                     </thead>
                                 <tbody className="bg-white divide-y divide-amber-100">
-                                    {tableData.map((row, index) => (
-                                        <tr key={row.tokenNo} className="hover:bg-amber-50/50">
-                                            <td className="px-2 py-1.5 whitespace-nowrap text-sm text-gray-900">
-                                                {index + 1}
-                                            </td>
-                                            <td className="px-2 py-1.5 whitespace-nowrap text-sm text-gray-900">
-                                                {row.tokenNo}
-                                            </td>
-                                            <td className="px-2 py-1.5 whitespace-nowrap text-sm text-gray-900">
-                                                {row.name}
-                                            </td>
-                                            <td className="px-2 py-1.5 whitespace-nowrap text-sm text-gray-900">
-                                                {row.date}
-                                            </td>
-                                            <td className="px-2 py-1.5 whitespace-nowrap text-sm text-gray-900">
-                                                {row.time}
-                                            </td>
-                                            <td className="px-2 py-1.5 whitespace-nowrap text-sm text-gray-900">
-                                                {parseFloat(row.weight).toFixed(3)}
-                                            </td>
-                                            <td className="px-2 py-1.5 whitespace-nowrap text-sm text-gray-900">
-                                                {parseFloat(row.highest).toFixed(2)}
-                                            </td>
-                                            <td className="px-2 py-1.5 whitespace-nowrap text-sm text-gray-900">
-                                                {parseFloat(row.hWeight).toFixed(3)}
-                                            </td>
-                                            <td className="px-2 py-1.5 whitespace-nowrap text-sm text-gray-900">
-                                                {parseFloat(row.average).toFixed(2)}
-                                            </td>
-                                            <td className="px-2 py-1.5 whitespace-nowrap text-sm text-gray-900">
-                                                {parseFloat(row.aWeight).toFixed(3)}
-                                            </td>
-                                            <td className="px-2 py-1.5 whitespace-nowrap text-sm text-gray-900">
-                                                {parseFloat(row.goldFineness).toFixed(2)}
-                                            </td>
-                                            <td className="px-2 py-1.5 whitespace-nowrap text-sm text-gray-900">
-                                                {parseFloat(row.gWeight).toFixed(3)}
-                                            </td>
-                                            <td className="px-2 py-1.5 whitespace-nowrap text-sm text-gray-900">
-                                                {parseFloat(row.exGold).toFixed(2)}
-                                            </td>
-                                            <td className="px-2 py-1.5 whitespace-nowrap text-sm text-gray-900">
-                                                {parseFloat(row.exWeight).toFixed(3)}
-                                            </td>
-                                        </tr>
-                                        ))}
+                                    {isLoading ? (
+                                        <TableSkeleton rowCount={3} />
+                                    ) : (
+                                        tableData.map((row, index) => (
+                                            <TableRow 
+                                                key={row.tokenNo} 
+                                                row={row} 
+                                                index={index} 
+                                            />
+                                        ))
+                                    )}
                                     </tbody>
                                 </table>
                             </div>
@@ -411,35 +373,45 @@ const PureExchange = () => {
 
                 {/* Action Buttons */}
                 <div className="flex justify-end space-x-2 mt-2">
-                    <button
-                        onClick={handleReset}
-                        className="px-2 py-1 border border-amber-300 text-amber-700 text-sm rounded hover:bg-amber-50 transition-colors flex items-center space-x-1 h-[30px]"
-                        disabled={loading}
-                    >
-                        <FiRotateCcw className="w-3.5 h-3.5" />
-                        <span>Reset</span>
-                    </button>
-                    <button
-                        onClick={handleSave}
-                        className="px-2 py-1 bg-amber-500 text-white text-sm rounded hover:bg-amber-600 transition-colors flex items-center space-x-1 h-[30px]"
-                        disabled={loading || tableData.length === 0}
-                    >
-                        {loading ? (
-                            <>
-                                <div className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-white border-t-transparent" />
-                                <span>Saving...</span>
-                            </>
-                        ) : (
-                            <>
-                                <FiSave className="w-3.5 h-3.5" />
-                                <span>Save</span>
-                            </>
-                        )}
-                    </button>
-                    {/* Thermal Printer Component */}
-            <React.Suspense fallback={<PrinterFallback />}>
-              <ThermalPrinter tableData={tableData} />
-            </React.Suspense>
+                    {isLoading ? (
+                        <div className="flex space-x-2">
+                            <ButtonSkeleton width="w-16" />
+                            <ButtonSkeleton width="w-16" />
+                            <ButtonSkeleton width="w-24" />
+                        </div>
+                    ) : (
+                        <>
+                            <button
+                                onClick={handleReset}
+                                className="px-2 py-1 border border-amber-300 border-solid text-amber-700 text-sm rounded hover:bg-amber-50 transition-colors flex items-center space-x-1 h-[30px]"
+                                disabled={isLoading}
+                            >
+                                <FiRotateCcw className="w-3.5 h-3.5" />
+                                <span>Reset</span>
+                            </button>
+                            <button
+                                onClick={handleSave}
+                                className="px-2 py-1 bg-amber-500 text-white text-sm rounded hover:bg-amber-600 transition-colors flex items-center space-x-1 h-[30px]"
+                                disabled={isLoading || tableData.length === 0}
+                            >
+                                {isLoading ? (
+                                    <>
+                                        <div className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-white border-solid border-t-transparent" />
+                                        <span>Saving...</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <FiSave className="w-3.5 h-3.5" />
+                                        <span>Save</span>
+                                    </>
+                                )}
+                            </button>
+                            {/* Thermal Printer Component */}
+                            <React.Suspense fallback={<PrinterFallback />}>
+                                <ThermalPrinter tableData={tableData} />
+                            </React.Suspense>
+                        </>
+                    )}
                 </div>
             </div>
             
