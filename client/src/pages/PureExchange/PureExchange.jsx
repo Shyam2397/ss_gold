@@ -6,7 +6,7 @@ import {
     FiPlus,
 } from 'react-icons/fi';
 import { GiGoldBar } from 'react-icons/gi';
-import { createPureExchange, checkPureExchangeExists } from './api/pureExchangeApi';
+import { usePureExchange } from './hooks/usePureExchange';
 import { fetchSkinTests } from '../SkinTesting/api/skinTestApi';
 const ThermalPrinter = React.lazy(() => import('./ThermalPrinter'));
 
@@ -111,6 +111,7 @@ const pureExchangeReducer = (state, action) => {
 const PureExchange = () => {
     const [state, dispatch] = useReducer(pureExchangeReducer, initialState);
     const { tokenNo, point, tableData, error, loading } = state;
+    const { checkExists, createPureExchange: createExchange, isCreating } = usePureExchange();
 
     // Function to set error with auto-clear timeout
     const setErrorWithTimeout = (message) => {
@@ -175,9 +176,7 @@ const PureExchange = () => {
             return;
         }
 
-        // Show loading state while fetching
         dispatch({ type: ACTIONS.SET_LOADING, payload: true });
-        // Remove the line that sets error to "Fetching skin test data..."
         
         // Fetch skin testing data
         const skinTestData = await fetchSkinTestData(tokenNo);
@@ -235,7 +234,7 @@ const PureExchange = () => {
             // Check all records for existing tokens first
             const existingTokens = [];
             for (const record of dataToSave) {
-                const exists = await checkPureExchangeExists(record.tokenNo);
+                const exists = await checkExists(record.tokenNo);
                 if (exists) {
                     existingTokens.push(record.tokenNo);
                 }
@@ -255,7 +254,7 @@ const PureExchange = () => {
 
             // Save each record
             for (const record of dataToSave) {
-                await createPureExchange(record);
+                await createExchange(record);
             }
 
             // Clear the table after successful save
@@ -317,9 +316,19 @@ const PureExchange = () => {
                         <button
                             onClick={handleAdd}
                             className="px-2 py-1 bg-amber-500 text-white text-sm rounded hover:bg-amber-600 transition-colors flex items-center space-x-1 h-[30px]"
+                            disabled={loading}
                         >
-                            <FiPlus className="w-3.5 h-3.5" />
-                            <span>Add</span>
+                            {loading ? (
+                                <>
+                                    <div className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-white border-t-transparent" />
+                                    <span>Adding...</span>
+                                </>
+                            ) : (
+                                <>
+                                    <FiPlus className="w-3.5 h-3.5" />
+                                    <span>Add</span>
+                                </>
+                            )}
                         </button>
                     </div>
                 </div>
