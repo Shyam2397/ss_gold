@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useReducer, useEffect } from 'react';
 import {
     FiSave,
     FiRotateCcw,
@@ -30,18 +30,82 @@ const FormInput = ({ label, name, value, onChange, readOnly = false, className }
     );
 };
 
+// Action types
+const ACTIONS = {
+    SET_TOKEN_NO: 'set_token_no',
+    SET_POINT: 'set_point',
+    SET_TABLE_DATA: 'set_table_data',
+    ADD_TABLE_ROW: 'add_table_row',
+    SET_ERROR: 'set_error',
+    SET_LOADING: 'set_loading',
+    RESET_FORM: 'reset_form'
+};
+
+// Initial state
+const initialState = {
+    tokenNo: '',
+    point: '0.20',
+    tableData: [],
+    error: '',
+    loading: false
+};
+
+// Reducer function
+const pureExchangeReducer = (state, action) => {
+    switch (action.type) {
+        case ACTIONS.SET_TOKEN_NO:
+            return {
+                ...state,
+                tokenNo: action.payload
+            };
+        case ACTIONS.SET_POINT:
+            return {
+                ...state,
+                point: action.payload
+            };
+        case ACTIONS.SET_TABLE_DATA:
+            return {
+                ...state,
+                tableData: action.payload
+            };
+        case ACTIONS.ADD_TABLE_ROW:
+            return {
+                ...state,
+                tableData: [...state.tableData, action.payload],
+                tokenNo: '' // Clear token number after adding
+            };
+        case ACTIONS.SET_ERROR:
+            return {
+                ...state,
+                error: action.payload
+            };
+        case ACTIONS.SET_LOADING:
+            return {
+                ...state,
+                loading: action.payload
+            };
+        case ACTIONS.RESET_FORM:
+            return {
+                ...state,
+                tokenNo: '',
+                point: '0.20',
+                tableData: [],
+                error: ''
+            };
+        default:
+            return state;
+    }
+};
+
 const PureExchange = () => {
-    const [tokenNo, setTokenNo] = useState('');
-    const [point, setPoint] = useState('0.20');
-    const [tableData, setTableData] = useState([]);
-    const [error, setError] = useState('');
-    const [loading, setLoading] = useState(false);
+    const [state, dispatch] = useReducer(pureExchangeReducer, initialState);
+    const { tokenNo, point, tableData, error, loading } = state;
 
     // Function to set error with auto-clear timeout
     const setErrorWithTimeout = (message) => {
-        setError(message);
+        dispatch({ type: ACTIONS.SET_ERROR, payload: message });
         setTimeout(() => {
-            setError('');
+            dispatch({ type: ACTIONS.SET_ERROR, payload: '' });
         }, 3000); // Clear after 3 seconds
     };
 
@@ -101,13 +165,15 @@ const PureExchange = () => {
         }
 
         // Show loading state while fetching
-        setLoading(true);
-        setError('Fetching skin test data...');
-
+        dispatch({ type: ACTIONS.SET_LOADING, payload: true });
+        // Remove the line that sets error to "Fetching skin test data..."
+        
         // Fetch skin testing data
         const skinTestData = await fetchSkinTestData(tokenNo);
         
-        setLoading(false);
+        dispatch({ type: ACTIONS.SET_LOADING, payload: false });
+        dispatch({ type: ACTIONS.SET_ERROR, payload: '' }); // Clear any existing error message
+        
         if (!skinTestData) {
             return; // Error message already set by fetchSkinTestData
         }
@@ -139,9 +205,7 @@ const PureExchange = () => {
             exWeight: exWeight.toFixed(3)
         };
 
-        setTableData([...tableData, newRow]);
-        setTokenNo('');
-        setError('');
+        dispatch({ type: ACTIONS.ADD_TABLE_ROW, payload: newRow });
     };
 
     const handleSave = async () => {
@@ -151,8 +215,8 @@ const PureExchange = () => {
                 return;
             }
 
-            setLoading(true);
-            setError('');
+            dispatch({ type: ACTIONS.SET_LOADING, payload: true });
+            dispatch({ type: ACTIONS.SET_ERROR, payload: '' });
 
             // Prepare data for saving (excluding id field)
             const dataToSave = tableData.map(({ id, ...rest }) => rest);
@@ -174,7 +238,7 @@ const PureExchange = () => {
                         ? `Token ${tokens} already exists in Pure Exchange data. Please remove it and try again.`
                         : `Tokens ${tokens} already exist in Pure Exchange data. Please remove them and try again.`
                 );
-                setLoading(false);
+                dispatch({ type: ACTIONS.SET_LOADING, payload: false });
                 return;
             }
 
@@ -184,21 +248,18 @@ const PureExchange = () => {
             }
 
             // Clear the table after successful save
-            setTableData([]);
+            dispatch({ type: ACTIONS.SET_TABLE_DATA, payload: [] });
             setErrorWithTimeout('Data saved successfully!');
         } catch (error) {
             console.error('Error saving data:', error);
             setErrorWithTimeout('Error saving data. Please try again.');
         } finally {
-            setLoading(false);
+            dispatch({ type: ACTIONS.SET_LOADING, payload: false });
         }
     };
 
     const handleReset = () => {
-        setTokenNo('');
-        setPoint('0.20');
-        setTableData([]);
-        setError('');
+        dispatch({ type: ACTIONS.RESET_FORM });
     };
 
     return (
@@ -232,14 +293,14 @@ const PureExchange = () => {
                             label="Token Number"
                         name="tokenNo"
                         value={tokenNo}
-                        onChange={(e) => setTokenNo(e.target.value)}
+                        onChange={(e) => dispatch({ type: ACTIONS.SET_TOKEN_NO, payload: e.target.value })}
                             className="flex-1"
                     />
                     <FormInput
                         label="Point"
                         name="point"
                         value={point}
-                        onChange={(e) => setPoint(e.target.value)}
+                        onChange={(e) => dispatch({ type: ACTIONS.SET_POINT, payload: e.target.value })}
                             className="w-20"
                         />
                         <button
