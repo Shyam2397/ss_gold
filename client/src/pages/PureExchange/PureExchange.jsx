@@ -1,4 +1,4 @@
-import React, { useReducer, useEffect } from 'react';
+import React, { useReducer } from 'react';
 import {
     FiSave,
     FiRotateCcw,
@@ -8,7 +8,18 @@ import {
 import { GiGoldBar } from 'react-icons/gi';
 import { createPureExchange, checkPureExchangeExists } from './api/pureExchangeApi';
 import { fetchSkinTests } from '../SkinTesting/api/skinTestApi';
-import ThermalPrinter from './ThermalPrinter';
+const ThermalPrinter = React.lazy(() => import('./ThermalPrinter'));
+
+// Suspense fallback component
+const PrinterFallback = () => (
+  <button
+    className="px-2 py-1 border border-amber-300 text-amber-700 text-sm rounded hover:bg-amber-50 transition-colors flex items-center space-x-1 h-[30px] opacity-50 cursor-not-allowed"
+    disabled
+  >
+    <div className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-amber-500 border-t-transparent" />
+    <span>Loading Printer...</span>
+  </button>
+);
 
 const FormInput = ({ label, name, value, onChange, readOnly = false, className }) => {
     return (
@@ -417,7 +428,9 @@ const PureExchange = () => {
                         )}
                     </button>
                     {/* Thermal Printer Component */}
-            <ThermalPrinter tableData={tableData} />
+            <React.Suspense fallback={<PrinterFallback />}>
+              <ThermalPrinter tableData={tableData} />
+            </React.Suspense>
                 </div>
             </div>
             
