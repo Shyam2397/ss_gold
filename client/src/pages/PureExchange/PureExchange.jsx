@@ -202,7 +202,7 @@ const PureExchange = () => {
     };
 
     return (
-        <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-2">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-8">
             
             {/* Form Section */}
             <div className="bg-white rounded-lg shadow-sm p-3 border border-amber-100">
