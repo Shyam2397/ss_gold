@@ -76,4 +76,19 @@ const DashboardCard = ({ title, value, trend, icon: Icon, description, sparkline
   );
 };
 
-export default DashboardCard;
+// Memoization comparison function
+const areEqual = (prevProps, nextProps) => {
+  return (
+    prevProps.title === nextProps.title &&
+    prevProps.value === nextProps.value &&
+    prevProps.trend === nextProps.trend &&
+    prevProps.icon === nextProps.icon &&
+    prevProps.description === nextProps.description &&
+    prevProps.className === nextProps.className &&
+    prevProps.iconClassName === nextProps.iconClassName &&
+    prevProps.valueClassName === nextProps.valueClassName &&
+    JSON.stringify(prevProps.sparklineData) === JSON.stringify(nextProps.sparklineData)
+  );
+};
+
+export default React.memo(DashboardCard, areEqual);
