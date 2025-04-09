@@ -165,6 +165,19 @@ const PureExchange = () => {
 
         dispatch({ type: ACTIONS.SET_LOADING, payload: true });
         
+        // Check if token already exists in the database
+        try {
+            const exists = await checkExists(tokenNo.trim());
+            if (exists) {
+                dispatch({ type: ACTIONS.SET_LOADING, payload: false });
+                setErrorWithTimeout(`Token ${tokenNo} already exists in Pure Exchange database`);
+                return;
+            }
+        } catch (error) {
+            console.error('Error checking token existence:', error);
+            // Continue with the process even if check fails
+        }
+        
         // Fetch skin testing data
         const skinTestData = await fetchSkinTestData(tokenNo);
         

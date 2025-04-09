@@ -4,7 +4,8 @@ const {
   getAllPureExchanges,
   createPureExchange,
   updatePureExchange,
-  deletePureExchange
+  deletePureExchange,
+  checkPureExchangeExists
 } = require('../controllers/pureExchangeController');
 const { validatePureExchange } = require('../middleware/validation');
 const { handleDatabaseError } = require('../middleware/errorHandler');
@@ -38,6 +39,15 @@ router.delete('/:tokenNo', async (req, res) => {
     await deletePureExchange(req, res);
   } catch (err) {
     handleDatabaseError(err, res, 'Failed to delete pure exchange');
+  }
+});
+
+// Route to check if a token exists
+router.get('/:tokenNo', async (req, res) => {
+  try {
+    await checkPureExchangeExists(req, res);
+  } catch (err) {
+    handleDatabaseError(err, res, 'Failed to check pure exchange existence');
   }
 });
 

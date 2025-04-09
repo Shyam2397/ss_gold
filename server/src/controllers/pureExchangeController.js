@@ -136,9 +136,33 @@ const deletePureExchange = async (req, res) => {
   }
 };
 
+// Function to check if a pure exchange entry exists by token number
+const checkPureExchangeExists = async (req, res) => {
+  const tokenNo = req.params.tokenNo;
+  
+  if (!tokenNo) {
+    return res.status(400).json({ error: 'Token number is required' });
+  }
+  
+  const sql = 'SELECT token_no FROM pure_exchange WHERE token_no = $1';
+  
+  try {
+    const result = await pool.query(sql, [tokenNo]);
+    const exists = result.rows.length > 0;
+    
+    res.json({
+      exists: exists
+    });
+  } catch (err) {
+    console.error('Error checking pure exchange existence:', err);
+    res.status(500).json({ error: 'Database error while checking record existence' });
+  }
+};
+
 module.exports = {
   getAllPureExchanges,
   createPureExchange,
   updatePureExchange,
-  deletePureExchange
+  deletePureExchange,
+  checkPureExchangeExists
 };
