@@ -1,77 +1,55 @@
-import { useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 
 const useSparklineData = ({ tokens, expenseData, entries, exchanges }) => {
-  return useMemo(() => {
-    const today = new Date();
-    const days = Array.from({ length: 7 }, (_, i) => {
-      const date = new Date(today);
-      date.setDate(today.getDate() - (6 - i));
-      return date;
-    });
+  const [sparklineData, setSparklineData] = useState({
+    revenue: [],
+    expenses: [],
+    profit: [],
+    customers: [],
+    skinTests: [],
+    weights: []
+  });
 
-    // Helper function to get daily total
-    const getDailyTotal = (items, dateField, valueField = 'totalAmount') => {
-      return days.map(day => ({
-        date: day,
-        value: items
-          .filter(item => {
-            const itemDate = new Date(item[dateField].split('-').reverse().join('-'));
-            return itemDate.toDateString() === day.toDateString();
-          })
-          .reduce((sum, item) => sum + (parseFloat(item[valueField]) || 0), 0)
-      }));
+  // Create a memoized worker instance
+  const worker = useMemo(() => {
+    // Create a new worker
+    const newWorker = new Worker(
+      new URL('../workers/sparklineProcessor.js', import.meta.url),
+      { type: 'module' }
+    );
+    
+    return newWorker;
+  }, []);
+
+  // Set up worker communication
+  useEffect(() => {
+    if (!worker) return;
+    
+    // Handle messages from the worker
+    const handleWorkerMessage = (event) => {
+      if (event.data.error) {
+        console.error('Worker error:', event.data.error);
+        return;
+      }
+      
+      // Update state with calculated sparkline data
+      setSparklineData(event.data);
     };
-
-    // Revenue sparkline data
-    const revenue = getDailyTotal(tokens, 'date');
-
-    // Expenses sparkline data
-    const expenses = getDailyTotal(expenseData, 'date', 'amount');
-
-    // Profit sparkline data
-    const profit = days.map((day, index) => ({
-      date: day,
-      value: revenue[index].value - expenses[index].value
-    }));
-
-    // Customers sparkline data
-    const customers = days.map(day => ({
-      date: day,
-      value: entries.filter(entry => {
-        const entryDate = new Date(entry.createdAt);
-        return entryDate.toDateString() === day.toDateString();
-      }).length
-    }));
-
-    // Skin tests sparkline data
-    const skinTests = days.map(day => ({
-      date: day,
-      value: tokens.filter(token => {
-        const tokenDate = new Date(token.date.split('-').reverse().join('-'));
-        return tokenDate.toDateString() === day.toDateString() && token.testType === 'skin';
-      }).length
-    }));
-
-    // Weights sparkline data
-    const weights = days.map(day => ({
-      date: day,
-      value: exchanges
-        .filter(exchange => {
-          const exchangeDate = new Date(exchange.date.split('-').reverse().join('-'));
-          return exchangeDate.toDateString() === day.toDateString();
-        })
-        .reduce((sum, exchange) => sum + parseFloat(exchange.weight || '0'), 0)
-    }));
-
-    return {
-      revenue,
-      expenses,
-      profit,
-      customers,
-      skinTests,
-      weights
+    
+    // Add event listener
+    worker.addEventListener('message', handleWorkerMessage);
+    
+    // Send data to worker for processing
+    worker.postMessage({ tokens, expenseData, entries, exchanges });
+    
+    // Clean up worker when component unmounts
+    return () => {
+      worker.removeEventListener('message', handleWorkerMessage);
+      worker.terminate();
     };
-  }, [tokens, expenseData, entries, exchanges]);
+  }, [worker, tokens, expenseData, entries, exchanges]);
+
+  return sparklineData;
 };
 
 export default useSparklineData;
