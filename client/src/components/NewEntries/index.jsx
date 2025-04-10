@@ -79,6 +79,26 @@ const NewEntries = () => {
       return false;
     }
 
+    // Check for duplicate code
+    const duplicateCode = customers.find(
+      customer => customer.code === state.code.trim() && 
+      (!state.editMode || customer.id !== state.editId)
+    );
+    if (duplicateCode) {
+      dispatch({ type: ActionTypes.SET_ERROR, payload: "Customer code already exists" });
+      return false;
+    }
+
+    // Check for duplicate phone number
+    const duplicatePhone = customers.find(
+      customer => customer.phoneNumber === state.phoneNumber.trim() && 
+      (!state.editMode || customer.id !== state.editId)
+    );
+    if (duplicatePhone) {
+      dispatch({ type: ActionTypes.SET_ERROR, payload: "Phone number already exists" });
+      return false;
+    }
+
     return true;
   };
 
