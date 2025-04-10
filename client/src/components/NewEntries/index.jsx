@@ -1,4 +1,4 @@
-import React, { useReducer, useEffect, useCallback, useMemo, memo, Suspense } from 'react';
+import React, { useReducer, useEffect, useCallback, Suspense } from 'react';
 import axios from 'axios';
 import LoadingSpinner from './LoadingSpinner';
 import { customerReducer, initialState, ActionTypes } from './customerReducer';
@@ -13,7 +13,7 @@ axios.defaults.baseURL = API_URL;
 
 const NewEntries = () => {
   const [state, dispatch] = useReducer(customerReducer, initialState);
-  const { fetchCustomers, createCustomer, updateCustomer, deleteCustomer } = useCustomerAPI(dispatch, ActionTypes);
+  const { customers, isLoading, error, createCustomer, updateCustomer, deleteCustomer } = useCustomerAPI(dispatch, ActionTypes);
 
   // Message timeout duration
   const MESSAGE_TIMEOUT = 5000;
@@ -40,13 +40,10 @@ const NewEntries = () => {
     };
   }, [state.error, state.success]);
 
-  // Fetch customers on component mount
-  useEffect(() => {
-    fetchCustomers();
-  }, []);
+  // React Query handles data fetching automatically
 
   // Filter customers based on search query
-  const filteredCustomers = state.customers.filter((customer) =>
+  const filteredCustomers = (customers || []).filter((customer) =>
     Object.values(customer)
       .join(" ")
       .toLowerCase()
@@ -90,7 +87,6 @@ const NewEntries = () => {
     e.preventDefault();
     if (!validateForm()) return;
 
-    dispatch({ type: ActionTypes.SET_LOADING, payload: true });
     const customerData = {
       code: state.code.trim(),
       name: state.name.trim(),
@@ -98,14 +94,16 @@ const NewEntries = () => {
       place: state.place.trim(),
     };
 
-    const success = state.editMode 
-      ? await updateCustomer(state.editId, customerData)
-      : await createCustomer(customerData);
-
-    if (success) {
+    try {
+      if (state.editMode) {
+        await updateCustomer(state.editId, customerData);
+      } else {
+        await createCustomer(customerData);
+      }
       dispatch({ type: ActionTypes.RESET_FORM });
+    } catch (err) {
+      console.error('Error submitting form:', err);
     }
-    dispatch({ type: ActionTypes.SET_LOADING, payload: false });
   };
 
   // Simplify these handlers to use dispatch directly
@@ -133,14 +131,15 @@ const NewEntries = () => {
   const proceedDelete = async () => {
     if (!state.deleteConfirmation.customerId) return;
     
-    dispatch({ type: ActionTypes.SET_LOADING, payload: true });
-    await deleteCustomer(state.deleteConfirmation.customerId);
-    
-    dispatch({
-      type: ActionTypes.SET_DELETE_CONFIRMATION,
-      payload: { isOpen: false, customerId: null }
-    });
-    dispatch({ type: ActionTypes.SET_LOADING, payload: false });
+    try {
+      await deleteCustomer(state.deleteConfirmation.customerId);
+      dispatch({
+        type: ActionTypes.SET_DELETE_CONFIRMATION,
+        payload: { isOpen: false, customerId: null }
+      });
+    } catch (err) {
+      console.error('Error deleting customer:', err);
+    }
   };
 
   const handleInputChange = (field) => (e) => {
@@ -160,7 +159,7 @@ const NewEntries = () => {
       <Suspense fallback={<LoadingSpinner />}>
         <CustomerForm
           editMode={state.editMode}
-          loading={state.loading}
+          loading={isLoading}
           name={state.name}
           code={state.code}
           phoneNumber={state.phoneNumber}
@@ -173,7 +172,7 @@ const NewEntries = () => {
         />
 
         <CustomerList
-          loading={state.loading}
+          loading={isLoading}
           customers={filteredCustomers}
           searchQuery={state.searchQuery}
           setSearchQuery={(value) => dispatch({ 

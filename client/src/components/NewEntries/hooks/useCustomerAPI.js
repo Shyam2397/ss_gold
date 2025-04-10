@@ -1,99 +1,89 @@
-import { useCallback } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
-import { customerCache } from './cacheUtils';
 
 const useCustomerAPI = (dispatch, ActionTypes) => {
-  const fetchCustomers = useCallback(async () => {
-    try {
-      dispatch({ type: ActionTypes.SET_LOADING, payload: true });
-      
-      // Check cache first
-      const cachedData = customerCache.get('customers');
-      if (cachedData) {
-        dispatch({ type: ActionTypes.SET_CUSTOMERS, payload: cachedData });
-        
-        // If data is stale, fetch in background
-        if (customerCache.isStale('customers')) {
-          const response = await axios.get('/entries');
-          const freshData = response.data || [];
-          customerCache.set('customers', freshData);
-          dispatch({ type: ActionTypes.SET_CUSTOMERS, payload: freshData });
-        }
-        return;
-      }
+  const queryClient = useQueryClient();
 
-      // If no cache, fetch from API
-      const response = await axios.get('/entries');
-      const data = response.data || [];
-      customerCache.set('customers', data);
+  // Query for fetching customers
+  const { data: customers, isLoading, error } = useQuery({
+    queryKey: ['customers'],
+    queryFn: async () => {
+      try {
+        const response = await axios.get('/entries');
+        return response.data || [];
+      } catch (err) {
+        throw new Error(err.response?.data?.error || 'Error fetching customers');
+      }
+    },
+    onSuccess: (data) => {
       dispatch({ type: ActionTypes.SET_CUSTOMERS, payload: data });
-    } catch (err) {
-      console.error("Error fetching customers:", err);
-      dispatch({ type: ActionTypes.SET_ERROR, payload: err.response?.data?.error || "Error fetching customers" });
-    } finally {
-      dispatch({ type: ActionTypes.SET_LOADING, payload: false });
+    },
+    onError: (err) => {
+      dispatch({ type: ActionTypes.SET_ERROR, payload: err.message });
     }
-  }, [dispatch]);
+  });
 
-  const createCustomer = useCallback(async (customerData) => {
-    try {
+  // Mutation for creating customer
+  const createCustomerMutation = useMutation({
+    mutationFn: async (customerData) => {
       const response = await axios.post('/entries', customerData);
-      if (response.data.success) {
-        dispatch({ type: ActionTypes.SET_SUCCESS, payload: response.data.message || "Customer added successfully!" });
-        customerCache.clear(); // Invalidate cache on mutation
-        await fetchCustomers();
-        return true;
+      if (!response.data.success) {
+        throw new Error(response.data.error || 'Failed to add customer');
       }
-      dispatch({ type: ActionTypes.SET_ERROR, payload: response.data.error || "Failed to add customer" });
-      return false;
-    } catch (err) {
-      console.error("Error creating customer:", err);
-      dispatch({ type: ActionTypes.SET_ERROR, payload: err.response?.data?.error || "Error creating customer" });
-      return false;
+      return response.data;
+    },
+    onSuccess: (data) => {
+      dispatch({ type: ActionTypes.SET_SUCCESS, payload: data.message || 'Customer added successfully!' });
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
+    },
+    onError: (err) => {
+      dispatch({ type: ActionTypes.SET_ERROR, payload: err.message });
     }
-  }, [dispatch, fetchCustomers]);
+  });
 
-  const updateCustomer = useCallback(async (id, customerData) => {
-    try {
+  // Mutation for updating customer
+  const updateCustomerMutation = useMutation({
+    mutationFn: async ({ id, customerData }) => {
       const response = await axios.put(`/entries/${id}`, customerData);
-      if (response.data.success) {
-        dispatch({ type: ActionTypes.SET_SUCCESS, payload: response.data.message || "Customer updated successfully!" });
-        customerCache.clear(); // Invalidate cache on mutation
-        await fetchCustomers();
-        return true;
+      if (!response.data.success) {
+        throw new Error(response.data.error || 'Failed to update customer');
       }
-      dispatch({ type: ActionTypes.SET_ERROR, payload: response.data.error || "Failed to update customer" });
-      return false;
-    } catch (err) {
-      console.error("Error updating customer:", err);
-      dispatch({ type: ActionTypes.SET_ERROR, payload: err.response?.data?.error || "Error updating customer" });
-      return false;
+      return response.data;
+    },
+    onSuccess: (data) => {
+      dispatch({ type: ActionTypes.SET_SUCCESS, payload: data.message || 'Customer updated successfully!' });
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
+    },
+    onError: (err) => {
+      dispatch({ type: ActionTypes.SET_ERROR, payload: err.message });
     }
-  }, [dispatch, fetchCustomers]);
+  });
 
-  const deleteCustomer = useCallback(async (id) => {
-    try {
+  // Mutation for deleting customer
+  const deleteCustomerMutation = useMutation({
+    mutationFn: async (id) => {
       const response = await axios.delete(`/entries/${id}`);
-      if (response.data.success) {
-        dispatch({ type: ActionTypes.SET_SUCCESS, payload: response.data.message || "Customer deleted successfully!" });
-        customerCache.clear(); // Invalidate cache on mutation
-        await fetchCustomers();
-        return true;
+      if (!response.data.success) {
+        throw new Error(response.data.error || 'Failed to delete customer');
       }
-      dispatch({ type: ActionTypes.SET_ERROR, payload: response.data.error || "Failed to delete customer" });
-      return false;
-    } catch (err) {
-      console.error("Error deleting customer:", err);
-      dispatch({ type: ActionTypes.SET_ERROR, payload: err.response?.data?.error || "Error deleting customer" });
-      return false;
+      return response.data;
+    },
+    onSuccess: (data) => {
+      dispatch({ type: ActionTypes.SET_SUCCESS, payload: data.message || 'Customer deleted successfully!' });
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
+    },
+    onError: (err) => {
+      dispatch({ type: ActionTypes.SET_ERROR, payload: err.message });
     }
-  }, [dispatch, fetchCustomers]);
+  });
 
   return {
-    fetchCustomers,
-    createCustomer,
-    updateCustomer,
-    deleteCustomer
+    customers,
+    isLoading,
+    error,
+    createCustomer: createCustomerMutation.mutate,
+    updateCustomer: (id, customerData) => updateCustomerMutation.mutate({ id, customerData }),
+    deleteCustomer: deleteCustomerMutation.mutate
   };
 };
 
