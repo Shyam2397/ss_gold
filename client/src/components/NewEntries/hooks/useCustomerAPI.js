@@ -1,12 +1,32 @@
 import { useCallback } from 'react';
 import axios from 'axios';
+import { customerCache } from './cacheUtils';
 
 const useCustomerAPI = (dispatch, ActionTypes) => {
   const fetchCustomers = useCallback(async () => {
     try {
       dispatch({ type: ActionTypes.SET_LOADING, payload: true });
+      
+      // Check cache first
+      const cachedData = customerCache.get('customers');
+      if (cachedData) {
+        dispatch({ type: ActionTypes.SET_CUSTOMERS, payload: cachedData });
+        
+        // If data is stale, fetch in background
+        if (customerCache.isStale('customers')) {
+          const response = await axios.get('/entries');
+          const freshData = response.data || [];
+          customerCache.set('customers', freshData);
+          dispatch({ type: ActionTypes.SET_CUSTOMERS, payload: freshData });
+        }
+        return;
+      }
+
+      // If no cache, fetch from API
       const response = await axios.get('/entries');
-      dispatch({ type: ActionTypes.SET_CUSTOMERS, payload: response.data || [] });
+      const data = response.data || [];
+      customerCache.set('customers', data);
+      dispatch({ type: ActionTypes.SET_CUSTOMERS, payload: data });
     } catch (err) {
       console.error("Error fetching customers:", err);
       dispatch({ type: ActionTypes.SET_ERROR, payload: err.response?.data?.error || "Error fetching customers" });
@@ -20,6 +40,7 @@ const useCustomerAPI = (dispatch, ActionTypes) => {
       const response = await axios.post('/entries', customerData);
       if (response.data.success) {
         dispatch({ type: ActionTypes.SET_SUCCESS, payload: response.data.message || "Customer added successfully!" });
+        customerCache.clear(); // Invalidate cache on mutation
         await fetchCustomers();
         return true;
       }
@@ -37,6 +58,7 @@ const useCustomerAPI = (dispatch, ActionTypes) => {
       const response = await axios.put(`/entries/${id}`, customerData);
       if (response.data.success) {
         dispatch({ type: ActionTypes.SET_SUCCESS, payload: response.data.message || "Customer updated successfully!" });
+        customerCache.clear(); // Invalidate cache on mutation
         await fetchCustomers();
         return true;
       }
@@ -54,6 +76,7 @@ const useCustomerAPI = (dispatch, ActionTypes) => {
       const response = await axios.delete(`/entries/${id}`);
       if (response.data.success) {
         dispatch({ type: ActionTypes.SET_SUCCESS, payload: response.data.message || "Customer deleted successfully!" });
+        customerCache.clear(); // Invalidate cache on mutation
         await fetchCustomers();
         return true;
       }
