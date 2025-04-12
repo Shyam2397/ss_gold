@@ -1,7 +1,7 @@
 import React from 'react';
 import { FiAlertCircle, FiX } from 'react-icons/fi';
 
-import useTokens from './hooks/useTokens';
+import useTokens from './hooks/useTokensQuery';
 import DateInput from './components/DateInput';
 import TokenTable from './components/TokenTable';
 import ExportButton from './components/ExportButton';

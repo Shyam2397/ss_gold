@@ -27,7 +27,7 @@ import {
 } from './components/LazyComponents';
 
 // Hooks
-import useToken from './hooks/useToken';
+import useToken from './hooks/useTokenQuery';
 
 // Utils
 import { preloadImages, convertImageToBase64, generatePrintContent } from './utils/printUtils';
@@ -154,7 +154,7 @@ const TokenPage = () => {
     return true;
   };
 
-  // Optimize form submission
+  // Optimize form submission with immediate table refresh
   const handleSubmit = useCallback(async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
@@ -175,6 +175,9 @@ const TokenPage = () => {
       const success = await saveToken(tokenData, state.editMode ? state.editId : null);
       
       if (success) {
+        // Immediately refresh the table data
+        await fetchTokens();
+        
         // If it was an edit operation
         if (state.editMode) {
           const newTokenNo = await generateTokenNumber();
@@ -185,7 +188,6 @@ const TokenPage = () => {
             dispatch({ type: 'SET_FIELD', field: 'tokenNo', value: newTokenNo })
           );
         }
-        await fetchTokens();
       }
     } catch (error) {
       dispatch({ type: 'SET_FIELD', field: 'error', value: error.message });
@@ -211,6 +213,9 @@ const TokenPage = () => {
     const success = await deleteToken(state.deleteConfirmation.tokenId);
     
     if (success) {
+      // Immediately refresh the table data
+      await fetchTokens();
+      
       dispatch({ type: 'SET_FIELD', field: 'deleteConfirmation', value: { isOpen: false, tokenId: null } });
       resetForm();
       generateTokenNumber().then((newTokenNo) => dispatch({ type: 'SET_FIELD', field: 'tokenNo', value: newTokenNo }));
@@ -256,7 +261,11 @@ const TokenPage = () => {
   };
 
   const handlePaymentStatusChange = async (tokenId, isPaid) => {
-    await updatePaymentStatus(tokenId, isPaid);
+    const success = await updatePaymentStatus(tokenId, isPaid);
+    if (success) {
+      // Immediately refresh the table data after payment status change
+      await fetchTokens();
+    }
   };
 
   // Add memoization for expensive operations
@@ -292,6 +301,8 @@ const TokenPage = () => {
       if (!state.deleteConfirmation.tokenId) return;
       const success = await deleteToken(state.deleteConfirmation.tokenId);
       if (success) {
+        // Immediately refresh the table data
+        await fetchTokens();
         dispatch({ type: 'SET_DELETE_CONFIRMATION', value: { isOpen: false, tokenId: null } });
         dispatch({ type: 'RESET_FORM' });
         const newTokenNo = await generateTokenNumber();
@@ -307,7 +318,7 @@ const TokenPage = () => {
     >
       <Suspense fallback={<div>Loading...</div>}>
         <div className="container mx-auto px-4 py-3">
-          <div className="bg-white rounded-xl shadow-sm p-4 border border-amber-100">
+          <div className="bg-white rounded-xl shadow-sm p-4 border border-amber-100 border-solid">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center">
                 <BsReceipt className="w-6 h-6 text-amber-600 mr-3" />
@@ -325,7 +336,7 @@ const TokenPage = () => {
                 </div>
               )}
               {success && (
-                <div className="p-1.5 bg-green-50 border-l-3 border-green-500 rounded">
+                <div className="p-1.5 bg-green-50 border-l-3 border-green-500 border-solid rounded">
                   <div className="flex">
                     <div className="ml-2">
                       <p className="text-xs text-green-700">{success}</p>
@@ -337,7 +348,7 @@ const TokenPage = () => {
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div 
-                className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 gap-4 p-3 bg-amber-50/50 rounded-lg border border-amber-100"
+                className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 gap-4 p-3 bg-amber-50/50 rounded-lg border border-amber-100 border-solid"
               >
                 <FormField
                   label="Token No"
@@ -419,7 +430,7 @@ const TokenPage = () => {
                 <button
                   type="button"
                   onClick={resetForm}
-                  className="inline-flex items-center px-3 py-1.5 text-sm border border-amber-200 text-amber-700 rounded-xl hover:bg-amber-50 transition-all"
+                  className="inline-flex items-center px-3 py-1.5 text-sm border border-amber-200 border-solid text-amber-700 rounded-xl hover:bg-amber-50 transition-all"
                 >
                   <FiRotateCcw className="mr-1.5 h-4 w-4" />
                   Reset
@@ -443,7 +454,7 @@ const TokenPage = () => {
             </form>
           </div>
 
-          <div className="mt-6 bg-white rounded-xl shadow-sm p-4 border border-amber-100">
+          <div className="mt-6 bg-white rounded-xl shadow-sm p-4 border border-amber-100 border-solid">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center">
                 <FiList className="w-5 h-5 text-amber-600 mr-2" />
@@ -458,7 +469,7 @@ const TokenPage = () => {
                   value={state.searchQuery}
                   onChange={(e) => debouncedSearch(e.target.value)}
                   onDoubleClick={resetForm}  // Add double-click to reset
-                  className="w-full pl-8 pr-3 py-1.5 rounded border border-amber-200 focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition-all text-sm text-amber-900"
+                  className="w-full pl-8 pr-3 py-1.5 rounded border border-amber-200 border-solid focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition-all text-sm text-amber-900"
                   title="Double click to reset search"  // Add tooltip
                 />
                 <FiSearch className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-amber-400 w-4 h-4" />

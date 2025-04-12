@@ -56,7 +56,7 @@ const ActionsCell = memo(({ rowData, onEdit, onDelete, onPaymentStatusChange }) 
       type="checkbox"
       checked={Boolean(rowData.isPaid)}
       onChange={(e) => onPaymentStatusChange(rowData.id, e.target.checked)}
-      className="h-4 w-4 text-amber-600 focus:ring-amber-500 border-gray-300 rounded cursor-pointer"
+      className="h-4 w-4 text-amber-600 focus:ring-amber-500 border-gray-300 border-[1px] border-solid rounded cursor-pointer"
     />
     <span className={`flex items-center ${rowData.isPaid ? 'text-green-600' : 'text-red-600'}`}>
       {rowData.isPaid ? <FiCheckCircle className="w-4 h-4" /> : <FiXCircle className="w-4 h-4" />}
@@ -152,7 +152,7 @@ const TokenTable = ({ tokens = [], onEdit, onDelete, onPaymentStatusChange }) =>
   );
 
   return (
-    <div className="rounded border border-amber-100" style={{ height: '450px' }}>
+    <div className="rounded border border-amber-100 border-solid" style={{ height: '450px' }}>
       <AutoSizer>
         {({ height, width }) => (
           <div style={{ height, width, overflowX: 'auto', overflowY: 'hidden' }}>
@@ -187,11 +187,22 @@ const TokenTable = ({ tokens = [], onEdit, onDelete, onPaymentStatusChange }) =>
   );
 };
 
-// Memoize the entire component
+// Memoize the entire component but ensure it refreshes when token data changes
 export default memo(TokenTable, (prevProps, nextProps) => {
+  // Always re-render if token count changes
   if (prevProps.tokens.length !== nextProps.tokens.length) return false;
-  return prevProps.tokens.every((token, index) => 
-    token.id === nextProps.tokens[index]?.id &&
-    token.isPaid === nextProps.tokens[index]?.isPaid
-  );
+  
+  // Check if any token data has changed (more thorough comparison)
+  return prevProps.tokens.every((token, index) => {
+    const nextToken = nextProps.tokens[index];
+    if (!nextToken) return false;
+    
+    // Compare essential properties that would affect display
+    return token.id === nextToken.id && 
+           token.isPaid === nextToken.isPaid &&
+           token.name === nextToken.name &&
+           token.amount === nextToken.amount &&
+           token.weight === nextToken.weight &&
+           token.sample === nextToken.sample;
+  });
 });
