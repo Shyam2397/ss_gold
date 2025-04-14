@@ -1,36 +1,44 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
 
 const API_URL = import.meta.env.VITE_API_URL;
 
+// Function to fetch skin tests data
+const fetchSkinTests = async () => {
+  const response = await axios.get(`${API_URL}/skin-tests`);
+  const data = response.data?.data || response.data || [];
+  return Array.isArray(data) 
+    ? data.sort((a, b) => parseFloat(b.token_no || 0) - parseFloat(a.token_no || 0)) 
+    : [];
+};
+
 const useSkinTests = () => {
-  const [skinTests, setSkinTests] = useState([]);
   const [filteredTests, setFilteredTests] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
 
-  const fetchSkinTests = async () => {
-    setLoading(true);
-    try {
-      const response = await axios.get(
-        `${API_URL}/skin-tests`
-      );
-      const data = response.data?.data || response.data || [];
-      const sortedData = Array.isArray(data) ? data.sort(
-        (a, b) => parseFloat(b.token_no || 0) - parseFloat(a.token_no || 0)
-      ) : [];
-      setSkinTests(sortedData);
-      setFilteredTests(sortedData);
-      setError("");
-    } catch (err) {
-      console.error(err);
-      setError("Failed to fetch skin tests");
-    } finally {
-      setLoading(false);
+  // Use React Query to fetch and cache skin tests data
+  const { 
+    data: skinTests = [], 
+    isLoading: loading, 
+    error: queryError,
+    refetch
+  } = useQuery({
+    queryKey: ['skinTests'],
+    queryFn: fetchSkinTests,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnWindowFocus: true,
+    onSuccess: (data) => {
+      // Initialize filtered tests with all tests when data is loaded
+      if (!fromDate && !toDate) {
+        setFilteredTests(data);
+      }
     }
-  };
+  });
+  
+  // Format error message
+  const error = queryError ? "Failed to fetch skin tests" : "";
 
   const parseDate = (dateStr) => {
     // Try parsing with different strategies
@@ -102,18 +110,21 @@ const useSkinTests = () => {
     setFilteredTests(filtered);
   }, [skinTests, fromDate, toDate]);
 
+  // Effect to apply date filtering whenever dates or skin tests data changes
+  useEffect(() => {
+    if (skinTests?.length) {
+      filterTestsByDate();
+    }
+  }, [filterTestsByDate, skinTests, fromDate, toDate]);
+
   const clearDates = () => {
     setFromDate("");
     setToDate("");
+    // Reset to all tests when dates are cleared
+    if (skinTests?.length) {
+      setFilteredTests(skinTests);
+    }
   };
-
-  useEffect(() => {
-    fetchSkinTests();
-  }, []);
-
-  useEffect(() => {
-    filterTestsByDate();
-  }, [fromDate, toDate, skinTests, filterTestsByDate]);
 
   return {
     skinTests,
@@ -124,7 +135,8 @@ const useSkinTests = () => {
     toDate,
     setFromDate,
     setToDate,
-    clearDates
+    clearDates,
+    refetch // Expose refetch function for manual data refresh
   };
 };
 

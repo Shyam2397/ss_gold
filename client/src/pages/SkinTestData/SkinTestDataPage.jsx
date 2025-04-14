@@ -1,6 +1,6 @@
 import React from 'react';
 import { GiTestTubes } from 'react-icons/gi';
-import { FiAlertCircle, FiX } from 'react-icons/fi';
+import { FiAlertCircle, FiX, FiRefreshCw } from 'react-icons/fi';
 
 import useSkinTests from './hooks/useSkinTests';
 import DateInput from './components/DateInput';
@@ -16,21 +16,32 @@ const SkinTestDataPage = () => {
     toDate,
     setFromDate,
     setToDate,
-    clearDates
+    clearDates,
+    refetch
   } = useSkinTests();
 
   return (
     <div
       className="p-6 sm:p-8 bg-gradient-to-br from-[#F9F3F1] to-[#FFF8F0] shadow-lg rounded-xl max-w-full h-full text-[#391145]"
     >
-      <div className="flex flex-col sm:flex-row justify-between items-center mb-5 pb-3 border-b-2 border-[#D3B04D]">
+      <div className="flex flex-col sm:flex-row justify-between items-center mb-5 pb-3 border-b-2 border-[#D3B04D] border-solid">
         <div className="flex items-center space-x-3 mb-4 sm:mb-0">
           <GiTestTubes className="h-6 w-6 text-amber-500" />
           <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-[#391145] to-[#D3B04D]">
             Skin Test Data
           </h1>
         </div>
-        <ExportButton data={filteredTests} />
+        <div className="flex items-center space-x-3">
+          <button
+            onClick={() => refetch()}
+            className="p-2 rounded-full hover:bg-amber-100 transition-colors duration-150"
+            title="Refresh data"
+            disabled={loading}
+          >
+            <FiRefreshCw className={`h-5 w-5 text-amber-600 ${loading ? 'animate-spin' : ''}`} />
+          </button>
+          <ExportButton data={filteredTests} />
+        </div>
       </div>
 
       {error && (
