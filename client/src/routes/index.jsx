@@ -1,6 +1,6 @@
 import React from 'react';
 import { markRouteStart, measureRouteLoad } from '../utils/performance';
-import { ROUTE_PRIORITIES, ROUTE_CONFIG, SCROLL_BEHAVIOR } from './config';
+import { ROUTE_PRIORITIES, SCROLL_BEHAVIOR } from './config';
 
 // Define components with proper naming
 const Dashboard = React.lazy(() => 
