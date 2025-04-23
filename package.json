@@ -1,13 +1,20 @@
 {
   "name": "ss_gold",
   "version": "1.0.0",
+  "main": "main.js",
   "scripts": {
-    "client": "cd client && npm run start",
-    "server": "cd server && npm run dev",
-    "dev": "concurrently \"npm run client\" \"npm run server\""
+    "client": "cd client && yarn start",
+    "server": "cd server && yarn dev",
+    "electron": "electron .",
+    "dev": "concurrently \"yarn client\" \"yarn server\" \"yarn electron\""
   },
-  "dependencies": {},
+  "dependencies": {
+    "openai": "^4.0.0",
+    "electron-is-dev": "^2.0.0"
+  },
   "devDependencies": {
-    "concurrently": "^9.1.2"
+    "concurrently": "^9.1.2",
+    "electron": "^35.2.0",
+    "nodemon": "^3.1.9"
   }
 }
