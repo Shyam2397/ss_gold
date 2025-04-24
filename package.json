@@ -5,17 +5,20 @@
   "scripts": {
     "client": "cd client && yarn start",
     "server": "cd server && yarn dev",
-    "electron": "electron .",
-    "dev": "concurrently \"yarn client\" \"yarn server\" \"yarn electron\""
+    "electron": "wait-on http://localhost:3000 && electron .",
+    "dev": "cross-env ELECTRON_START_URL=http://localhost:3000 concurrently \"yarn client\" \"yarn server\" \"yarn electron\""
   },
   "dependencies": {
-    "openai": "^4.0.0",
-    "electron-is-dev": "^2.0.0"
+    "electron-is-dev": "^2.0.0",
+    "electron-store": "^10.0.1",
+    "openai": "^4.0.0"
   },
   "devDependencies": {
     "concurrently": "^9.1.2",
+    "cross-env": "^7.0.3",
     "electron": "^35.2.0",
     "nodemon": "^3.1.9",
-    "electron-store": "^8.1.0"
-  }
+    "wait-on": "^8.0.3"
+  },
+  "license": "MIT"
 }

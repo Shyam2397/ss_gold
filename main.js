@@ -3,11 +3,19 @@ const path = require('path');
 const { spawn, exec } = require('child_process');
 const isDev = require('electron-is-dev');
 
-// Initialize store with error handling
+// Add logging utility
+const log = {
+  info: (...args) => console.log('[SS-GOLD]:', ...args),
+  error: (...args) => console.error('[SS-GOLD ERROR]:', ...args)
+};
+
+// Initialize store with better error handling
 let store;
 try {
   const Store = require('electron-store');
-  store = new Store({
+  const StoreClass = Store.default || Store;
+  store = new StoreClass({
+    name: 'ss-gold-config',
     defaults: {
       windowState: {
         width: 1200,
@@ -15,10 +23,12 @@ try {
         x: undefined,
         y: undefined
       }
-    }
+    },
+    clearInvalidConfig: true // Clear if config becomes corrupted
   });
+  log.info('Store initialized successfully');
 } catch (error) {
-  console.warn('electron-store initialization failed:', error.message);
+  log.error('Store initialization failed:', error.message);
   store = {
     get: (key, defaultValue) => defaultValue,
     set: () => {},
@@ -61,7 +71,7 @@ function saveWindowState() {
     }
     store.set('isMaximized', mainWindow.isMaximized());
   } catch (error) {
-    console.error('Error saving window state:', error);
+    log.error('Error saving window state:', error);
   }
 }
 
@@ -88,12 +98,21 @@ async function findAvailablePort(startPort) {
   throw new Error(`No available ports found between ${startPort} and ${startPort + PORTS.MAX_RETRY}`);
 }
 
+// Update startServers with better logging
 async function startServers() {
   try {
+    log.info('Starting servers...');
+    await Promise.all([
+      killPort(PORTS.VITE),
+      killPort(PORTS.SERVER)
+    ]);
+    log.info('Existing ports cleaned');
+
     const [vitePort, serverPort] = await Promise.all([
       findAvailablePort(PORTS.VITE),
       findAvailablePort(PORTS.SERVER)
     ]);
+    log.info(`Found available ports - Vite: ${vitePort}, Server: ${serverPort}`);
 
     await Promise.all([
       new Promise((resolve, reject) => {
@@ -130,9 +149,10 @@ async function startServers() {
 
     PORTS.VITE = vitePort;
     PORTS.SERVER = serverPort;
+    log.info('All servers started successfully');
     
   } catch (error) {
-    console.error('Error starting servers:', error);
+    log.error('Server startup failed:', error);
     throw error;
   }
 }
@@ -175,7 +195,7 @@ async function createWindow() {
   });
 
   mainWindow.webContents.on('did-fail-load', () => {
-    console.error('Failed to load app');
+    log.error('Failed to load app');
     if (splashWindow) {
       splashWindow.destroy();
     }
@@ -192,7 +212,7 @@ ipcMain.on('toMain', (event, data) => {
 
 ipcMain.on('memoryInfo', (event, memoryInfo) => {
   if (memoryInfo.process.heapUsed > 0.9 * memoryInfo.process.heapTotal) {
-    console.warn('High memory usage detected');
+    log.warn('High memory usage detected');
     if (global.gc) global.gc();
   }
 });
@@ -214,7 +234,7 @@ function killPort(port) {
 
     exec(cmd, (error, stdout, stderr) => {
       if (error) {
-        console.log(`No process found on port ${port}`);
+        log.info(`No process found on port ${port}`);
         resolve();
         return;
       }
@@ -227,10 +247,10 @@ function killPort(port) {
         const killCmd = platform === 'win32' ? `taskkill /F /PID ${pid}` : `kill -9 ${pid}`;
         exec(killCmd, (error) => {
           if (error) {
-            console.error(`Failed to kill process on port ${port}:`, error);
+            log.error(`Failed to kill process on port ${port}:`, error);
             reject(error);
           } else {
-            console.log(`Successfully killed process on port ${port}`);
+            log.info(`Successfully killed process on port ${port}`);
             resolve();
           }
         });
@@ -241,31 +261,58 @@ function killPort(port) {
   });
 }
 
+// Update cleanup function with better handling
 async function cleanupProcesses() {
+  log.info('Starting cleanup process...');
   try {
+    const cleanup = [];
+
     if (backendServer) {
-      backendServer.removeAllListeners();
-      backendServer.kill();
-    }
-    if (viteServer) {
-      viteServer.removeAllListeners();
-      viteServer.kill();
+      cleanup.push(new Promise(resolve => {
+        backendServer.removeAllListeners();
+        backendServer.kill();
+        backendServer.on('exit', () => {
+          log.info('Backend server terminated');
+          resolve();
+        });
+      }));
     }
 
+    if (viteServer) {
+      cleanup.push(new Promise(resolve => {
+        viteServer.removeAllListeners();
+        viteServer.kill();
+        viteServer.on('exit', () => {
+          log.info('Vite server terminated');
+          resolve();
+        });
+      }));
+    }
+
+    // Wait for all processes to cleanup
     await Promise.all([
+      ...cleanup,
       killPort(PORTS.VITE),
       killPort(PORTS.SERVER)
     ]);
 
     if (process.platform === 'win32') {
-      exec('taskkill /F /IM cmd.exe /T', (error) => {
-        if (error) {
-          console.error('Failed to close terminal windows:', error);
-        }
+      await new Promise(resolve => {
+        exec('taskkill /F /IM cmd.exe /T', (error) => {
+          if (error) {
+            log.error('Failed to close terminal windows:', error);
+          } else {
+            log.info('Terminal windows closed');
+          }
+          resolve();
+        });
       });
     }
+
+    log.info('Cleanup completed successfully');
   } catch (error) {
-    console.error('Error during process cleanup:', error);
+    log.error('Cleanup process failed:', error);
+    throw error;
   }
 }
 
@@ -275,7 +322,12 @@ app.whenReady().then(async () => {
     await startServers();
     
     setTimeout(async () => {
-      await createWindow();
+      try {
+        await createWindow();
+      } catch (error) {
+        log.error('Failed to create window:', error);
+        app.quit();
+      }
     }, 2000);
 
     app.on('activate', async () => {
@@ -284,7 +336,8 @@ app.whenReady().then(async () => {
       }
     });
   } catch (error) {
-    console.error('Failed to start application:', error);
+    log.error('Failed to start application:', error);
+    if (splashWindow) splashWindow.destroy();
     app.quit();
   }
 });
@@ -306,7 +359,7 @@ app.on('window-all-closed', async () => {
       app.quit();
     }
   } catch (error) {
-    console.error('Error during window cleanup:', error);
+    log.error('Error during window cleanup:', error);
     app.quit();
   }
 });
@@ -320,6 +373,6 @@ app.on('before-quit', async () => {
     }
     await cleanupProcesses();
   } catch (error) {
-    console.error('Error during final cleanup:', error);
+    log.error('Error during final cleanup:', error);
   }
 });
