@@ -14,6 +14,7 @@ let backendProcess;
 let mainWindow;
 let backendServer;
 let viteServer;
+let splashWindow;
 
 // Window state management
 function getWindowState() {
@@ -92,6 +93,21 @@ async function startServers() {
   }
 }
 
+function createSplashWindow() {
+  splashWindow = new BrowserWindow({
+    width: 400,
+    height: 400,
+    transparent: true,
+    frame: false,
+    alwaysOnTop: true,
+    webPreferences: {
+      nodeIntegration: true
+    }
+  });
+
+  splashWindow.loadFile('splash.html');
+}
+
 async function createWindow() {
   const windowState = getWindowState();
   
@@ -102,28 +118,29 @@ async function createWindow() {
       contextIsolation: true,
       preload: path.join(__dirname, 'preload.js')
     },
-    show: false // Don't show until ready-to-show
+    show: false // Keep hidden until ready
   });
 
-  // Restore maximized state
-  if (store.get('isMaximized')) {
-    mainWindow.maximize();
-  }
-
-  // Save window state on changes
-  mainWindow.on('resize', saveWindowState);
-  mainWindow.on('move', saveWindowState);
-  
-  // Optimize window performance
-  mainWindow.webContents.setFrameRate(60); // Set optimal frame rate
-  mainWindow.webContents.setVisualZoomLevelLimits(1, 1); // Disable zooming
-  
-  // Show window when ready
-  mainWindow.once('ready-to-show', () => {
-    mainWindow.show();
+  // Don't show window until frontend signals ready
+  mainWindow.webContents.on('did-finish-load', () => {
+    // Add small delay to ensure React has mounted
+    setTimeout(() => {
+      if (splashWindow) {
+        splashWindow.destroy();
+      }
+      mainWindow.show();
+    }, 1500);
   });
 
-  // Load the app
+  // Handle loading errors
+  mainWindow.webContents.on('did-fail-load', () => {
+    console.error('Failed to load app');
+    if (splashWindow) {
+      splashWindow.destroy();
+    }
+    app.quit();
+  });
+
   await mainWindow.loadURL(isDev ? 'http://localhost:3000' : `file://${path.join(__dirname, 'dist/index.html')}`);
 }
 
@@ -151,9 +168,13 @@ ipcMain.on('setWindowState', (event, bounds) => {
 // App lifecycle
 app.whenReady().then(async () => {
   try {
-    // Start servers in parallel
+    createSplashWindow();
     await startServers();
-    await createWindow();
+    
+    // Add delay before creating main window
+    setTimeout(async () => {
+      await createWindow();
+    }, 2000);
 
     app.on('activate', async () => {
       if (BrowserWindow.getAllWindows().length === 0) {
@@ -169,6 +190,11 @@ app.whenReady().then(async () => {
 // Cleanup
 app.on('window-all-closed', () => {
   try {
+    if (splashWindow) {
+      splashWindow.destroy();
+      splashWindow = null;
+    }
+
     // Save window state if window still exists
     if (mainWindow && !mainWindow.isDestroyed()) {
       saveWindowState();
