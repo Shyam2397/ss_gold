@@ -1,6 +1,6 @@
 const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
-const { spawn } = require('child_process');
+const { spawn, exec } = require('child_process');
 const isDev = require('electron-is-dev');
 const Store = require('electron-store');
 
@@ -15,6 +15,13 @@ let mainWindow;
 let backendServer;
 let viteServer;
 let splashWindow;
+
+// Update port constants and add max retry
+const PORTS = {
+  VITE: 3000,
+  SERVER: 3001,
+  MAX_RETRY: 10
+};
 
 // Window state management
 function getWindowState() {
@@ -39,54 +46,72 @@ function saveWindowState() {
   }
 }
 
+// Add port checking function
+function isPortAvailable(port) {
+  return new Promise((resolve) => {
+    const server = require('net').createServer();
+    server.once('error', () => resolve(false));
+    server.once('listening', () => {
+      server.close();
+      resolve(true);
+    });
+    server.listen(port);
+  });
+}
+
+// Add function to find available port
+async function findAvailablePort(startPort) {
+  for (let port = startPort; port < startPort + PORTS.MAX_RETRY; port++) {
+    if (await isPortAvailable(port)) {
+      return port;
+    }
+  }
+  throw new Error(`No available ports found between ${startPort} and ${startPort + PORTS.MAX_RETRY}`);
+}
+
 async function startServers() {
-  // Start backend and Vite servers in parallel
   try {
+    const [vitePort, serverPort] = await Promise.all([
+      findAvailablePort(PORTS.VITE),
+      findAvailablePort(PORTS.SERVER)
+    ]);
+
     await Promise.all([
       new Promise((resolve, reject) => {
         backendServer = spawn('node', ['server/server.js'], {
           stdio: 'pipe',
           cwd: __dirname,
           shell: true,
-          windowsHide: true
+          windowsHide: true,
+          env: { ...process.env, PORT: serverPort }
         });
-        // Pipe the output to parent process
         backendServer.stdout.pipe(process.stdout);
         backendServer.stderr.pipe(process.stderr);
         backendServer.on('error', reject);
-        setTimeout(resolve, 1000); // Give server time to start
+        setTimeout(resolve, 1000);
       }),
       isDev && new Promise(async (resolve, reject) => {
-        // Try npm first, then yarn if npm fails
         try {
-          viteServer = spawn('npm', ['run', 'dev'], {
+          const viteCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+          viteServer = spawn(viteCommand, ['run', 'dev', '--', '--port', vitePort], {
             stdio: 'pipe',
             cwd: path.join(__dirname, 'client'),
             shell: true,
             windowsHide: true
           });
-          // Pipe the output to parent process
           viteServer.stdout.pipe(process.stdout);
           viteServer.stderr.pipe(process.stderr);
-          viteServer.on('error', () => {
-            // If npm fails, try yarn
-            viteServer = spawn('yarn', ['dev'], {
-              stdio: 'pipe',
-              cwd: path.join(__dirname, 'client'),
-              shell: true,
-              windowsHide: true
-            });
-            // Pipe the output to parent process
-            viteServer.stdout.pipe(process.stdout);
-            viteServer.stderr.pipe(process.stderr);
-            viteServer.on('error', reject);
-          });
-          setTimeout(resolve, 2000); // Give Vite time to start
+          viteServer.on('error', reject);
+          setTimeout(resolve, 2000);
         } catch (error) {
           reject(new Error('Failed to start Vite server: ' + error.message));
         }
       })
     ]);
+
+    PORTS.VITE = vitePort;
+    PORTS.SERVER = serverPort;
+    
   } catch (error) {
     console.error('Error starting servers:', error);
     throw error;
@@ -118,12 +143,10 @@ async function createWindow() {
       contextIsolation: true,
       preload: path.join(__dirname, 'preload.js')
     },
-    show: false // Keep hidden until ready
+    show: false
   });
 
-  // Don't show window until frontend signals ready
   mainWindow.webContents.on('did-finish-load', () => {
-    // Add small delay to ensure React has mounted
     setTimeout(() => {
       if (splashWindow) {
         splashWindow.destroy();
@@ -132,7 +155,6 @@ async function createWindow() {
     }, 1500);
   });
 
-  // Handle loading errors
   mainWindow.webContents.on('did-fail-load', () => {
     console.error('Failed to load app');
     if (splashWindow) {
@@ -141,7 +163,7 @@ async function createWindow() {
     app.quit();
   });
 
-  await mainWindow.loadURL(isDev ? 'http://localhost:3000' : `file://${path.join(__dirname, 'dist/index.html')}`);
+  await mainWindow.loadURL(isDev ? `http://localhost:${PORTS.VITE}` : `file://${path.join(__dirname, 'dist/index.html')}`);
 }
 
 // IPC handlers
@@ -150,7 +172,6 @@ ipcMain.on('toMain', (event, data) => {
 });
 
 ipcMain.on('memoryInfo', (event, memoryInfo) => {
-  // Log memory info and take action if needed
   if (memoryInfo.process.heapUsed > 0.9 * memoryInfo.process.heapTotal) {
     console.warn('High memory usage detected');
     if (global.gc) global.gc();
@@ -165,13 +186,75 @@ ipcMain.on('setWindowState', (event, bounds) => {
   mainWindow.setBounds(bounds);
 });
 
-// App lifecycle
+function killPort(port) {
+  return new Promise((resolve, reject) => {
+    const platform = process.platform;
+    const cmd = platform === 'win32'
+      ? `netstat -ano | findstr :${port}`
+      : `lsof -i :${port} -t`;
+
+    exec(cmd, (error, stdout, stderr) => {
+      if (error) {
+        console.log(`No process found on port ${port}`);
+        resolve();
+        return;
+      }
+
+      const pid = platform === 'win32'
+        ? stdout.split('\n')[0].split(' ').filter(Boolean).pop()
+        : stdout.trim();
+
+      if (pid) {
+        const killCmd = platform === 'win32' ? `taskkill /F /PID ${pid}` : `kill -9 ${pid}`;
+        exec(killCmd, (error) => {
+          if (error) {
+            console.error(`Failed to kill process on port ${port}:`, error);
+            reject(error);
+          } else {
+            console.log(`Successfully killed process on port ${port}`);
+            resolve();
+          }
+        });
+      } else {
+        resolve();
+      }
+    });
+  });
+}
+
+async function cleanupProcesses() {
+  try {
+    if (backendServer) {
+      backendServer.removeAllListeners();
+      backendServer.kill();
+    }
+    if (viteServer) {
+      viteServer.removeAllListeners();
+      viteServer.kill();
+    }
+
+    await Promise.all([
+      killPort(PORTS.VITE),
+      killPort(PORTS.SERVER)
+    ]);
+
+    if (process.platform === 'win32') {
+      exec('taskkill /F /IM cmd.exe /T', (error) => {
+        if (error) {
+          console.error('Failed to close terminal windows:', error);
+        }
+      });
+    }
+  } catch (error) {
+    console.error('Error during process cleanup:', error);
+  }
+}
+
 app.whenReady().then(async () => {
   try {
     createSplashWindow();
     await startServers();
     
-    // Add delay before creating main window
     setTimeout(async () => {
       await createWindow();
     }, 2000);
@@ -187,28 +270,18 @@ app.whenReady().then(async () => {
   }
 });
 
-// Cleanup
-app.on('window-all-closed', () => {
+app.on('window-all-closed', async () => {
   try {
     if (splashWindow) {
       splashWindow.destroy();
       splashWindow = null;
     }
 
-    // Save window state if window still exists
     if (mainWindow && !mainWindow.isDestroyed()) {
       saveWindowState();
     }
 
-    // Cleanup processes
-    if (backendServer) {
-      backendServer.removeAllListeners();
-      backendServer.kill();
-    }
-    if (viteServer) {
-      viteServer.removeAllListeners();
-      viteServer.kill();
-    }
+    await cleanupProcesses();
     
     if (process.platform !== 'darwin') {
       app.quit();
@@ -219,14 +292,14 @@ app.on('window-all-closed', () => {
   }
 });
 
-app.on('before-quit', () => {
+app.on('before-quit', async () => {
   try {
-    // Final cleanup
     if (mainWindow && !mainWindow.isDestroyed()) {
       saveWindowState();
       mainWindow.removeAllListeners();
       mainWindow = null;
     }
+    await cleanupProcesses();
   } catch (error) {
     console.error('Error during final cleanup:', error);
   }
