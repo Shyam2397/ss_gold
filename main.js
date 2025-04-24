@@ -2,10 +2,29 @@ const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 const { spawn, exec } = require('child_process');
 const isDev = require('electron-is-dev');
-const Store = require('electron-store');
 
-// Initialize store for window state persistence
-const store = new Store();
+// Initialize store with error handling
+let store;
+try {
+  const Store = require('electron-store');
+  store = new Store({
+    defaults: {
+      windowState: {
+        width: 1200,
+        height: 800,
+        x: undefined,
+        y: undefined
+      }
+    }
+  });
+} catch (error) {
+  console.warn('electron-store initialization failed:', error.message);
+  store = {
+    get: (key, defaultValue) => defaultValue,
+    set: () => {},
+    delete: () => {}
+  };
+}
 
 // Enable garbage collection exposure
 app.commandLine.appendSwitch('js-flags', '--expose-gc');
