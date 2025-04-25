@@ -98,22 +98,86 @@ async function findAvailablePort(startPort) {
   throw new Error(`No available ports found between ${startPort} and ${startPort + PORTS.MAX_RETRY}`);
 }
 
-// Update startServers with better logging
+// Add performance monitoring
+const metrics = {
+  startupTime: 0,
+  lastGC: Date.now(),
+  performanceHistory: [],
+  startMeasure: (label) => {
+    performance.mark(`${label}-start`);
+  },
+  endMeasure: (label) => {
+    performance.mark(`${label}-end`);
+    performance.measure(label, `${label}-start`, `${label}-end`);
+    const duration = performance.getEntriesByName(label)[0].duration;
+    metrics.performanceHistory.push({ label, duration, timestamp: Date.now() });
+    return duration;
+  }
+};
+
+// Enhanced memory management
+function monitorMemory() {
+  const memoryUsage = process.memoryUsage();
+  const usage = {
+    heap: memoryUsage.heapUsed / memoryUsage.heapTotal,
+    rss: memoryUsage.rss / (1024 * 1024 * 1024), // GB
+    time: Date.now()
+  };
+
+  // Aggressive GC if memory usage is high
+  if (usage.heap > 0.85 || usage.rss > 1.5) {
+    if (Date.now() - metrics.lastGC > 30000) { // Prevent too frequent GC
+      log.warn(`High memory usage - Heap: ${Math.round(usage.heap * 100)}%, RSS: ${usage.rss.toFixed(2)}GB`);
+      if (global.gc) {
+        metrics.startMeasure('gc');
+        global.gc();
+        const gcTime = metrics.endMeasure('gc');
+        log.info(`Garbage collection completed in ${gcTime}ms`);
+        metrics.lastGC = Date.now();
+      }
+    }
+  }
+
+  // Store metrics
+  metrics.performanceHistory = metrics.performanceHistory.slice(-100); // Keep last 100 entries
+  return usage;
+}
+
+// Startup optimization
+async function waitForServer(url, maxRetries = 20) {
+  const fetch = require('node-fetch');
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      await fetch(url);
+      return true;
+    } catch (error) {
+      await new Promise(resolve => setTimeout(resolve, 250));
+    }
+  }
+  return false;
+}
+
+// Correct server startup function
 async function startServers() {
+  metrics.startMeasure('servers-startup');
   try {
     log.info('Starting servers...');
+    
+    // Kill existing processes first
     await Promise.all([
       killPort(PORTS.VITE),
       killPort(PORTS.SERVER)
     ]);
     log.info('Existing ports cleaned');
 
+    // Find available ports
     const [vitePort, serverPort] = await Promise.all([
       findAvailablePort(PORTS.VITE),
       findAvailablePort(PORTS.SERVER)
     ]);
     log.info(`Found available ports - Vite: ${vitePort}, Server: ${serverPort}`);
 
+    // Start servers
     await Promise.all([
       new Promise((resolve, reject) => {
         backendServer = spawn('node', ['server/server.js'], {
@@ -126,36 +190,74 @@ async function startServers() {
         backendServer.stdout.pipe(process.stdout);
         backendServer.stderr.pipe(process.stderr);
         backendServer.on('error', reject);
-        setTimeout(resolve, 1000);
+        backendServer.on('spawn', () => {
+          log.info('Backend server spawned');
+          setTimeout(resolve, 1000);
+        });
       }),
-      isDev && new Promise(async (resolve, reject) => {
-        try {
-          const viteCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
-          viteServer = spawn(viteCommand, ['run', 'dev', '--', '--port', vitePort], {
-            stdio: 'pipe',
-            cwd: path.join(__dirname, 'client'),
-            shell: true,
-            windowsHide: true
-          });
-          viteServer.stdout.pipe(process.stdout);
-          viteServer.stderr.pipe(process.stderr);
-          viteServer.on('error', reject);
+      isDev && new Promise((resolve, reject) => {
+        const viteCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+        viteServer = spawn(viteCommand, ['run', 'dev', '--', '--port', vitePort], {
+          stdio: 'pipe',
+          cwd: path.join(__dirname, 'client'),
+          shell: true,
+          windowsHide: true
+        });
+        viteServer.stdout.pipe(process.stdout);
+        viteServer.stderr.pipe(process.stderr);
+        viteServer.on('error', reject);
+        viteServer.on('spawn', () => {
+          log.info('Vite server spawned');
           setTimeout(resolve, 2000);
-        } catch (error) {
-          reject(new Error('Failed to start Vite server: ' + error.message));
-        }
+        });
       })
-    ]);
+    ].filter(Boolean));
 
     PORTS.VITE = vitePort;
     PORTS.SERVER = serverPort;
     log.info('All servers started successfully');
+
+    // Wait for servers to be ready
+    const [viteReady, serverReady] = await Promise.all([
+      waitForServer(`http://localhost:${PORTS.VITE}`),
+      waitForServer(`http://localhost:${PORTS.SERVER}`)
+    ]);
+
+    if (!viteReady || !serverReady) {
+      throw new Error('Servers failed to start in time');
+    }
+
+    const startupTime = metrics.endMeasure('servers-startup');
+    log.info(`Servers started in ${startupTime}ms`);
     
   } catch (error) {
     log.error('Server startup failed:', error);
     throw error;
   }
 }
+
+// Crash recovery and state persistence
+const stateManager = {
+  save: () => {
+    try {
+      store.set('lastState', {
+        metrics: metrics.performanceHistory,
+        timestamp: Date.now(),
+        windowState: mainWindow ? mainWindow.getBounds() : null
+      });
+    } catch (error) {
+      log.error('Failed to save application state:', error);
+    }
+  },
+  recover: () => {
+    try {
+      return store.get('lastState');
+    } catch (error) {
+      log.error('Failed to recover application state:', error);
+      return null;
+    }
+  }
+};
 
 function createSplashWindow() {
   splashWindow = new BrowserWindow({
@@ -168,13 +270,11 @@ function createSplashWindow() {
       nodeIntegration: true
     }
   });
-
   splashWindow.loadFile('splash.html');
 }
 
 async function createWindow() {
   const windowState = getWindowState();
-  
   mainWindow = new BrowserWindow({
     ...windowState,
     webPreferences: {
@@ -231,18 +331,15 @@ function killPort(port) {
     const cmd = platform === 'win32'
       ? `netstat -ano | findstr :${port}`
       : `lsof -i :${port} -t`;
-
     exec(cmd, (error, stdout, stderr) => {
       if (error) {
         log.info(`No process found on port ${port}`);
         resolve();
         return;
       }
-
       const pid = platform === 'win32'
         ? stdout.split('\n')[0].split(' ').filter(Boolean).pop()
         : stdout.trim();
-
       if (pid) {
         const killCmd = platform === 'win32' ? `taskkill /F /PID ${pid}` : `kill -9 ${pid}`;
         exec(killCmd, (error) => {
@@ -266,7 +363,6 @@ async function cleanupProcesses() {
   log.info('Starting cleanup process...');
   try {
     const cleanup = [];
-
     if (backendServer) {
       cleanup.push(new Promise(resolve => {
         backendServer.removeAllListeners();
@@ -277,7 +373,6 @@ async function cleanupProcesses() {
         });
       }));
     }
-
     if (viteServer) {
       cleanup.push(new Promise(resolve => {
         viteServer.removeAllListeners();
@@ -288,7 +383,6 @@ async function cleanupProcesses() {
         });
       }));
     }
-
     // Wait for all processes to cleanup
     await Promise.all([
       ...cleanup,
@@ -317,7 +411,14 @@ async function cleanupProcesses() {
 }
 
 app.whenReady().then(async () => {
+  metrics.startMeasure('app-startup');
   try {
+    // Recover from previous crash if needed
+    const lastState = stateManager.recover();
+    if (lastState && Date.now() - lastState.timestamp < 30000) {
+      log.info('Recovering from previous session');
+    }
+
     createSplashWindow();
     await startServers();
     
@@ -329,6 +430,12 @@ app.whenReady().then(async () => {
         app.quit();
       }
     }, 2000);
+
+    const startupTime = metrics.endMeasure('app-startup');
+    log.info(`Application started in ${startupTime}ms`);
+
+    // Save state periodically
+    setInterval(stateManager.save, 30000);
 
     app.on('activate', async () => {
       if (BrowserWindow.getAllWindows().length === 0) {
@@ -348,11 +455,9 @@ app.on('window-all-closed', async () => {
       splashWindow.destroy();
       splashWindow = null;
     }
-
     if (mainWindow && !mainWindow.isDestroyed()) {
       saveWindowState();
     }
-
     await cleanupProcesses();
     
     if (process.platform !== 'darwin') {
@@ -365,6 +470,7 @@ app.on('window-all-closed', async () => {
 });
 
 app.on('before-quit', async () => {
+  stateManager.save();
   try {
     if (mainWindow && !mainWindow.isDestroyed()) {
       saveWindowState();
