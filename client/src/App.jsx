@@ -9,6 +9,7 @@ import ErrorBoundary from './components/common/ErrorBoundary';
 import routes, { preloadRoute } from './routes';
 import { SCROLL_BEHAVIOR } from './routes/config';
 import { metrics } from './utils/performance';
+import { NavigationProvider } from './components/navigation/NavigationContext';
 
 // Prefetch component for route preloading
 const PreFetchComponent = () => {
@@ -171,12 +172,14 @@ function App() {
   }, []);
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <Router>
-        <PreFetchComponent />
-        <AppRoutes loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
-      </Router>
-    </QueryClientProvider>
+    <NavigationProvider timeout={15000}>
+      <QueryClientProvider client={queryClient}>
+        <Router>
+          <PreFetchComponent />
+          <AppRoutes loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
+        </Router>
+      </QueryClientProvider>
+    </NavigationProvider>
   );
 }
 
