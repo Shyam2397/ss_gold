@@ -25,6 +25,10 @@ import { AnimatePresence, motion } from "framer-motion";
 import { cn, throttle } from "../../lib/utils";
 import Logo from '../../asset/logo.png';
 import { SCROLL_BEHAVIOR } from '../../routes';
+import { FixedSizeList } from 'react-window';
+import AutoSizer from 'react-virtualized-auto-sizer';
+import ErrorBoundary from '../common/ErrorBoundary';
+import { useResizeObserver } from '../../hooks/useResizeObserver';
 
 // Create sidebar context
 const SidebarContext = createContext();
@@ -120,6 +124,37 @@ const MenuItem = memo(({ icon: Icon, label, to, isActive, onClick, handleNavigat
   );
 });
 
+// Add VirtualizedMenuItems component
+const VirtualizedMenuItems = memo(({ items, itemHeight = 32, renderItem }) => {
+  if (items.length <= 10) {
+    return items.map(renderItem);
+  }
+
+  const Row = ({ index, style }) => (
+    <div style={style}>
+      {renderItem(items[index])}
+    </div>
+  );
+
+  return (
+    <div style={{ height: Math.min(items.length * itemHeight, 320) }}>
+      <AutoSizer>
+        {({ height, width }) => (
+          <FixedSizeList
+            height={height}
+            width={width}
+            itemCount={items.length}
+            itemSize={itemHeight}
+            overscanCount={5}
+          >
+            {Row}
+          </FixedSizeList>
+        )}
+      </AutoSizer>
+    </div>
+  );
+});
+
 const Sidebar = ({ open: openProp, setOpen: setOpenProp, animate = true, user, setLoggedIn }) => {
   return (
     <SidebarProvider openProp={openProp} setOpenProp={setOpenProp} animate={animate}>
@@ -141,6 +176,13 @@ const SidebarContent = memo(({ user, setLoggedIn }) => {
   const scrollPositionsRef = useRef(new Map());
   const expandTimeoutRef = useRef(null);
   const isAnimatingRef = useRef(false);
+  const [isNavigating, setIsNavigating] = useState(false);
+
+  const sidebarRef = useResizeObserver(({ width }) => {
+    if (!isAnimatingRef.current) {
+      document.documentElement.style.setProperty('--sidebar-width', `${width}px`);
+    }
+  });
 
   const throttledScroll = useMemo(
     () =>
@@ -174,30 +216,34 @@ const SidebarContent = memo(({ user, setLoggedIn }) => {
 
   // Enhanced navigation handling with special case for entries
   const handleNavigation = useCallback((to) => {
-    const currentPosition = window.scrollY;
-    scrollPositionsRef.current.set(location.pathname, currentPosition);
-
-    const scrollBehavior = SCROLL_BEHAVIOR[to];
-    
-    if (scrollBehavior?.maintainScroll) {
-      // For routes that need to maintain scroll
-      requestAnimationFrame(() => {
-        navigate(to);
-        // Restore last known position for this route
+    // Batch state updates
+    const performNavigation = () => {
+      const currentPosition = window.scrollY;
+      const scrollBehavior = SCROLL_BEHAVIOR[to];
+      
+      // Use React 18's automatic batching
+      if (scrollBehavior?.maintainScroll) {
         const savedPosition = scrollPositionsRef.current.get(to) || 0;
-        window.scrollTo({
-          top: savedPosition,
-          behavior: 'instant'
+        requestAnimationFrame(() => {
+          navigate(to);
+          window.scrollTo({
+            top: savedPosition,
+            behavior: 'instant'
+          });
         });
-      });
-    } else {
-      // Default behavior
-      window.scrollTo(0, 0);
-      requestAnimationFrame(() => {
+      } else {
+        window.scrollTo(0, 0);
         navigate(to);
-      });
+      }
+    };
+
+    // Debounce navigation to prevent rapid clicks
+    if (!isNavigating) {
+      setIsNavigating(true);
+      performNavigation();
+      setTimeout(() => setIsNavigating(false), 300);
     }
-  }, [navigate, location.pathname]);
+  }, [navigate, isNavigating]);
 
   const handleLogout = useCallback(() => {
     localStorage.removeItem('isLoggedIn');
@@ -251,20 +297,25 @@ const SidebarContent = memo(({ user, setLoggedIn }) => {
     },
   ], [handleExpenseClick]);
 
+  const renderMenuItem = useCallback((item) => (
+    <MenuItem
+      key={item.path}
+      icon={item.icon}
+      label={open ? item.label : ""}
+      to={item.path}
+      isActive={isActive(item.path)}
+      handleNavigation={handleNavigation}
+    />
+  ), [open, isActive, handleNavigation]);
+
   const memoizedSidebarContent = useMemo(() => (
     <div className="flex-1 overflow-y-auto overflow-x-hidden">
       {/* Main Menu */}
       <MenuSection>
-        {mainMenuItems.map((item) => (
-          <MenuItem
-            key={item.path}
-            icon={item.icon}
-            label={open ? item.label : ""}
-            to={item.path}
-            isActive={isActive(item.path)}
-            handleNavigation={handleNavigation}
-          />
-        ))}
+        <VirtualizedMenuItems 
+          items={mainMenuItems}
+          renderItem={renderMenuItem}
+        />
       </MenuSection>
 
       {/* Data Section */}
@@ -298,16 +349,10 @@ const SidebarContent = memo(({ user, setLoggedIn }) => {
 
             {isDataOpen && open && (
               <div className="pl-4">
-                {dataMenuItems.map((item) => (
-                  <MenuItem
-                    key={item.path}
-                    icon={item.icon}
-                    label={item.label}
-                    to={item.path}
-                    isActive={isActive(item.path)}
-                    handleNavigation={handleNavigation}
-                  />
-                ))}
+                <VirtualizedMenuItems
+                  items={dataMenuItems}
+                  renderItem={renderMenuItem}
+                />
               </div>
             )}
           </div>
@@ -343,22 +388,25 @@ const SidebarContent = memo(({ user, setLoggedIn }) => {
           </button>
           {isExpensesOpen && open && (
             <div className="pl-4">
-              {expenseMenuItems.map((item) => (
-                <button
-                  key={item.label}
-                  onClick={item.onClick}
-                  className={cn(
-                    "w-full flex items-center h-8 px-2",
-                    "text-gray-600 hover:bg-amber-50 hover:text-amber-900",
-                    "rounded-lg transition-all duration-200"
-                  )}
-                >
-                  <div className="flex items-center justify-center w-5">
-                    <item.icon className="h-5 w-5 flex-shrink-0" />
-                  </div>
-                  <span className="font-medium text-md ml-3">{item.label}</span>
-                </button>
-              ))}
+              <VirtualizedMenuItems
+                items={expenseMenuItems}
+                renderItem={(item) => (
+                  <button
+                    key={item.label}
+                    onClick={item.onClick}
+                    className={cn(
+                      "w-full flex items-center h-8 px-2",
+                      "text-gray-600 hover:bg-amber-50 hover:text-amber-900",
+                      "rounded-lg transition-all duration-200"
+                    )}
+                  >
+                    <div className="flex items-center justify-center w-5">
+                      <item.icon className="h-5 w-5 flex-shrink-0" />
+                    </div>
+                    <span className="font-medium text-md ml-3">{item.label}</span>
+                  </button>
+                )}
+              />
             </div>
           )}
         </div>
@@ -450,6 +498,7 @@ const SidebarContent = memo(({ user, setLoggedIn }) => {
     <>
       {/* Desktop Sidebar */}
       <motion.div
+        ref={sidebarRef}
         className={cn(
           "h-screen border-r border-gray-200 hidden md:flex md:flex-col bg-white overflow-hidden",
           "transform-gpu", // Force GPU acceleration
@@ -475,20 +524,22 @@ const SidebarContent = memo(({ user, setLoggedIn }) => {
         </div>
 
         {/* Main Content Area */}
-        <div className="flex-1 flex flex-col min-h-0">
-          {/* Scrollable Area */}
-          {memoizedSidebarContent}
-          {/* Fixed Logout Button */}
-          <div className="border-t border-amber-100 flex-shrink-0 mt-0.5 px-3.5 py-1">
-            <MenuItem
-              icon={FiLogOut}
-              label={open ? "Logout" : ""}
-              onClick={handleLogout}
-              isActive={false}
-              handleNavigation={handleNavigation}
-            />
+        <ErrorBoundary>
+          <div className="flex-1 flex flex-col min-h-0">
+            {/* Scrollable Area */}
+            {memoizedSidebarContent}
+            {/* Fixed Logout Button */}
+            <div className="border-t border-amber-100 flex-shrink-0 mt-0.5 px-3.5 py-1">
+              <MenuItem
+                icon={FiLogOut}
+                label={open ? "Logout" : ""}
+                onClick={handleLogout}
+                isActive={false}
+                handleNavigation={handleNavigation}
+              />
+            </div>
           </div>
-        </div>
+        </ErrorBoundary>
       </motion.div>
 
       {/* Mobile Sidebar Button */}
