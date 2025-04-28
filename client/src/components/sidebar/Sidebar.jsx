@@ -29,10 +29,6 @@ import { FixedSizeList } from 'react-window';
 import AutoSizer from 'react-virtualized-auto-sizer';
 import ErrorBoundary from '../common/ErrorBoundary';
 import { useResizeObserver } from '../../hooks/useResizeObserver';
-import { useNavigation } from '../navigation/NavigationContext';
-
-const NAVIGATION_DEBOUNCE = 300;
-const HOVER_DELAY = 50;
 
 // Create sidebar context
 const SidebarContext = createContext();
@@ -51,15 +47,8 @@ const SidebarProvider = memo(({ children, openProp, setOpenProp, animate = true 
   const open = openProp !== undefined ? openProp : openState;
   const setOpen = setOpenProp !== undefined ? setOpenProp : setOpenState;
 
-  // Optimize re-renders
-  const contextValue = useMemo(() => ({
-    open, 
-    setOpen,
-    animate
-  }), [open, setOpen, animate]);
-
   return (
-    <SidebarContext.Provider value={contextValue}>
+    <SidebarContext.Provider value={{ open, setOpen, animate }}>
       {children}
     </SidebarContext.Provider>
   );
@@ -174,13 +163,10 @@ const Sidebar = ({ open: openProp, setOpen: setOpenProp, animate = true, user, s
   );
 };
 
-const PREFETCH_ROUTES = ['/dashboard', '/entries', '/token', '/customer-data'];
-
 const SidebarContent = memo(({ user, setLoggedIn }) => {
   const { open, setOpen, animate } = useSidebar();
   const location = useLocation();
   const navigate = useNavigate();
-  const { startLoading, stopLoading, isLoading } = useNavigation();
   const [isDataOpen, setIsDataOpen] = useState(false);
   const [isExpensesOpen, setIsExpensesOpen] = useState(false);
   const [showAddExpense, setShowAddExpense] = useState(false);
@@ -191,8 +177,6 @@ const SidebarContent = memo(({ user, setLoggedIn }) => {
   const expandTimeoutRef = useRef(null);
   const isAnimatingRef = useRef(false);
   const [isNavigating, setIsNavigating] = useState(false);
-  const navigationTimeout = useRef(null);
-  const lastNavigationTime = useRef(0);
 
   const sidebarRef = useResizeObserver(({ width }) => {
     if (!isAnimatingRef.current) {
@@ -230,44 +214,36 @@ const SidebarContent = memo(({ user, setLoggedIn }) => {
     };
   }, [location.pathname]);
 
-  // Enhanced navigation handling with debounce
+  // Enhanced navigation handling with special case for entries
   const handleNavigation = useCallback((to) => {
-    if (isNavigating || isLoading) return;
-
-    const now = Date.now();
-    if (now - lastNavigationTime.current < NAVIGATION_DEBOUNCE) return;
-    
-    clearTimeout(navigationTimeout.current);
-    navigationTimeout.current = setTimeout(() => {
-      lastNavigationTime.current = now;
+    // Batch state updates
+    const performNavigation = () => {
+      const currentPosition = window.scrollY;
+      const scrollBehavior = SCROLL_BEHAVIOR[to];
       
-      const performNavigation = async () => {
-        startLoading(to);
-        setIsNavigating(true);
-        
-        try {
-          const scrollBehavior = SCROLL_BEHAVIOR[to];
-          if (scrollBehavior?.maintainScroll) {
-            const savedPosition = scrollPositionsRef.current.get(to) ?? 0;
-            await queueMicrotask(() => {
-              requestAnimationFrame(() => {
-                navigate(to);
-                window.scrollTo({ top: savedPosition, behavior: 'instant' });
-              });
-            });
-          } else {
-            window.scrollTo(0, 0);
-            navigate(to);
-          }
-        } finally {
-          stopLoading();
-          setIsNavigating(false);
-        }
-      };
+      // Use React 18's automatic batching
+      if (scrollBehavior?.maintainScroll) {
+        const savedPosition = scrollPositionsRef.current.get(to) || 0;
+        requestAnimationFrame(() => {
+          navigate(to);
+          window.scrollTo({
+            top: savedPosition,
+            behavior: 'instant'
+          });
+        });
+      } else {
+        window.scrollTo(0, 0);
+        navigate(to);
+      }
+    };
 
+    // Debounce navigation to prevent rapid clicks
+    if (!isNavigating) {
+      setIsNavigating(true);
       performNavigation();
-    }, HOVER_DELAY);
-  }, [navigate, isNavigating, startLoading, stopLoading, isLoading]);
+      setTimeout(() => setIsNavigating(false), 300);
+    }
+  }, [navigate, isNavigating]);
 
   const handleLogout = useCallback(() => {
     localStorage.removeItem('isLoggedIn');
@@ -494,7 +470,6 @@ const SidebarContent = memo(({ user, setLoggedIn }) => {
   // Cleanup timeouts
   useEffect(() => {
     return () => {
-      clearTimeout(navigationTimeout.current);
       clearTimeout(expandTimeoutRef.current);
     };
   }, []);
@@ -518,28 +493,6 @@ const SidebarContent = memo(({ user, setLoggedIn }) => {
     backfaceVisibility: 'hidden',
     WebkitFontSmoothing: 'subpixel-antialiased'
   }), []);
-
-  // Add prefetching logic
-  useEffect(() => {
-    const controller = new AbortController();
-    
-    const prefetchRoutes = async () => {
-      try {
-        await Promise.all(
-          PREFETCH_ROUTES.map(route => 
-            fetch(route, { signal: controller.signal })
-          )
-        );
-      } catch (error) {
-        if (error.name !== 'AbortError') {
-          console.error('Prefetch error:', error);
-        }
-      }
-    };
-
-    prefetchRoutes();
-    return () => controller.abort();
-  }, []);
 
   return (
     <>
