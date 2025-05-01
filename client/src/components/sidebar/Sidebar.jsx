@@ -1,29 +1,18 @@
-import React, { useState, useMemo, useCallback, memo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useCallback, memo, useEffect, useRef, Suspense } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import {
-  FiHome,
-  FiUsers,
-  FiTag,
-  FiCamera,
-  FiDatabase,
-  FiSettings,
-  FiDollarSign,
-  FiBook,
-  FiLogOut,
-  FiMenu,
-  FiX,
-} from 'react-icons/fi';
-import { GiGoldBar } from 'react-icons/gi';
-import { GiTestTubes } from 'react-icons/gi';
-import AddExpense from '../expenses/AddExpense';
-import MasterExpense from '../expenses/MasterExpense';
-import ViewExpense from '../expenses/ViewExpense';
-import CashBook from '../cashbook/CashBook';
+import { IconContext } from 'react-icons';
+import { Icons } from './SidebarIcons';
 import { throttle } from "../../lib/utils";
 import { SCROLL_BEHAVIOR } from '../../routes';
 import { SidebarProvider, useSidebar } from './SidebarProvider';
 import { SidebarDesktop } from './SidebarDesktop';
 import { SidebarMobile } from './SidebarMobile';
+
+// Lazy load modals
+const AddExpense = React.lazy(() => import('../expenses/AddExpense'));
+const MasterExpense = React.lazy(() => import('../expenses/MasterExpense'));
+const ViewExpense = React.lazy(() => import('../expenses/ViewExpense'));
+const CashBook = React.lazy(() => import('../cashbook/CashBook'));
 
 // Main Sidebar component orchestrating context and content
 const Sidebar = ({ open: openProp, setOpen: setOpenProp, animate = true, user, setLoggedIn }) => {
@@ -117,19 +106,19 @@ const SidebarContent = memo(({ user, setLoggedIn }) => {
   const isActive = (path) => location.pathname === path;
 
   const mainMenuItems = useMemo(() => [
-    { icon: FiHome, label: 'Dashboard', path: '/dashboard' },
-    { icon: FiUsers, label: 'New Entries', path: '/entries' },
-    { icon: FiTag, label: 'Token', path: '/token' },
-    { icon: GiTestTubes, label: 'Skin Testing', path: '/skin-testing' },
-    { icon: FiCamera, label: 'Photo Testing', path: '/photo-testing' },
-    { icon: GiGoldBar, label: 'Pure Exchange', path: '/pure-exchange' },
+    { icon: Icons.Home, label: 'Dashboard', path: '/dashboard' },
+    { icon: Icons.Users, label: 'New Entries', path: '/entries' },
+    { icon: Icons.Tag, label: 'Token', path: '/token' },
+    { icon: Icons.TestTubes, label: 'Skin Testing', path: '/skin-testing' },
+    { icon: Icons.Camera, label: 'Photo Testing', path: '/photo-testing' },
+    { icon: Icons.GoldBar, label: 'Pure Exchange', path: '/pure-exchange' },
   ], []);
 
   const dataMenuItems = useMemo(() => [
-    { icon: FiDatabase, label: 'Customer Data', path: '/customer-data' },
-    { icon: FiDatabase, label: 'Token Data', path: '/token-data' },
-    { icon: FiDatabase, label: 'Skin Test Data', path: '/skintest-data' },
-    { icon: FiDatabase, label: 'Exchange Data', path: '/exchange-data' },
+    { icon: Icons.Database, label: 'Customer Data', path: '/customer-data' },
+    { icon: Icons.Database, label: 'Token Data', path: '/token-data' },
+    { icon: Icons.Database, label: 'Skin Test Data', path: '/skintest-data' },
+    { icon: Icons.Database, label: 'Exchange Data', path: '/exchange-data' },
   ], []);
 
   const handleExpenseClick = useCallback((modalSetter) => {
@@ -147,10 +136,10 @@ const SidebarContent = memo(({ user, setLoggedIn }) => {
   }), []);
 
   const expenseMenuItems = useMemo(() => [
-    { icon: FiDollarSign, label: 'Add Expense', modalSetter: expenseModalSetters.add },
-    { icon: FiDollarSign, label: 'Master Expense', modalSetter: expenseModalSetters.master },
-    { icon: FiDollarSign, label: 'View Expenses', modalSetter: expenseModalSetters.view },
-    { icon: FiBook, label: 'Cash Book', modalSetter: expenseModalSetters.cashbook },
+    { icon: Icons.DollarSign, label: 'Add Expense', modalSetter: expenseModalSetters.add },
+    { icon: Icons.DollarSign, label: 'Master Expense', modalSetter: expenseModalSetters.master },
+    { icon: Icons.DollarSign, label: 'View Expenses', modalSetter: expenseModalSetters.view },
+    { icon: Icons.Book, label: 'Cash Book', modalSetter: expenseModalSetters.cashbook },
   ], [expenseModalSetters]);
 
   // Props to pass down to both Desktop and Mobile Sidebars
@@ -169,19 +158,31 @@ const SidebarContent = memo(({ user, setLoggedIn }) => {
     onExpenseItemClick: handleExpenseClick, // Pass the handler
   };
 
+  // Add performance monitoring
+  useEffect(() => {
+    const observer = new PerformanceObserver((list) => {
+      list.getEntries().forEach((entry) => {
+        console.log(`${entry.name}: ${entry.duration}`);
+      });
+    });
+    observer.observe({ entryTypes: ['measure'] });
+    return () => observer.disconnect();
+  }, []);
+
   return (
     <>
-      {/* Desktop Sidebar */}
-      <SidebarDesktop {...commonSidebarProps} />
+      <IconContext.Provider value={{ style: { verticalAlign: 'middle' } }}>
+        <SidebarDesktop {...commonSidebarProps} />
+        <SidebarMobile {...commonSidebarProps} />
+      </IconContext.Provider>
 
-      {/* Mobile Sidebar */}
-      <SidebarMobile {...commonSidebarProps} />
-
-      {/* Modals */}
-      <AddExpense isOpen={showAddExpense} onClose={() => setShowAddExpense(false)} />
-      <MasterExpense isOpen={showMasterExpense} onClose={() => setShowMasterExpense(false)} />
-      <ViewExpense isOpen={showViewExpense} onClose={() => setShowViewExpense(false)} />
-      <CashBook isOpen={showCashBook} onClose={() => setShowCashBook(false)} />
+      {/* Wrap modals with Suspense */}
+      <Suspense fallback={<div>Loading...</div>}>
+        {showAddExpense && <AddExpense isOpen={showAddExpense} onClose={() => setShowAddExpense(false)} />}
+        {showMasterExpense && <MasterExpense isOpen={showMasterExpense} onClose={() => setShowMasterExpense(false)} />}
+        {showViewExpense && <ViewExpense isOpen={showViewExpense} onClose={() => setShowViewExpense(false)} />}
+        {showCashBook && <CashBook isOpen={showCashBook} onClose={() => setShowCashBook(false)} />}
+      </Suspense>
     </>
   );
 });
