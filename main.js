@@ -1,20 +1,19 @@
 const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 const { spawn, exec } = require('child_process');
+const os = require('os');
 const isDev = require('electron-is-dev');
 
 // Add logging utility
-const log = {
-  info: (...args) => console.log('[SS-GOLD]:', ...args),
-  error: (...args) => console.error('[SS-GOLD ERROR]:', ...args)
-};
+const log = require('electron-log');
+log.transports.file.level = 'info';
+log.info('App starting...');
 
 // Initialize store with better error handling
 let store;
 try {
   const Store = require('electron-store');
-  const StoreClass = Store.default || Store;
-  store = new StoreClass({
+  store = new Store({
     name: 'ss-gold-config',
     defaults: {
       windowState: {
@@ -44,6 +43,7 @@ let mainWindow;
 let backendServer;
 let viteServer;
 let splashWindow;
+let productionServerPort;
 
 // Update port constants and add max retry
 const PORTS = {
@@ -162,74 +162,93 @@ async function startServers() {
   metrics.startMeasure('servers-startup');
   try {
     log.info('Starting servers...');
-    
-    // Kill existing processes first
-    await Promise.all([
-      killPort(PORTS.VITE),
-      killPort(PORTS.SERVER)
-    ]);
-    log.info('Existing ports cleaned');
 
-    // Find available ports
-    const [vitePort, serverPort] = await Promise.all([
-      findAvailablePort(PORTS.VITE),
-      findAvailablePort(PORTS.SERVER)
-    ]);
-    log.info(`Found available ports - Vite: ${vitePort}, Server: ${serverPort}`);
+    if (isDev) {
+      // In development, start both Vite and backend servers
+      await Promise.all([killPort(PORTS.VITE), killPort(PORTS.SERVER)]);
+      log.info('Existing development ports cleaned');
 
-    // Start servers
-    await Promise.all([
-      new Promise((resolve, reject) => {
-        backendServer = spawn('node', ['server/server.js'], {
-          stdio: 'pipe',
-          cwd: __dirname,
-          shell: true,
-          windowsHide: true,
-          env: { ...process.env, PORT: serverPort }
-        });
-        backendServer.stdout.pipe(process.stdout);
-        backendServer.stderr.pipe(process.stderr);
-        backendServer.on('error', reject);
-        backendServer.on('spawn', () => {
-          log.info('Backend server spawned');
-          setTimeout(resolve, 1000);
-        });
-      }),
-      isDev && new Promise((resolve, reject) => {
-        const viteCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
-        viteServer = spawn(viteCommand, ['run', 'dev', '--', '--port', vitePort], {
-          stdio: 'pipe',
-          cwd: path.join(__dirname, 'client'),
-          shell: true,
-          windowsHide: true
-        });
-        viteServer.stdout.pipe(process.stdout);
-        viteServer.stderr.pipe(process.stderr);
-        viteServer.on('error', reject);
-        viteServer.on('spawn', () => {
-          log.info('Vite server spawned');
-          setTimeout(resolve, 2000);
-        });
-      })
-    ].filter(Boolean));
+      const [vitePort, serverPort] = await Promise.all([
+        findAvailablePort(PORTS.VITE),
+        findAvailablePort(PORTS.SERVER),
+      ]);
+      log.info(`Found available ports - Vite: ${vitePort}, Server: ${serverPort}`);
 
-    PORTS.VITE = vitePort;
-    PORTS.SERVER = serverPort;
-    log.info('All servers started successfully');
+      await Promise.all([
+        new Promise((resolve, reject) => {
+          backendServer = spawn('node', ['server/server.js'], {
+            stdio: 'pipe',
+            cwd: __dirname,
+            shell: true,
+            windowsHide: true,
+            env: { ...process.env, PORT: serverPort },
+          });
+          backendServer.stdout.on('data', (data) => log.info(`[Backend]: ${data}`));
+          backendServer.stderr.on('data', (data) => log.error(`[Backend Error]: ${data}`));
+          backendServer.on('error', reject);
+          backendServer.on('spawn', () => {
+            log.info('Backend server spawned');
+            resolve();
+          });
+        }),
+        new Promise((resolve, reject) => {
+          const viteCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+          viteServer = spawn(viteCommand, ['run', 'dev', '--', '--port', vitePort], {
+            stdio: 'pipe',
+            cwd: path.join(__dirname, 'client'),
+            shell: true,
+            windowsHide: true,
+          });
+          viteServer.stdout.on('data', (data) => log.info(`[Vite]: ${data}`));
+          viteServer.stderr.on('data', (data) => log.error(`[Vite Error]: ${data}`));
+          viteServer.on('error', reject);
+          viteServer.on('spawn', () => {
+            log.info('Vite server spawned');
+            resolve();
+          });
+        }),
+      ]);
 
-    // Wait for servers to be ready
-    const [viteReady, serverReady] = await Promise.all([
-      waitForServer(`http://localhost:${PORTS.VITE}`),
-      waitForServer(`http://localhost:${PORTS.SERVER}`)
-    ]);
+      PORTS.VITE = vitePort;
+      PORTS.SERVER = serverPort;
+      log.info('All development servers started');
 
-    if (!viteReady || !serverReady) {
-      throw new Error('Servers failed to start in time');
+      const [viteReady, serverReady] = await Promise.all([
+        waitForServer(`http://localhost:${PORTS.VITE}`),
+        waitForServer(`http://localhost:${PORTS.SERVER}`),
+      ]);
+
+      if (!viteReady || !serverReady) {
+        throw new Error('Development servers failed to start in time');
+      }
+    } else {
+      // In production, only start the backend server
+      productionServerPort = await findAvailablePort(PORTS.SERVER);
+      log.info(`Production server port: ${productionServerPort}`);
+
+      const serverPath = isDev
+        ? path.join(__dirname, 'server', 'server.js')
+        : path.join(process.resourcesPath, 'server', 'server.js');
+      backendServer = spawn('node', [serverPath], {
+        stdio: 'pipe',
+        shell: true,
+        windowsHide: true,
+        env: { ...process.env, PORT: productionServerPort },
+        cwd: isDev ? path.join(__dirname, 'server') : path.join(process.resourcesPath, 'server'),
+      });
+      backendServer.stdout.on('data', (data) => log.info(`[Backend]: ${data}`));
+      backendServer.stderr.on('data', (data) => log.error(`[Backend Error]: ${data}`));
+      backendServer.on('error', (err) => log.error('Failed to start backend server:', err));
+      backendServer.on('spawn', () => log.info('Backend server spawned for production'));
+
+            if (!(await waitForServer(`http://localhost:${productionServerPort}`))) {
+        throw new Error('Production server failed to start in time');
+      }
+      log.info('Production server is ready.');
     }
 
     const startupTime = metrics.endMeasure('servers-startup');
     log.info(`Servers started in ${startupTime}ms`);
-    
   } catch (error) {
     log.error('Server startup failed:', error);
     throw error;
@@ -302,7 +321,20 @@ async function createWindow() {
     app.quit();
   });
 
-  await mainWindow.loadURL(isDev ? `http://localhost:${PORTS.VITE}` : `file://${path.join(__dirname, 'dist/index.html')}`);
+    const loadURL = isDev
+    ? `http://localhost:${PORTS.VITE}`
+    : `file://${path.join(__dirname, 'client/dist/index.html')}`;
+
+  log.info(`Loading URL: ${loadURL}`);
+
+  try {
+    await mainWindow.loadURL(loadURL);
+
+    log.info('URL loaded successfully.');
+  } catch (error) {
+    log.error('Failed to load URL:', error);
+    app.quit();
+  }
 }
 
 // IPC handlers
@@ -323,6 +355,20 @@ ipcMain.handle('getWindowState', () => {
 
 ipcMain.on('setWindowState', (event, bounds) => {
   mainWindow.setBounds(bounds);
+});
+
+ipcMain.handle('get-api-url', () => {
+  if (productionServerPort) {
+    return `http://localhost:${productionServerPort}`;
+  }
+  return null;
+});
+
+ipcMain.handle('get-system-memory', () => {
+  return {
+    total: os.totalmem(),
+    free: os.freemem(),
+  };
 });
 
 function killPort(port) {

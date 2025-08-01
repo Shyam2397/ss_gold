@@ -1,5 +1,5 @@
 import React, { Suspense, useEffect, useCallback, useRef } from 'react';
-import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
+import { HashRouter as Router, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from './lib/queryClient';
 import Login from './components/login/Login';
@@ -151,11 +151,11 @@ function App() {
   const [loggedIn, setLoggedIn] = React.useState(false);
 
   useEffect(() => {
-    // Register service worker
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/service-worker.js')
-        .catch(error => console.error('SW registration failed:', error));
-    }
+    // Register service worker - DISABLED FOR ELECTRON
+    // if ('serviceWorker' in navigator) {
+    //   navigator.serviceWorker.register('/service-worker.js')
+    //     .catch(error => console.error('SW registration failed:', error));
+    // }
 
     // Setup performance monitoring
     const observer = new PerformanceObserver((list) => {

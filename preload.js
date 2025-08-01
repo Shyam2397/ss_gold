@@ -1,9 +1,9 @@
 const { contextBridge, ipcRenderer } = require('electron');
-const os = require('os');
 
 // Memory monitoring
-function getMemoryInfo() {
+async function getMemoryInfo() {
   const processMemory = process.memoryUsage();
+  const systemMemory = await ipcRenderer.invoke('get-system-memory');
   return {
     process: {
       heapUsed: processMemory.heapUsed,
@@ -11,10 +11,7 @@ function getMemoryInfo() {
       external: processMemory.external,
       rss: processMemory.rss
     },
-    system: {
-      total: os.totalmem(),
-      free: os.freemem()
-    }
+    system: systemMemory
   };
 }
 
@@ -40,13 +37,15 @@ contextBridge.exposeInMainWorld(
     getMemoryInfo: () => getMemoryInfo(),
     // Window management
     getWindowState: () => ipcRenderer.invoke('getWindowState'),
-    setWindowState: (bounds) => ipcRenderer.send('setWindowState', bounds)
+    setWindowState: (bounds) => ipcRenderer.send('setWindowState', bounds),
+    // API configuration
+    getApiUrl: () => ipcRenderer.invoke('get-api-url')
   }
 );
 
 // Set up periodic memory monitoring
-setInterval(() => {
-  const memInfo = getMemoryInfo();
+setInterval(async () => {
+  const memInfo = await getMemoryInfo();
   // Check memory thresholds
   if (memInfo.process.heapUsed > 0.8 * memInfo.process.heapTotal) {
     global.gc && global.gc(); // Trigger garbage collection if available

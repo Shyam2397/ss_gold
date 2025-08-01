@@ -1,7 +1,15 @@
 import axios from 'axios';
 
-// Get the current port from the window location or use default ports
-const API_URL = import.meta.env.VITE_API_URL;
+// Dynamically get the API URL from the main process
+const getApiUrl = async () => {
+  if (window.electron && typeof window.electron.getApiUrl === 'function') {
+        const url = await window.electron.getApiUrl();
+    // In development, if the main process doesn't provide a URL, fallback to Vite's env variable
+    return url || import.meta.env.VITE_API_URL;
+  }
+  // Fallback for running in a standard browser environment
+  return import.meta.env.VITE_API_URL;
+};
 
 export const loginUser = async (username, password) => {
   try {
@@ -13,8 +21,17 @@ export const loginUser = async (username, password) => {
       };
     }
 
+    // Get the dynamic API URL
+    const apiUrl = await getApiUrl();
+    if (!apiUrl) {
+      return {
+        success: false,
+        error: 'Could not determine API server address.'
+      };
+    }
+
     // Make API request
-    const response = await axios.post(`${API_URL}/auth/login`, {
+    const response = await axios.post(`${apiUrl}/auth/login`, {
       username,
       password,
     });

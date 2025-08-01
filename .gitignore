@@ -7,3 +7,5 @@ node_modules
 **_IGNORE_**
 # end managed
 data
+
+dist
