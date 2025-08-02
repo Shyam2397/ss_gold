@@ -2,6 +2,8 @@
   "name": "ss_gold",
   "version": "1.0.0",
   "main": "main.js",
+  "author": "Shyam Sundar",
+  "description": "gold testing application",
   "scripts": {
     "client": "cd client && yarn start",
     "server": "cd server && yarn dev",
@@ -19,6 +21,7 @@
     "concurrently": "^9.1.2",
     "cross-env": "^7.0.3",
     "electron": "^35.2.0",
+    "electron-builder": "^26.0.12",
     "nodemon": "^3.1.9",
     "wait-on": "^8.0.3"
   },

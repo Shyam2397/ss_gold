@@ -229,19 +229,62 @@ async function startServers() {
       const serverPath = isDev
         ? path.join(__dirname, 'server', 'server.js')
         : path.join(process.resourcesPath, 'server', 'server.js');
-      backendServer = spawn('node', [serverPath], {
-        stdio: 'pipe',
-        shell: true,
+
+      // For production, use a more direct approach to spawn the server
+      const serverDir = isDev 
+        ? path.join(__dirname, 'server')
+        : path.join(process.resourcesPath, 'server');
+
+      log.info(`Starting server from: ${serverPath}`);
+      log.info(`Working directory: ${serverDir}`);
+
+      // Use the system's node executable directly
+      const nodePath = process.platform === 'win32' ? 'node.exe' : 'node';
+      
+      // Spawn the process directly with node
+      backendServer = spawn(nodePath, [serverPath], {
+        cwd: serverDir,
+        shell: false,
         windowsHide: true,
-        env: { ...process.env, PORT: productionServerPort },
-        cwd: isDev ? path.join(__dirname, 'server') : path.join(process.resourcesPath, 'server'),
+        env: {
+          ...process.env,
+          PORT: productionServerPort,
+          NODE_ENV: 'production',
+          ELECTRON_RUN_AS_NODE: '1'
+        }
       });
+
+      // Handle process events
+      backendServer.stdout.on('data', (data) => {
+        const output = data.toString().trim();
+        if (output) log.info(`[Backend]: ${output}`);
+      });
+      
+      backendServer.stderr.on('data', (data) => {
+        const error = data.toString().trim();
+        if (error) log.error(`[Backend Error]: ${error}`);
+      });
+      
+      backendServer.on('error', (err) => {
+        log.error('Failed to start backend server:', err);
+      });
+      
+      backendServer.on('close', (code) => {
+        log.info(`Backend server process exited with code ${code}`);
+      });
+      
+      backendServer.on('spawn', () => {
+        log.info('Backend server spawned for production');
+      });
+      
+      // Add a small delay to ensure the process starts
+      await new Promise(resolve => setTimeout(resolve, 1000));
       backendServer.stdout.on('data', (data) => log.info(`[Backend]: ${data}`));
       backendServer.stderr.on('data', (data) => log.error(`[Backend Error]: ${data}`));
       backendServer.on('error', (err) => log.error('Failed to start backend server:', err));
       backendServer.on('spawn', () => log.info('Backend server spawned for production'));
 
-            if (!(await waitForServer(`http://localhost:${productionServerPort}`))) {
+      if (!(await waitForServer(`http://localhost:${productionServerPort}`))) {
         throw new Error('Production server failed to start in time');
       }
       log.info('Production server is ready.');
