@@ -29,6 +29,17 @@
   "build": {
     "appId": "com.example.ss-gold",
     "productName": "SS Gold",
+    "win": {
+      "target": "nsis",
+      "icon": "client/src/assets/logo.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "SS Gold"
+    },
     "files": [
       "main.js",
       "preload.js",

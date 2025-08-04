@@ -322,12 +322,15 @@ const stateManager = {
 };
 
 function createSplashWindow() {
+  const iconPath = path.join(__dirname, 'client', 'src', 'assets', 'logo.ico');
+  
   splashWindow = new BrowserWindow({
     width: 400,
     height: 400,
-    transparent: true,
     frame: false,
+    transparent: true,
     alwaysOnTop: true,
+    icon: iconPath,
     webPreferences: {
       nodeIntegration: true
     }
@@ -336,9 +339,12 @@ function createSplashWindow() {
 }
 
 async function createWindow() {
+  const iconPath = path.join(__dirname, 'client', 'src', 'assets', 'logo.ico');
+  
   const windowState = getWindowState();
   mainWindow = new BrowserWindow({
     ...windowState,
+    icon: iconPath,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -447,84 +453,237 @@ function killPort(port) {
   });
 }
 
+// Helper function to safely kill a process by PID
+const safeKillPid = (pid, name) => {
+  return new Promise((resolve) => {
+    if (!pid || pid <= 0) {
+      log.info(`Invalid PID for ${name}, skipping kill`);
+      return resolve();
+    }
+
+    log.info(`Terminating ${name} (PID: ${pid})...`);
+    
+    try {
+      const killCmd = process.platform === 'win32' 
+        ? `taskkill /F /PID ${pid} /T`
+        : `kill -9 ${pid}`;
+      
+      exec(killCmd, (error) => {
+        if (error) {
+          // Ignore errors for processes that don't exist or are already dead
+          if (error.message.includes('not found') || 
+              error.message.includes('No such process') ||
+              error.message.includes('No running instance')) {
+            log.info(`${name} process already terminated`);
+          } else {
+            log.warn(`Failed to kill ${name} (PID: ${pid}):`, error.message);
+          }
+        } else {
+          log.info(`Successfully terminated ${name} (PID: ${pid})`);
+        }
+        resolve();
+      });
+    } catch (err) {
+      log.error(`Error killing ${name} (PID: ${pid}):`, err.message);
+      resolve();
+    }
+  });
+};
+
 // Update cleanup function with better handling
 async function cleanupProcesses() {
   log.info('Starting cleanup process...');
-  try {
-    const cleanup = [];
-    if (backendServer) {
-      cleanup.push(new Promise(resolve => {
-        backendServer.removeAllListeners();
-        backendServer.kill();
-        backendServer.on('exit', () => {
-          log.info('Backend server terminated');
+  const cleanupPromises = [];
+  
+  // Clean up backend server if it exists
+  if (backendServer) {
+    cleanupPromises.push(
+      new Promise((resolve) => {
+        if (!backendServer.pid) {
+          log.info('Backend server already terminated');
+          return resolve();
+        }
+        
+        log.info(`Terminating backend server (PID: ${backendServer.pid})...`);
+        
+        // Handle process exit
+        const onExit = () => {
+          log.info(`Backend server (PID: ${backendServer.pid}) terminated`);
           resolve();
-        });
-      }));
-    }
-    if (viteServer) {
-      cleanup.push(new Promise(resolve => {
-        viteServer.removeAllListeners();
-        viteServer.kill();
-        viteServer.on('exit', () => {
-          log.info('Vite server terminated');
-          resolve();
-        });
-      }));
-    }
-    // Wait for all processes to cleanup
-    await Promise.all([
-      ...cleanup,
-      killPort(PORTS.VITE),
-      killPort(PORTS.SERVER)
-    ]);
-
-    if (process.platform === 'win32') {
-      await new Promise(resolve => {
-        exec('taskkill /F /IM cmd.exe /T', (error) => {
-          if (error) {
-            log.error('Failed to close terminal windows:', error);
+        };
+        
+        // Set up exit handler
+        backendServer.removeAllListeners('exit');
+        backendServer.once('exit', onExit);
+        
+        // Try to kill the process
+        try {
+          if (backendServer.kill('SIGTERM')) {
+            // Give the process some time to exit gracefully
+            setTimeout(() => {
+              if (backendServer.exitCode === null) {
+                log.warn('Backend server did not exit gracefully, forcing termination');
+                backendServer.kill('SIGKILL');
+              }
+            }, 1000);
           } else {
-            log.info('Terminal windows closed');
+            log.warn('Failed to send SIGTERM to backend server, process may already be dead');
+            resolve();
           }
+        } catch (err) {
+          log.error('Error killing backend server:', err.message);
           resolve();
-        });
+        }
+      })
+    );
+  }
+  
+  // Clean up Vite server if it exists
+  if (viteServer) {
+    cleanupPromises.push(
+      safeKillPid(viteServer.pid, 'Vite server')
+    );
+  }
+  
+  // Clean up any processes on the ports with better error handling
+  const safeKillPort = (port) => {
+    if (!port) return Promise.resolve();
+    
+    return new Promise(resolve => {
+      const killCmd = process.platform === 'win32'
+        ? `netstat -ano | findstr :${port}`
+        : `lsof -i :${port} -t`;
+      
+      exec(killCmd, (err, stdout) => {
+        if (err || !stdout) {
+          log.info(`No process found on port ${port}`);
+          return resolve();
+        }
+        
+        // On Windows, parse the PID from netstat output
+        if (process.platform === 'win32') {
+          const lines = stdout.trim().split('\n');
+          const pids = [];
+          
+          lines.forEach(line => {
+            const match = line.trim().split(/\s+/);
+            const pid = match[match.length - 1];
+            if (pid && pid !== '0' && !isNaN(parseInt(pid))) {
+              pids.push(pid);
+            }
+          });
+          
+          if (pids.length === 0) {
+            log.info(`No valid PIDs found for port ${port}`);
+            return resolve();
+          }
+          
+          // Kill each process
+          const killPromises = pids.map(pid => 
+            new Promise(res => {
+              exec(`taskkill /F /PID ${pid}`, (err) => {
+                if (err) {
+                  log.warn(`Failed to kill process ${pid} on port ${port}:`, err.message);
+                } else {
+                  log.info(`Successfully killed process ${pid} on port ${port}`);
+                }
+                res();
+              });
+            })
+          );
+          
+          Promise.all(killPromises).then(resolve).catch(resolve);
+        } else {
+          // Unix-like systems
+          const pids = stdout.trim().split('\n').filter(Boolean);
+          if (pids.length === 0) {
+            log.info(`No PIDs found for port ${port}`);
+            return resolve();
+          }
+          
+          exec(`kill -9 ${pids.join(' ')}`, (err) => {
+            if (err) {
+              log.warn(`Failed to kill processes on port ${port}:`, err.message);
+            } else {
+              log.info(`Successfully killed processes on port ${port}`);
+            }
+            resolve();
+          });
+        }
       });
-    }
-
+    });
+  };
+  
+  cleanupPromises.push(safeKillPort(PORTS.VITE));
+  cleanupPromises.push(safeKillPort(PORTS.SERVER));
+  
+  // Wait for all cleanup to complete with a timeout
+  try {
+    await Promise.race([
+      Promise.all(cleanupPromises),
+      new Promise(resolve => setTimeout(resolve, 3000)) // 3 second timeout
+    ]);
     log.info('Cleanup completed successfully');
   } catch (error) {
     log.error('Cleanup process failed:', error);
-    throw error;
   }
+}
+
+// Optimize garbage collection for faster startup
+if (global.gc) {
+  global.gc();
+  log.info('Garbage collection forced');
 }
 
 app.whenReady().then(async () => {
   metrics.startMeasure('app-startup');
   try {
-    // Recover from previous crash if needed
-    const lastState = stateManager.recover();
-    if (lastState && Date.now() - lastState.timestamp < 30000) {
-      log.info('Recovering from previous session');
-    }
-
+    // Create splash window immediately for better perceived performance
     createSplashWindow();
-    await startServers();
     
-    setTimeout(async () => {
+    // Start servers and window creation in parallel
+    const serverPromise = startServers().catch(error => {
+      log.error('Failed to start servers:', error);
+      throw error;
+    });
+
+    // Recover state in parallel with server startup
+    const statePromise = Promise.resolve().then(() => {
       try {
-        await createWindow();
+        const lastState = stateManager.recover();
+        if (lastState && Date.now() - lastState.timestamp < 30000) {
+          log.info('Recovering from previous session');
+          return lastState;
+        }
       } catch (error) {
-        log.error('Failed to create window:', error);
-        app.quit();
+        log.warn('Failed to recover state:', error.message);
       }
-    }, 2000);
+      return null;
+    });
+
+    // Wait for both server and state to be ready
+    const [_, recoveredState] = await Promise.all([serverPromise, statePromise]);
+    
+    // Create main window with recovered state
+    try {
+      await createWindow(recoveredState);
+    } catch (error) {
+      log.error('Failed to create window:', error);
+      app.quit();
+      return;
+    }
 
     const startupTime = metrics.endMeasure('app-startup');
     log.info(`Application started in ${startupTime}ms`);
 
-    // Save state periodically
-    setInterval(stateManager.save, 30000);
+    // Save state periodically with error handling
+    setInterval(() => {
+      try {
+        stateManager.save();
+      } catch (error) {
+        log.warn('Periodic state save failed:', error.message);
+      }
+    }, 30000);
 
     app.on('activate', async () => {
       if (BrowserWindow.getAllWindows().length === 0) {
@@ -538,17 +697,51 @@ app.whenReady().then(async () => {
   }
 });
 
-app.on('window-all-closed', async () => {
+// Save window state before quitting
+function safeSaveWindowState() {
   try {
-    if (splashWindow) {
-      splashWindow.destroy();
-      splashWindow = null;
-    }
     if (mainWindow && !mainWindow.isDestroyed()) {
       saveWindowState();
     }
+  } catch (error) {
+    log.warn('Failed to save window state:', error.message);
+  }
+}
+
+// Save application state
+let isAppStateValid = true;
+function safeSaveAppState() {
+  if (!isAppStateValid) return;
+  
+  try {
+    if (stateManager && typeof stateManager.save === 'function') {
+      stateManager.save();
+    } else {
+      isAppStateValid = false;
+      log.warn('State manager is not available for saving');
+    }
+  } catch (error) {
+    isAppStateValid = false;
+    log.warn('Failed to save application state:', error.message);
+  }
+}
+
+app.on('window-all-closed', async () => {
+  try {
+    // Save state before cleanup
+    safeSaveWindowState();
+    safeSaveAppState();
+    
+    // Clean up splash window
+    if (splashWindow && !splashWindow.isDestroyed()) {
+      splashWindow.destroy();
+      splashWindow = null;
+    }
+    
+    // Clean up processes
     await cleanupProcesses();
     
+    // Quit the app
     if (process.platform !== 'darwin') {
       app.quit();
     }
@@ -558,14 +751,30 @@ app.on('window-all-closed', async () => {
   }
 });
 
-app.on('before-quit', async () => {
-  stateManager.save();
+app.on('before-quit', async (event) => {
+  // Prevent multiple quit events
+  if (isQuitting) return;
+  isQuitting = true;
+  
   try {
+    // Save state before cleanup
+    safeSaveWindowState();
+    safeSaveAppState();
+    
+    // Clean up main window
     if (mainWindow && !mainWindow.isDestroyed()) {
-      saveWindowState();
       mainWindow.removeAllListeners();
+      mainWindow.destroy();
       mainWindow = null;
     }
+    
+    // Clean up splash window
+    if (splashWindow && !splashWindow.isDestroyed()) {
+      splashWindow.destroy();
+      splashWindow = null;
+    }
+    
+    // Clean up processes
     await cleanupProcesses();
   } catch (error) {
     log.error('Error during final cleanup:', error);
