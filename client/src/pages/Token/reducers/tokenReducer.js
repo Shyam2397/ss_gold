@@ -23,6 +23,8 @@ export const initialState = {
   success: ""
 };
 
+import { parseDate, formatDate } from '../../../utils/dateUtils';
+
 export const tokenReducer = (state, action) => {
   switch (action.type) {
     case 'SET_FIELD':
@@ -30,32 +32,58 @@ export const tokenReducer = (state, action) => {
         ...state,
         [action.field]: action.value
       };
-    case 'RESET_FORM':
+    case 'RESET_FORM': {
+      // Get current date and time
+      const now = new Date();
+      const day = now.getDate().toString().padStart(2, '0');
+      const month = (now.getMonth() + 1).toString().padStart(2, '0');
+      const year = now.getFullYear();
+      const hours = now.getHours().toString().padStart(2, '0');
+      const minutes = now.getMinutes().toString().padStart(2, '0');
+      
       return {
         ...state,
+        // Reset all form fields to initial state
         code: "",
         name: "",
         test: "Skin Testing",
         weight: "",
         sample: "",
         amount: "50",
-        searchQuery: "", // Add searchQuery reset
+        // Set current date and time
+        date: `${day}-${month}-${year}`,
+        time: `${hours}:${minutes}`,
+        // Reset token number will be handled by the component
+        tokenNo: action.tokenNo || state.tokenNo,
+        // Reset UI state
+        searchQuery: "",
         editMode: false,
         editId: null,
-        error: ""
+        error: "",
+        success: ""
       };
+    }
     case 'SET_EDIT_MODE':
+      // Parse and format the date consistently
+      const parsedDate = parseDate(action.token.date);
+      const formattedDate = parsedDate ? formatDate(parsedDate, 'dd-MM-yyyy') : '';
+      
       return {
         ...state,
         editMode: true,
         editId: action.token.id,
-        code: action.token.code,
-        tokenNo: action.token.tokenNo,
-        name: action.token.name,
-        test: action.token.test,
-        weight: action.token.weight,
-        sample: action.token.sample,
-        amount: action.token.amount
+        code: action.token.code || "",
+        tokenNo: action.token.tokenNo || "",
+        // Format date to match display format (DD-MM-YYYY)
+        date: formatDate(action.token.date) || "",
+        // Ensure time is in HH:MM format
+        time: (action.token.time || "").substring(0, 5),
+        name: action.token.name || "",
+        // Ensure test is always a string and has a default value
+        test: String(action.token.test || "Skin Testing"),
+        weight: action.token.weight ? String(action.token.weight) : "",
+        sample: action.token.sample || "",
+        amount: action.token.amount ? String(action.token.amount) : "50"
       };
     case 'SET_DELETE_CONFIRMATION':
       return {
@@ -77,14 +105,23 @@ export const tokenReducer = (state, action) => {
         ...state,
         filteredTokens: action.tokens
       };
-    case 'RESET_AFTER_EDIT':
+    case 'RESET_AFTER_EDIT': {
+      // Get current date and time
+      const now = new Date();
+      const day = now.getDate().toString().padStart(2, '0');
+      const month = (now.getMonth() + 1).toString().padStart(2, '0');
+      const year = now.getFullYear();
+      const hours = now.getHours().toString().padStart(2, '0');
+      const minutes = now.getMinutes().toString().padStart(2, '0');
+      
       return {
         ...initialState,
         tokenNo: action.tokenNo,
-        date: state.date,
-        time: state.time,
+        date: `${day}-${month}-${year}`,
+        time: `${hours}:${minutes}`,
         filteredTokens: state.filteredTokens
       };
+    }
     default:
       return state;
   }

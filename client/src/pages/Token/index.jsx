@@ -222,10 +222,20 @@ const TokenPage = () => {
     }
   };
 
-  // Batch state updates
-  const resetForm = useCallback(() => {
-    dispatch({ type: 'RESET_FORM' });
-  }, []);
+  // Reset form and generate new token number
+  const resetForm = useCallback(async () => {
+    try {
+      const newTokenNo = await generateTokenNumber();
+      dispatch({ 
+        type: 'RESET_FORM',
+        tokenNo: newTokenNo
+      });
+    } catch (error) {
+      console.error('Error resetting form:', error);
+      // Fallback to basic reset if token generation fails
+      dispatch({ type: 'RESET_FORM' });
+    }
+  }, [generateTokenNumber]);
 
   const handlePrint = async () => {
     try {
