@@ -45,8 +45,20 @@
       "preload.js",
       "splash.html",
       "client/dist",
+      "client/src/assets/logo.png",
+      "client/src/assets/logo.ico",
       "node_modules",
       "package.json"
+    ],
+    "extraFiles": [
+      {
+        "from": "client/src/assets/logo.png",
+        "to": "client/src/assets/logo.png"
+      },
+      {
+        "from": "client/src/assets/logo.ico",
+        "to": "client/src/assets/logo.ico"
+      }
     ],
     "extraResources": [
       {
