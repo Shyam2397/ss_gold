@@ -1,9 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import axios from 'axios';
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { unstable_batchedUpdates as batch } from 'react-dom';
-
-const API_URL = import.meta.env.VITE_API_URL;
+import tokenService from '../../../services/tokenService';
+import entryService from '../../../services/entryService';
+import toast from 'react-hot-toast';
 
 const useTokenQuery = () => {
   const queryClient = useQueryClient();
@@ -33,13 +33,14 @@ const useTokenQuery = () => {
     queryKey: ['tokens'],
     queryFn: async () => {
       try {
-        const response = await axios.get(`${API_URL}/tokens`);
-        return response.data;
+        const data = await tokenService.getTokens();
+        // Sort tokens by token_no in descending order
+        return data.sort((a, b) => 
+          parseFloat(b.token_no) - parseFloat(a.token_no)
+        );
       } catch (error) {
-        if (!axios.isCancel(error)) {
-          console.error('Error fetching tokens:', error);
-          throw new Error('Failed to fetch tokens');
-        }
+        console.error('Error fetching tokens:', error);
+        throw new Error(error.response?.data?.message || 'Failed to fetch tokens');
       }
     },
     staleTime: 5 * 60 * 1000, // 5 minutes (matches the existing cache config)
@@ -51,75 +52,94 @@ const useTokenQuery = () => {
   // Mutation for generating token number
   const generateTokenNumberMutation = useMutation({
     mutationFn: async () => {
-      const response = await axios.get(`${API_URL}/tokens/generate`);
-      if (response.data.error) {
-        throw new Error(response.data.error);
+      try {
+        const data = await tokenService.generateTokenNumber();
+        return data.tokenNo;
+      } catch (error) {
+        throw new Error(error.response?.data?.error || 'Failed to generate token number');
       }
-      return response.data.tokenNo;
     },
     onError: (error) => {
-      setError(error.message || 'Failed to generate token number');
+      toast.error(error.message);
+      setError(error.message);
     }
   });
 
   // Mutation for saving token
   const saveTokenMutation = useMutation({
     mutationFn: async ({ tokenData, editId = null }) => {
-      const endpoint = editId ? `${API_URL}/tokens/${editId}` : `${API_URL}/tokens`;
-      const method = editId ? 'put' : 'post';
-      
-      const response = await axios[method](endpoint, tokenData);
-      return response.data;
+      try {
+        if (editId) {
+          return await tokenService.updateToken(editId, tokenData);
+        } else {
+          return await tokenService.createToken(tokenData);
+        }
+      } catch (error) {
+        throw new Error(error.response?.data?.message || 'Failed to save token');
+      }
     },
     onSuccess: () => {
       batch(() => {
         setSuccess('Token saved successfully!');
         setError('');
       });
+      toast.success('Token saved successfully!');
       queryClient.invalidateQueries({ queryKey: ['tokens'] });
     },
     onError: (error) => {
-      setError(error.message || 'Failed to save token');
+      toast.error(error.message);
+      setError(error.message);
     }
   });
 
   // Mutation for deleting token
   const deleteTokenMutation = useMutation({
     mutationFn: async (tokenId) => {
-      const response = await axios.delete(`${API_URL}/tokens/${tokenId}`);
-      return response.data;
+      try {
+        return await tokenService.deleteToken(tokenId);
+      } catch (error) {
+        throw new Error(error.response?.data?.message || 'Failed to delete token');
+      }
     },
     onSuccess: () => {
+      toast.success('Token deleted successfully!');
       setSuccess('Token deleted successfully!');
       queryClient.invalidateQueries({ queryKey: ['tokens'] });
     },
     onError: (error) => {
-      setError(error.message || 'Failed to delete token');
+      toast.error(error.message);
+      setError(error.message);
     }
   });
 
   // Mutation for updating payment status
   const updatePaymentStatusMutation = useMutation({
     mutationFn: async ({ tokenId, isPaid }) => {
-      const response = await axios.patch(`${API_URL}/tokens/${tokenId}/payment`, { isPaid });
-      return response.data;
+      try {
+        return await tokenService.updatePaymentStatus(tokenId, isPaid);
+      } catch (error) {
+        throw new Error(error.response?.data?.message || 'Failed to update payment status');
+      }
     },
     onSuccess: () => {
+      toast.success('Payment status updated successfully!');
       setSuccess('Payment status updated successfully!');
       queryClient.invalidateQueries({ queryKey: ['tokens'] });
     },
     onError: (error) => {
-      setError(error.message || 'Failed to update payment status');
+      toast.error(error.message);
+      setError(error.message);
     }
   });
 
   // Query for fetching name by code
   const fetchNameByCode = useCallback(async (code) => {
     try {
-      const response = await axios.get(`${API_URL}/entries/${code}`);
-      return response.data.data?.name || 'Not Found';
+      const data = await entryService.getEntryByCode(code);
+      return data?.data?.name || 'Not Found';
     } catch (error) {
       console.error('Error fetching name by code:', error);
+      toast.error('Failed to fetch name');
       setError('Failed to fetch name');
       return 'Not Found';
     }
