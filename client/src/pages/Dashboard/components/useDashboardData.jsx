@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import axios from 'axios';
+import { getApi } from '../../../services/api';
 import toast from 'react-hot-toast';
 import { useQueries, useQueryClient } from '@tanstack/react-query';
 import { debounce } from 'lodash';
@@ -38,21 +38,25 @@ function useDashboardData() {
   const abortControllersRef = useRef(new Map());
   const [currentPage, setCurrentPage] = useState(1);
 
-  // Memoized axios instance with interceptors
+  // Memoized api instance with abort controller
   const api = useMemo(() => {
-    const instance = axios.create({
-      baseURL: import.meta.env.VITE_API_URL
-    });
+    // Cancel any pending requests when component unmounts or dependencies change
+    const controller = new AbortController();
+    
+    const makeRequest = async (config) => {
+      const api = await getApi();
+      return api({
+        ...config,
+        signal: controller.signal
+      });
+    };
 
-    // Add request interceptor for abort controller
-    instance.interceptors.request.use(config => {
-      const controller = new AbortController();
-      config.signal = controller.signal;
-      abortControllersRef.current.set(config.url, controller);
-      return config;
-    });
-
-    return instance;
+    return {
+      get: (url, config) => makeRequest({ ...config, method: 'get', url }),
+      post: (url, data, config) => makeRequest({ ...config, method: 'post', url, data }),
+      put: (url, data, config) => makeRequest({ ...config, method: 'put', url, data }),
+      delete: (url, config) => makeRequest({ ...config, method: 'delete', url })
+    };
   }, []);
 
   // Memoized query functions with pagination
@@ -317,11 +321,17 @@ function useDashboardData() {
 
   const fetchDashboardData = async () => {
     try {
+      setLoading(true);
+      setError(null);
+
+      // Get a single API instance for all requests
+      const api = await getApi();
+      
       const [tokensRes, expensesRes, entriesRes, exchangesRes] = await Promise.all([
-        axios.get(`${import.meta.env.VITE_API_URL}/tokens`),
-        axios.get(`${import.meta.env.VITE_API_URL}/api/expenses`),
-        axios.get(`${import.meta.env.VITE_API_URL}/entries`),
-        axios.get(`${import.meta.env.VITE_API_URL}/pure-exchange`)
+        api.get('/tokens'),
+        api.get('/api/expenses'),
+        api.get('/entries'),
+        api.get('/pure-exchange')
       ]);
 
       const tokenData = tokensRes.data;
