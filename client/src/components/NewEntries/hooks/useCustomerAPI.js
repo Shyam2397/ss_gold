@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import axios from 'axios';
+import entryService from '../../../services/entryService';
 
 const useCustomerAPI = (dispatch, ActionTypes) => {
   const queryClient = useQueryClient();
@@ -9,10 +9,9 @@ const useCustomerAPI = (dispatch, ActionTypes) => {
     queryKey: ['customers'],
     queryFn: async () => {
       try {
-        const response = await axios.get('/entries');
-        return response.data || [];
+        return await entryService.getEntries();
       } catch (err) {
-        throw new Error(err.response?.data?.error || 'Error fetching customers');
+        throw new Error(err.message || 'Error fetching customers');
       }
     },
     onSuccess: (data) => {
@@ -26,14 +25,14 @@ const useCustomerAPI = (dispatch, ActionTypes) => {
   // Mutation for creating customer
   const createCustomerMutation = useMutation({
     mutationFn: async (customerData) => {
-      const response = await axios.post('/entries', customerData);
-      if (!response.data.success) {
-        throw new Error(response.data.error || 'Failed to add customer');
+      try {
+        return await entryService.createEntry(customerData);
+      } catch (err) {
+        throw new Error(err.message || 'Failed to add customer');
       }
-      return response.data;
     },
     onSuccess: (data) => {
-      dispatch({ type: ActionTypes.SET_SUCCESS, payload: data.message || 'Customer added successfully!' });
+      dispatch({ type: ActionTypes.SET_SUCCESS, payload: 'Customer added successfully!' });
       queryClient.invalidateQueries({ queryKey: ['customers'] });
     },
     onError: (err) => {
@@ -44,14 +43,14 @@ const useCustomerAPI = (dispatch, ActionTypes) => {
   // Mutation for updating customer
   const updateCustomerMutation = useMutation({
     mutationFn: async ({ id, customerData }) => {
-      const response = await axios.put(`/entries/${id}`, customerData);
-      if (!response.data.success) {
-        throw new Error(response.data.error || 'Failed to update customer');
+      try {
+        return await entryService.updateEntry(id, customerData);
+      } catch (err) {
+        throw new Error(err.message || 'Failed to update customer');
       }
-      return response.data;
     },
     onSuccess: (data) => {
-      dispatch({ type: ActionTypes.SET_SUCCESS, payload: data.message || 'Customer updated successfully!' });
+      dispatch({ type: ActionTypes.SET_SUCCESS, payload: 'Customer updated successfully!' });
       queryClient.invalidateQueries({ queryKey: ['customers'] });
     },
     onError: (err) => {
@@ -62,14 +61,14 @@ const useCustomerAPI = (dispatch, ActionTypes) => {
   // Mutation for deleting customer
   const deleteCustomerMutation = useMutation({
     mutationFn: async (id) => {
-      const response = await axios.delete(`/entries/${id}`);
-      if (!response.data.success) {
-        throw new Error(response.data.error || 'Failed to delete customer');
+      try {
+        return await entryService.deleteEntry(id);
+      } catch (err) {
+        throw new Error(err.message || 'Failed to delete customer');
       }
-      return response.data;
     },
     onSuccess: (data) => {
-      dispatch({ type: ActionTypes.SET_SUCCESS, payload: data.message || 'Customer deleted successfully!' });
+      dispatch({ type: ActionTypes.SET_SUCCESS, payload: 'Customer deleted successfully!' });
       queryClient.invalidateQueries({ queryKey: ['customers'] });
     },
     onError: (err) => {
