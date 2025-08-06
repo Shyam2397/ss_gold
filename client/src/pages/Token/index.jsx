@@ -396,7 +396,8 @@ const TokenPage = () => {
                   label="Name"
                   icon={FiUser}
                   value={state.name}
-                  readOnly
+                  readOnly={!state.editMode}
+                  onChange={(e) => handleFieldChange('name', e.target.value)}
                   required
                   size="lg"
                 />
