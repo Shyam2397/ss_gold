@@ -5,7 +5,7 @@ import { AutoSizer, Table, Column } from 'react-virtualized';
 import 'react-virtualized/styles.css';
 import { formatDateForDisplay, formatTimeForDisplay } from '../utils/validation';
 
-const TableRow = ({ 
+const TableRow = React.memo(({ 
   skinTests, 
   initialFormData,
   onEdit, 
@@ -356,7 +356,14 @@ const TableRow = ({
       </div>
     </div>
   );
+});
+
+// Custom comparison function for React.memo
+const areEqual = (prevProps, nextProps) => {
+  // Only re-render if the skinTest data has actually changed
+  return JSON.stringify(prevProps.skinTests) === JSON.stringify(nextProps.skinTests) &&
+         prevProps.onEdit === nextProps.onEdit &&
+         prevProps.onDelete === nextProps.onDelete;
 };
 
-// Apply memo after the component definition
-export default React.memo(TableRow);
+export default React.memo(TableRow, areEqual);

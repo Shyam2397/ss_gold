@@ -157,23 +157,29 @@ export const useSkinTest = () => {
     try {
       const skinTests = await skinTestService.getSkinTests();
       
-      // Fetch phone numbers for each test that has a code
-      const testsWithPhoneNumbers = await Promise.all(
-        skinTests.map(async (test) => {
-          if (test.code) {
+      // Only fetch phone numbers if we have tests with codes
+      if (skinTests.some(test => test.code)) {
+        // Use Promise.all for parallel fetching
+        const updatedTests = await Promise.all(
+          skinTests.map(async (test) => {
+            if (!test.code) return test;
+            
             try {
               const phoneNumber = await skinTestService.getPhoneNumber(test.code);
-              return { ...test, phoneNumber: phoneNumber || '' };
+              // Only return a new object if phoneNumber exists
+              return phoneNumber ? { ...test, phoneNumber } : test;
             } catch (err) {
               console.error('Error fetching phone number:', err);
-              return test;
+              return test; // Return original test if there's an error
             }
-          }
-          return test;
-        })
-      );
-      
-      dispatch({ type: ACTIONS.SET_SKIN_TESTS, payload: testsWithPhoneNumbers });
+          })
+        );
+        
+        // Only update if tests have actually changed
+        dispatch({ type: ACTIONS.SET_SKIN_TESTS, payload: updatedTests });
+      } else {
+        dispatch({ type: ACTIONS.SET_SKIN_TESTS, payload: skinTests });
+      }
     } catch (err) {
       console.error('Error loading skin tests:', err);
       dispatch({ type: ACTIONS.SET_ERROR, payload: 'Failed to fetch skin tests: ' + (err.message || 'Unknown error') });
@@ -189,138 +195,12 @@ export const useSkinTest = () => {
     });
   }, []);
 
-  const handleTokenChange = async (e) => {
-    const { name, value } = e.target;
-    if (state.error) dispatch({ type: ACTIONS.SET_ERROR, payload: '' });
-    updateFormData(name, value);
-
-    if (name === 'tokenNo' && value) {
-      dispatch({ type: ACTIONS.SET_LOADING, payload: true });
-      try {
-        const tokenData = await skinTestService.getTokenData(value);
-        
-        if (tokenData) {
-          const { date, time, name, weight, sample, code } = tokenData;
-          
-          const updatedFormData = {
-            ...state.formData,
-            date: date || '',
-            time: time || '',
-            name: name || '',
-            weight: weight ? parseFloat(weight).toFixed(3) : '',
-            sample: sample || '',
-            code: code || '',
-            tokenNo: value,
-          };
-          
-          dispatch({ type: ACTIONS.SET_FORM_DATA, payload: updatedFormData });
-
-          if (code) {
-            try {
-              const phoneNumber = await skinTestService.getPhoneNumber(code);
-              if (phoneNumber) {
-                dispatch({ 
-                  type: ACTIONS.SET_FORM_DATA, 
-                  payload: { ...updatedFormData, phoneNumber }
-                });
-              }
-            } catch (phoneErr) {
-              console.error('Error fetching phone number:', phoneErr);
-              // Continue without phone number if there's an error
-            }
-          }
-        } else {
-          dispatch({ type: ACTIONS.SET_ERROR, payload: 'No token data found.' });
-          dispatch({ type: ACTIONS.CLEAR_FORM_FIELDS });
-        }
-      } catch (err) {
-        console.error('Error fetching token data:', err);
-        if (err.response?.status === 404) {
-          dispatch({ type: ACTIONS.SET_ERROR, payload: 'Token number not found.' });
-        } else {
-          dispatch({ type: ACTIONS.SET_ERROR, payload: 'Failed to fetch token data: ' + (err.message || 'Unknown error') });
-        }
-        dispatch({ type: ACTIONS.CLEAR_FORM_FIELDS });
-      } finally {
-        dispatch({ type: ACTIONS.SET_LOADING, payload: false });
-      }
-    }
-  };
-
-  const clearFormFields = () => {
-    dispatch({ type: ACTIONS.CLEAR_FORM_FIELDS });
-  };
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    
-    // Prevent token number changes during editing
-    if (state.isEditing && name === 'tokenNo') {
-      return;
-    }
-    
-    if (state.error) dispatch({ type: ACTIONS.SET_ERROR, payload: '' });
-    updateFormData(name, value);
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    // Create a custom setError function that uses dispatch
-    const setErrorWithDispatch = (errorMsg) => {
-      dispatch({ type: ACTIONS.SET_ERROR, payload: errorMsg });
-    };
-    
-    if (!validateForm(state.formData, setErrorWithDispatch, state.isEditing)) return;
-
-    try {
-      dispatch({ type: ACTIONS.SET_LOADING, payload: true });
-      const processedData = processFormData({
-        ...state.formData,
-        tokenNo: state.formData.tokenNo || ''
-      });
-
-      if (state.isEditing) {
-        if (!processedData.tokenNo) {
-          throw new Error('Token number is required for updating');
-        }
-
-        // Update existing skin test
-        await skinTestService.updateSkinTest(processedData.tokenNo, processedData);
-        dispatch({ type: ACTIONS.SET_IS_EDITING, payload: false });
-        dispatch({ type: ACTIONS.SET_SUCCESS, payload: `Skin test #${processedData.tokenNo} updated successfully!` });
-      } else {
-        // Check for duplicate token number
-        const exists = state.skinTests.some(test => test.tokenNo === processedData.tokenNo);
-        if (exists) {
-          throw new Error('Token number already exists');
-        }
-
-        // Create new skin test
-        await skinTestService.createSkinTest(processedData);
-        dispatch({ type: ACTIONS.SET_SUCCESS, payload: `Skin test #${processedData.tokenNo} saved successfully!` });
-      }
-
-      // Common success actions
-      await loadSkinTests();
-      dispatch({ type: ACTIONS.SET_FORM_DATA, payload: initialFormData });
-      dispatch({ type: ACTIONS.SET_ERROR, payload: '' });
-      dispatch({ type: ACTIONS.SET_SUM, payload: 0 });
-    } catch (err) {
-      console.error('Error submitting form:', err);
-      const errorMessage = err.message || 'Failed to submit form';
-      dispatch({ type: ACTIONS.SET_ERROR, payload: errorMessage });
-    } finally {
-      dispatch({ type: ACTIONS.SET_LOADING, payload: false });
-    }
-  };
-
   const handleEdit = async (test) => {
     try {
       dispatch({ type: ACTIONS.SET_LOADING, payload: true });
       dispatch({ type: ACTIONS.SET_ERROR, payload: '' });
       
-      const tokenNo = test.tokenNo || test.token_no;
+      const tokenNo = test.tokenNo || test.tokenno || test.token_no;
       
       if (!tokenNo) {
         throw new Error('Token number is required for editing');
@@ -415,6 +295,208 @@ export const useSkinTest = () => {
     dispatch({ type: ACTIONS.RESET_FORM });
   };
 
+  // Memoize handlers to prevent recreation on each render
+  const memoizedHandleChange = useCallback((e) => {
+    e.preventDefault();
+    const { name, value } = e.target;
+    
+    // Prevent token number changes during editing
+    if (state.isEditing && name === 'tokenNo') {
+      return;
+    }
+    
+    if (state.error) dispatch({ type: ACTIONS.SET_ERROR, payload: '' });
+    updateFormData(name, value);
+  }, [state.isEditing, state.error, updateFormData]);
+
+  const memoizedHandleSubmit = useCallback(async (e) => {
+    e.preventDefault();
+    
+    // Create a custom setError function that uses dispatch
+    const setErrorWithDispatch = (errorMsg) => {
+      dispatch({ type: ACTIONS.SET_ERROR, payload: errorMsg });
+    };
+    
+    if (!validateForm(state.formData, setErrorWithDispatch, state.isEditing)) return;
+
+    try {
+      dispatch({ type: ACTIONS.SET_LOADING, payload: true });
+      const processedData = processFormData({
+        ...state.formData,
+        tokenNo: state.formData.tokenNo || ''
+      });
+
+      if (state.isEditing) {
+        if (!processedData.tokenNo) {
+          throw new Error('Token number is required for updating');
+        }
+
+        // Update existing skin test
+        await skinTestService.updateSkinTest(processedData.tokenNo, processedData);
+        dispatch({ type: ACTIONS.SET_IS_EDITING, payload: false });
+        dispatch({ type: ACTIONS.SET_SUCCESS, payload: `Skin test #${processedData.tokenNo} updated successfully!` });
+      } else {
+        // Check for duplicate token number
+        const exists = state.skinTests.some(test => test.tokenNo === processedData.tokenNo);
+        if (exists) {
+          throw new Error('Token number already exists');
+        }
+
+        // Create new skin test
+        await skinTestService.createSkinTest(processedData);
+        dispatch({ type: ACTIONS.SET_SUCCESS, payload: `Skin test #${processedData.tokenNo} saved successfully!` });
+      }
+
+      // Common success actions
+      await loadSkinTests();
+      dispatch({ type: ACTIONS.SET_FORM_DATA, payload: initialFormData });
+      dispatch({ type: ACTIONS.SET_ERROR, payload: '' });
+      dispatch({ type: ACTIONS.SET_SUM, payload: 0 });
+    } catch (err) {
+      console.error('Error submitting form:', err);
+      const errorMessage = err.message || 'Failed to submit form';
+      dispatch({ type: ACTIONS.SET_ERROR, payload: errorMessage });
+    } finally {
+      dispatch({ type: ACTIONS.SET_LOADING, payload: false });
+    }
+  }, [state.formData, state.isEditing, state.skinTests, loadSkinTests]);
+
+  const handleTokenChange = async (e) => {
+    e.preventDefault(); // Prevent form submission
+    const { name, value } = e.target;
+    if (state.error) dispatch({ type: ACTIONS.SET_ERROR, payload: '' });
+    
+    // Update the token number in the form data
+    updateFormData(name, value);
+
+    if (name === 'tokenNo' && value) {
+      dispatch({ type: ACTIONS.SET_LOADING, payload: true });
+      try {
+        const tokenData = await skinTestService.getTokenData(value);
+        
+        if (tokenData) {
+          const { date, time, name, weight, sample, code } = tokenData;
+          
+          const updatedFormData = {
+            ...state.formData,
+            date: date || '',
+            time: time || '',
+            name: name || '',
+            weight: weight ? parseFloat(weight).toFixed(3) : '',
+            sample: sample || '',
+            code: code || '',
+            tokenNo: value,
+          };
+          
+          dispatch({ type: ACTIONS.SET_FORM_DATA, payload: updatedFormData });
+
+          if (code) {
+            try {
+              const phoneNumber = await skinTestService.getPhoneNumber(code);
+              if (phoneNumber) {
+                dispatch({ 
+                  type: ACTIONS.SET_FORM_DATA, 
+                  payload: { ...updatedFormData, phoneNumber }
+                });
+              }
+            } catch (phoneErr) {
+              console.error('Error fetching phone number:', phoneErr);
+              // Continue without phone number if there's an error
+            }
+          }
+        } else {
+          dispatch({ type: ACTIONS.SET_ERROR, payload: 'No token data found.' });
+          dispatch({ type: ACTIONS.CLEAR_FORM_FIELDS });
+        }
+      } catch (err) {
+        console.error('Error fetching token data:', err);
+        if (err.response?.status === 404) {
+          dispatch({ type: ACTIONS.SET_ERROR, payload: 'Token number not found.' });
+        } else {
+          dispatch({ type: ACTIONS.SET_ERROR, payload: 'Failed to fetch token data: ' + (err.message || 'Unknown error') });
+        }
+        dispatch({ type: ACTIONS.CLEAR_FORM_FIELDS });
+      } finally {
+        dispatch({ type: ACTIONS.SET_LOADING, payload: false });
+      }
+    }
+  };
+
+  const clearFormFields = () => {
+    dispatch({ type: ACTIONS.CLEAR_FORM_FIELDS });
+  };
+
+  const handleChange = (e) => {
+    e.preventDefault(); // Prevent form submission
+    const { name, value } = e.target;
+    
+    // Prevent token number changes during editing
+    if (state.isEditing && name === 'tokenNo') {
+      return;
+    }
+    
+    if (state.error) dispatch({ type: ACTIONS.SET_ERROR, payload: '' });
+    updateFormData(name, value);
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    // Create a custom setError function that uses dispatch
+    const setErrorWithDispatch = (errorMsg) => {
+      dispatch({ type: ACTIONS.SET_ERROR, payload: errorMsg });
+    };
+    
+    if (!validateForm(state.formData, setErrorWithDispatch, state.isEditing)) return;
+
+    try {
+      dispatch({ type: ACTIONS.SET_LOADING, payload: true });
+      const processedData = processFormData({
+        ...state.formData,
+        tokenNo: state.formData.tokenNo || ''
+      });
+
+      if (state.isEditing) {
+        if (!processedData.tokenNo) {
+          throw new Error('Token number is required for updating');
+        }
+
+        // Update existing skin test
+        await skinTestService.updateSkinTest(processedData.tokenNo, processedData);
+        dispatch({ type: ACTIONS.SET_IS_EDITING, payload: false });
+        dispatch({ type: ACTIONS.SET_SUCCESS, payload: `Skin test #${processedData.tokenNo} updated successfully!` });
+      } else {
+        // Check for duplicate token number
+        const exists = state.skinTests.some(test => test.tokenNo === processedData.tokenNo);
+        if (exists) {
+          throw new Error('Token number already exists');
+        }
+
+        // Create new skin test
+        await skinTestService.createSkinTest(processedData);
+        dispatch({ type: ACTIONS.SET_SUCCESS, payload: `Skin test #${processedData.tokenNo} saved successfully!` });
+      }
+
+      // Common success actions
+      await loadSkinTests();
+      dispatch({ type: ACTIONS.SET_FORM_DATA, payload: initialFormData });
+      dispatch({ type: ACTIONS.SET_ERROR, payload: '' });
+      dispatch({ type: ACTIONS.SET_SUM, payload: 0 });
+    } catch (err) {
+      console.error('Error submitting form:', err);
+      const errorMessage = err.message || 'Failed to submit form';
+      dispatch({ type: ACTIONS.SET_ERROR, payload: errorMessage });
+    } finally {
+      dispatch({ type: ACTIONS.SET_LOADING, payload: false });
+    }
+  };
+
+  // Memoize handlers to prevent recreation on each render
+  const memoizedHandleEdit = useCallback(handleEdit, []);
+  const memoizedHandleDelete = useCallback(handleDelete, [state.isEditing, state.formData.tokenNo, loadSkinTests]);
+  const memoizedHandleReset = useCallback(handleReset, []);
+  const memoizedHandleTokenChange = useCallback(handleTokenChange, [state.error, updateFormData]);
+
   return {
     formData: state.formData,
     skinTests: state.skinTests,
@@ -424,14 +506,16 @@ export const useSkinTest = () => {
     loading: state.loading,
     sum: state.sum,
     searchQuery: state.searchQuery,
-    setSearchQuery: (query) => dispatch({ type: ACTIONS.SET_SEARCH_QUERY, payload: query }),
-    handleTokenChange,
-    handleChange,
-    handleSubmit,
-    handleEdit,
-    handleDelete,
-    handleReset,
-    loadSkinTests,
+    setSearchQuery: useCallback((value) => {
+      dispatch({ type: ACTIONS.SET_SEARCH_QUERY, payload: value });
+    }, []),
+    handleTokenChange: memoizedHandleTokenChange,
+    handleChange: memoizedHandleChange,
+    handleSubmit: memoizedHandleSubmit,
+    handleEdit: memoizedHandleEdit,
+    handleDelete: memoizedHandleDelete,
+    handleReset: memoizedHandleReset,
+    loadSkinTests: useCallback(loadSkinTests, []),
   };
 };
 
