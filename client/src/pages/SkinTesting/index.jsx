@@ -182,10 +182,14 @@ const SkinTesting = () => {
       {deleteConfirmation.isOpen && (
         <DeleteConfirmationModal
           isOpen={deleteConfirmation.isOpen}
-          onCancel={() => setDeleteConfirmation({ isOpen: false, itemId: null })}
-          onConfirm={() => {
-            handleDelete(deleteConfirmation.itemId);
-            setDeleteConfirmation({ isOpen: false, itemId: null });
+          onCancel={() => !loading && setDeleteConfirmation({ isOpen: false, itemId: null })}
+          onConfirm={async () => {
+            try {
+              await handleDelete(deleteConfirmation.itemId);
+              setDeleteConfirmation({ isOpen: false, itemId: null });
+            } catch (error) {
+              // Error is already handled in handleDelete
+            }
           }}
         />
       )}

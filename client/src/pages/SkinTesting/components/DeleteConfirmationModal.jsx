@@ -1,7 +1,18 @@
-import React from 'react';
-import { FiAlertCircle } from 'react-icons/fi';
+import React, { useState } from 'react';
+import { FiAlertCircle, FiLoader } from 'react-icons/fi';
 
 const DeleteConfirmationModal = ({ isOpen, onCancel, onConfirm }) => {
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleConfirm = async () => {
+    if (isDeleting) return;
+    setIsDeleting(true);
+    try {
+      await onConfirm();
+    } finally {
+      setIsDeleting(false);
+    }
+  };
   return isOpen && (
     <div
       className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
@@ -22,16 +33,23 @@ const DeleteConfirmationModal = ({ isOpen, onCancel, onConfirm }) => {
             <button
               type="button"
               onClick={onCancel}
-              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
+              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={isDeleting}
             >
               Cancel
             </button>
             <button
               type="button"
-              onClick={onConfirm}
-              className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors"
+              onClick={handleConfirm}
+              className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[100px]"
+              disabled={isDeleting}
             >
-              Confirm
+              {isDeleting ? (
+                <>
+                  <FiLoader className="animate-spin mr-2" />
+                  Deleting...
+                </>
+              ) : 'Confirm'}
             </button>
           </div>
         </div>

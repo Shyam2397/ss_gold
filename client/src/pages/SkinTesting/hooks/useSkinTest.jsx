@@ -257,10 +257,6 @@ export const useSkinTest = () => {
       return;
     }
 
-    if (!window.confirm(`Are you sure you want to delete skin test #${normalizedTokenNo}?`)) {
-      return;
-    }
-
     try {
       dispatch({ type: ACTIONS.SET_LOADING, payload: true });
       dispatch({ type: ACTIONS.SET_ERROR, payload: '' });
