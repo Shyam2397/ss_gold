@@ -4,8 +4,8 @@ const entryService = {
   // Get entry by code
   getEntryByCode: async (code) => {
     const api = await getApi();
-    const response = await api.get(`/entries/${code}`);
-    return response.data;
+    const response = await api.get(`/entries?code=${encodeURIComponent(code)}`);
+    return response.data[0]; // Return first match or undefined
   },
 
   // Get all entries
@@ -20,6 +20,13 @@ const entryService = {
     const api = await getApi();
     const response = await api.post('/entries', entryData);
     return response.data;
+  },
+  
+  // Get entry with phone number by code
+  getEntryWithPhone: async (code) => {
+    const api = await getApi();
+    const response = await api.get(`/entries?code=${encodeURIComponent(code)}&fields=phoneNumber`);
+    return response.data[0]; // Return first match or undefined
   },
 
   // Update an entry

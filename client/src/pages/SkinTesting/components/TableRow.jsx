@@ -1,9 +1,11 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { FiEdit2, FiTrash2 } from 'react-icons/fi';
 import { FaWhatsapp } from 'react-icons/fa';
 import { AutoSizer, Table, Column } from 'react-virtualized';
 import 'react-virtualized/styles.css';
 import { formatDateForDisplay, formatTimeForDisplay } from '../utils/validation';
+import { toast } from 'react-toastify';
+import entryService from '../../../services/entryService';
 
 const TableRow = React.memo(({ 
   skinTests, 
@@ -71,23 +73,30 @@ const TableRow = React.memo(({
     // If no phone number found, try to fetch it using the code
     else if (rowData.code) {
       try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/entries?code=${encodeURIComponent(rowData.code)}`);
-        if (response.ok) {
-          const data = await response.json();
-          if (Array.isArray(data) && data.length > 0) {
-            phoneNumber = data[0].phoneNumber?.toString().replace(/\D/g, '') || '';
-          }
+        const entry = await entryService.getEntryWithPhone(rowData.code);
+        if (entry?.phoneNumber) {
+          phoneNumber = entry.phoneNumber.toString().replace(/\D/g, '');
+          // Cache the phone number in rowData for future use
+          rowData.phoneNumber = phoneNumber;
         }
       } catch (err) {
         console.error('Error fetching phone number:', err);
+        toast.error('Failed to fetch customer details. Please try again.');
+        return;
       }
     }
 
     // If still no phone number, prompt the user
     if (!phoneNumber) {
-      const userInput = prompt('No phone number found. Please enter a 10-digit mobile number:');
+      const userInput = prompt('No phone number found. Please enter a 10-digit mobile number (without country code):');
       if (!userInput) return; // User cancelled
       phoneNumber = userInput.replace(/\D/g, '');
+      
+      // Basic validation
+      if (phoneNumber.length !== 10) {
+        toast.error('Please enter a valid 10-digit mobile number');
+        return;
+      }
     }
 
     // Format phone number

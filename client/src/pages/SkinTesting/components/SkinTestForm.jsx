@@ -43,7 +43,7 @@ const SkinTestForm = ({
         <h2 className="text-xl font-bold text-amber-900">Skin Testing</h2>
       </div>
       {error && (
-        <div className="p-3 bg-red-50 border-l-4 border-red-500 rounded">
+        <div className="p-1 bg-red-50 border-l-4 border-red-500 rounded">
           <div className="flex items-center">
             <FiAlertCircle className="text-red-500 mr-2 flex-shrink-0" />
             <p className="text-sm text-red-700">{error}</p>
@@ -51,7 +51,7 @@ const SkinTestForm = ({
         </div>
       )}
       {success && (
-        <div className="p-3 bg-green-50 border-l-4 border-green-500 rounded">
+        <div className="p-1 bg-green-50 border-l-4 border-green-500 rounded">
           <div className="flex items-center">
             <FiCheckCircle className="text-green-500 mr-2 flex-shrink-0" />
             <p className="text-sm text-green-700">{success}</p>
