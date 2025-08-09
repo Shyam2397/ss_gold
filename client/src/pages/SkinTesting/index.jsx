@@ -1,12 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import debounce from 'lodash/debounce';
 import {
   FiSearch,
-  FiSave,
   FiRotateCcw,
-  FiPrinter,
-  FiAlertCircle,
-  FiCheckCircle,
   FiList,
   FiHash,
   FiCalendar,
@@ -15,16 +10,15 @@ import {
   FiPackage,
   FiPercent,
   FiStar,
-  FiMessageSquare
+  FiMessageSquare,
 } from 'react-icons/fi';
-import { GiTestTubes } from 'react-icons/gi';
+
 
 import SkinTestForm from './components/SkinTestForm';
 import TableRow from './components/TableRow';
 import DeleteConfirmationModal from './components/DeleteConfirmationModal';
 import {useSkinTest} from './hooks/useSkinTest';
 import { initialFormData } from './constants/initialState';
-import { formatDateForInput, formatTimeForInput } from './utils/validation';
 import { printData } from './utils/printUtils';
 
 const SkinTesting = () => {
@@ -55,21 +49,49 @@ const SkinTesting = () => {
     loadSkinTests();
   }, [loadSkinTests]);
 
+  // Use ref to store the previous search results
+  const prevSearchRef = React.useRef('');
+  const prevResultsRef = React.useRef(skinTests);
+  
   // Memoize the filtered results with a stable reference
   const filteredSkinTests = React.useMemo(() => {
-    if (!searchQuery) return skinTests;
+    const trimmedQuery = searchQuery.trim();
     
-    const query = searchQuery.toLowerCase();
-    return skinTests.filter((test) =>
-      Object.entries(test).some(([key, value]) => {
-        // Skip tokenNo field from search to prevent re-renders when tokenNo changes
-        if (key.toLowerCase() === 'tokenno') return false;
-        
-        return value !== null && 
-               value !== undefined && 
-               value.toString().toLowerCase().includes(query);
-      })
+    // Return all tests if search is empty
+    if (!trimmedQuery) {
+      prevSearchRef.current = '';
+      prevResultsRef.current = skinTests;
+      return skinTests;
+    }
+    
+    // Check if we can use previous results for incremental search
+    if (trimmedQuery.startsWith(prevSearchRef.current) && prevSearchRef.current !== '') {
+      // If new search is an extension of previous search, filter previous results
+      const query = trimmedQuery.toLowerCase();
+      const results = prevResultsRef.current.filter(test => 
+        test.tokenNo?.toString().toLowerCase().includes(query) ||
+        test.name?.toString().toLowerCase().includes(query) ||
+        test.sample?.toString().toLowerCase().includes(query) ||
+        test.remarks?.toString().toLowerCase().includes(query)
+      );
+      
+      prevSearchRef.current = trimmedQuery;
+      prevResultsRef.current = results;
+      return results;
+    }
+    
+    // Full search
+    const query = trimmedQuery.toLowerCase();
+    const results = skinTests.filter(test => 
+      test.tokenNo?.toString().toLowerCase().includes(query) ||
+      test.name?.toString().toLowerCase().includes(query) ||
+      test.sample?.toString().toLowerCase().includes(query) ||
+      test.remarks?.toString().toLowerCase().includes(query)
     );
+    
+    prevSearchRef.current = trimmedQuery;
+    prevResultsRef.current = results;
+    return results;
   }, [skinTests, searchQuery]);
 
   const handlePrint = (data) => {
@@ -89,12 +111,21 @@ const SkinTesting = () => {
 
 
 
-  const debouncedSearchChange = debounce((value) => {
-    setSearchQuery(value);
-  }, 300);
-
+  // Use state for immediate feedback
+  const [inputValue, setInputValue] = React.useState('');
+  
+  // Update search with debounce
+  React.useEffect(() => {
+    const handler = setTimeout(() => {
+      setSearchQuery(inputValue);
+    }, 100); // Reduced debounce time to 100ms
+    
+    return () => clearTimeout(handler);
+  }, [inputValue]);
+  
   const handleSearchChange = (e) => {
-    debouncedSearchChange(e.target.value);
+    // Update input immediately for better UX
+    setInputValue(e.target.value);
   };
 
 
@@ -158,7 +189,7 @@ const SkinTesting = () => {
                 type="text"
                 placeholder="Search tests..."
                 onChange={handleSearchChange}
-                value={searchQuery}
+                value={inputValue}
                 className="w-full pl-8 pr-3 py-2 rounded border border-amber-200 focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition-all text-sm text-amber-900"
               />
               <FiSearch className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-amber-500 h-4 w-4" />
