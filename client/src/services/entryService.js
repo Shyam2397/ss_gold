@@ -4,8 +4,8 @@ const entryService = {
   // Get entry by code
   getEntryByCode: async (code) => {
     const api = await getApi();
-    const response = await api.get(`/entries?code=${encodeURIComponent(code)}`);
-    return response.data[0]; // Return first match or undefined
+    const response = await api.get(`/entries/${code}`);
+    return response.data;
   },
 
   // Get all entries
