@@ -21,14 +21,16 @@ const TableRow = React.memo(({
     });
   }, [skinTests]);
 
-  const handleWhatsAppShare = (rowData) => {
+  const handleWhatsAppShare = async (rowData) => {
     let resultMessage;
     
     // Check for melting defect in remarks
     if (rowData.remarks && rowData.remarks.toLowerCase().includes('melting defect')) {
-      resultMessage = '✨ *RESULT:* *Melting Defect*\n👉 \n *Please collect the sample, remelt it, and return it.*';
+      resultMessage = '✨ *RESULT:* *Melting Defect*\n👉 *Please collect the sample, remelt it, and return it.*';
+    } else if (parseFloat(rowData.gold_fineness) === 0 && parseFloat(rowData.silver || 0) === 0) {
+      resultMessage = '✨ *RESULT:* Analysis indicates the sample contains no detectable gold or silver content.';
     } else if (parseFloat(rowData.gold_fineness) === 0 && rowData.silver) {
-      resultMessage = `✨ *RESULT:* *${parseFloat(rowData.silver).toFixed(2)}* %`;
+      resultMessage = `✨ *SILVER RESULT:* *${parseFloat(rowData.silver).toFixed(2)}* %`;
     } else {
       resultMessage = `✨ *RESULT:* *${parseFloat(rowData.gold_fineness).toFixed(2)}* %`;
     }
@@ -60,16 +62,39 @@ const TableRow = React.memo(({
     const message = encodeURIComponent(messageLines.join('\n'));
     
     // Extract and validate phone number
-    let phoneNumber = rowData.phoneNumber?.replace(/\D/g, '') || '';
+    let phoneNumber = '';
+    
+    // Try to get phone number from rowData
+    if (rowData.phoneNumber) {
+      phoneNumber = rowData.phoneNumber.toString().replace(/\D/g, '');
+    } 
+    // If no phone number found, try to fetch it using the code
+    else if (rowData.code) {
+      try {
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/entries?code=${encodeURIComponent(rowData.code)}`);
+        if (response.ok) {
+          const data = await response.json();
+          if (Array.isArray(data) && data.length > 0) {
+            phoneNumber = data[0].phoneNumber?.toString().replace(/\D/g, '') || '';
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching phone number:', err);
+      }
+    }
+
+    // If still no phone number, prompt the user
     if (!phoneNumber) {
-      const userInput = prompt('No phone number found. Please enter a phone number:');
-      if (!userInput) return;
+      const userInput = prompt('No phone number found. Please enter a 10-digit mobile number:');
+      if (!userInput) return; // User cancelled
       phoneNumber = userInput.replace(/\D/g, '');
     }
 
     // Format phone number
     phoneNumber = phoneNumber.replace(/^0+/, '');
-    if (phoneNumber.startsWith('91')) {
+    
+    // Remove country code if present
+    if (phoneNumber.startsWith('91') && phoneNumber.length > 10) {
       phoneNumber = phoneNumber.substring(2);
     }
 
