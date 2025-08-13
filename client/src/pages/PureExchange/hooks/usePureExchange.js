@@ -1,11 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import {
-  createPureExchange,
-  fetchPureExchanges,
-  updatePureExchange,
-  deletePureExchange,
-  checkPureExchangeExists
-} from '../api/pureExchangeApi';
+import pureExchangeService from '../../../services/pureExchangeService';
 
 export const CACHE_KEYS = {
   PURE_EXCHANGES: 'pure-exchanges',
@@ -18,33 +12,48 @@ export const usePureExchange = () => {
   // Fetch all pure exchanges with caching
   const { data: pureExchanges, isLoading, error } = useQuery({
     queryKey: [CACHE_KEYS.PURE_EXCHANGES],
-    queryFn: fetchPureExchanges,
+    queryFn: pureExchangeService.getPureExchanges,
     staleTime: 5 * 60 * 1000, // Consider data stale after 5 minutes
     cacheTime: 30 * 60 * 1000, // Cache for 30 minutes
   });
 
   // Check if pure exchange exists
-  const checkExists = (tokenNo) => {
+  const checkExists = async (tokenNo) => {
+    // Force a fresh check by bypassing the cache
     return queryClient.fetchQuery({
       queryKey: [CACHE_KEYS.PURE_EXCHANGE, tokenNo],
-      queryFn: () => checkPureExchangeExists(tokenNo),
-      staleTime: 1 * 60 * 1000, // Consider data stale after 1 minute
-      cacheTime: 5 * 60 * 1000, // Cache for 5 minutes
+      queryFn: () => pureExchangeService.checkPureExchangeExists(tokenNo),
+      staleTime: 0, // Always consider data stale
+      cacheTime: 0, // Don't cache the result
+      retry: 1, // Retry once if the request fails
+      refetchOnWindowFocus: false // Don't refetch when window regains focus
     });
   };
 
   // Create pure exchange mutation
   const createMutation = useMutation({
-    mutationFn: createPureExchange,
-    onSuccess: () => {
+    mutationFn: pureExchangeService.createPureExchange,
+    onSuccess: (data, variables) => {
       // Invalidate and refetch pure exchanges list
-      queryClient.invalidateQueries({ queryKey: [CACHE_KEYS.PURE_EXCHANGES] });
+      queryClient.invalidateQueries({ 
+        queryKey: [CACHE_KEYS.PURE_EXCHANGES],
+        refetchType: 'active' // Only refetch active queries
+      });
+      // Also invalidate the specific token check
+      queryClient.invalidateQueries({ 
+        queryKey: [CACHE_KEYS.PURE_EXCHANGE, variables.tokenNo],
+        refetchActive: true
+      });
     },
+    // Don't retry on 409 (duplicate) errors
+    retry: (failureCount, error) => {
+      return error.response?.status !== 409 && failureCount < 3;
+    }
   });
 
   // Update pure exchange mutation
   const updateMutation = useMutation({
-    mutationFn: ({ tokenNo, data }) => updatePureExchange(tokenNo, data),
+    mutationFn: ({ tokenNo, data }) => pureExchangeService.updatePureExchange(tokenNo, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [CACHE_KEYS.PURE_EXCHANGES] });
     },
@@ -52,7 +61,7 @@ export const usePureExchange = () => {
 
   // Delete pure exchange mutation
   const deleteMutation = useMutation({
-    mutationFn: deletePureExchange,
+    mutationFn: pureExchangeService.deletePureExchange,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [CACHE_KEYS.PURE_EXCHANGES] });
     },

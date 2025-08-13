@@ -7,7 +7,7 @@ import {
 } from 'react-icons/fi';
 import { GiGoldBar } from 'react-icons/gi';
 import { usePureExchange } from './hooks/usePureExchange';
-import { fetchSkinTests } from '../SkinTesting/api/skinTestApi';
+import skinTestService from '../../services/skinTestService';
 import MemoizedFormInput from './components/MemoizedFormInput';
 import TableRow from './components/TableRow';
 import { FormInputSkeleton, TableSkeleton, ButtonSkeleton } from './components/SkeletonLoaders';
@@ -110,8 +110,7 @@ const PureExchange = () => {
 
     const fetchSkinTestData = async (tokenNo) => {
         try {
-            const response = await fetchSkinTests();
-            const skinTests = response;
+            const skinTests = await skinTestService.getSkinTests();
             
             if (!skinTests || skinTests.length === 0) {
                 setErrorWithTimeout('No skin testing data available');
@@ -119,8 +118,8 @@ const PureExchange = () => {
             }
 
             const skinTest = skinTests.find(test => {
-                // Check for token_no field as it's used in the database
-                const testTokenNo = (test.token_no || '').toString().trim();
+                // Check for both token_no and tokenNo for backward compatibility
+                const testTokenNo = (test.token_no || test.tokenNo || '').toString().trim();
                 return testTokenNo === tokenNo.toString().trim();
             });
             
@@ -231,30 +230,18 @@ const PureExchange = () => {
             // Prepare data for saving (excluding id field)
             const dataToSave = tableData.map(({ id, ...rest }) => rest);
 
-            // Check all records for existing tokens first
-            const existingTokens = [];
-            for (const record of dataToSave) {
-                const exists = await checkExists(record.tokenNo);
-                if (exists) {
-                    existingTokens.push(record.tokenNo);
-                }
-            }
-
-            // If any tokens exist, show error and return
-            if (existingTokens.length > 0) {
-                const tokens = existingTokens.join(', ');
-                setErrorWithTimeout(
-                    existingTokens.length === 1
-                        ? `Token ${tokens} already exists in Pure Exchange data. Please remove it and try again.`
-                        : `Tokens ${tokens} already exist in Pure Exchange data. Please remove them and try again.`
-                );
-                dispatch({ type: ACTIONS.SET_LOADING, payload: false });
-                return;
-            }
-
             // Save each record
             for (const record of dataToSave) {
-                await createExchange(record);
+                try {
+                    await createExchange(record);
+                } catch (error) {
+                    if (error.response?.status === 409) {
+                        setErrorWithTimeout(`Token ${record.tokenNo} already exists in Pure Exchange data.`);
+                        dispatch({ type: ACTIONS.SET_LOADING, payload: false });
+                        return;
+                    }
+                    throw error; // Re-throw other errors
+                }
             }
 
             // Clear the table after successful save
@@ -262,7 +249,8 @@ const PureExchange = () => {
             setErrorWithTimeout('Data saved successfully!');
         } catch (error) {
             console.error('Error saving data:', error);
-            setErrorWithTimeout('Error saving data. Please try again.');
+            const errorMessage = error.response?.data?.error || 'Error saving data. Please try again.';
+            setErrorWithTimeout(errorMessage);
         } finally {
             dispatch({ type: ACTIONS.SET_LOADING, payload: false });
         }
