@@ -1,8 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import axios from "axios";
 import { exportToExcel } from '../../../utils/excelExport';
-
-const API_URL = import.meta.env.VITE_API_URL;
+import entryService from '../../../services/entryService';
 
 export const useCustomerData = () => {
   const [entries, setEntries] = useState([]);
@@ -12,12 +10,12 @@ export const useCustomerData = () => {
   const fetchEntries = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`${API_URL}/entries`);
-      setEntries(response.data);
+      const data = await entryService.getEntries();
+      setEntries(data);
       setError("");
     } catch (error) {
       console.error("Error fetching entries:", error);
-      setError("Failed to fetch entries. Please try again.");
+      setError(error.response?.data?.error || "Failed to fetch entries. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -25,14 +23,17 @@ export const useCustomerData = () => {
 
   const deleteEntry = useCallback(async (id) => {
     try {
-      await axios.delete(`${API_URL}/entries/${id}`);
+      await entryService.deleteEntry(id);
       setEntries(currentEntries => 
         currentEntries.filter((entry) => entry.id !== id)
       );
       setError("");
+      return { success: true };
     } catch (error) {
       console.error("Error deleting entry:", error);
-      setError("Failed to delete entry. Please try again.");
+      const errorMessage = error.response?.data?.error || "Failed to delete entry. Please try again.";
+      setError(errorMessage);
+      return { success: false, error: errorMessage };
     }
   }, []);
 
