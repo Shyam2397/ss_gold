@@ -1,7 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
-
-const API_URL = import.meta.env.VITE_API_URL;
+import exchangeService from '../../../services/exchangeService';
 
 const useExchanges = () => {
   const [exchanges, setExchanges] = useState([]);
@@ -23,10 +21,7 @@ const useExchanges = () => {
   const fetchExchanges = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await axios.get(
-        `${API_URL}/pure-exchange`
-      );
-      const exchangeData = response.data.data || [];
+      const exchangeData = await exchangeService.getExchanges();
       
       // Parse dates and sort
       const sortedExchanges = exchangeData.sort((a, b) => {
@@ -55,43 +50,89 @@ const useExchanges = () => {
   const parseDate = (dateStr) => {
     if (!dateStr) return null;
     
+    // First try to parse with Date object (handles most standard formats)
+    const date = new Date(dateStr);
+    if (!isNaN(date.getTime())) {
+      // Set to noon to avoid timezone issues
+      date.setHours(12, 0, 0, 0);
+      return date;
+    }
+    
+    // If that fails, try specific formats
     const formats = [
+      // YYYY-MM-DD (ISO format)
+      /^(\d{4})-(\d{1,2})-(\d{1,2})$/,
       // DD/MM/YYYY
-      /^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/,
-      // YYYY-MM-DD
-      /^(\d{4})-(\d{2})-(\d{2})$/,
+      /^(\d{1,2})[\/](\d{1,2})[\/](\d{4})$/,
+      // MM/DD/YYYY
+      /^(\d{1,2})[\/](\d{1,2})[\/](\d{4})$/,
+      // DD-MM-YYYY
+      /^(\d{1,2})-(\d{1,2})-(\d{4})$/,
+      // YYYY/MM/DD
+      /^(\d{4})[\/](\d{1,2})[\/](\d{1,2})$/,
+      // YYYYMMDD
+      /^(\d{4})(\d{2})(\d{2})$/,
+      // DDMMYYYY
+      /^(\d{2})(\d{2})(\d{4})$/,
       // DD/MM/YY
-      /^(\d{1,2})[/-](\d{1,2})[/-](\d{2})$/
+      /^(\d{1,2})[\/](\d{1,2})[\/](\d{2})$/,
+      // DD-MM-YY
+      /^(\d{1,2})-(\d{1,2})-(\d{2})$/,
     ];
     
+    const normalizedStr = dateStr.toString().trim();
+    
     for (const regex of formats) {
-      const match = dateStr.match(regex);
+      const match = normalizedStr.match(regex);
       if (match) {
-        const [, first, second, third] = match;
         let year, month, day;
         
-        if (third.length === 4) {
-          // DD/MM/YYYY format
-          year = third;
-          month = second;
-          day = first;
-        } else if (first.length === 4) {
-          // YYYY-MM-DD format
-          year = first;
-          month = second;
-          day = third;
+        // Determine format based on match groups
+        if (match[0].length === 8 && match[1].length === 4) {
+          // YYYYMMDD format
+          year = match[1];
+          month = match[2];
+          day = match[3];
+        } else if (match[0].length === 8 && match[3]?.length === 4) {
+          // DDMMYYYY format (if last group is 4 digits)
+          day = match[1];
+          month = match[2];
+          year = match[3];
+        } else if (match[1].length === 4) {
+          // YYYY-MM-DD or YYYY/MM/DD format
+          year = match[1];
+          month = match[2];
+          day = match[3];
+        } else if (match[3]?.length === 4) {
+          // DD/MM/YYYY or DD-MM-YYYY format
+          day = match[1];
+          month = match[2];
+          year = match[3];
+        } else if (match[3]?.length === 2) {
+          // DD/MM/YY or DD-MM-YY format
+          day = match[1];
+          month = match[2];
+          year = (parseInt(match[3]) > 50 ? '19' : '20') + match[3];
         } else {
-          // DD/MM/YY format
-          year = (parseInt(third) > 50 ? '19' : '20') + third;
-          month = second;
-          day = first;
+          // Default to first three groups if can't determine format
+          day = match[1];
+          month = match[2];
+          year = match[3] || new Date().getFullYear();
         }
         
-        // Create date object and set hours to noon to avoid timezone issues
-        const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), 12, 0, 0);
-        return date;
+        try {
+          // Create date object and set hours to noon to avoid timezone issues
+          const parsedDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), 12, 0, 0);
+          if (!isNaN(parsedDate.getTime())) {
+            return parsedDate;
+          }
+        } catch (e) {
+          console.warn('Error parsing date:', e);
+        }
       }
     }
+    
+    console.warn('Could not parse date:', dateStr);
     return null;
   };
 
@@ -101,60 +142,49 @@ const useExchanges = () => {
 
   useEffect(() => {
     let filtered = [...exchanges];
-    const from = parseDate(fromDate);
-    const to = parseDate(toDate);
-
-    if (from || to) {
-      filtered = filtered.filter(exchange => {
-        const exchangeDate = parseDate(exchange.date);
-        if (!exchangeDate) return true;
-        
-        if (from && to) {
-          return exchangeDate >= from && exchangeDate <= to;
-        }
-        if (from) {
-          return exchangeDate >= from;
-        }
-        if (to) {
-          return exchangeDate <= to;
-        }
-        return true;
-      });
+    
+    // Parse the filter dates
+    const from = fromDate ? parseDate(fromDate) : null;
+    const to = toDate ? parseDate(toDate) : null;
+    
+    // If both dates are invalid, show all
+    if ((fromDate && !from) && (toDate && !to)) {
+      setFilteredExchanges(filtered);
+      return;
     }
-
+    
+    // Filter the exchanges
+    filtered = filtered.filter(exchange => {
+      const exchangeDate = parseDate(exchange.date);
+      
+      // If we can't parse the exchange date, include it to be safe
+      if (!exchangeDate) return true;
+      
+      // Apply date range filter
+      const afterFrom = !from || exchangeDate >= from;
+      const beforeTo = !to || exchangeDate <= to;
+      
+      return afterFrom && beforeTo;
+    });
+    
     setFilteredExchanges(filtered);
   }, [exchanges, fromDate, toDate]);
 
   const deleteExchange = async (tokenNo) => {
-    
     setLoading(true);
     try {
       if (!tokenNo) {
-
         setMessageWithTimeout(setError, 'Invalid token number');
         return false;
       }
 
-      const response = await axios.delete(`${API_URL}/pure-exchange/${tokenNo}`);
-  
+      const response = await exchangeService.deleteExchange(tokenNo);
       
-      if (response.data?.message) {
-        // Update local state
-        const updatedExchanges = exchanges.filter(exchange => 
-          exchange.token_no !== tokenNo
-        );
-  
-        
-        setExchanges(updatedExchanges);
-        setFilteredExchanges(prev => 
-          prev.filter(exchange => exchange.token_no !== tokenNo)
-        );
-        
-        setMessageWithTimeout(setSuccessMessage, response.data.message);
-        return true;
-      }
+      // Instead of updating local state, refetch the data to ensure consistency
+      await fetchExchanges();
       
-      throw new Error('Failed to delete exchange');
+      setMessageWithTimeout(setSuccessMessage, response.message || 'Exchange deleted successfully');
+      return true;
     } catch (error) {
       console.error("Error deleting exchange:", error);
       let errorMessage = 'Failed to delete exchange. Please try again.';
@@ -215,40 +245,11 @@ const useExchanges = () => {
 
       console.log('Updating exchange with data:', processedData);
 
-      const response = await axios.put(
-        `${API_URL}/pure-exchange/${tokenNo}`,
-        processedData
-      );
+      await exchangeService.updateExchange(tokenNo, processedData);
       
-      // Convert back to lowercase for local state
-      const localData = {
-        tokenno: tokenNo,
-        date: updatedData.date,
-        time: updatedData.time,
-        weight: formatWeight(updatedData.weight),
-        highest: formatOther(updatedData.highest),
-        hweight: formatWeight(updatedData.hweight),
-        average: formatOther(updatedData.average),
-        aweight: formatWeight(updatedData.aweight),
-        goldfineness: formatOther(updatedData.goldfineness),
-        gweight: formatWeight(updatedData.gweight),
-        exgold: formatOther(updatedData.exgold),
-        exweight: formatWeight(updatedData.exweight)
-      };
+      // Instead of updating local state, refetch the data to ensure consistency
+      await fetchExchanges();
       
-      // Update local state with lowercase fields
-      const updatedExchanges = exchanges.map(exchange => 
-        exchange.tokenno === tokenNo ? { ...exchange, ...localData } : exchange
-      );
-      setExchanges(updatedExchanges);
-      
-      // Update filtered exchanges
-      setFilteredExchanges(prev => 
-        prev.map(exchange => 
-          exchange.tokenno === tokenNo ? { ...exchange, ...localData } : exchange
-        )
-      );
-
       setMessageWithTimeout(setSuccessMessage, "Exchange updated successfully!");
       return true;
     } catch (error) {

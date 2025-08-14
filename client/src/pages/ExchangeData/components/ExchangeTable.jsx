@@ -281,13 +281,13 @@ const ExchangeTable = ({ exchanges, loading, onDelete, onUpdate }) => {
         return 80;
       case 'date':
       case 'time':
-        return 80;
+        return 85;
       case 'weight':
       case 'hweight':
       case 'aweight':
       case 'gweight':
       case 'exweight':
-        return 100;
+        return 95;
       case 'highest':
       case 'average':
       case 'exgold':
