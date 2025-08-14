@@ -1,8 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import axios from 'axios';
 import { useState, useEffect, useCallback } from 'react';
-
-const API_URL = import.meta.env.VITE_API_URL;
+import tokenService from '../../../services/tokenService';
 
 const useTokensQuery = () => {
   const queryClient = useQueryClient();
@@ -20,14 +18,14 @@ const useTokensQuery = () => {
     queryKey: ['tokens'],
     queryFn: async () => {
       try {
-        const response = await axios.get(`${API_URL}/tokens`);
+        const tokens = await tokenService.getTokens();
         // Sort tokens by token_no in descending order
-        return response.data.sort(
+        return tokens.sort(
           (a, b) => parseFloat(b.token_no) - parseFloat(a.token_no)
         );
       } catch (error) {
         console.error('Error fetching tokens:', error);
-        throw new Error('Failed to fetch tokens. Please try again.');
+        throw new Error(error.response?.data?.error || 'Failed to fetch tokens. Please try again.');
       }
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
@@ -39,8 +37,7 @@ const useTokensQuery = () => {
   // Mutation for deleting token
   const deleteTokenMutation = useMutation({
     mutationFn: async (tokenId) => {
-      const response = await axios.delete(`${API_URL}/tokens/${tokenId}`);
-      return response.data;
+      return await tokenService.deleteToken(tokenId);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tokens'] });
