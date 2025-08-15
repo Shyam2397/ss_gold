@@ -1,16 +1,15 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import axios from 'axios';
+import skinTestService from '../../../services/skinTestService';
 
-const API_URL = import.meta.env.VITE_API_URL;
-
-// Function to fetch skin tests data
+// Function to fetch skin tests data using the service
 const fetchSkinTests = async () => {
-  const response = await axios.get(`${API_URL}/skin-tests`);
-  const data = response.data?.data || response.data || [];
-  return Array.isArray(data) 
-    ? data.sort((a, b) => parseFloat(b.token_no || 0) - parseFloat(a.token_no || 0)) 
-    : [];
+  try {
+    return await skinTestService.getSkinTests();
+  } catch (error) {
+    console.error('Error fetching skin tests:', error);
+    throw new Error(error.response?.data?.error || 'Failed to fetch skin tests');
+  }
 };
 
 const useSkinTests = () => {
