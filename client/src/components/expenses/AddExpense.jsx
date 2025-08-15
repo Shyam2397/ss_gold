@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { FiX } from 'react-icons/fi';
-import axios from 'axios';
 import { format } from 'date-fns';
+import { getExpenseTypes, createExpense } from '../../services/expenseService';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 const AddExpense = ({ isOpen, onClose }) => {
@@ -25,12 +25,12 @@ const AddExpense = ({ isOpen, onClose }) => {
   const fetchExpenseTypes = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`${API_BASE_URL}/api/expense-master`);
-      setExpenseTypes(response.data);
+      const data = await getExpenseTypes();
+      setExpenseTypes(data);
       setError(null);
     } catch (err) {
       console.error('Error fetching expense types:', err);
-      setError('Failed to fetch expense types');
+      setError(err.message || 'Failed to fetch expense types');
     } finally {
       setLoading(false);
     }
@@ -62,20 +62,19 @@ const AddExpense = ({ isOpen, onClose }) => {
     e.preventDefault();
     try {
       setLoading(true);
-      const expenseData = {
+      await createExpense({
         date: formData.date,
-        expense_type: formData.expenseType,
-        amount: parseFloat(formData.amount),
-        paid_to: formData.paidTo,
-        pay_mode: formData.payMode,
+        expenseType: formData.expenseType,
+        amount: formData.amount,
+        paidTo: formData.paidTo,
+        payMode: formData.payMode,
         remarks: formData.remarks
-      };
-      await axios.post(`${API_BASE_URL}/api/expenses`, expenseData);
+      });
       setFormData(initialFormData); // Reset form data after successful submission
       onClose();
     } catch (err) {
       console.error('Error submitting expense:', err);
-      setError('Failed to submit expense');
+      setError(err.message || 'Failed to submit expense');
     } finally {
       setLoading(false);
     }

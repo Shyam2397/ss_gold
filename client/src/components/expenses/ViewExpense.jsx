@@ -1,9 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { FiX, FiEdit2, FiTrash2, FiInfo } from 'react-icons/fi';
-import axios from 'axios';
-
-const API_BASE_URL = import.meta.env.VITE_API_URL;
+import { getExpenses, updateExpense, deleteExpense } from '../../services/expenseService';
 
 const ViewExpense = ({ isOpen, onClose }) => {
   const [allExpenses, setAllExpenses] = useState([]);
@@ -32,13 +30,13 @@ const ViewExpense = ({ isOpen, onClose }) => {
   const fetchExpenses = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`${API_BASE_URL}/api/expenses`);
-      setAllExpenses(response.data);
-      setFilteredExpenses(response.data);
+      const data = await getExpenses();
+      setAllExpenses(data);
+      setFilteredExpenses(data);
       setError(null);
     } catch (err) {
       console.error('Error fetching expenses:', err);
-      setError('Failed to fetch expenses');
+      setError(err.message || 'Failed to fetch expenses');
     } finally {
       setLoading(false);
     }
@@ -109,12 +107,12 @@ const ViewExpense = ({ isOpen, onClose }) => {
 
     try {
       setLoading(true);
-      await axios.delete(`${API_BASE_URL}/api/expenses/${deleteConfirmation.id}`);
+      await deleteExpense(deleteConfirmation.id);
       setDeleteConfirmation(null);
       fetchExpenses();
     } catch (err) {
       console.error('Error deleting expense:', err);
-      setError('Failed to delete expense');
+      setError(err.message || 'Failed to delete expense');
     } finally {
       setLoading(false);
     }
@@ -133,12 +131,12 @@ const ViewExpense = ({ isOpen, onClose }) => {
     e.preventDefault();
     try {
       setLoading(true);
-      await axios.put(`${API_BASE_URL}/api/expenses/${editingExpense.id}`, editingExpense);
+      await updateExpense(editingExpense.id, editingExpense);
       setEditingExpense(null);
       fetchExpenses();
     } catch (err) {
       console.error('Error updating expense:', err);
-      setError('Failed to update expense');
+      setError(err.message || 'Failed to update expense');
     } finally {
       setLoading(false);
     }

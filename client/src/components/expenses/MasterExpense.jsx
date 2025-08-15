@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiX, FiEdit2, FiTrash2, FiAlertCircle } from 'react-icons/fi';
-import axios from 'axios';
-
-const API_BASE_URL = import.meta.env.VITE_API_URL;
+import {
+  getExpenseTypes,
+  createExpenseType,
+  updateExpenseType,
+  deleteExpenseType
+} from '../../services/expenseService';
 
 
 const MasterExpense = ({ isOpen, onClose }) => {
@@ -19,12 +22,12 @@ const MasterExpense = ({ isOpen, onClose }) => {
   const fetchExpenseTypes = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`${API_BASE_URL}/api/expense-master`);
-      setExpenseTypes(response.data);
+      const data = await getExpenseTypes();
+      setExpenseTypes(data);
       setError(null);
     } catch (err) {
       console.error('Error fetching expense types:', err);
-      setError('Failed to fetch expense types. Please try again.');
+      setError(err.message || 'Failed to fetch expense types. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -67,14 +70,10 @@ const MasterExpense = ({ isOpen, onClose }) => {
       setError(null);
 
       if (editingId) {
-        await axios.put(`${API_BASE_URL}/api/expense-master/${editingId}`, {
-          expense_name: trimmedExpenseName
-        });
+        await updateExpenseType(editingId, { expense_name: trimmedExpenseName });
         showSuccessMessage('Expense type updated successfully');
       } else {
-        await axios.post(`${API_BASE_URL}/api/expense-master`, {
-          expense_name: trimmedExpenseName
-        });
+        await createExpenseType({ expense_name: trimmedExpenseName });
         showSuccessMessage('Expense type added successfully');
       }
 
@@ -107,12 +106,12 @@ const MasterExpense = ({ isOpen, onClose }) => {
   const handleConfirmDelete = async () => {
     try {
       setLoading(true);
-      await axios.delete(`${API_BASE_URL}/api/expense-master/${deleteConfirmation}`);
+      await deleteExpenseType(deleteConfirmation);
       showSuccessMessage('Expense type deleted successfully');
       await fetchExpenseTypes();
     } catch (err) {
       console.error('Error deleting expense type:', err);
-      setError('Failed to delete expense type. Please try again.');
+      setError(err.message || 'Failed to delete expense type. Please try again.');
     } finally {
       setLoading(false);
       setDeleteConfirmation(null);
