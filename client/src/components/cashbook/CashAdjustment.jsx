@@ -1,167 +1,313 @@
-import React, { useState, useCallback } from 'react';
-import { Save, X } from 'lucide-react';
-import PropTypes from 'prop-types';
+import React, { useState, useCallback, useEffect } from 'react';
+import { X, Plus, Minus, Save } from 'lucide-react';
+import cashAdjustmentService from '../../services/cashAdjustmentService';
+import toast from 'react-hot-toast';
 
-function CashAdjustment({ isOpen, onClose, onSave, isLoading }) {
-  const [adjustmentData, setAdjustmentData] = useState({
-    type: 'credit',
+const CashAdjustment = ({ isOpen, onClose, onSave, isLoading, initialData }) => {
+  const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
+    time: new Date().toTimeString().slice(0, 5), // Current time in HH:MM format
+    adjustment_type: 'addition',
     amount: '',
-    remarks: ''
+    reason: '',
+    reference_number: '',
+    remarks: '',
+    entered_by: 'admin' // This should be replaced with actual user from auth context
   });
+  
+  // Format date to YYYY-MM-DD without timezone conversion
+  const getLocalDateString = (dateString) => {
+    if (!dateString) return new Date().toISOString().split('T')[0];
+    const date = new Date(dateString);
+    // Use getFullYear, getMonth, getDate to avoid timezone issues
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
 
-  // Add form validation
-  const isValid = useCallback((data) => {
-    return data.amount > 0 && data.date && data.type;
+  // Initialize form with initialData when in edit mode
+  useEffect(() => {
+    if (initialData) {
+      setFormData({
+        date: initialData.date ? getLocalDateString(initialData.date) : new Date().toISOString().split('T')[0],
+        time: initialData.time || new Date().toTimeString().slice(0, 5),
+        adjustment_type: initialData.adjustment_type || 'addition',
+        amount: initialData.amount || '',
+        reason: initialData.reason || '',
+        reference_number: initialData.reference_number || '',
+        remarks: initialData.remarks || '',
+        entered_by: initialData.entered_by || 'admin'
+      });
+    } else {
+      // Reset form when opening in create mode
+      setFormData({
+        date: new Date().toISOString().split('T')[0],
+        time: new Date().toTimeString().slice(0, 5),
+        adjustment_type: 'addition',
+        amount: '',
+        reason: '',
+        reference_number: '',
+        remarks: '',
+        entered_by: 'admin'
+      });
+    }
+  }, [initialData, isOpen]);
+  
+  const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [recentAdjustments, setRecentAdjustments] = useState([]);
+
+  const fetchAdjustments = useCallback(async () => {
+    try {
+      setLoading(true);
+      const adjustments = await cashAdjustmentService.getAdjustments({ limit: 10 });
+      setRecentAdjustments(adjustments);
+    } catch (err) {
+      console.error('Error fetching adjustments:', err);
+      setError('Failed to fetch recent adjustments');
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  const handleSave = useCallback(() => {
-    if (!isValid(adjustmentData)) return;
-    onSave({
-      ...adjustmentData,
-      amount: parseFloat(adjustmentData.amount)
-    });
-  }, [adjustmentData, isValid, onSave]);
+  useEffect(() => {
+    if (isOpen) {
+      fetchAdjustments();
+    }
+  }, [isOpen, fetchAdjustments]);
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    
+    if (!formData.amount || isNaN(parseFloat(formData.amount)) || parseFloat(formData.amount) <= 0) {
+      setError('Please enter a valid amount');
+      return;
+    }
+    
+    // Ensure date is in the correct format without timezone conversion
+    const formattedDate = formData.date;
+    if (!formattedDate) {
+      setError('Invalid date');
+      return;
+    }
+
+    if (!formData.reason.trim()) {
+      setError('Please enter a reason for the adjustment');
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      
+      const adjustmentData = {
+        ...formData,
+        amount: parseFloat(formData.amount),
+        date: formattedDate, // Use the pre-formatted date
+        time: formData.time || '00:00'
+      };
+
+      if (initialData?.id) {
+        // Update existing adjustment
+        await cashAdjustmentService.updateAdjustment(initialData.id, adjustmentData);
+        toast.success('Adjustment updated successfully');
+      } else {
+        // Create new adjustment
+        await cashAdjustmentService.createAdjustment(adjustmentData);
+        toast.success('Adjustment created successfully');
+      }
+      
+      if (onSave) onSave();
+      onClose();
+    } catch (err) {
+      console.error('Error saving adjustment:', err);
+      setError(err.response?.data?.message || 'Failed to save adjustment');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        {/* Header */}
-        <div className="flex justify-between items-center px-6 py-3 bg-amber-50 rounded-t-lg border-b border-amber-100">
-          <h2 className="text-lg font-semibold text-gray-800">Cash Adjustment</h2>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-700 p-1 hover:bg-amber-100 rounded-full transition-colors">
-            <X size={20} />
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2">
+      <div className="bg-white rounded-lg w-full max-w-3xl max-h-[90vh] flex flex-col shadow-xl">
+        <div className="flex items-center justify-between p-3 border-b">
+          <h2 className="text-xl font-semibold text-gray-800">
+            {initialData?.id ? 'Edit' : 'Add'} Cash Adjustment
+          </h2>
+          <button 
+            onClick={onClose}
+            className="text-gray-500 hover:text-gray-700"
+            disabled={isSubmitting || isLoading}
+          >
+            <X size={18} />
           </button>
         </div>
-
-        {/* Content */}
-        <div className="p-2 px-5">
-          <div className="space-y-4">
-            <div>
-              <h3 className="font-medium mb-2 text-amber-900">Adjustment Entry</h3>
-              
-              {/* Type Selection */}
-              <div className="grid grid-cols-[100px,1fr] gap-3 text-sm items-start">
-                <label className="text-gray-600">Type</label>
-                <div>
-                  <div className="flex gap-4">
-                    <label className="flex items-center gap-2">
-                      <input
-                        type="radio"
-                        name="type"
-                        checked={adjustmentData.type === 'credit'}
-                        onChange={() => setAdjustmentData(prev => ({ ...prev, type: 'credit' }))}
-                        className="text-amber-500 focus:ring-amber-500"
-                      />
-                      Credit (+)
-                    </label>
-                    <label className="flex items-center gap-2">
-                      <input
-                        type="radio"
-                        name="type"
-                        checked={adjustmentData.type === 'debit'}
-                        onChange={() => setAdjustmentData(prev => ({ ...prev, type: 'debit' }))}
-                        className="text-amber-500 focus:ring-amber-500"
-                      />
-                      Debit (-)
-                    </label>
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Will add a {adjustmentData.type} of the amount entered to the account.
-                    i.e. If 100 is entered then the account will be in {adjustmentData.type} by 100.
-                  </p>
-                </div>
+        
+        <div className="flex-1 overflow-auto p-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-3">
+              <div className="flex rounded-md border">
+                <button
+                  type="button"
+                  className={`flex-1 py-1.5 text-sm ${formData.adjustment_type === 'addition' ? 'bg-green-50 text-green-700' : 'text-gray-600'}`}
+                  onClick={() => setFormData(prev => ({ ...prev, adjustment_type: 'addition' }))}
+                  disabled={isSubmitting || isLoading}
+                >
+                  <Plus size={14} className="inline mr-1" /> Add
+                </button>
+                <button
+                  type="button"
+                  className={`flex-1 py-1.5 text-sm ${formData.adjustment_type === 'deduction' ? 'bg-red-50 text-red-700' : 'text-gray-600'}`}
+                  onClick={() => setFormData(prev => ({ ...prev, adjustment_type: 'deduction' }))}
+                  disabled={isSubmitting || isLoading}
+                >
+                  <Minus size={14} className="inline mr-1" /> Deduct
+                </button>
               </div>
-
-              {/* Date and Amount Inputs */}
-              <div className="grid grid-cols-2 gap-4 mb-2 items-center text-sm">
-                {/* Date Selection */}
+              
+              <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-gray-600">Date</label>
                   <input
                     type="date"
-                    value={adjustmentData.date}
-                    onChange={(e) => setAdjustmentData(prev => ({ ...prev, date: e.target.value }))}
-                    className="border rounded px-3 py-1.5 w-full focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none"
+                    name="date"
+                    value={formData.date}
+                    onChange={handleChange}
+                    className="w-full text-sm rounded border-gray-300 p-1.5"
+                    disabled={isSubmitting || isLoading}
+                    required
                   />
                 </div>
-
-                {/* Amount Input */}
                 <div>
-                  <label className="text-gray-600">
-                    Amount <span className="text-red-500">*</span>
-                  </label>
-                  <div className="flex items-center">
-                    <span className="text-gray-500 mr-2">Rs.</span>
-                    <input
-                      type="number"
-                      value={adjustmentData.amount}
-                      onChange={(e) => setAdjustmentData(prev => ({ ...prev, amount: e.target.value }))}
-                      className="border rounded px-3 py-1.5 w-full focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none"
-                      required
-                    />
-                  </div>
+                  <input
+                    type="time"
+                    name="time"
+                    value={formData.time}
+                    onChange={handleChange}
+                    className="w-full text-sm rounded border-gray-300 p-1.5"
+                    disabled={isSubmitting || isLoading}
+                    required
+                  />
                 </div>
               </div>
-
-              {/* Remarks Input */}
-              <div className="grid grid-cols-[100px,1fr] gap-3 mb-3 items-start text-sm">
-                <label className="text-gray-600">Remarks</label>
-                <textarea
-                  value={adjustmentData.remarks}
-                  onChange={(e) => setAdjustmentData(prev => ({ ...prev, remarks: e.target.value }))}
-                  placeholder="Enter adjustment reason..."
-                  className="border rounded px-3 py-1.5 w-full h-15 resize-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none"
+              
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none">
+                  <span className="text-gray-500 text-sm">₹</span>
+                </div>
+                <input
+                  type="number"
+                  name="amount"
+                  value={formData.amount}
+                  onChange={handleChange}
+                  className="w-full text-sm rounded border-gray-300 pl-6 pr-2 py-1.5"
+                  placeholder="0.00"
+                  min="0.01"
+                  step="0.01"
+                  disabled={isSubmitting || isLoading}
+                  required
                 />
               </div>
-            </div>
-
-            {/* Existing Adjustments Section */}
-            <div>
-              <h3 className="font-medium mb-3 text-amber-900">Existing Adjustment(s)</h3>
-              <div className="bg-amber-50/50 rounded p-6 flex items-center justify-center border border-amber-100">
-                <div className="text-center text-gray-500">
-                  <div className="mb-4">
-                    <img 
-                      src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 24 24' fill='none' stroke='%23F59E0B' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'%3E%3C/circle%3E%3Cpath d='M8 15l2-2 4-4'%3E%3C/path%3E%3Cpath d='M16 9l-4 4-2 2'%3E%3C/path%3E%3C/svg%3E"
-                      alt="No adjustments"
-                      className="w-12 h-12 mx-auto opacity-50"
-                    />
-                  </div>
-                  <p>No existing adjustments found</p>
-                </div>
+              
+              <div>
+                <input
+                  type="text"
+                  name="reason"
+                  value={formData.reason}
+                  onChange={handleChange}
+                  className="w-full text-sm rounded border-gray-300 p-1.5"
+                  placeholder="Reason *"
+                  disabled={isSubmitting || isLoading}
+                  required
+                />
               </div>
+              
+              <div>
+                <input
+                  type="text"
+                  name="reference_number"
+                  value={formData.reference_number}
+                  onChange={handleChange}
+                  className="w-full text-sm rounded border-gray-300 p-1.5"
+                  placeholder="Reference # (optional)"
+                  disabled={isSubmitting || isLoading}
+                />
+              </div>
+              
+              <div>
+                <textarea
+                  name="remarks"
+                  value={formData.remarks}
+                  onChange={handleChange}
+                  className="w-full text-sm rounded border-gray-300 p-1.5"
+                  placeholder="Remarks (optional)"
+                  rows="2"
+                  disabled={isSubmitting || isLoading}
+                />
+              </div>
+              
+              {error && (
+                <div className="text-red-500 text-xs mt-1">
+                  {error}
+                </div>
+              )}
+              
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={isSubmitting || isLoading}
+                className={`w-full py-1.5 text-sm rounded ${isSubmitting || isLoading ? 'bg-amber-400' : 'bg-amber-600 text-white'}`}
+              >
+                {isSubmitting ? 'Saving...' : 'Save Adjustment'}
+              </button>
+            </div>
+            
+            <div className="border-l pl-2">
+              <h3 className="text-xs font-medium mb-1 text-gray-600">Recent</h3>
+              {loading ? (
+                <div className="flex justify-center py-2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-amber-600"></div>
+                </div>
+              ) : recentAdjustments.length > 0 ? (
+                <div className="space-y-1 max-h-[300px] overflow-y-auto pr-1 text-xs">
+                  {recentAdjustments.map((adjustment) => (
+                    <div key={adjustment.id} className="border rounded p-1.5 hover:bg-gray-50">
+                      <div className="flex justify-between items-center">
+                        <span className={`font-medium ${adjustment.adjustment_type === 'addition' ? 'text-green-600' : 'text-red-600'}`}>
+                          {adjustment.adjustment_type === 'addition' ? '+' : '-'}₹{parseFloat(adjustment.amount).toFixed(2)}
+                        </span>
+                        <span className="text-[10px] text-gray-400">
+                          {new Date(adjustment.date).toLocaleDateString('en-IN', {day: '2-digit', month: 'short'})} {adjustment.time?.substring(0, 5)}
+                        </span>
+                      </div>
+                      {adjustment.reason && (
+                        <div className="text-[11px] text-gray-600 truncate">{adjustment.reason}</div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-3 text-gray-400 text-xs">
+                  No adjustments yet
+                </div>
+              )}
             </div>
           </div>
-        </div>
-
-        {/* Footer */}
-        <div className="px-6 py-3 bg-amber-50/50 rounded-b-lg flex justify-end border-t border-amber-100">
-          <button
-            onClick={handleSave}
-            disabled={!isValid(adjustmentData) || isLoading}
-            className="bg-amber-500 text-white px-4 py-2 rounded flex items-center gap-2 disabled:opacity-50"
-          >
-            {isLoading ? (
-              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-            ) : (
-              <Save size={20} />
-            )}
-            {isLoading ? 'Saving...' : 'Save'}
-          </button>
         </div>
       </div>
     </div>
   );
-}
-
-CashAdjustment.propTypes = {
-  isOpen: PropTypes.bool.isRequired,
-  onClose: PropTypes.func.isRequired,
-  onSave: PropTypes.func.isRequired,
-  isLoading: PropTypes.bool
 };
 
 export default React.memo(CashAdjustment);

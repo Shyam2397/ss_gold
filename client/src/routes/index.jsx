@@ -53,6 +53,11 @@ const ExchangeDataPage = React.lazy(() =>
     default: module.default || module
   }))
 );
+const CashAdjustmentList = React.lazy(() => 
+  import('../components/cashbook/CashAdjustmentList').then(module => ({
+    default: module.default || module
+  }))
+);
 
 // Enhanced route priorities with contextual information from config
 
@@ -174,6 +179,12 @@ const routesConfig = [
     Component: ExchangeDataPage,
     preload: () => import('../pages/ExchangeData/ExchangeDataPage'),
     ...ROUTE_PRIORITIES['/exchange-data']
+  },
+  {
+    path: '/cash-adjustments',
+    Component: CashAdjustmentList,
+    preload: () => import('../components/cashbook/CashAdjustmentList'),
+    ...ROUTE_PRIORITIES['/cash-adjustments']
   }
 ];
 

@@ -46,23 +46,45 @@ export const SidebarMenuContent = memo(({
     />
   ), [isActive, handleNavigation, isMobile, setOpen]);
 
-  const renderExpenseButtonItem = useCallback((item) => (
-    <button
-      key={item.label}
-      onClick={() => {
-        onExpenseItemClick(item.modalSetter);
-        if (isMobile) setOpen(false); // Close mobile sidebar on click
-      }}
-      className={cn(
-        "w-full flex items-center h-8 px-2",
-        "text-gray-600 hover:bg-amber-50 hover:text-amber-900",
-        "rounded-lg transition-all duration-200"
-      )}
-    >
-      <div className="flex items-center justify-center w-5"><item.icon className="h-5 w-5 flex-shrink-0" /></div>
-      <span className="font-medium text-md ml-3">{item.label}</span>
-    </button>
-  ), [onExpenseItemClick, isMobile, setOpen]);
+  const renderExpenseButtonItem = useCallback((item) => {
+    if (item.type === 'link') {
+      return (
+        <button
+          key={item.label}
+          onClick={() => {
+            onExpenseItemClick(item);
+            if (isMobile) setOpen(false);
+          }}
+          className={cn(
+            "w-full flex items-center h-8 px-2",
+            "text-gray-600 hover:bg-amber-50 hover:text-amber-900",
+            "rounded-lg transition-all duration-200 text-left"
+          )}
+        >
+          <div className="flex items-center justify-center w-5"><item.icon className="h-5 w-5 flex-shrink-0" /></div>
+          <span className="font-medium text-md ml-3">{item.label}</span>
+        </button>
+      );
+    }
+    
+    return (
+      <button
+        key={item.label}
+        onClick={() => {
+          onExpenseItemClick(item);
+          if (isMobile) setOpen(false);
+        }}
+        className={cn(
+          "w-full flex items-center h-8 px-2",
+          "text-gray-600 hover:bg-amber-50 hover:text-amber-900",
+          "rounded-lg transition-all duration-200 text-left"
+        )}
+      >
+        <div className="flex items-center justify-center w-5"><item.icon className="h-5 w-5 flex-shrink-0" /></div>
+        <span className="font-medium text-md ml-3">{item.label}</span>
+      </button>
+    );
+  }, [onExpenseItemClick, isMobile, setOpen]);
 
   return (
     <div className="flex-1 overflow-y-auto overflow-x-hidden">

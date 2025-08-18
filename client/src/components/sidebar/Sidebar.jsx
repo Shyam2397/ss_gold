@@ -121,10 +121,16 @@ const SidebarContent = memo(({ user, setLoggedIn }) => {
     { icon: Icons.Database, label: 'Exchange Data', path: '/exchange-data' },
   ], []);
 
-  const handleExpenseClick = useCallback((modalSetter) => {
-    modalSetter(true);
-    setIsExpensesOpen(false);
-    if (animate) setOpen(false);
+  const handleExpenseClick = useCallback((item) => {
+    if (item.modalSetter) {
+      item.modalSetter(true);
+      setIsExpensesOpen(false);
+      if (animate) setOpen(false);
+    } else if (item.onClick) {
+      item.onClick();
+      setIsExpensesOpen(false);
+      if (animate) setOpen(false);
+    }
   }, [animate, setOpen]);
   
   // Define modal setters for expense items
@@ -140,7 +146,14 @@ const SidebarContent = memo(({ user, setLoggedIn }) => {
     { icon: Icons.DollarSign, label: 'Master Expense', modalSetter: expenseModalSetters.master },
     { icon: Icons.DollarSign, label: 'View Expenses', modalSetter: expenseModalSetters.view },
     { icon: Icons.Book, label: 'Cash Book', modalSetter: expenseModalSetters.cashbook },
-  ], [expenseModalSetters]);
+    { 
+      type: 'link',
+      icon: Icons.DollarSign, 
+      label: 'Cash Adjustments', 
+      path: '/cash-adjustments',
+      onClick: () => handleNavigation('/cash-adjustments')
+    },
+  ], [expenseModalSetters, handleNavigation]);
 
   // Props to pass down to both Desktop and Mobile Sidebars
   const commonSidebarProps = {

@@ -1,14 +1,13 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { ArrowUpDown, FileSpreadsheet, Printer, Mail, X } from 'lucide-react';
 import { motion } from 'framer-motion';
-import axios from 'axios';
 import { debounce } from 'lodash';
+import apiService from '../../services/api';
+import cashAdjustmentService from '../../services/cashAdjustmentService';
 import TransactionTable from './components/TransactionTable';
 import AnalyticsPanel from './components/AnalyticsPanel';
 import CashAdjustment from './CashAdjustment';
 import BalanceSummary from './components/BalanceSummary';
-
-const API_BASE_URL = import.meta.env.VITE_API_URL;
 
 // Add new utility function outside component
 const calculateBalance = (transactions, openingBalance = 0) => {
@@ -83,18 +82,18 @@ const CashBook = ({ isOpen, onClose }) => {
       const firstDayOfAllTime = new Date(2000, 0, 1).toISOString().split('T')[0];
       const lastDayOfPreviousMonthFormatted = lastDayOfPreviousMonth.toISOString().split('T')[0];
       
+      const api = await apiService.getApi();
       const [previousTokensResponse, previousExpensesResponse] = await Promise.all([
-        axios.get(`${API_BASE_URL}/tokens`, {
+        api.get('/tokens', {
           params: {
             from_date: firstDayOfAllTime,
             to_date: lastDayOfPreviousMonth
           },
-          // Add caching headers
           headers: {
             'Cache-Control': 'max-age=300'
           }
         }),
-        axios.get(`${API_BASE_URL}/api/expenses`, {
+        api.get('/api/expenses', {
           params: {
             from_date: firstDayOfAllTime,
             to_date: lastDayOfPreviousMonth
@@ -136,19 +135,25 @@ const CashBook = ({ isOpen, onClose }) => {
       }));
       
       const [tokensResponse, expensesResponse] = await Promise.all([
-        axios.get(`${API_BASE_URL}/tokens`, {
+        api.get('/tokens', {
           params: {
             from_date: firstDayFormatted,
             to_date: lastDayFormatted
           }
         }),
-        axios.get(`${API_BASE_URL}/api/expenses`, {
+        api.get('/api/expenses', {
           params: {
             from_date: firstDayFormatted,
             to_date: lastDayFormatted
           }
         })
       ]);
+      
+      // Get adjustments using the service
+      const adjustments = await cashAdjustmentService.getAdjustments({
+        from_date: firstDayFormatted,
+        to_date: lastDayFormatted
+      });
 
       const tokenTransactions = tokensResponse.data.map(token => ({
         id: `token-${token.id}`,
@@ -174,7 +179,20 @@ const CashBook = ({ isOpen, onClose }) => {
         credit: 0
       }));
 
-      const allTransactions = [...tokenTransactions, ...expenseTransactions]
+      // Convert cash adjustments to transactions
+      const adjustmentTransactions = adjustments.map(adj => ({
+        id: `adjustment-${adj.id}`,
+        date: adj.date,
+        time: adj.time,
+        particulars: `Cash Adjustment: ${adj.reason}${adj.reference_number ? ` (Ref: ${adj.reference_number})` : ''}`,
+        type: adj.adjustment_type === 'addition' ? 'Income' : 'Expense',
+        debit: adj.adjustment_type === 'deduction' ? parseFloat(adj.amount) || 0 : 0,
+        credit: adj.adjustment_type === 'addition' ? parseFloat(adj.amount) || 0 : 0,
+        isAdjustment: true,
+        remarks: adj.remarks
+      }));
+
+      const allTransactions = [...tokenTransactions, ...expenseTransactions, ...adjustmentTransactions]
         .sort((a, b) => new Date(a.date) - new Date(b.date));
 
       const currentMonthTransactions = allTransactions.filter(transaction => {
@@ -393,44 +411,15 @@ const CashBook = ({ isOpen, onClose }) => {
     }
   }, []);
 
-  const handleAdjustmentSave = useCallback(async (adjustmentData) => {
+  const handleAdjustmentSave = useCallback(async () => {
+    // The actual save is handled in the CashAdjustment component
+    // This just triggers a refresh of the transactions
     setLoading(true);
     try {
-      const transaction = {
-        id: `adjustment-${Date.now()}`,
-        date: adjustmentData.date,
-        particulars: adjustmentData.remarks || 'Cash Adjustment',
-        type: adjustmentData.type === 'credit' ? 'Income' : 'Expense',
-        debit: adjustmentData.type === 'debit' ? adjustmentData.amount : 0,
-        credit: adjustmentData.type === 'credit' ? adjustmentData.amount : 0,
-        isAdjustment: true
-      };
-
-      if (adjustmentData.type === 'debit') {
-        await axios.post(`${API_BASE_URL}/api/expenses`, {
-          date: adjustmentData.date,
-          expense_type: 'Cash Adjustment',
-          paid_to: adjustmentData.remarks || 'Cash Adjustment',
-          amount: adjustmentData.amount,
-          payment_mode: 'Cash',
-          remarks: 'Manual cash adjustment'
-        });
-      } else {
-        await axios.post(`${API_BASE_URL}/tokens`, {
-          date: adjustmentData.date,
-          tokenNo: `ADJ-${Date.now()}`,
-          name: adjustmentData.remarks || 'Cash Adjustment',
-          amount: adjustmentData.amount,
-          payment_mode: 'Cash',
-          remarks: 'Manual cash adjustment'
-        });
-      }
-
-      setTransactions(prev => [...prev, transaction]);
-      fetchTransactions();
+      await fetchTransactions();
       setShowAdjustment(false);
     } catch (err) {
-      setError('Failed to save adjustment. Please try again.');
+      setError('Failed to refresh transactions after adjustment');
     } finally {
       setLoading(false);
     }
@@ -563,6 +552,7 @@ const CashBook = ({ isOpen, onClose }) => {
         isOpen={showAdjustment}
         onClose={() => setShowAdjustment(false)}
         onSave={handleAdjustmentSave}
+        isLoading={loading}
       />
     </motion.div>
   );
