@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { ArrowUpDown, FileSpreadsheet, Printer, Mail, X } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { ArrowUpDown, FileSpreadsheet, Printer, Mail } from 'lucide-react';
 import { debounce } from 'lodash';
 import apiService from '../../services/api';
 import cashAdjustmentService from '../../services/cashAdjustmentService';
@@ -19,7 +18,7 @@ const calculateBalance = (transactions, openingBalance = 0) => {
   }, parseFloat(openingBalance));
 };
 
-const CashBook = ({ isOpen, onClose }) => {
+const CashBook = () => {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -41,11 +40,7 @@ const CashBook = ({ isOpen, onClose }) => {
   const [categorySummary, setCategorySummary] = useState([]);
   const [monthlySummary, setMonthlySummary] = useState([]);
 
-  const handleBackdropClick = useCallback((e) => {
-    if (e.target === e.currentTarget) {
-      onClose();
-    }
-  }, [onClose]);
+
 
   // Fix rowGetter implementation
   const rowGetter = useCallback(({ index }) => {
@@ -425,49 +420,29 @@ const CashBook = ({ isOpen, onClose }) => {
     }
   }, [fetchTransactions]);
 
-  if (!isOpen) return null;
-
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 transition-all duration-300"
-      onClick={handleBackdropClick}
-    >
-      <motion.div
-        initial={{ scale: 0.95, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.95, opacity: 0 }}
-        className="bg-white rounded-2xl shadow-2xl w-[95vw] md:w-[92vw] max-w-7xl max-h-[95vh] md:max-h-[92vh] overflow-hidden flex flex-col transition-transform duration-200"
-        onClick={e => e.stopPropagation()}
-      >
-        <div className="px-4 md:px-7 py-2 border-b flex justify-between items-center bg-white sticky top-0 shadow-sm z-20">
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-semibold text-gray-800 tracking-tight">Cash Book</h1>
-            <span className="text-sm px-3 py-1 bg-amber-50 text-amber-700 rounded-full font-medium ring-1 ring-amber-100/50">Report</span>
-          </div>
-          <button 
-            onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-full transition-colors duration-200"
-          >
-            <X className="h-5 w-5 text-gray-500" />
-          </button>
-          {isRefreshing && (
-            <div className="absolute right-20 top-1/2 -translate-y-1/2">
-              <div className="animate-spin rounded-full h-4 w-4 border-2 border-amber-500 border-t-transparent"></div>
-            </div>
-          )}
+    <div className="flex flex-col h-[calc(100vh-2rem)] max-h-[100vh] bg-white mx-2 sm:mx-4 my-2 p-2 sm:p-3 shadow-md rounded-xl border border-amber-100 border-solid">
+      <div className="px-3 sm:px-4 md:px-6 py-2 border-b flex flex-col sm:flex-row justify-between items-start sm:items-center gap-1 bg-white shadow-sm">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <h1 className="text-xl sm:text-2xl font-semibold text-amber-800 tracking-tight">Cash Book</h1>
+          <span className="text-xs sm:text-sm px-2 sm:px-3 py-0.5 sm:py-1 bg-amber-50 text-amber-700 rounded-full font-medium ring-1 ring-amber-100/50">Report</span>
         </div>
+        {isRefreshing && (
+          <div className="flex items-center gap-2 text-xs sm:text-sm text-amber-600">
+            <div className="animate-spin rounded-full h-3 w-3 sm:h-4 sm:w-4 border-2 border-amber-500 border-t-transparent"></div>
+            <span>Updating...</span>
+          </div>
+        )}
+      </div>
 
-        <div className="flex-1 overflow-auto">
+      <div className="flex-1 overflow-auto p-1 sm:p-2">
           {isInitialLoading ? (
-            <div className="flex flex-col items-center justify-center h-[50vh] gap-3">
+            <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-600"></div>
               <p className="text-sm text-amber-600">Loading transactions...</p>
             </div>
           ) : error ? (
-            <div className="flex flex-col items-center justify-center h-[50vh] gap-3">
+            <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
               <div className="text-red-500 text-center">
                 <p className="text-lg font-medium">Error loading transactions</p>
                 <p className="text-sm mt-1">{error}</p>
@@ -480,85 +455,88 @@ const CashBook = ({ isOpen, onClose }) => {
               </div>
             </div>
           ) : transactions.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-[50vh] gap-3">
+            <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
               <div className="text-gray-500 text-center">
                 <p className="text-lg font-medium">No transactions found</p>
                 <p className="text-sm mt-1">There are no transactions recorded for this period.</p>
               </div>
             </div>
           ) : (
-            <div className="py-2 md:py-4 px-4 flex flex-col lg:flex-row gap-3 md:gap-4">
-              <div className="flex-1 order-2 lg:order-1">
-                <div className="border rounded-xl">
-                  <div className="bg-amber-50 px-4 py-2 border-b">
-                    <h3 className="font-medium text-amber-800">
+            <div className="py-1 md:py-2 px-0 sm:px-1 flex flex-col lg:flex-row gap-2 sm:gap-3">
+              {/* Main Transactions Panel */}
+              <div className="flex-1 order-2 lg:order-1 min-w-0">
+                <div className="border rounded-xl overflow-hidden">
+                  <div className="bg-amber-50 px-3 sm:px-4 py-1.5 border-b">
+                    <h3 className="font-medium text-sm sm:text-base text-amber-800">
                       {new Date().toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })} Transactions
                     </h3>
                   </div>
-                  <TransactionTable
-                    filteredTransactions={filteredTransactions}
-                    cashInfo={cashInfo}
-                    rowGetter={rowGetter}
-                  />
+                  <div className="overflow-x-auto">
+                    <TransactionTable
+                      filteredTransactions={filteredTransactions}
+                      cashInfo={cashInfo}
+                      rowGetter={rowGetter}
+                    />
+                  </div>
                 </div>
               </div>
               
+              {/* Sidebar */}
               <div className="w-full lg:w-72 space-y-3 order-1 lg:order-2">
                 <button 
                   onClick={() => setShowAdjustment(true)}
-                  className="w-full bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-xl flex items-center justify-center gap-2 text-sm font-medium transition-colors"
+                  className="w-full bg-amber-500 hover:bg-amber-600 text-white px-3 sm:px-4 py-2 rounded-xl flex items-center justify-center gap-2 text-xs sm:text-sm font-medium transition-colors"
                 >
-                  <ArrowUpDown size={16} />
-                  Cash Adjustments
+                  <ArrowUpDown size={14} className="flex-shrink-0" />
+                  <span>Cash Adjustments</span>
                 </button>
                 
                 <BalanceSummary cashInfo={cashInfo} />
                 
-                <AnalyticsPanel
-                  activeTab={activeTab}
-                  setActiveTab={setActiveTab}
-                  categorySummary={categorySummary}
-                  monthlySummary={monthlySummary}
-                />
+                <div className="sticky top-4">
+                  <AnalyticsPanel
+                    activeTab={activeTab}
+                    setActiveTab={setActiveTab}
+                    categorySummary={categorySummary}
+                    monthlySummary={monthlySummary}
+                  />
+                </div>
               </div>
             </div>
           )}
         </div>
 
-        <div className="border-t px-3 md:px-4 py-2 md:py-3 flex justify-between items-center bg-white sticky bottom-0 shadow-sm">
-          <div className="flex items-center gap-2 md:gap-3">
+        <div className="border-t px-2 sm:px-3 py-1.5 flex flex-col xs:flex-row justify-between items-center gap-1.5 bg-white sticky bottom-0 shadow-sm mt-auto">
+          <div className="flex items-center gap-2 sm:gap-3 flex-wrap justify-center">
             <button onClick={() => handleExport('excel')} 
-              className="flex items-center gap-1.5 text-gray-600 hover:text-amber-600 text-sm font-medium transition-colors">
-              <FileSpreadsheet size={16} />
-              Excel
+              className="flex items-center gap-1.5 text-gray-600 hover:text-amber-600 text-xs sm:text-sm font-medium transition-colors px-2 py-1 hover:bg-amber-50 rounded-md">
+              <FileSpreadsheet size={14} className="flex-shrink-0" />
+              <span className="whitespace-nowrap">Excel</span>
             </button>
             <button onClick={() => handleExport('print')} 
-              className="flex items-center gap-1.5 text-gray-600 hover:text-amber-600 text-sm font-medium transition-colors">
-              <Printer size={16} />
-              Print
+              className="flex items-center gap-1.5 text-gray-600 hover:text-amber-600 text-xs sm:text-sm font-medium transition-colors px-2 py-1 hover:bg-amber-50 rounded-md">
+              <Printer size={14} className="flex-shrink-0" />
+              <span className="whitespace-nowrap">Print</span>
             </button>
             <button onClick={() => handleExport('email')} 
-              className="flex items-center gap-1.5 text-gray-600 hover:text-amber-600 text-sm font-medium transition-colors">
-              <Mail size={16} />
-              Email
+              className="flex items-center gap-1.5 text-gray-600 hover:text-amber-600 text-xs sm:text-sm font-medium transition-colors px-2 py-1 hover:bg-amber-50 rounded-md">
+              <Mail size={14} className="flex-shrink-0" />
+              <span className="whitespace-nowrap">Email</span>
             </button>
           </div>
-          <div className="hidden md:flex items-center gap-2 text-xs text-gray-500">
-            <span className="px-2 py-1 bg-gray-100 rounded-full">Limited Version</span>
+          <div className="flex items-center gap-2 text-[10px] xs:text-xs text-gray-500">
+            <span className="px-2 py-0.5 sm:py-1 bg-gray-100 rounded-full whitespace-nowrap">Limited Version</span>
           </div>
         </div>
-      </motion.div>
       <CashAdjustment 
         isOpen={showAdjustment}
         onClose={() => setShowAdjustment(false)}
         onSave={handleAdjustmentSave}
         isLoading={loading}
       />
-    </motion.div>
+    </div>
   );
 }
 
 // Add memo to component export
-export default React.memo(CashBook, (prevProps, nextProps) => {
-  return prevProps.isOpen === nextProps.isOpen;
-});
+export default React.memo(CashBook);

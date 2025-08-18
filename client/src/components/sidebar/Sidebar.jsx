@@ -12,7 +12,6 @@ import { SidebarMobile } from './SidebarMobile';
 const AddExpense = React.lazy(() => import('../expenses/AddExpense'));
 const MasterExpense = React.lazy(() => import('../expenses/MasterExpense'));
 const ViewExpense = React.lazy(() => import('../expenses/ViewExpense'));
-const CashBook = React.lazy(() => import('../cashbook/CashBook'));
 
 // Main Sidebar component orchestrating context and content
 const Sidebar = ({ open: openProp, setOpen: setOpenProp, animate = true, user, setLoggedIn }) => {
@@ -33,7 +32,6 @@ const SidebarContent = memo(({ user, setLoggedIn }) => {
   const [showAddExpense, setShowAddExpense] = useState(false);
   const [showMasterExpense, setShowMasterExpense] = useState(false);
   const [showViewExpense, setShowViewExpense] = useState(false);
-  const [showCashBook, setShowCashBook] = useState(false);
   const scrollPositionsRef = useRef(new Map());
   const [isNavigating, setIsNavigating] = useState(false);
 
@@ -112,6 +110,7 @@ const SidebarContent = memo(({ user, setLoggedIn }) => {
     { icon: Icons.TestTubes, label: 'Skin Testing', path: '/skin-testing' },
     { icon: Icons.Camera, label: 'Photo Testing', path: '/photo-testing' },
     { icon: Icons.GoldBar, label: 'Pure Exchange', path: '/pure-exchange' },
+    
   ], []);
 
   const dataMenuItems = useMemo(() => [
@@ -138,14 +137,13 @@ const SidebarContent = memo(({ user, setLoggedIn }) => {
     add: setShowAddExpense,
     master: setShowMasterExpense,
     view: setShowViewExpense,
-    cashbook: setShowCashBook,
   }), []);
 
   const expenseMenuItems = useMemo(() => [
+    { type: 'link', icon: Icons.Book, label: 'Cash Book', path: '/cashbook',onClick: () => handleNavigation('/cashbook') },
     { icon: Icons.DollarSign, label: 'Add Expense', modalSetter: expenseModalSetters.add },
     { icon: Icons.DollarSign, label: 'Master Expense', modalSetter: expenseModalSetters.master },
     { icon: Icons.DollarSign, label: 'View Expenses', modalSetter: expenseModalSetters.view },
-    { icon: Icons.Book, label: 'Cash Book', modalSetter: expenseModalSetters.cashbook },
     { 
       type: 'link',
       icon: Icons.DollarSign, 
@@ -194,7 +192,6 @@ const SidebarContent = memo(({ user, setLoggedIn }) => {
         {showAddExpense && <AddExpense isOpen={showAddExpense} onClose={() => setShowAddExpense(false)} />}
         {showMasterExpense && <MasterExpense isOpen={showMasterExpense} onClose={() => setShowMasterExpense(false)} />}
         {showViewExpense && <ViewExpense isOpen={showViewExpense} onClose={() => setShowViewExpense(false)} />}
-        {showCashBook && <CashBook isOpen={showCashBook} onClose={() => setShowCashBook(false)} />}
       </Suspense>
     </>
   );

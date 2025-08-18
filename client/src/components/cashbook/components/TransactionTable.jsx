@@ -244,7 +244,7 @@ const TransactionTable = ({ filteredTransactions, cashInfo, rowGetter }) => {
   };
 
   return (
-    <div className="h-[65vh] lg:h-[calc(93vh-190px)]">
+    <div className="h-[65vh] lg:h-[calc(93vh-196px)]">
       <AutoSizer>
         {({ width, height }) => (
           <Table

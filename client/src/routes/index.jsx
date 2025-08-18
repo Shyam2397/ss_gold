@@ -58,6 +58,11 @@ const CashAdjustmentList = React.lazy(() =>
     default: module.default || module
   }))
 );
+const CashBook = React.lazy(() => 
+  import('../components/cashbook/CashBook').then(module => ({
+    default: module.default || module
+  }))
+);
 
 // Enhanced route priorities with contextual information from config
 
@@ -185,6 +190,12 @@ const routesConfig = [
     Component: CashAdjustmentList,
     preload: () => import('../components/cashbook/CashAdjustmentList'),
     ...ROUTE_PRIORITIES['/cash-adjustments']
+  },
+  {
+    path: '/cashbook',
+    Component: CashBook,
+    preload: () => import('../components/cashbook/CashBook'),
+    ...ROUTE_PRIORITIES['/cashbook']
   }
 ];
 
