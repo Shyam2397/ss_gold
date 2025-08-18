@@ -159,7 +159,7 @@ const CashAdjustmentList = () => {
   };
 
   return (
-    <div className="m-4 p-6 bg-white rounded-lg shadow-sm">
+    <div className="m-4 p-6 bg-white rounded-xl shadow-md border border-amber-100 border-solid">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
         <div>
           <h2 className="text-2xl font-semibold text-amber-800">Cash Adjustments</h2>
