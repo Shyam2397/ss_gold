@@ -27,7 +27,7 @@ const formatDateValue = (date) => {
 
 const TransactionTable = ({ filteredTransactions, cashInfo, rowGetter }) => {
   const DateCell = useCallback(({ rowData }) => (
-    <div className="text-center text-xs text-amber-900 truncate py-3.5 px-4">
+    <div className="text-center text-xs xs:text-sm text-amber-900 truncate py-2.5 px-3">
       {rowData.type === 'opening' ? (
         <span className="font-semibold">Opening Balance</span>
       ) : rowData.type === 'closing' ? (
@@ -79,7 +79,7 @@ const TransactionTable = ({ filteredTransactions, cashInfo, rowGetter }) => {
   // Memoize column renderers
   const columnRenderers = useMemo(() => ({
     date: ({ rowData }) => (
-      <div className="text-center text-xs text-amber-900 truncate py-3.5 px-4">
+      <div className="text-center text-xs xs:text-sm text-amber-900 truncate py-2.5 px-3 h-full flex items-center justify-center">
         {rowData.type === 'opening' ? (
           <span className="font-semibold">Opening Balance</span>
         ) : rowData.type === 'closing' ? (
@@ -91,11 +91,11 @@ const TransactionTable = ({ filteredTransactions, cashInfo, rowGetter }) => {
     ),
     particulars: ({ rowData }) => {
       if (rowData.type === 'opening' || rowData.type === 'closing') {
-        return <div className="text-xs text-amber-900 truncate py-3.5 px-4">-</div>;
+        return <div className="text-[10px] xs:text-xs text-amber-900 truncate py-2.5 px-3 h-full flex items-center">-</div>;
       }
       if (typeof rowData.particulars === 'object') {
         return (
-          <div className="text-xs text-amber-900 truncate py-2.5 px-4 flex items-center gap-1.5">
+          <div className="text-xs xs:text-sm text-amber-900 truncate py-2.5 px-3 flex items-center gap-1.5">
             <span className="font-medium">{rowData.particulars.test}</span>
             <span className="text-[10px] text-amber-600">•</span>
             <span className="text-[10px] text-amber-800">#{rowData.particulars.tokenNo}</span>
@@ -108,13 +108,13 @@ const TransactionTable = ({ filteredTransactions, cashInfo, rowGetter }) => {
         );
       }
       return (
-        <div className="text-xs text-amber-900 truncate py-3.5 px-4">
+        <div className="text-xs xs:text-sm text-amber-600 px-3 py-2.5 truncate h-full flex items-center">
           {rowData.particulars}
         </div>
       );
     },
     type: ({ rowData }) => (
-      <div className="text-center text-xs truncate py-3.5 px-4">
+      <div className="text-center text-[10px] xs:text-xs truncate py-2.5 px-3 h-full flex items-center justify-center">
         {rowData.type === 'opening' || rowData.type === 'closing' ? '' : (
           <span className={`px-2.5 py-0.5 rounded-full font-medium inline-block
             ${rowData.type === 'Income' ? 'bg-green-100 text-green-800' : 
@@ -126,26 +126,26 @@ const TransactionTable = ({ filteredTransactions, cashInfo, rowGetter }) => {
       </div>
     ),
     debit: ({ rowData }) => (
-      <div className="text-right text-xs text-amber-700 truncate py-3.5 px-4">
+      <div className="text-right text-xs xs:text-sm text-amber-700 truncate py-2.5 px-3 h-full flex items-center justify-end">
         {rowData.type === 'opening' || rowData.type === 'closing' ? '-' :
          rowData.debit?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
       </div>
     ),
     credit: ({ rowData }) => (
-      <div className="text-right text-xs text-amber-700 truncate py-3.5 px-4">
+      <div className="text-right text-xs xs:text-sm text-amber-700 truncate py-2.5 px-3 h-full flex items-center justify-end">
         {rowData.type === 'opening' || rowData.type === 'closing' ? '-' :
          rowData.credit?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
       </div>
     ),
     runningBalance: ({ rowData }) => (
-      <div className="text-right text-xs py-3.5 px-4">
+      <div className="text-right text-sm xs:text-base py-2.5 px-3">
         {rowData.type === 'opening' ? (
           <div>
-            <div className="font-medium text-amber-700">
+            <div className="font-medium text-amber-700 text-sm">
               ₹ {(cashInfo?.openingBalance || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
             </div>
             {(cashInfo?.openingPending || 0) > 0 && (
-              <div className="text-[10px] text-yellow-600 mt-0.5">
+              <div className="text-sm text-yellow-600 mt-0.5">
                 Pending: ₹ {(cashInfo?.openingPending || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
               </div>
             )}
@@ -232,11 +232,11 @@ const TransactionTable = ({ filteredTransactions, cashInfo, rowGetter }) => {
   };
 
   // Move header renderer to separate memoized component
-  const HeaderRenderer = React.memo(({ label, alignRight }) => (
-    <div className={`text-xs font-medium text-white uppercase tracking-wider px-4 h-full flex items-center ${alignRight ? 'justify-end' : ''}`}>
+  const HeaderRenderer = useCallback(({ label }) => (
+    <div className="flex items-center justify-center h-full px-3 py-2.5 font-semibold text-xs xs:text-sm text-amber-700 uppercase tracking-wider">
       {label}
     </div>
-  ));
+  ), []);
 
   HeaderRenderer.propTypes = {
     label: PropTypes.string.isRequired,
@@ -244,77 +244,89 @@ const TransactionTable = ({ filteredTransactions, cashInfo, rowGetter }) => {
   };
 
   return (
-    <div className="h-[65vh] lg:h-[calc(93vh-196px)]">
+    <div className="h-[65vh] lg:h-[calc(93vh-196px)] overflow-hidden border border-amber-100 rounded-lg">
       <AutoSizer>
         {({ width, height }) => (
           <Table
             width={width}
             height={height}
-            headerHeight={32}
-            rowHeight={40}
+            headerHeight={40}
+            rowHeight={42}
             rowCount={filteredTransactions.length + 2}
             rowGetter={rowGetter}
-            overscanRowCount={5}
+            overscanRowCount={10}
             scrollToIndex={0}
-            estimatedRowSize={48}
-            defaultHeight={450}
+            estimatedRowSize={42}
+            defaultHeight={400}
             rowClassName={getRowClassName}
           >
             <Column
               label="Date"
               dataKey="date"
-              width={100}
+              width={120}
+              minWidth={100}
               flexShrink={0}
               headerRenderer={({ label }) => (
                 <HeaderRenderer label={label} />
               )}
               cellRenderer={columnRenderers.date}
+              className="text-[10px] xs:text-xs"
             />
             <Column
               label="Particulars"
               dataKey="particulars"
-              width={300}
+              width={180}
+              minWidth={120}
               flexGrow={1}
               headerRenderer={({ label }) => (
                 <HeaderRenderer label={label} />
               )}
               cellRenderer={columnRenderers.particulars}
+              className="text-[10px] xs:text-xs"
             />
             <Column
               label="Type"
               dataKey="type"
-              width={120}
+              width={90}
+              minWidth={80}
               headerRenderer={({ label }) => (
                 <HeaderRenderer label={label} />
               )}
               cellRenderer={columnRenderers.type}
+              className="text-[10px] xs:text-xs"
             />
             <Column
               label="Debit"
               dataKey="debit"
-              width={120}
+              width={110}
+              minWidth={100}
               headerRenderer={({ label }) => (
-                <HeaderRenderer label={label} alignRight />
+                <HeaderRenderer label={label} />
               )}
               cellRenderer={columnRenderers.debit}
+              className="text-[10px] xs:text-xs text-right font-mono"
             />
             <Column
               label="Credit"
               dataKey="credit"
-              width={120}
+              width={110}
+              minWidth={100}
               headerRenderer={({ label }) => (
-                <HeaderRenderer label={label} alignRight />
+                <HeaderRenderer label={label} />
               )}
               cellRenderer={columnRenderers.credit}
+              className="text-[10px] xs:text-xs text-right font-mono"
             />
             <Column
               label="Balance"
               dataKey="runningBalance"
               width={120}
+              minWidth={110}
               headerRenderer={({ label }) => (
-                <HeaderRenderer label={label} alignRight />
+                <HeaderRenderer label={label} />
               )}
               cellRenderer={columnRenderers.runningBalance}
+              className="text-[10px] xs:text-xs text-right font-mono"
             />
           </Table>
         )}
