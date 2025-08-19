@@ -138,7 +138,7 @@ const TransactionTable = ({ filteredTransactions, cashInfo, rowGetter }) => {
       </div>
     ),
     runningBalance: ({ rowData }) => (
-      <div className="text-right text-sm xs:text-base py-2.5 px-3">
+      <div className="text-right text-sm xs:text-base py-2.5 px-3 h-full flex items-center justify-end">
         {rowData.type === 'opening' ? (
           <div>
             <div className="font-medium text-amber-700 text-sm">
@@ -232,8 +232,8 @@ const TransactionTable = ({ filteredTransactions, cashInfo, rowGetter }) => {
   };
 
   // Move header renderer to separate memoized component
-  const HeaderRenderer = useCallback(({ label }) => (
-    <div className="flex items-center justify-center h-full px-3 py-2.5 font-semibold text-xs xs:text-sm text-amber-700 uppercase tracking-wider">
+  const HeaderRenderer = useCallback(({ label, alignRight }) => (
+    <div className={`flex items-center h-full px-3 py-2.5 font-semibold text-xs xs:text-sm text-amber-700 uppercase tracking-wider ${alignRight ? 'justify-end' : 'justify-center'}`}>
       {label}
     </div>
   ), []);
@@ -267,7 +267,7 @@ const TransactionTable = ({ filteredTransactions, cashInfo, rowGetter }) => {
               minWidth={100}
               flexShrink={0}
               headerRenderer={({ label }) => (
-                <HeaderRenderer label={label} />
+                <HeaderRenderer label={label} alignRight={false} />
               )}
               cellRenderer={columnRenderers.date}
               className="text-[10px] xs:text-xs"
@@ -279,7 +279,7 @@ const TransactionTable = ({ filteredTransactions, cashInfo, rowGetter }) => {
               minWidth={120}
               flexGrow={1}
               headerRenderer={({ label }) => (
-                <HeaderRenderer label={label} />
+                <HeaderRenderer label={label} alignRight={false} />
               )}
               cellRenderer={columnRenderers.particulars}
               className="text-[10px] xs:text-xs"
@@ -290,7 +290,7 @@ const TransactionTable = ({ filteredTransactions, cashInfo, rowGetter }) => {
               width={90}
               minWidth={80}
               headerRenderer={({ label }) => (
-                <HeaderRenderer label={label} />
+                <HeaderRenderer label={label} alignRight={false} />
               )}
               cellRenderer={columnRenderers.type}
               className="text-[10px] xs:text-xs"
@@ -301,7 +301,7 @@ const TransactionTable = ({ filteredTransactions, cashInfo, rowGetter }) => {
               width={110}
               minWidth={100}
               headerRenderer={({ label }) => (
-                <HeaderRenderer label={label} />
+                <HeaderRenderer label={label} alignRight={true} />
               )}
               cellRenderer={columnRenderers.debit}
               className="text-[10px] xs:text-xs text-right font-mono"
@@ -312,7 +312,7 @@ const TransactionTable = ({ filteredTransactions, cashInfo, rowGetter }) => {
               width={110}
               minWidth={100}
               headerRenderer={({ label }) => (
-                <HeaderRenderer label={label} />
+                <HeaderRenderer label={label} alignRight={true} />
               )}
               cellRenderer={columnRenderers.credit}
               className="text-[10px] xs:text-xs text-right font-mono"
@@ -323,7 +323,7 @@ const TransactionTable = ({ filteredTransactions, cashInfo, rowGetter }) => {
               width={120}
               minWidth={110}
               headerRenderer={({ label }) => (
-                <HeaderRenderer label={label} />
+                <HeaderRenderer label={label} alignRight={true} />
               )}
               cellRenderer={columnRenderers.runningBalance}
               className="text-[10px] xs:text-xs text-right font-mono"
