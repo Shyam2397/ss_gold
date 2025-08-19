@@ -69,11 +69,11 @@ const TransactionTable = ({ filteredTransactions, cashInfo, rowGetter }) => {
     return `${index === -1 
       ? 'bg-amber-500' 
       : index === 0 || index === filteredTransactions.length + 1
-      ? 'bg-amber-50 hover:bg-amber-100/40'
+      ? 'bg-amber-50 sticky top-0 z-10 hover:bg-amber-100/40'
       : index % 2 === 0 
       ? 'bg-white hover:bg-amber-100/40' 
       : 'bg-amber-50/40 hover:bg-amber-100/40'
-    } transition-colors text-amber-900 text-xs font-medium rounded`;
+    } transition-colors text-amber-900 text-xs font-medium rounded overflow-hidden whitespace-nowrap`;
   }, [filteredTransactions.length]);
 
   // Memoize column renderers
@@ -138,10 +138,10 @@ const TransactionTable = ({ filteredTransactions, cashInfo, rowGetter }) => {
       </div>
     ),
     runningBalance: ({ rowData }) => (
-      <div className="text-right text-sm xs:text-base py-2.5 px-3 h-full flex items-center justify-end">
+      <div className="text-right text-xs xs:text-sm py-2.5 px-3 h-full flex items-center justify-end">
         {rowData.type === 'opening' ? (
           <div>
-            <div className="font-medium text-amber-700 text-sm">
+            <div className="font-medium text-amber-700 text-xs">
               ₹ {(cashInfo?.openingBalance || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
             </div>
             {(cashInfo?.openingPending || 0) > 0 && (
@@ -243,94 +243,156 @@ const TransactionTable = ({ filteredTransactions, cashInfo, rowGetter }) => {
     alignRight: PropTypes.bool
   };
 
+  // Remove opening/closing from virtualized table, so only transaction rows remain
+  const transactionRowGetter = useCallback(
+    ({ index }) => filteredTransactions[index],
+    [filteredTransactions]
+  );
+
+  // Sticky row components
+  const OpeningBalanceRow = () => (
+    <div className="bg-amber-50 sticky top-0 z-20 flex w-full border-b border-amber-100">
+      <div className="flex-1 flex overflow-hidden">
+        <div className="w-[120px] min-w-[100px] flex items-center justify-center text-xs xs:text-sm font-semibold text-amber-900 py-2.5 px-3 overflow-hidden whitespace-nowrap">
+          <span className="truncate">Opening Balance</span>
+        </div>
+        <div className="flex-1 flex items-center text-xs xs:text-sm text-amber-900 py-2.5 px-3">-</div>
+        <div className="w-[90px] min-w-[80px] flex items-center justify-center text-xs xs:text-sm text-amber-900 py-2.5 px-3"></div>
+        <div className="w-[110px] min-w-[100px] flex items-center justify-end text-xs xs:text-sm text-amber-700 py-2.5 px-3">-</div>
+        <div className="w-[110px] min-w-[100px] flex items-center justify-end text-xs xs:text-sm text-amber-700 py-2.5 px-3">-</div>
+        <div className="w-[120px] min-w-[110px] flex items-center justify-end overflow-hidden">
+          <div className="flex flex-col items-center text-xs xs:text-sm py-2.5 px-3 font-medium text-amber-700 overflow-hidden">
+            <span className="whitespace-nowrap text-sm">
+              ₹ {(cashInfo?.openingBalance || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+            </span>
+            {(cashInfo?.openingPending || 0) > 0 && (
+              <span className="text-xs text-yellow-600 whitespace-nowrap">
+                Pending: ₹ {(cashInfo?.openingPending || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const ClosingBalanceRow = () => {
+    const finalBalance = filteredTransactions.reduce(
+      (total, t) => total + (t.credit || 0) - (t.debit || 0),
+      cashInfo?.openingBalance || 0
+    );
+    return (
+      <div className="bg-amber-50 sticky bottom-0 z-20 flex w-full border-t border-amber-100">
+        <div className="flex-1 flex overflow-hidden">
+          <div className="w-[120px] min-w-[100px] flex items-center justify-center text-xs xs:text-sm font-semibold text-amber-900 py-2.5 px-3 overflow-hidden whitespace-nowrap">
+            <span className="truncate">Closing Balance</span>
+          </div>
+          <div className="flex-1 flex items-center text-xs xs:text-sm text-amber-900 py-2.5 px-3">-</div>
+          <div className="w-[90px] min-w-[80px] flex items-center justify-center text-xs xs:text-sm text-amber-900 py-2.5 px-3"></div>
+          <div className="w-[110px] min-w-[100px] flex items-center justify-end text-xs xs:text-sm text-amber-700 py-2.5 px-3">-</div>
+          <div className="w-[110px] min-w-[100px] flex items-center justify-end text-xs xs:text-sm text-amber-700 py-2.5 px-3">-</div>
+          <div className="w-[120px] min-w-[110px] flex items-center overflow-hidden">
+            <div className="text-sm xs:text-sm py-2.5 px-3 font-medium text-amber-700 whitespace-nowrap">
+              ₹ {finalBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
-    <div className="h-[65vh] lg:h-[calc(93vh-196px)] overflow-hidden border border-amber-100 rounded-lg">
-      <AutoSizer>
-        {({ width, height }) => (
-          <Table
-            width={width}
-            height={height}
-            headerHeight={40}
-            rowHeight={42}
-            rowCount={filteredTransactions.length + 2}
-            rowGetter={rowGetter}
-            overscanRowCount={10}
-            scrollToIndex={0}
-            estimatedRowSize={42}
-            defaultHeight={400}
-            rowClassName={getRowClassName}
-          >
-            <Column
-              label="Date"
-              dataKey="date"
-              width={120}
-              minWidth={100}
-              flexShrink={0}
-              headerRenderer={({ label }) => (
-                <HeaderRenderer label={label} alignRight={false} />
-              )}
-              cellRenderer={columnRenderers.date}
-              className="text-[10px] xs:text-xs"
-            />
-            <Column
-              label="Particulars"
-              dataKey="particulars"
-              width={180}
-              minWidth={120}
-              flexGrow={1}
-              headerRenderer={({ label }) => (
-                <HeaderRenderer label={label} alignRight={false} />
-              )}
-              cellRenderer={columnRenderers.particulars}
-              className="text-[10px] xs:text-xs"
-            />
-            <Column
-              label="Type"
-              dataKey="type"
-              width={90}
-              minWidth={80}
-              headerRenderer={({ label }) => (
-                <HeaderRenderer label={label} alignRight={false} />
-              )}
-              cellRenderer={columnRenderers.type}
-              className="text-[10px] xs:text-xs"
-            />
-            <Column
-              label="Debit"
-              dataKey="debit"
-              width={110}
-              minWidth={100}
-              headerRenderer={({ label }) => (
-                <HeaderRenderer label={label} alignRight={true} />
-              )}
-              cellRenderer={columnRenderers.debit}
-              className="text-[10px] xs:text-xs text-right font-mono"
-            />
-            <Column
-              label="Credit"
-              dataKey="credit"
-              width={110}
-              minWidth={100}
-              headerRenderer={({ label }) => (
-                <HeaderRenderer label={label} alignRight={true} />
-              )}
-              cellRenderer={columnRenderers.credit}
-              className="text-[10px] xs:text-xs text-right font-mono"
-            />
-            <Column
-              label="Balance"
-              dataKey="runningBalance"
-              width={120}
-              minWidth={110}
-              headerRenderer={({ label }) => (
-                <HeaderRenderer label={label} alignRight={true} />
-              )}
-              cellRenderer={columnRenderers.runningBalance}
-              className="text-[10px] xs:text-xs text-right font-mono"
-            />
-          </Table>
-        )}
-      </AutoSizer>
+    <div className="h-[70vh] lg:h-[calc(93vh-170px)] overflow-hidden border border-amber-100 rounded-lg flex flex-col">
+      <OpeningBalanceRow />
+      <div className="flex-1 overflow-auto">
+        <AutoSizer>
+          {({ width, height }) => (
+            <Table
+              width={width}
+              height={height}
+              headerHeight={40}
+              rowHeight={42}
+              rowCount={filteredTransactions.length}
+              rowGetter={transactionRowGetter}
+              overscanRowCount={10}
+              scrollToIndex={0}
+              estimatedRowSize={42}
+              defaultHeight={400}
+              rowClassName={getRowClassName}
+            >
+              <Column
+                label="Date"
+                dataKey="date"
+                width={120}
+                minWidth={100}
+                flexShrink={0}
+                headerRenderer={({ label }) => (
+                  <HeaderRenderer label={label} alignRight={false} />
+                )}
+                cellRenderer={columnRenderers.date}
+                className="text-[10px] xs:text-xs"
+              />
+              <Column
+                label="Particulars"
+                dataKey="particulars"
+                width={180}
+                minWidth={120}
+                flexGrow={1}
+                headerRenderer={({ label }) => (
+                  <HeaderRenderer label={label} alignRight={false} />
+                )}
+                cellRenderer={columnRenderers.particulars}
+                className="text-[10px] xs:text-xs"
+              />
+              <Column
+                label="Type"
+                dataKey="type"
+                width={90}
+                minWidth={80}
+                headerRenderer={({ label }) => (
+                  <HeaderRenderer label={label} alignRight={false} />
+                )}
+                cellRenderer={columnRenderers.type}
+                className="text-[10px] xs:text-xs"
+              />
+              <Column
+                label="Debit"
+                dataKey="debit"
+                width={110}
+                minWidth={100}
+                headerRenderer={({ label }) => (
+                  <HeaderRenderer label={label} alignRight={true} />
+                )}
+                cellRenderer={columnRenderers.debit}
+                className="text-[10px] xs:text-xs text-right font-mono"
+              />
+              <Column
+                label="Credit"
+                dataKey="credit"
+                width={110}
+                minWidth={100}
+                headerRenderer={({ label }) => (
+                  <HeaderRenderer label={label} alignRight={true} />
+                )}
+                cellRenderer={columnRenderers.credit}
+                className="text-[10px] xs:text-xs text-right font-mono"
+              />
+              <Column
+                label="Balance"
+                dataKey="runningBalance"
+                width={120}
+                minWidth={110}
+                headerRenderer={({ label }) => (
+                  <HeaderRenderer label={label} alignRight={true} />
+                )}
+                cellRenderer={columnRenderers.runningBalance}
+                className="text-[10px] xs:text-xs text-right font-mono"
+              />
+            </Table>
+          )}
+        </AutoSizer>
+      </div>
+      <ClosingBalanceRow />
     </div>
   );
 };

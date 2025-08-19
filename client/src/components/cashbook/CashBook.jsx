@@ -506,7 +506,7 @@ const CashBook = () => {
           )}
         </div>
 
-        <div className="border-t px-2 sm:px-3 py-1.5 flex flex-col xs:flex-row justify-between items-center gap-1.5 bg-white sticky bottom-0 shadow-sm mt-auto">
+        <div className="border-t px-2 sm:px-3 py-1.5 flex flex-row xs:flex-row justify-between items-center gap-1.5 bg-white sticky bottom-0 shadow-sm mt-auto">
           <div className="flex items-center gap-2 sm:gap-3 flex-wrap justify-center">
             <button onClick={() => handleExport('excel')} 
               className="flex items-center gap-1.5 text-gray-600 hover:text-amber-600 text-xs sm:text-sm font-medium transition-colors px-2 py-1 hover:bg-amber-50 rounded-md">
