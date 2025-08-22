@@ -9,31 +9,66 @@ const log = require('electron-log');
 log.transports.file.level = 'info';
 log.info('App starting...');
 
-// Initialize store with better error handling
-let store;
-try {
-  const Store = require('electron-store');
-  store = new Store({
-    name: 'ss-gold-config',
-    defaults: {
-      windowState: {
-        width: 1200,
-        height: 800,
-        x: undefined,
-        y: undefined
+// Add this with other global variables at the top of the file
+let isQuitting = false;
+
+// Simple in-memory store implementation
+const memoryStore = {
+  data: {
+    windowState: {
+      width: 1200,
+      height: 800,
+      x: null,
+      y: null
+    }
+  },
+  get: function(key, defaultValue) {
+    const keys = key.split('.');
+    let value = this.data;
+    
+    for (const k of keys) {
+      if (value === null || typeof value !== 'object') {
+        return defaultValue;
       }
-    },
-    clearInvalidConfig: true // Clear if config becomes corrupted
-  });
-  log.info('Store initialized successfully');
-} catch (error) {
-  log.error('Store initialization failed:', error.message);
-  store = {
-    get: (key, defaultValue) => defaultValue,
-    set: () => {},
-    delete: () => {}
-  };
-}
+      value = value[k];
+      if (value === undefined) {
+        return defaultValue;
+      }
+    }
+    return value !== undefined ? value : defaultValue;
+  },
+  set: function(key, value) {
+    const keys = key.split('.');
+    let current = this.data;
+    
+    for (let i = 0; i < keys.length - 1; i++) {
+      const k = keys[i];
+      if (!current[k] || typeof current[k] !== 'object') {
+        current[k] = {};
+      }
+      current = current[k];
+    }
+    
+    current[keys[keys.length - 1]] = value;
+  },
+  delete: function(key) {
+    const keys = key.split('.');
+    let current = this.data;
+    
+    for (let i = 0; i < keys.length - 1; i++) {
+      current = current[keys[i]];
+      if (!current || typeof current !== 'object') {
+        return;
+      }
+    }
+    
+    delete current[keys[keys.length - 1]];
+  }
+};
+
+// Set store to use our in-memory implementation
+const store = memoryStore;
+log.info('Using in-memory store');
 
 // Enable garbage collection exposure
 app.commandLine.appendSwitch('js-flags', '--expose-gc');
