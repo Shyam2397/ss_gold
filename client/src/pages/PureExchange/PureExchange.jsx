@@ -180,13 +180,15 @@ const PureExchange = () => {
         // Fetch skin testing data
         const skinTestData = await fetchSkinTestData(tokenNo);
         
+        if (!skinTestData) {
+            dispatch({ type: ACTIONS.SET_LOADING, payload: false });
+            setErrorWithTimeout('The skin test report does not exist for this token number');
+            return;
+        }
+        
         dispatch({ type: ACTIONS.SET_LOADING, payload: false });
         dispatch({ type: ACTIONS.SET_ERROR, payload: '' }); // Clear any existing error message
         
-        if (!skinTestData) {
-            return; // Error message already set by fetchSkinTestData
-        }
-
         // Extract required values
         const { weight, highest, average, gold_fineness, name } = skinTestData;
 
