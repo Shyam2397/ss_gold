@@ -528,141 +528,147 @@ const safeKillPid = (pid, name) => {
 // Update cleanup function with better handling
 async function cleanupProcesses() {
   log.info('Starting cleanup process...');
-  const cleanupPromises = [];
   
-  // Clean up backend server if it exists
-  if (backendServer) {
-    cleanupPromises.push(
-      new Promise((resolve) => {
-        if (!backendServer.pid) {
-          log.info('Backend server already terminated');
-          return resolve();
-        }
-        
-        log.info(`Terminating backend server (PID: ${backendServer.pid})...`);
-        
-        // Handle process exit
-        const onExit = () => {
-          log.info(`Backend server (PID: ${backendServer.pid}) terminated`);
-          resolve();
-        };
-        
-        // Set up exit handler
-        backendServer.removeAllListeners('exit');
-        backendServer.once('exit', onExit);
-        
-        // Try to kill the process
-        try {
-          if (backendServer.kill('SIGTERM')) {
-            // Give the process some time to exit gracefully
-            setTimeout(() => {
-              if (backendServer.exitCode === null) {
-                log.warn('Backend server did not exit gracefully, forcing termination');
-                backendServer.kill('SIGKILL');
-              }
-            }, 1000);
-          } else {
-            log.warn('Failed to send SIGTERM to backend server, process may already be dead');
-            resolve();
-          }
-        } catch (err) {
-          log.error('Error killing backend server:', err.message);
-          resolve();
-        }
-      })
-    );
-  }
-  
-  // Clean up Vite server if it exists
-  if (viteServer) {
-    cleanupPromises.push(
-      safeKillPid(viteServer.pid, 'Vite server')
-    );
-  }
-  
-  // Clean up any processes on the ports with better error handling
-  const safeKillPort = (port) => {
-    if (!port) return Promise.resolve();
-    
-    return new Promise(resolve => {
-      const killCmd = process.platform === 'win32'
-        ? `netstat -ano | findstr :${port}`
-        : `lsof -i :${port} -t`;
-      
-      exec(killCmd, (err, stdout) => {
-        if (err || !stdout) {
-          log.info(`No process found on port ${port}`);
-          return resolve();
-        }
-        
-        // On Windows, parse the PID from netstat output
-        if (process.platform === 'win32') {
-          const lines = stdout.trim().split('\n');
-          const pids = [];
-          
-          lines.forEach(line => {
-            const match = line.trim().split(/\s+/);
-            const pid = match[match.length - 1];
-            if (pid && pid !== '0' && !isNaN(parseInt(pid))) {
-              pids.push(pid);
-            }
-          });
-          
-          if (pids.length === 0) {
-            log.info(`No valid PIDs found for port ${port}`);
-            return resolve();
-          }
-          
-          // Kill each process
-          const killPromises = pids.map(pid => 
-            new Promise(res => {
-              exec(`taskkill /F /PID ${pid}`, (err) => {
-                if (err) {
-                  log.warn(`Failed to kill process ${pid} on port ${port}:`, err.message);
-                } else {
-                  log.info(`Successfully killed process ${pid} on port ${port}`);
-                }
-                res();
-              });
-            })
-          );
-          
-          Promise.all(killPromises).then(resolve).catch(resolve);
-        } else {
-          // Unix-like systems
-          const pids = stdout.trim().split('\n').filter(Boolean);
-          if (pids.length === 0) {
-            log.info(`No PIDs found for port ${port}`);
-            return resolve();
-          }
-          
-          exec(`kill -9 ${pids.join(' ')}`, (err) => {
-            if (err) {
-              log.warn(`Failed to kill processes on port ${port}:`, err.message);
-            } else {
-              log.info(`Successfully killed processes on port ${port}`);
-            }
-            resolve();
-          });
-        }
-      });
-    });
+  // Array to store all cleanup promises
+  const cleanupTasks = [];
+
+  // Helper function to safely execute cleanup tasks
+  const safeCleanup = async (taskName, taskFn) => {
+    try {
+      log.info(`Starting cleanup: ${taskName}`);
+      await taskFn();
+      log.info(`Completed cleanup: ${taskName}`);
+    } catch (error) {
+      log.error(`Error during ${taskName}:`, error.message);
+    }
   };
-  
-  cleanupPromises.push(safeKillPort(PORTS.VITE));
-  cleanupPromises.push(safeKillPort(PORTS.SERVER));
-  
-  // Wait for all cleanup to complete with a timeout
+
+  // 1. Close all windows
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    cleanupTasks.push(safeCleanup('closing main window', () => {
+      mainWindow.removeAllListeners();
+      mainWindow.destroy();
+      mainWindow = null;
+    }));
+  }
+
+  if (splashWindow && !splashWindow.isDestroyed()) {
+    cleanupTasks.push(safeCleanup('closing splash window', () => {
+      splashWindow.destroy();
+      splashWindow = null;
+    }));
+  }
+
+  // 2. Kill backend processes
+  if (backendProcess) {
+    cleanupTasks.push(safeCleanup('killing backend process', () => 
+      safeKillPid(backendProcess.pid, 'backend server')
+    ));
+    backendProcess = null;
+  }
+
+  // 3. Kill Vite dev server if in development
+  if (viteServer && isDev) {
+    cleanupTasks.push(safeCleanup('killing Vite server', () => 
+      safeKillPid(viteServer.pid, 'Vite server')
+    ));
+    viteServer = null;
+  }
+
+  // 4. Kill any processes on our ports
+  if (backendServer && backendServer.port) {
+    cleanupTasks.push(safeCleanup(`killing process on port ${backendServer.port}`, () => 
+      killPort(backendServer.port)
+    ));
+  }
+
+  // Wait for all cleanup tasks to complete with a timeout
   try {
     await Promise.race([
-      Promise.all(cleanupPromises),
-      new Promise(resolve => setTimeout(resolve, 3000)) // 3 second timeout
+      Promise.all(cleanupTasks),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Cleanup timeout')), 5000)
+      )
     ]);
-    log.info('Cleanup completed successfully');
   } catch (error) {
-    log.error('Cleanup process failed:', error);
+    log.warn('Some cleanup tasks timed out or failed:', error.message);
+  }
+
+  log.info('Cleanup process completed');
+}
+
+// Save window state before quitting
+function safeSaveWindowState() {
+  try {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      saveWindowState();
+    }
+  } catch (error) {
+    log.warn('Failed to save window state:', error.message);
   }
 }
+
+// Save application state
+let isAppStateValid = true;
+let isAppQuitting = false;
+
+function safeSaveAppState() {
+  if (!isAppStateValid || isAppQuitting) return;
+  
+  try {
+    if (stateManager && typeof stateManager.save === 'function') {
+      stateManager.save();
+    } else {
+      isAppStateValid = false;
+      log.warn('State manager is not available for saving');
+    }
+  } catch (error) {
+    isAppStateValid = false;
+    log.warn('Failed to save application state:', error.message);
+  }
+}
+
+// Handle app quitting
+app.on('before-quit', async (event) => {
+  // Prevent multiple quit events
+  if (isQuitting) {
+    event.preventDefault();
+    return;
+  }
+  
+  isQuitting = true;
+  isAppQuitting = true; // Mark that we're in the process of quitting
+  event.preventDefault();
+  
+  log.info('Application is quitting...');
+  
+  try {
+    // Save window state first (before any windows are destroyed)
+    safeSaveWindowState();
+    
+    // Save app state (if still valid)
+    if (isAppStateValid) {
+      safeSaveAppState();
+    }
+    
+    // Perform cleanup
+    await cleanupProcesses();
+    
+    // Now quit the app
+    log.info('All cleanup complete, quitting application');
+    app.exit(0);
+  } catch (error) {
+    log.error('Error during application quit:', error);
+    app.exit(1);
+  }
+});
+
+// Handle window closing
+app.on('window-all-closed', () => {
+  if (process.platform !== 'darwin') {
+    app.quit();
+  }
+});
 
 // Optimize garbage collection for faster startup
 if (global.gc) {
@@ -729,89 +735,5 @@ app.whenReady().then(async () => {
     log.error('Failed to start application:', error);
     if (splashWindow) splashWindow.destroy();
     app.quit();
-  }
-});
-
-// Save window state before quitting
-function safeSaveWindowState() {
-  try {
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      saveWindowState();
-    }
-  } catch (error) {
-    log.warn('Failed to save window state:', error.message);
-  }
-}
-
-// Save application state
-let isAppStateValid = true;
-function safeSaveAppState() {
-  if (!isAppStateValid) return;
-  
-  try {
-    if (stateManager && typeof stateManager.save === 'function') {
-      stateManager.save();
-    } else {
-      isAppStateValid = false;
-      log.warn('State manager is not available for saving');
-    }
-  } catch (error) {
-    isAppStateValid = false;
-    log.warn('Failed to save application state:', error.message);
-  }
-}
-
-app.on('window-all-closed', async () => {
-  try {
-    // Save state before cleanup
-    safeSaveWindowState();
-    safeSaveAppState();
-    
-    // Clean up splash window
-    if (splashWindow && !splashWindow.isDestroyed()) {
-      splashWindow.destroy();
-      splashWindow = null;
-    }
-    
-    // Clean up processes
-    await cleanupProcesses();
-    
-    // Quit the app
-    if (process.platform !== 'darwin') {
-      app.quit();
-    }
-  } catch (error) {
-    log.error('Error during window cleanup:', error);
-    app.quit();
-  }
-});
-
-app.on('before-quit', async (event) => {
-  // Prevent multiple quit events
-  if (isQuitting) return;
-  isQuitting = true;
-  
-  try {
-    // Save state before cleanup
-    safeSaveWindowState();
-    safeSaveAppState();
-    
-    // Clean up main window
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.removeAllListeners();
-      mainWindow.destroy();
-      mainWindow = null;
-    }
-    
-    // Clean up splash window
-    if (splashWindow && !splashWindow.isDestroyed()) {
-      splashWindow.destroy();
-      splashWindow = null;
-    }
-    
-    // Clean up processes
-    await cleanupProcesses();
-  } catch (error) {
-    log.error('Error during final cleanup:', error);
   }
 });
