@@ -66,6 +66,10 @@ export const generatePrintContent = (tokenData, logoBase64) => {
             height: 30px;
             margin-right: 5px;
             object-fit: contain;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            filter: brightness(0) saturate(100%);
+            mix-blend-mode: multiply;
           }
           .header-text {
             display: flex;
