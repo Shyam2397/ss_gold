@@ -30,28 +30,39 @@ export const convertImageToBase64 = (imagePath) => {
   });
 };
 
+const formatTimeToAMPM = (time24) => {
+  if (!time24) return '';
+  const [hours, minutes] = time24.split(':');
+  const hour = parseInt(hours, 10);
+  const ampm = hour >= 12 ? 'PM' : 'AM';
+  const hour12 = hour % 12 || 12;
+  return `${hour12}:${minutes} ${ampm}`;
+};
+
 export const generatePrintContent = (tokenData, logoBase64) => {
   const { tokenNo, date, time, name, test, weight, sample, amount } = tokenData;
+  const formattedTime = formatTimeToAMPM(time);
   
   return `
     <html>
       <head>
         <title>Token Receipt - SS GOLD</title>
+        <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
         <style>
           @page { 
             size: 80mm auto; 
             margin: 0; 
           }
           body { 
-            font-family: Arial, sans-serif; 
+            font-family: 'Poppins', Arial, sans-serif; 
             max-width: 300px; 
             margin: 0 auto; 
           }
           .header { 
             text-align: center; 
-            margin-bottom: 1px; 
+            margin: 0 0 2px 0;
             border-bottom: 1px solid black; 
-            padding-bottom: 1px; 
+            padding-bottom: 2px; 
             display: flex;
             align-items: center;
             justify-content: center;
@@ -66,10 +77,9 @@ export const generatePrintContent = (tokenData, logoBase64) => {
             height: 30px;
             margin-right: 5px;
             object-fit: contain;
+            filter: grayscale(100%) contrast(120%) brightness(0%);
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
-            filter: brightness(0) saturate(100%);
-            mix-blend-mode: multiply;
           }
           .header-text {
             display: flex;
@@ -77,29 +87,29 @@ export const generatePrintContent = (tokenData, logoBase64) => {
             justify-content: center;
           }
           .header-title {
-            margin: 0;
             font-size: 20px;
-            line-height: 1;
+            margin: 0 0 2px 0;
+            line-height: 1.1;
             vertical-align: middle;
           }
           .header-subtitle {
-            margin: 1px 0;
             font-size: 12px;
+            margin: 0;
+            line-height: 1.2;
           }
           .header-subtitle:nth-child(2) {
             font-size: 14px;
             font-weight: bold;
-            margin: 1px 0;
           }
           .content { 
             margin-bottom: 1px;
-            border-bottom: 1px dotted black; 
+            border-bottom: 1px dotted black;
+            font-weight: 500; 
           }
           .row { 
             display: flex; 
             justify-content: space-between; 
-            margin-bottom: 3px; 
-            font-size: 13px; 
+            font-size: 12px; 
           }
           .row span:first-child { 
             font-weight: medium;
@@ -113,13 +123,13 @@ export const generatePrintContent = (tokenData, logoBase64) => {
           .date-time {
             display: flex;
             justify-content: end;
-            font-size: 11px;
+            font-size: 12px;
             margin-bottom: 1px;
             border-bottom: 1px dotted black;
             padding-bottom: 1px;
           }
           .date-time span {
-            margin-right: 5px;
+            margin-right: 15px;
           }
           .thank-you {
             text-align: center;
@@ -144,7 +154,7 @@ export const generatePrintContent = (tokenData, logoBase64) => {
         </div>
         <div class="date-time">
           <span>${date}</span>
-          <span>${time}</span>
+          <span>${formattedTime}</span>
         </div>
         <div class="content">
           <div class="row">
