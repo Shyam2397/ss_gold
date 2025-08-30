@@ -47,8 +47,9 @@ export const generatePrintContent = (tokenData, logoBase64) => {
     <html>
       <head>
         <title>Token Receipt - SS GOLD</title>
-        <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+        <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Allura&display=swap" rel="stylesheet">
         <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Allura&display=swap');
           @page { 
             size: 80mm auto; 
             margin: 0; 
@@ -133,10 +134,11 @@ export const generatePrintContent = (tokenData, logoBase64) => {
           }
           .thank-you {
             text-align: center;
-            font-size: 12px;
-            margin: 1px 0;
+            font-size: 16px;
+            margin-top: 1px;
             font-style: italic;
-            font-family: 'Vivaldi', cursive;
+            font-family: 'Allura', cursive;
+            font-weight: 600;
           }
         </style>
       </head>
