@@ -3,7 +3,7 @@ import logo from '../../../assets/logo.png';
 
 export const printData = (data) => {
   // Create a new window with larger dimensions
-  const printWindow = window.open('', '_blank', 'width=1200,height=800,left=100,top=100');
+  const printWindow = window.open('', '_blank', 'width=900,height=600,left=100,top=100');
   
   // Create the content
   const content = `

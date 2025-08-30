@@ -256,7 +256,7 @@ const TokenPage = () => {
 
       const printContent = generatePrintContent(tokenData, base64Logo);
       
-      const printWindow = window.open('', '', 'width=1200,height=600');
+      const printWindow = window.open('', '', 'width=800,height=400');
       printWindow.document.write(printContent);
       printWindow.document.close();
       

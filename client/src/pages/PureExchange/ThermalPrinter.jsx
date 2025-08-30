@@ -3,7 +3,7 @@ import { FiPrinter } from 'react-icons/fi';
 
 const ThermalPrinter = ({ tableData }) => {
   const printContent = () => {
-    const printWindow = window.open('', '', 'width=1200,height=800');
+    const printWindow = window.open('', '', 'width=800,height=400');
     
     // Format the current date and time
     const firstRow = tableData[0] || {};
