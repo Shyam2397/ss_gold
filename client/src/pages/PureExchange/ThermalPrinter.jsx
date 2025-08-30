@@ -12,50 +12,66 @@ const ThermalPrinter = ({ tableData }) => {
     printWindow.document.write(`
       <html>
         <head>
-          <style>
+          <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Allura&display=swap" rel="stylesheet">
+      <style>
+            @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Allura&display=swap');
+            
             @page {
               size: 80mm auto;
               margin: 0;
             }
             body {
-              font-family: 'Arial', sans-serif;
+              font-family: 'Poppins', sans-serif;
               width: 80mm;
-              padding: 3mm;
+              padding: 0 3mm;
               margin: 0;
-              font-size: 12px;
+              font-size: 13px;
+              font-weight: 600;
             }
             .center {
               text-align: center;
+              font-size: 14px;
+              font-weight: 600;
+            }
+            .info-date {
+              display: flex;
+              justify-content: space-between;
+              margin: 2px 0;
+              font-size: 13px;
+              font-weight: 600;
             }
             .header {
-              font-size: 14px;
-              font-weight: bold;
-              margin-bottom: 5px;
+              font-size: 16px;
+              font-weight: 600;
+              margin-bottom: 2px;
             }
             .info-row {
               display: flex;
               justify-content: space-between;
-              margin: 5px 0;
+              margin: 2px 0;
+              font-size: 15px;
             }
-            .info-row span:last-child {
-              font-weight: bold;
+            .value {
+              padding-right: 10px;
             }
             table {
               width: 100%;
               border-collapse: collapse;
-              margin: 2px 0;
+              margin: 1px 0;
             }
+
             th {
               text-align: center;
-              padding: 3px 0;
-              border-bottom: 1px dotted #ccc;
-              font-size: 13px;
+              padding: 2px 0;
+              border-bottom: 1px dashed #000;
+              font-size: 14px;
             }
             td {
-              text-align: right;
-              padding: 3px 0;
+              text-align: center;
+              padding: 2px 0;
               border-bottom: 1px dotted #ccc;
-              font-size: 13px;
+              font-size: 14px;
+              font-weight: 600;
             }
             .token {
               text-align: center;
@@ -63,11 +79,14 @@ const ThermalPrinter = ({ tableData }) => {
             .footer {
               text-align: center;
               margin-top: 5px;
-              font-style: italic;
+              font-family: 'Allura', cursive;
+              font-size: 17px;
+              font-weight: 600;
+              font-style: normal;
             }
             .divider {
               border-top: 1px dashed #000;
-              margin: 2px 0;
+              margin: 1px 0;
             }
           </style>
         </head>
@@ -75,7 +94,7 @@ const ThermalPrinter = ({ tableData }) => {
           <div class="center">
             << ROUGH ESTIMATE >>
           </div>
-          <div class="info-row">
+          <div class="info-date">
             <span>${firstRow.date || ''}</span>
             <span>${firstRow.time || ''}</span>
           </div>
@@ -90,6 +109,7 @@ const ThermalPrinter = ({ tableData }) => {
               <th>ExGold</th>
               <th>Pure</th>
             </tr>
+            
             ${tableData.map((row) => {
               const weight = parseFloat(row.weight);
               const exGold = parseFloat(row.exGold);
@@ -109,7 +129,7 @@ const ThermalPrinter = ({ tableData }) => {
           <div class="divider"></div>
           <div class="info-row">
             <span>Total Pure</span>
-            <span>${(tableData.reduce((total, row) => {
+            <span class="value">${(tableData.reduce((total, row) => {
               const weight = parseFloat(row.weight);
               const exGold = parseFloat(row.exGold);
               return total + ((weight - 0.010) * exGold / 100);
@@ -117,7 +137,7 @@ const ThermalPrinter = ({ tableData }) => {
           </div>
           <div class="info-row">
             <span>Issued (Bar-Ft-999)</span>
-            <span>${(tableData.reduce((total, row) => {
+            <span class="value">${(tableData.reduce((total, row) => {
               const weight = parseFloat(row.weight);
               const exGold = parseFloat(row.exGold);
               return total + ((weight - 0.010) * exGold / 100);
@@ -125,11 +145,11 @@ const ThermalPrinter = ({ tableData }) => {
           </div>
           <div class="info-row">
             <span>Balance</span>
-            <span>Nil</span>
+            <span class="value">Nil</span>
           </div>
           <div class="divider"></div>
           <div class="footer">
-            Thank You ... Visit Again ...
+            Thank You .... Visit Again ....
           </div>
         </body>
       </html>
