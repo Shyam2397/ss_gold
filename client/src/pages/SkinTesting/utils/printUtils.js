@@ -44,7 +44,6 @@ export const printData = (data) => {
           height: 100%;
           border: 1px solid transparent;
           padding: 2mm 6mm;
-          border : 2px solid #FFD700;
         }
 
         /* HEADER */
@@ -105,7 +104,7 @@ export const printData = (data) => {
           margin-bottom: 2px;
           user-select: text;
           align-items: center;
-          padding: 0 41px;
+          padding: 0 42px;
         }
         
         .main-info > div {
@@ -117,7 +116,7 @@ export const printData = (data) => {
           user-select: text;
           justify-self: start;
           text-align: left;
-          padding-left: 12px;
+          padding-left: 13px;
         }
         
         .main-info .sep {
@@ -144,10 +143,11 @@ export const printData = (data) => {
           display: grid;
           grid-template-columns: repeat(4, 1fr);
           gap: 8px;
-          text-align: left;
+          text-align: center;
+          align-items: center;
           user-select: text;
           margin-bottom: 4px;
-          padding: 8px 52px;
+          padding: 8px 50px;
         }
 
         /* ELEMENTS TABLE */
@@ -174,7 +174,7 @@ export const printData = (data) => {
         }
         
         .elements-table .value {
-          justify-self: start;
+          justify-self: center;
           font-weight: 600;
           font-size: 10pt;
         }
@@ -190,6 +190,11 @@ export const printData = (data) => {
           user-select: none;
           padding: 2px 53px;
           border-bottom: 2px solid #FFD700;
+        }
+        
+        .remarks-authorized div:nth-child(2) {
+          color: #ff0000;
+          text-transform: capitalize;
         }
 
         /* FOOTER MESSAGE */
@@ -221,7 +226,7 @@ export const printData = (data) => {
 
         <section class="main-info" aria-label="Basic certificate information">
           <div>
-            <label for="tokenNo">Token No</label><span class="sep">:</span><span id="tokenNo" class="value">${data.tokenNo || data.tokenno}</span>
+            <label for="tokenNo">Token No</label><span class="sep">:</span><span id="tokenNo" class="value">${data.tokenNo || data.tokenno || '-'}</span>
             <div></div><div></div><div></div><div></div><div></div>
             <label for="date">Date</label><span class="sep">:</span><span id="date" class="value">${formatDateForDisplay(data.date)}</span>
             <div></div><div></div><div></div><div></div><div></div>
@@ -231,40 +236,40 @@ export const printData = (data) => {
             <div></div><div></div><div></div><div></div><div></div>
             <label for="sample">Sample</label><span class="sep">:</span><span id="sample" class="value">${data.sample || '-'}</span>
             <div></div><div></div><div></div><div></div><div></div>
-            <label for="weight">Weight</label><span class="sep">:</span><span id="weight" class="value">${parseFloat(data.weight || 0).toFixed(3)} g</span>
+            <label for="weight">Weight</label><span class="sep">:</span><span id="weight" class="value">${data.weight ? parseFloat(data.weight).toFixed(3) + ' g' : '-'}</span>
             <div></div><div></div><div></div><div></div><div></div>
           </div>
         </section>
 
         <section class="gold-info-bar" aria-label="Gold fineness and karat details">
           <span>GOLD FINENESS %</span>
-          <span>${(data.gold_fineness || '0.00').replace('%', '')}</span>
+          <span>${data.gold_fineness ? data.gold_fineness.replace('%', '') : '-'}</span>
           <span>KARAT Ct</span>
-          <span>${data.karat || '0.00'} K</span>
+          <span>${data.karat ? data.karat + ' K' : '-'}</span>
         </section>
 
         <section class="elements-table" aria-label="Elemental composition values">
-          <div class="label">Silver</div><div class="colon">:</div><div class="value">${(data.silver || '0.00').padEnd(4, '0').substring(0, 4)}</div><div></div>
-          <div class="label">Copper</div><div class="colon">:</div><div class="value">${(data.copper || '0.00').padEnd(4, '0').substring(0, 4)}</div><div></div>
-          <div class="label">Zinc</div><div class="colon">:</div><div class="value">${(data.zinc || '0.00').padEnd(4, '0').substring(0, 4)}</div><div></div>
-          <div class="label">Cadmium</div><div class="colon">:</div><div class="value">${(data.cadmium || '0.00').padEnd(4, '0').substring(0, 4)}</div><div></div>
-          <div class="label">Osmium</div><div class="colon">:</div><div class="value">${(data.osmium || '0.00').padEnd(4, '0').substring(0, 4)}</div><div></div>
-          <div class="label">Titanium</div><div class="colon">:</div><div class="value">${(data.titanium || '0.00').padEnd(4, '0').substring(0, 4)}</div><div></div>
-          <div class="label">Rhenium</div><div class="colon">:</div><div class="value">${(data.rhenium || '0.00').padEnd(4, '0').substring(0, 4)}</div><div></div>
-          <div class="label">Indium</div><div class="colon">:</div><div class="value">${(data.indium || '0.00').padEnd(4, '0').substring(0, 4)}</div><div></div>
-          <div class="label">Nickel</div><div class="colon">:</div><div class="value">${(data.nickel || '0.00').padEnd(4, '0').substring(0, 4)}</div><div></div>
-          <div class="label">Tungsten</div><div class="colon">:</div><div class="value">${(data.tungsten || '0.00').padEnd(4, '0').substring(0, 4)}</div><div></div>
-          <div class="label">Iridium</div><div class="colon">:</div><div class="value">${(data.iridium || '0.00').padEnd(4, '0').substring(0, 4)}</div><div></div>
-          <div class="label">Ruthenium</div><div class="colon">:</div><div class="value">${(data.ruthenium || '0.00').padEnd(4, '0').substring(0, 4)}</div><div></div>
-          <div class="label">Rhodium</div><div class="colon">:</div><div class="value">${(data.rhodium || '0.00').padEnd(4, '0').substring(0, 4)}</div><div></div>
-          <div class="label">Palladium</div><div class="colon">:</div><div class="value">${(data.palladium || '0.00').padEnd(4, '0').substring(0, 4)}</div><div></div>
-          <div class="label">Platinum</div><div class="colon">:</div><div class="value">${(data.platinum || '0.00').padEnd(4, '0').substring(0, 4)}</div><div></div>
-          <div class="label">Others</div><div class="colon">:</div><div class="value">${(data.others || '0.00').padEnd(4, '0').substring(0, 4)}</div><div></div>
+          <div class="label">Silver</div><div class="colon">:</div><div class="value">${data.silver && parseFloat(data.silver) !== 0 ? parseFloat(data.silver).toFixed(2) : '-'}</div><div></div>
+          <div class="label">Copper</div><div class="colon">:</div><div class="value">${data.copper && parseFloat(data.copper) !== 0 ? parseFloat(data.copper).toFixed(2) : '-'}</div><div></div>
+          <div class="label">Zinc</div><div class="colon">:</div><div class="value">${data.zinc && parseFloat(data.zinc) !== 0 ? parseFloat(data.zinc).toFixed(2) : '-'}</div><div></div>
+          <div class="label">Cadmium</div><div class="colon">:</div><div class="value">${data.cadmium && parseFloat(data.cadmium) !== 0 ? parseFloat(data.cadmium).toFixed(2) : '-'}</div><div></div>
+          <div class="label">Osmium</div><div class="colon">:</div><div class="value">${data.osmium && parseFloat(data.osmium) !== 0 ? parseFloat(data.osmium).toFixed(2) : '-'}</div><div></div>
+          <div class="label">Titanium</div><div class="colon">:</div><div class="value">${data.titanium && parseFloat(data.titanium) !== 0 ? parseFloat(data.titanium).toFixed(2) : '-'}</div><div></div>
+          <div class="label">Rhenium</div><div class="colon">:</div><div class="value">${data.rhenium && parseFloat(data.rhenium) !== 0 ? parseFloat(data.rhenium).toFixed(2) : '-'}</div><div></div>
+          <div class="label">Indium</div><div class="colon">:</div><div class="value">${data.indium && parseFloat(data.indium) !== 0 ? parseFloat(data.indium).toFixed(2) : '-'}</div><div></div>
+          <div class="label">Nickel</div><div class="colon">:</div><div class="value">${data.nickel && parseFloat(data.nickel) !== 0 ? parseFloat(data.nickel).toFixed(2) : '-'}</div><div></div>
+          <div class="label">Tungsten</div><div class="colon">:</div><div class="value">${data.tungsten && parseFloat(data.tungsten) !== 0 ? parseFloat(data.tungsten).toFixed(2) : '-'}</div><div></div>
+          <div class="label">Iridium</div><div class="colon">:</div><div class="value">${data.iridium && parseFloat(data.iridium) !== 0 ? parseFloat(data.iridium).toFixed(2) : '-'}</div><div></div>
+          <div class="label">Ruthenium</div><div class="colon">:</div><div class="value">${data.ruthenium && parseFloat(data.ruthenium) !== 0 ? parseFloat(data.ruthenium).toFixed(2) : '-'}</div><div></div>
+          <div class="label">Rhodium</div><div class="colon">:</div><div class="value">${data.rhodium && parseFloat(data.rhodium) !== 0 ? parseFloat(data.rhodium).toFixed(2) : '-'}</div><div></div>
+          <div class="label">Palladium</div><div class="colon">:</div><div class="value">${data.palladium && parseFloat(data.palladium) !== 0 ? parseFloat(data.palladium).toFixed(2) : '-'}</div><div></div>
+          <div class="label">Platinum</div><div class="colon">:</div><div class="value">${data.platinum && parseFloat(data.platinum) !== 0 ? parseFloat(data.platinum).toFixed(2) : '-'}</div><div></div>
+          <div class="label">Others</div><div class="colon">:</div><div class="value">${data.others && parseFloat(data.others) !== 0 ? parseFloat(data.others).toFixed(2) : '-'}</div><div></div>
         </section>
 
         <section class="remarks-authorized" aria-label="Remarks and authorization">
           <div>REMARKS</div>
-          <div>${data.remarks || '-'}</div>
+          <div>${data.remarks ? data.remarks.charAt(0).toUpperCase() + data.remarks.slice(1) : '-'}</div>
           <div>Authorized By</div>
           <div>SS GOLD</div>
         </section>
