@@ -1,121 +1,279 @@
 import { formatDateForDisplay, formatTimeForDisplay } from './validation';
+import logo from '../../../assets/logo.png';
 
 export const printData = (data) => {
-  // Create a new window
-  const printWindow = window.open('', '_blank');
+  // Create a new window with larger dimensions
+  const printWindow = window.open('', '_blank', 'width=1200,height=800,left=100,top=100');
   
   // Create the content
   const content = `
     <html>
-      <head>
-        <title>Print - SS GOLD</title>
-        <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
-        <style>
-          @media print {
-            @page {
-              size: 210mm 99mm;
-              margin: 0;
-            }
-            body {
-              margin: 0;
-              -webkit-print-color-adjust: exact !important;
-              print-color-adjust: exact !important;
-            }
-          }
-          body {
-            margin: 0;
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-          }
-        </style>
-      </head>
-      <body>
-        <div style="width: 210mm; background-color: white; height: 99mm;">
-          <div style="text-align: center; font-family: Poppins; padding: 0; margin: 0; height: 27mm; display: flex; justify-content: space-between; align-items: center;">
-            <div style="display: flex; align-items: center;">
-              <h1 style="font-size: 55px; font-weight: bold; margin: 0px; background: linear-gradient(90deg, rgba(224,170,62,1) 0%, rgba(255,215,0,1) 67%, rgba(224,170,62,1) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
-                SS GOLD
-              </h1>
-            </div>
-            <div style="display: flex; flex-flow: column; align-items: start;">
-              <div style="margin: 0; padding: 0; font-weight: 700; font-size: 22px; color: red;">
-                Computer X-ray Testing
-              </div>
-              <div style="font-weight: 600; font-size: 13px; color: lightgreen;">
-                59, Main Bazaar, Nilakottai - 624208
-              </div>
-              <div style="font-weight: 600; font-size: 13px; color: lightgreen;">
-                Ph.No : 8903225544
-              </div>
-            </div>
+    <head>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1" />
+      <title>SS GOLD Print Layout</title>
+      <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Allura&display=swap" rel="stylesheet">
+      <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Allura&display=swap');
+        
+        @page {
+          size: A4 portrait;
+          margin: 0;
+          size: 210mm 297mm; /* A4 dimensions in mm */
+          margin: 0;
+          padding: 0;
+        }
+        
+        body {
+          margin: 0;
+          padding: 0;
+          font-family: 'Poppins', sans-serif;
+          font-size: 10pt;
+          color: #111;
+          box-sizing: border-box;
+          width: 210mm;
+          height: 99mm;
+          background: #fff;
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
+        
+        .container {
+          display: flex;
+          flex-direction: column;
+          height: 100%;
+          border: 1px solid transparent;
+          padding: 2mm 6mm;
+          border : 2px solid #FFD700;
+        }
+
+        /* HEADER */
+        .header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          border-bottom: 2px solid #FFD700;
+          padding: 0 41px;
+        
+        }
+        
+        .logo {
+          display: flex;
+          align-items: center;
+          font-weight: bold;
+          font-size: 40pt;
+          color: #c09823;
+          user-select: none;
+          white-space: nowrap;
+        }
+        .logo span {
+          margin-top: 6px;
+        }
+        .company-info {
+          text-align: left;
+          font-weight: 600;
+          font-size: 10pt;
+          user-select: none;
+          white-space: nowrap;
+        }
+        
+        .company-info p:first-child {
+          color: #FF0000;
+          font-weight: 600;
+          font-size: 16pt;
+          margin-bottom: 0;
+        }
+        
+        /*#4CBB17 - Kelly Green,#008000 - Green*/
+        
+        .company-info p:nth-child(2),
+        .company-info p:nth-child(3) {
+          color: #32CD32;
+          font-weight: 600;
+          font-size: 9pt;
+          margin: 0;
+          user-select: text;
+        }
+
+        /* MAIN INFO ROW */
+        .main-info {
+          display: grid;
+          grid-template-columns: repeat(4, max-content 8px auto 16px);
+          gap: 1px 12px;
+          font-weight: 600;
+          font-size: 9.5pt;
+          margin-bottom: 2px;
+          user-select: text;
+          align-items: center;
+          padding: 0 41px;
+        }
+        
+        .main-info > div {
+          display: contents;
+        }
+        
+        .main-info label {
+          font-weight: 600;
+          user-select: text;
+          justify-self: start;
+          text-align: left;
+          padding-left: 12px;
+        }
+        
+        .main-info .sep {
+          justify-self: start;
+          color: #333;
+        }
+        
+        .main-info span.value {
+          font-weight: 600;
+          justify-self: start;
+        }
+
+        /*#4CBB17 - Kelly Green,#008000 - Green*/
+
+        /* GOLD INFO BAR */
+        .gold-info-bar {
+          background-color: #32CD32;
+          color: yellow;
+          font-weight: 900;
+          font-size: 13pt;
+          border-radius: 3px;
+          border-top: 3px solid #FFD700;
+          border-bottom: 3px solid #FFD700;
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 8px;
+          text-align: left;
+          user-select: text;
+          margin-bottom: 4px;
+          padding: 8px 52px;
+        }
+
+        /* ELEMENTS TABLE */
+        .elements-table {
+          display: grid;
+          grid-template-columns: repeat(4, max-content 8px auto 16px);
+          gap: 6px 12px;
+          font-size: 9.5pt;
+          font-weight: 600;
+          color: #222;
+          margin-bottom: 4px;
+          user-select: text;
+          padding: 0 53px;
+        }
+        
+        .elements-table .label {
+          justify-self: start;
+          text-align: left;
+        }
+
+        .elements-table .colon {
+          justify-self: start;
+          color: #333;
+        }
+        
+        .elements-table .value {
+          justify-self: start;
+          font-weight: 600;
+          font-size: 10pt;
+        }
+
+        /* REMARKS AUTHORIZED */
+        .remarks-authorized {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 8px;
+          text-align: left;
+          font-weight: 600;
+          font-size: 9pt;
+          user-select: none;
+          padding: 2px 53px;
+          border-bottom: 2px solid #FFD700;
+        }
+
+        /* FOOTER MESSAGE */
+        .footer-message {
+          font-family: 'Allura', cursive;
+          font-size: 14pt;
+          font-weight: 600;
+          text-align: center;
+          margin-top: 2px;
+          user-select: none;
+          color: #222;
+          
+        }
+      </style>
+    </head>
+    <body>
+      <div class="container" role="document" aria-label="SS Gold certificate layout">
+        <header class="header">
+          <div class="logo" aria-label="SS Gold Logo">
+            <img src="${logo}" alt="SS GOLD Logo" style="height: 78px;" />
+            <span style="background: linear-gradient(90deg,rgba(214, 164, 6, 1) 0%, rgba(255, 215, 0, 1) 50%, rgba(214, 164, 6, 1) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; color: transparent;">SS GOLD</span>
           </div>
-          <hr style="border-top: 3px solid #D3B04D; margin: 0;" />
-          <div style="display: grid; grid-template-columns: repeat(10,1fr); grid-template-rows: repeat(3,1fr); margin: 0; font-family: Poppins; color: black; font-weight: 500;">
-            <div style="grid-column: 1/3;">Token No :</div>
-            <div style="grid-column: 3/6;">${data.tokenNo || data.tokenno}</div>
-            <div style="grid-column: 6/8;">Date :</div>
-            <div style="grid-column: 8/11;">${formatDateForDisplay(data.date)}</div>
-            <div style="grid-column: 1/3;">Name :</div>
-            <div style="grid-column: 3/6;">${data.name}</div>
-            <div style="grid-column: 6/8;">Time :</div>
-            <div style="grid-column: 8/11;">${formatTimeForDisplay(data.time)}</div>
-            <div style="grid-column: 1/3;">Sample :</div>
-            <div style="grid-column: 3/6;">${data.sample}</div>
-            <div style="grid-column: 6/8;">Weight :</div>
-            <div style="grid-column: 8/11;">${parseFloat(data.weight).toFixed(3)} g</div>
+          <div class="company-info" aria-label="Company details: Computer X-ray Testing, 59 Main Bazaar, Nilakottai 624208, Phone number 8903225544">
+            <p>Computer X-ray Testing</p>
+            <p>59, Main Bazaar, Nilakottai - 624 208</p>
+            <p>Ph.No : 8903225544</p>
           </div>
-          <hr style="border-top: 3px solid #D3B04D; margin: 0;" />
-          <div style="margin: 0; height: 10mm; background: red; display: grid; grid-template-columns: repeat(10,1fr); align-content: center; color: #FFD700; font-weight: bolder;">
-            <div style="grid-column: 1/4;">GOLD FINENESS %</div>
-            <div style="grid-column: 4/6;">${data.gold_fineness}%</div>
-            <div style="grid-column: 6/8;">KARACT Ct</div>
-            <div style="grid-column: 8;">${data.karat}K</div>
+        </header>
+
+        <section class="main-info" aria-label="Basic certificate information">
+          <div>
+            <label for="tokenNo">Token No</label><span class="sep">:</span><span id="tokenNo" class="value">${data.tokenNo || data.tokenno}</span>
+            <div></div><div></div><div></div><div></div><div></div>
+            <label for="date">Date</label><span class="sep">:</span><span id="date" class="value">${formatDateForDisplay(data.date)}</span>
+            <div></div><div></div><div></div><div></div><div></div>
+            <label for="name">Name</label><span class="sep">:</span><span id="name" class="value">${data.name || '-'}</span>
+            <div></div><div></div><div></div><div></div><div></div>
+            <label for="time">Time</label><span class="sep">:</span><span id="time" class="value">${formatTimeForDisplay(data.time)}</span>
+            <div></div><div></div><div></div><div></div><div></div>
+            <label for="sample">Sample</label><span class="sep">:</span><span id="sample" class="value">${data.sample || '-'}</span>
+            <div></div><div></div><div></div><div></div><div></div>
+            <label for="weight">Weight</label><span class="sep">:</span><span id="weight" class="value">${parseFloat(data.weight || 0).toFixed(3)} g</span>
+            <div></div><div></div><div></div><div></div><div></div>
           </div>
-          <hr style="border-top: 3px solid #D3B04D; margin: 0;" />
-          <div style="margin: 0; display: grid; grid-template-columns: repeat(10,1fr); grid-template-rows: repeat(5,1fr); font-style: normal; height: 29mm; font-size: 14px; color: black; font-weight: 500;">
-            <div style="grid-column: 1/3;">Silver :</div>
-            <div style="grid-column: 3;">01</div>
-            <div>Nickel :</div>
-            <div>02</div>
-            <div>Osmium :</div>
-            <div>03</div>
-            <div>Titanium :</div>
-            <div>04</div>
-            <div style="grid-column: 1/3;">Copper :</div>
-            <div>05</div>
-            <div>Tungsten :</div>
-            <div>06</div>
-            <div>Rhodium :</div>
-            <div>07</div>
-            <div>Palladium :</div>
-            <div>08</div>
-            <div style="grid-column: 1/3;">Zinc</div>
-            <div>09</div>
-            <div>Irudium</div>
-            <div>10</div>
-            <div>Rhenium</div>
-            <div>11</div>
-            <div>Platinum</div>
-            <div>12</div>
-            <div style="grid-column: 1/3;">Cadmium</div>
-            <div>13</div>
-            <div>Ruthenium</div>
-            <div>14</div>
-            <div>Indium</div>
-            <div>15</div>
-            <div>Others</div>
-            <div>16</div>
-            <div style="grid-column: 1/3;">REMARKS</div>
-            <div style="grid-column: 3/5;">${data.remarks || '-'}</div>
-            <div style="grid-column: 5/8;">Authorized By</div>
-            <div style="grid-column: 8/11;">SS GOLD</div>
-          </div>
-          <hr style="border-top: 3px solid #D3B04D; margin: 0;" />
-          <div style="text-align: center; font-size: 14px; color: black; font-weight: 500;">
-            Thank You.... Visit Again....
-          </div>
-        </div>
-      </body>
+        </section>
+
+        <section class="gold-info-bar" aria-label="Gold fineness and karat details">
+          <span>GOLD FINENESS %</span>
+          <span>${(data.gold_fineness || '0.00').replace('%', '')}</span>
+          <span>KARAT Ct</span>
+          <span>${data.karat || '0.00'} K</span>
+        </section>
+
+        <section class="elements-table" aria-label="Elemental composition values">
+          <div class="label">Silver</div><div class="colon">:</div><div class="value">${(data.silver || '0.00').padEnd(4, '0').substring(0, 4)}</div><div></div>
+          <div class="label">Copper</div><div class="colon">:</div><div class="value">${(data.copper || '0.00').padEnd(4, '0').substring(0, 4)}</div><div></div>
+          <div class="label">Zinc</div><div class="colon">:</div><div class="value">${(data.zinc || '0.00').padEnd(4, '0').substring(0, 4)}</div><div></div>
+          <div class="label">Cadmium</div><div class="colon">:</div><div class="value">${(data.cadmium || '0.00').padEnd(4, '0').substring(0, 4)}</div><div></div>
+          <div class="label">Osmium</div><div class="colon">:</div><div class="value">${(data.osmium || '0.00').padEnd(4, '0').substring(0, 4)}</div><div></div>
+          <div class="label">Titanium</div><div class="colon">:</div><div class="value">${(data.titanium || '0.00').padEnd(4, '0').substring(0, 4)}</div><div></div>
+          <div class="label">Rhenium</div><div class="colon">:</div><div class="value">${(data.rhenium || '0.00').padEnd(4, '0').substring(0, 4)}</div><div></div>
+          <div class="label">Indium</div><div class="colon">:</div><div class="value">${(data.indium || '0.00').padEnd(4, '0').substring(0, 4)}</div><div></div>
+          <div class="label">Nickel</div><div class="colon">:</div><div class="value">${(data.nickel || '0.00').padEnd(4, '0').substring(0, 4)}</div><div></div>
+          <div class="label">Tungsten</div><div class="colon">:</div><div class="value">${(data.tungsten || '0.00').padEnd(4, '0').substring(0, 4)}</div><div></div>
+          <div class="label">Iridium</div><div class="colon">:</div><div class="value">${(data.iridium || '0.00').padEnd(4, '0').substring(0, 4)}</div><div></div>
+          <div class="label">Ruthenium</div><div class="colon">:</div><div class="value">${(data.ruthenium || '0.00').padEnd(4, '0').substring(0, 4)}</div><div></div>
+          <div class="label">Rhodium</div><div class="colon">:</div><div class="value">${(data.rhodium || '0.00').padEnd(4, '0').substring(0, 4)}</div><div></div>
+          <div class="label">Palladium</div><div class="colon">:</div><div class="value">${(data.palladium || '0.00').padEnd(4, '0').substring(0, 4)}</div><div></div>
+          <div class="label">Platinum</div><div class="colon">:</div><div class="value">${(data.platinum || '0.00').padEnd(4, '0').substring(0, 4)}</div><div></div>
+          <div class="label">Others</div><div class="colon">:</div><div class="value">${(data.others || '0.00').padEnd(4, '0').substring(0, 4)}</div><div></div>
+        </section>
+
+        <section class="remarks-authorized" aria-label="Remarks and authorization">
+          <div>REMARKS</div>
+          <div>${data.remarks || '-'}</div>
+          <div>Authorized By</div>
+          <div>SS GOLD</div>
+        </section>
+
+        <footer class="footer-message" aria-label="Thank you message">
+          Thank You .... Visit Again....
+        </footer>
+      </div>
+    </body>
     </html>
   `;
 
