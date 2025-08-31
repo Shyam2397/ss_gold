@@ -119,6 +119,10 @@ export const printData = (data) => {
           padding-left: 13px;
         }
         
+        .main-info .padded-label {
+          padding-left: 55px; /* Add more padding for specific labels */
+        }
+        
         .main-info .sep {
           justify-self: start;
           color: #333;
@@ -228,15 +232,15 @@ export const printData = (data) => {
           <div>
             <label for="tokenNo">Token No</label><span class="sep">:</span><span id="tokenNo" class="value">${data.tokenNo || data.tokenno || '-'}</span>
             <div></div><div></div><div></div><div></div><div></div>
-            <label for="date">Date</label><span class="sep">:</span><span id="date" class="value">${formatDateForDisplay(data.date)}</span>
+            <label for="date" class="padded-label">Date</label><span class="sep">:</span><span id="date" class="value">${formatDateForDisplay(data.date)}</span>
             <div></div><div></div><div></div><div></div><div></div>
             <label for="name">Name</label><span class="sep">:</span><span id="name" class="value">${data.name || '-'}</span>
             <div></div><div></div><div></div><div></div><div></div>
-            <label for="time">Time</label><span class="sep">:</span><span id="time" class="value">${formatTimeForDisplay(data.time)}</span>
+            <label for="time" class="padded-label">Time</label><span class="sep">:</span><span id="time" class="value">${formatTimeForDisplay(data.time)}</span>
             <div></div><div></div><div></div><div></div><div></div>
             <label for="sample">Sample</label><span class="sep">:</span><span id="sample" class="value">${data.sample || '-'}</span>
             <div></div><div></div><div></div><div></div><div></div>
-            <label for="weight">Weight</label><span class="sep">:</span><span id="weight" class="value">${data.weight ? parseFloat(data.weight).toFixed(3) + ' g' : '-'}</span>
+            <label for="weight" class="padded-label">Weight</label><span class="sep">:</span><span id="weight" class="value">${data.weight ? parseFloat(data.weight).toFixed(3) + ' g' : '-'}</span>
             <div></div><div></div><div></div><div></div><div></div>
           </div>
         </section>
