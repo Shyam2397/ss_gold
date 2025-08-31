@@ -2,12 +2,12 @@ const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 const { spawn, exec } = require('child_process');
 const os = require('os');
-const isDev = require('electron-is-dev');
 
 // Add logging utility
 const log = require('electron-log');
 log.transports.file.level = 'info';
 log.info('App starting...');
+log.info(`app.isPackaged: ${app.isPackaged}`);
 
 // Add this with other global variables at the top of the file
 let isQuitting = false;
@@ -198,7 +198,7 @@ async function startServers() {
   try {
     log.info('Starting servers...');
 
-    if (isDev) {
+    if (!app.isPackaged) {
       // In development, start both Vite and backend servers
       await Promise.all([killPort(PORTS.VITE), killPort(PORTS.SERVER)]);
       log.info('Existing development ports cleaned');
@@ -261,63 +261,44 @@ async function startServers() {
       productionServerPort = await findAvailablePort(PORTS.SERVER);
       log.info(`Production server port: ${productionServerPort}`);
 
-      const serverPath = isDev
-        ? path.join(__dirname, 'server', 'server.js')
-        : path.join(process.resourcesPath, 'server', 'server.js');
+      const serverPath = path.join(__dirname, '..', 'server', 'server.js');
+      const serverDir = path.join(__dirname, '..', 'server');
 
-      // For production, use a more direct approach to spawn the server
-      const serverDir = isDev 
-        ? path.join(__dirname, 'server')
-        : path.join(process.resourcesPath, 'server');
+      log.info(`Starting production server from: ${serverPath}`);
+      log.info(`Working directory for server: ${serverDir}`);
 
-      log.info(`Starting server from: ${serverPath}`);
-      log.info(`Working directory: ${serverDir}`);
-
-      // Use the system's node executable directly
-      const nodePath = process.platform === 'win32' ? 'node.exe' : 'node';
-      
-      // Spawn the process directly with node
-      backendServer = spawn(nodePath, [serverPath], {
+      backendServer = spawn('node', [serverPath], {
         cwd: serverDir,
-        shell: false,
+        shell: false, // Important for packaged apps
         windowsHide: true,
         env: {
           ...process.env,
           PORT: productionServerPort,
           NODE_ENV: 'production',
-          ELECTRON_RUN_AS_NODE: '1'
-        }
+        },
       });
 
-      // Handle process events
       backendServer.stdout.on('data', (data) => {
         const output = data.toString().trim();
         if (output) log.info(`[Backend]: ${output}`);
       });
-      
+
       backendServer.stderr.on('data', (data) => {
         const error = data.toString().trim();
         if (error) log.error(`[Backend Error]: ${error}`);
       });
-      
+
       backendServer.on('error', (err) => {
         log.error('Failed to start backend server:', err);
       });
-      
+
       backendServer.on('close', (code) => {
         log.info(`Backend server process exited with code ${code}`);
       });
-      
+
       backendServer.on('spawn', () => {
         log.info('Backend server spawned for production');
       });
-      
-      // Add a small delay to ensure the process starts
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      backendServer.stdout.on('data', (data) => log.info(`[Backend]: ${data}`));
-      backendServer.stderr.on('data', (data) => log.error(`[Backend Error]: ${data}`));
-      backendServer.on('error', (err) => log.error('Failed to start backend server:', err));
-      backendServer.on('spawn', () => log.info('Backend server spawned for production'));
 
       if (!(await waitForServer(`http://localhost:${productionServerPort}`))) {
         throw new Error('Production server failed to start in time');
@@ -405,7 +386,7 @@ async function createWindow() {
     app.quit();
   });
 
-    const loadURL = isDev
+    const loadURL = !app.isPackaged
     ? `http://localhost:${PORTS.VITE}`
     : `file://${path.join(__dirname, 'client/dist/index.html')}`;
 
@@ -568,7 +549,7 @@ async function cleanupProcesses() {
   }
 
   // 3. Kill Vite dev server if in development
-  if (viteServer && isDev) {
+  if (viteServer && !app.isPackaged) {
     cleanupTasks.push(safeCleanup('killing Vite server', () => 
       safeKillPid(viteServer.pid, 'Vite server')
     ));

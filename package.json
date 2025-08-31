@@ -12,7 +12,6 @@
     "build": "electron-builder"
   },
   "dependencies": {
-    "electron-is-dev": "^3.0.1",
     "electron-log": "^5.4.1",
     "electron-store": "^10.1.0",
     "node-fetch": "2",
