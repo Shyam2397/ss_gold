@@ -249,21 +249,28 @@ export const printData = (data) => {
         </section>
 
         <section class="elements-table" aria-label="Elemental composition values">
+          <!-- Row 1 -->
           <div class="label">Silver</div><div class="colon">:</div><div class="value">${data.silver && parseFloat(data.silver) !== 0 ? parseFloat(data.silver).toFixed(2) : '-'}</div><div></div>
-          <div class="label">Copper</div><div class="colon">:</div><div class="value">${data.copper && parseFloat(data.copper) !== 0 ? parseFloat(data.copper).toFixed(2) : '-'}</div><div></div>
-          <div class="label">Zinc</div><div class="colon">:</div><div class="value">${data.zinc && parseFloat(data.zinc) !== 0 ? parseFloat(data.zinc).toFixed(2) : '-'}</div><div></div>
-          <div class="label">Cadmium</div><div class="colon">:</div><div class="value">${data.cadmium && parseFloat(data.cadmium) !== 0 ? parseFloat(data.cadmium).toFixed(2) : '-'}</div><div></div>
+          <div class="label">Nickel</div><div class="colon">:</div><div class="value">${data.nickel && parseFloat(data.nickel) !== 0 ? parseFloat(data.nickel).toFixed(2) : '-'}</div><div></div>
           <div class="label">Osmium</div><div class="colon">:</div><div class="value">${data.osmium && parseFloat(data.osmium) !== 0 ? parseFloat(data.osmium).toFixed(2) : '-'}</div><div></div>
           <div class="label">Titanium</div><div class="colon">:</div><div class="value">${data.titanium && parseFloat(data.titanium) !== 0 ? parseFloat(data.titanium).toFixed(2) : '-'}</div><div></div>
-          <div class="label">Rhenium</div><div class="colon">:</div><div class="value">${data.rhenium && parseFloat(data.rhenium) !== 0 ? parseFloat(data.rhenium).toFixed(2) : '-'}</div><div></div>
-          <div class="label">Indium</div><div class="colon">:</div><div class="value">${data.indium && parseFloat(data.indium) !== 0 ? parseFloat(data.indium).toFixed(2) : '-'}</div><div></div>
-          <div class="label">Nickel</div><div class="colon">:</div><div class="value">${data.nickel && parseFloat(data.nickel) !== 0 ? parseFloat(data.nickel).toFixed(2) : '-'}</div><div></div>
+          
+          <!-- Row 2 -->
+          <div class="label">Copper</div><div class="colon">:</div><div class="value">${data.copper && parseFloat(data.copper) !== 0 ? parseFloat(data.copper).toFixed(2) : '-'}</div><div></div>
           <div class="label">Tungsten</div><div class="colon">:</div><div class="value">${data.tungsten && parseFloat(data.tungsten) !== 0 ? parseFloat(data.tungsten).toFixed(2) : '-'}</div><div></div>
-          <div class="label">Iridium</div><div class="colon">:</div><div class="value">${data.iridium && parseFloat(data.iridium) !== 0 ? parseFloat(data.iridium).toFixed(2) : '-'}</div><div></div>
-          <div class="label">Ruthenium</div><div class="colon">:</div><div class="value">${data.ruthenium && parseFloat(data.ruthenium) !== 0 ? parseFloat(data.ruthenium).toFixed(2) : '-'}</div><div></div>
           <div class="label">Rhodium</div><div class="colon">:</div><div class="value">${data.rhodium && parseFloat(data.rhodium) !== 0 ? parseFloat(data.rhodium).toFixed(2) : '-'}</div><div></div>
           <div class="label">Palladium</div><div class="colon">:</div><div class="value">${data.palladium && parseFloat(data.palladium) !== 0 ? parseFloat(data.palladium).toFixed(2) : '-'}</div><div></div>
+          
+          <!-- Row 3 -->
+          <div class="label">Zinc</div><div class="colon">:</div><div class="value">${data.zinc && parseFloat(data.zinc) !== 0 ? parseFloat(data.zinc).toFixed(2) : '-'}</div><div></div>
+          <div class="label">Iridium</div><div class="colon">:</div><div class="value">${data.iridium && parseFloat(data.iridium) !== 0 ? parseFloat(data.iridium).toFixed(2) : '-'}</div><div></div>
+          <div class="label">Rhenium</div><div class="colon">:</div><div class="value">${data.rhenium && parseFloat(data.rhenium) !== 0 ? parseFloat(data.rhenium).toFixed(2) : '-'}</div><div></div>
           <div class="label">Platinum</div><div class="colon">:</div><div class="value">${data.platinum && parseFloat(data.platinum) !== 0 ? parseFloat(data.platinum).toFixed(2) : '-'}</div><div></div>
+          
+          <!-- Row 4 -->
+          <div class="label">Cadmium</div><div class="colon">:</div><div class="value">${data.cadmium && parseFloat(data.cadmium) !== 0 ? parseFloat(data.cadmium).toFixed(2) : '-'}</div><div></div>
+          <div class="label">Ruthenium</div><div class="colon">:</div><div class="value">${data.ruthenium && parseFloat(data.ruthenium) !== 0 ? parseFloat(data.ruthenium).toFixed(2) : '-'}</div><div></div>
+          <div class="label">Indium</div><div class="colon">:</div><div class="value">${data.indium && parseFloat(data.indium) !== 0 ? parseFloat(data.indium).toFixed(2) : '-'}</div><div></div>
           <div class="label">Others</div><div class="colon">:</div><div class="value">${data.others && parseFloat(data.others) !== 0 ? parseFloat(data.others).toFixed(2) : '-'}</div><div></div>
         </section>
 
