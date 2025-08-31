@@ -88,39 +88,14 @@
             alt="SS GOLD Logo"
         >
         <script>
-            document.addEventListener('DOMContentLoaded', () => {
+            document.addEventListener('DOMContentLoaded', async () => {
                 const logo = document.getElementById('splash-logo');
-                const paths = [
-                    // Development paths
-                    'client/src/assets/logo.png',
-                    './client/src/assets/logo.png',
-                    '../client/src/assets/logo.png',
-                    '../../client/src/assets/logo.png',
-                    // Production paths
-                    'resources/app/client/src/assets/logo.png',
-                    '../resources/app/client/src/assets/logo.png',
-                    // Fallback to icon in app resources
-                    'resources/app/client/src/assets/logo.ico',
-                    '../resources/app/client/src/assets/logo.ico',
-                    // Last resort: use a data URL placeholder
-                    'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNTYgMjU2Ij48cmVjdCB3aWR0aD0iMjU2IiBoZWlnaHQ9IjI1NiIgZmlsbD0iI2Y1OTgyMyIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iNDgiIGZvbnQtd2VpZ2h0PSJib2xkIiBmaWxsPSJ3aGl0ZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPlNTPC90ZXh0Pjwvc3ZnPg=='
-                ];
-
-                function tryNextPath(index) {
-                    if (index >= paths.length) return;
-                    
-                    const img = new Image();
-                    img.onload = function() {
-                        logo.src = this.src;
-                    };
-                    img.onerror = function() {
-                        tryNextPath(index + 1);
-                    };
-                    img.src = paths[index];
+                try {
+                    const logoPath = await window.electronAPI.getLogoPath();
+                    logo.src = logoPath;
+                } catch (error) {
+                    console.error('Failed to load logo:', error);
                 }
-
-                // Start trying paths
-                tryNextPath(0);
             });
         </script>
         <div class="company">SS GOLD</div>

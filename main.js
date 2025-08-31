@@ -338,7 +338,10 @@ const stateManager = {
 };
 
 function createSplashWindow() {
-  const iconPath = path.join(__dirname, 'client', 'src', 'assets', 'logo.ico');
+  const iconPath = path.join(
+    app.isPackaged ? process.resourcesPath : __dirname,
+    app.isPackaged ? 'assets/logo.ico' : 'client/src/assets/logo.ico'
+  );
   
   splashWindow = new BrowserWindow({
     width: 400,
@@ -348,14 +351,18 @@ function createSplashWindow() {
     alwaysOnTop: true,
     icon: iconPath,
     webPreferences: {
-      nodeIntegration: true
+      preload: path.join(__dirname, 'splash-preload.js'),
+      contextIsolation: true
     }
   });
   splashWindow.loadFile('splash.html');
 }
 
 async function createWindow() {
-  const iconPath = path.join(__dirname, 'client', 'src', 'assets', 'logo.ico');
+  const iconPath = path.join(
+    app.isPackaged ? process.resourcesPath : __dirname,
+    app.isPackaged ? 'assets/logo.ico' : 'client/src/assets/logo.ico'
+  );
   
   const windowState = getWindowState();
   mainWindow = new BrowserWindow({
@@ -427,6 +434,13 @@ ipcMain.handle('get-api-url', () => {
     return `http://localhost:${productionServerPort}`;
   }
   return null;
+});
+
+ipcMain.handle('get-logo-path', () => {
+  return path.join(
+    app.isPackaged ? process.resourcesPath : __dirname,
+    app.isPackaged ? 'assets/logo.png' : 'client/src/assets/logo.png'
+  );
 });
 
 ipcMain.handle('get-system-memory', () => {

@@ -9,7 +9,9 @@
     "server": "cd server && yarn dev",
     "electron": "wait-on http://localhost:3000 && electron .",
     "dev": "cross-env ELECTRON_START_URL=http://localhost:3000 concurrently \"yarn client\" \"yarn server\" \"yarn electron\"",
-    "build": "electron-builder"
+    "prebuild": "if exist dist ( rmdir /s /q dist )",
+    "build": "electron-builder",
+    "postinstall": "cd server && yarn install"
   },
   "dependencies": {
     "electron-log": "^5.4.1",
@@ -43,37 +45,29 @@
     "files": [
       "main.js",
       "preload.js",
+      "splash-preload.js",
       "splash.html",
-      "client/dist",
-      "client/src/assets/logo.png",
-      "client/src/assets/logo.ico",
-      "node_modules",
-      "package.json"
-    ],
-    "extraFiles": [
-      {
-        "from": "client/src/assets/logo.png",
-        "to": "client/src/assets/logo.png"
-      },
-      {
-        "from": "client/src/assets/logo.ico",
-        "to": "client/src/assets/logo.ico"
-      }
+      "client/dist/**/*"
     ],
     "extraResources": [
       {
-        "from": "server",
+        "from": "server/",
         "to": "server",
+        "filter": [
+          "**/*",
+          "!node_modules/"
+        ]
+      },
+      {
+        "from": "server/node_modules/",
+        "to": "server/node_modules/",
         "filter": [
           "**/*"
         ]
       },
       {
-        "from": "server/node_modules",
-        "to": "server/node_modules",
-        "filter": [
-          "**/*"
-        ]
+        "from": "client/src/assets",
+        "to": "assets"
       }
     ],
     "directories": {
