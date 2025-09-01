@@ -137,11 +137,28 @@ const ThermalPrinter = ({ tableData }) => {
           </div>
           <div class="info-row">
             <span>Issued (Bar-Ft-999)</span>
-            <span class="value">${(tableData.reduce((total, row) => {
-              const weight = parseFloat(row.weight);
-              const exGold = parseFloat(row.exGold);
-              return total + ((weight - 0.010) * exGold / 100);
-            }, 0).toFixed(2)) + '0'}</span>
+            <span class="value">${(() => {
+              const total = tableData.reduce((sum, row) => {
+                const weight = parseFloat(row.weight);
+                const exGold = parseFloat(row.exGold);
+                return sum + ((weight - 0.010) * exGold / 100);
+              }, 0);
+              
+              // Custom rounding logic
+              const rounded = Math.floor(total * 1000) / 1000; // Keep 3 decimal places
+              const thirdDecimal = Math.floor(rounded * 1000) % 10;
+              
+              let result;
+              if (thirdDecimal <= 6) {
+                // Round down to 2 decimal places
+                result = (Math.floor(rounded * 100) / 100).toFixed(2);
+              } else {
+                // Round up to 2 decimal places
+                result = (Math.ceil(rounded * 100) / 100).toFixed(2);
+              }
+              // Add '0' at the end to ensure 2 decimal places are always shown
+              return result + '0';
+            })()}</span>
           </div>
           <div class="info-row">
             <span>Balance</span>
