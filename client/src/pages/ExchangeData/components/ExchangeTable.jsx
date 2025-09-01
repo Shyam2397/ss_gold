@@ -456,7 +456,7 @@ const ExchangeTable = ({ exchanges, loading, onDelete, onUpdate }) => {
 
   return (
     <>
-      <div className="mt-3 bg-white rounded-xl shadow-inner overflow-hidden h-[500px]">
+      <div className="mt-3 bg-white rounded-xl shadow-inner overflow-hidden h-[542px]">
         <AutoSizer>
           {({ width, height }) => (
             <div style={{ height, width, overflowX: 'auto', overflowY: 'hidden' }}>
