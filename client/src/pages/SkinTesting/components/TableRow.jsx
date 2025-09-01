@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { FiEdit2, FiTrash2 } from 'react-icons/fi';
 import { FaWhatsapp } from 'react-icons/fa';
 import { AutoSizer, Table, Column } from 'react-virtualized';
@@ -13,13 +13,29 @@ const TableRow = React.memo(({
   onEdit, 
   onDelete,
 }) => {
-  // Optimize sorting with simpler logic
+  // Sort tests by alphanumeric token number (A1, A2, ..., A999, B1, B2, ...)
   const sortedTests = useMemo(() => {
     if (!skinTests.length) return [];
     return [...skinTests].sort((a, b) => {
-      const tokenA = (a.tokenNo || a.tokenno || '').toString();
-      const tokenB = (b.tokenNo || b.tokenno || '').toString();
-      return tokenB.localeCompare(tokenA, undefined, { numeric: true });
+      const getTokenParts = (token) => {
+        const str = (token.tokenNo || token.tokenno || '').toString();
+        // Match letter part and number part separately
+        const match = str.match(/^([A-Za-z]*)(\d*)$/) || ['', '', ''];
+        return {
+          prefix: match[1] || '',
+          number: parseInt(match[2] || '0', 10)
+        };
+      };
+      
+      const tokenA = getTokenParts(a);
+      const tokenB = getTokenParts(b);
+      
+      // First compare the letter prefix
+      const prefixCompare = tokenA.prefix.localeCompare(tokenB.prefix);
+      if (prefixCompare !== 0) return prefixCompare;
+      
+      // If prefixes are the same, compare the numbers
+      return tokenA.number - tokenB.number;
     });
   }, [skinTests]);
 

@@ -155,7 +155,7 @@ export const useSkinTest = () => {
   const loadSkinTests = useCallback(async () => {
     dispatch({ type: ACTIONS.SET_LOADING, payload: true });
     try {
-      const skinTests = await skinTestService.getSkinTests();
+      let skinTests = await skinTestService.getSkinTests();
       
       // Only fetch phone numbers if we have tests with codes
       if (skinTests.some(test => test.code)) {
@@ -174,12 +174,34 @@ export const useSkinTest = () => {
             }
           })
         );
-        
-        // Only update if tests have actually changed
-        dispatch({ type: ACTIONS.SET_SKIN_TESTS, payload: updatedTests });
-      } else {
-        dispatch({ type: ACTIONS.SET_SKIN_TESTS, payload: skinTests });
+        skinTests = updatedTests;
       }
+      
+      // Sort the tests by token number (A1, A2, ..., A999, B1, B2, ...)
+      const sortedTests = [...skinTests].sort((a, b) => {
+        const getTokenParts = (test) => {
+          const tokenStr = (test.tokenNo || test.tokenno || '').toString();
+          // Match letter part and number part separately
+          const match = tokenStr.match(/^([A-Za-z]*)(\d*)$/) || ['', '', ''];
+          return {
+            prefix: match[1] || '',
+            number: parseInt(match[2] || '0', 10)
+          };
+        };
+        
+        const tokenA = getTokenParts(a);
+        const tokenB = getTokenParts(b);
+        
+        // First compare the letter prefix
+        const prefixCompare = tokenA.prefix.localeCompare(tokenB.prefix);
+        if (prefixCompare !== 0) return prefixCompare;
+        
+        // If prefixes are the same, compare the numbers
+        return tokenA.number - tokenB.number;
+      });
+      
+      // Update the state with sorted tests
+      dispatch({ type: ACTIONS.SET_SKIN_TESTS, payload: sortedTests });
     } catch (err) {
       console.error('Error loading skin tests:', err);
       dispatch({ type: ACTIONS.SET_ERROR, payload: 'Failed to fetch skin tests: ' + (err.message || 'Unknown error') });
