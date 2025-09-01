@@ -53,7 +53,7 @@ const SkinTestDataPage = () => {
         </div>
       )}
 
-      <div className="mb-5 bg-white p-5 rounded-lg shadow-sm">
+      <div className="mb-5 bg-white px-5 py-2.5 rounded-lg shadow-sm">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
           <DateInput
             label="From Date"
@@ -69,7 +69,7 @@ const SkinTestDataPage = () => {
           </div>
           <button
             onClick={clearDates}
-            className="flex items-center justify-center gap-2 px-4 py-2 text-red-600 hover:text-red-700 transition-colors duration-150"
+            className="flex items-center justify-center gap-2 px-4 py-2 text-red-600 hover:text-red-700 transition-colors duration-150 bg-amber-50 hover:bg-amber-100 rounded-xl w-[150px] ml-16 border-amber-500"
           >
             <FiX className="h-4.5 w-4.5" />
             Clear Dates
