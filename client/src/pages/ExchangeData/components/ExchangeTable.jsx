@@ -177,24 +177,35 @@ const ExchangeTable = ({ exchanges, loading, onDelete, onUpdate }) => {
   const [selectedExchange, setSelectedExchange] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
 
-  // Update the sorting logic to properly handle dates
+  // Sort exchanges by date (descending) and time (descending)
   const sortedExchanges = [...exchanges].sort((a, b) => {
     // Parse dates using the same format as they appear in the table (DD-MM-YYYY)
     const [dayA, monthA, yearA] = (a.date || '').split('-');
-    const [dayB, monthB, yearB] = (b.date || '').split('-');
+    const [dayB, monthB, yearB] = (b.date || '').split('-')
     
     // Create Date objects (subtract 1 from month as JS months are 0-based)
     const dateA = new Date(yearA, monthA - 1, dayA);
     const dateB = new Date(yearB, monthB - 1, dayB);
     
-    // Compare dates first
-    if (dateA - dateB !== 0) {
-      return dateB - dateA; // For descending order
+    // Compare dates first (descending order)
+    const dateComparison = dateB - dateA;
+    if (dateComparison !== 0) {
+      return dateComparison;
     }
     
-    // If dates are equal, compare times
+    // If dates are equal, compare times (descending order - latest first)
     if (a.time && b.time) {
-      return b.time.localeCompare(a.time);
+      // Parse time strings into total seconds for accurate comparison
+      const parseTime = (timeStr) => {
+        const [hours, minutes, seconds] = timeStr.split(':').map(Number);
+        return (hours * 3600) + (minutes * 60) + (seconds || 0);
+      };
+      
+      const timeA = parseTime(a.time);
+      const timeB = parseTime(b.time);
+      
+      // Sort in descending order (latest time first)
+      return timeB - timeA;
     }
     
     return 0;

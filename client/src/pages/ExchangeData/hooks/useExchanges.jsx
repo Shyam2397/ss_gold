@@ -18,23 +18,37 @@ const useExchanges = () => {
     }, 3000);
   };
 
+  const parseTimeToSeconds = (timeStr) => {
+    if (!timeStr) return 0;
+    const [hours = 0, minutes = 0, seconds = 0] = timeStr.split(':').map(Number);
+    return (hours * 3600) + (minutes * 60) + seconds;
+  };
+
   const fetchExchanges = useCallback(async () => {
     setLoading(true);
     try {
       const exchangeData = await exchangeService.getExchanges();
       
       // Parse dates and sort
-      const sortedExchanges = exchangeData.sort((a, b) => {
-        // First try to parse using the parseDate function
+      const sortedExchanges = [...exchangeData].sort((a, b) => {
+        // Parse dates
         let dateA = parseDate(a.date);
         let dateB = parseDate(b.date);
         
         // If parsing failed, try direct Date conversion
-        if (!dateA) dateA = new Date(a.date);
-        if (!dateB) dateB = new Date(b.date);
+        if (!dateA || isNaN(dateA.getTime())) dateA = new Date(a.date);
+        if (!dateB || isNaN(dateB.getTime())) dateB = new Date(b.date);
         
-        // Compare timestamps
-        return dateB.getTime() - dateA.getTime();
+        // Compare dates first
+        const dateComparison = dateB.getTime() - dateA.getTime();
+        if (dateComparison !== 0) {
+          return dateComparison;
+        }
+        
+        // If dates are equal, compare times
+        const timeA = parseTimeToSeconds(a.time);
+        const timeB = parseTimeToSeconds(b.time);
+        return timeB - timeA; // Descending order (latest time first)
       });
       
       setExchanges(sortedExchanges);
@@ -165,6 +179,24 @@ const useExchanges = () => {
       const beforeTo = !to || exchangeDate <= to;
       
       return afterFrom && beforeTo;
+    });
+    
+    // Sort the filtered results to maintain consistent ordering
+    filtered.sort((a, b) => {
+      // Parse dates
+      let dateA = parseDate(a.date) || new Date(a.date);
+      let dateB = parseDate(b.date) || new Date(b.date);
+      
+      // Compare dates first
+      const dateComparison = dateB.getTime() - dateA.getTime();
+      if (dateComparison !== 0) {
+        return dateComparison;
+      }
+      
+      // If dates are equal, compare times
+      const timeA = parseTimeToSeconds(a.time);
+      const timeB = parseTimeToSeconds(b.time);
+      return timeB - timeA; // Descending order (latest time first)
     });
     
     setFilteredExchanges(filtered);
