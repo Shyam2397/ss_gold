@@ -11,7 +11,11 @@ export const useCustomerData = () => {
     try {
       setLoading(true);
       const data = await entryService.getEntries();
-      setEntries(data);
+      // Sort entries alphabetically by name
+      const sortedData = [...data].sort((a, b) => 
+        a.name.localeCompare(b.name, 'en', {sensitivity: 'base'})
+      );
+      setEntries(sortedData);
       setError("");
     } catch (error) {
       console.error("Error fetching entries:", error);
