@@ -5,7 +5,7 @@ const CustomerDataTable = ({ entries, onDelete }) => {
   return (
     <div className="mt-3 bg-white rounded-xl shadow-inner overflow-hidden">
       <div className="overflow-x-auto">
-        <div className="max-h-[625px] overflow-y-auto">
+        <div className="max-h-[595px] overflow-y-auto">
           <table className="w-full border-collapse">
             <thead className="sticky top-0 z-10">
               <tr className="bg-amber-500 text-white rounded-t-xl">
