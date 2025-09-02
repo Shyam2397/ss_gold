@@ -421,7 +421,7 @@ const CashBook = () => {
   }, [fetchTransactions]);
 
   return (
-    <div className="flex flex-col h-[calc(100vh-2rem)] max-h-[100vh] bg-white mx-2 sm:mx-4 my-2 p-2 sm:p-3 shadow-md rounded-xl border border-amber-100 border-solid">
+    <div className="flex flex-col h-[calc(100vh-2rem)] max-h-[100vh] bg-white mx-2 sm:mx-4 my-4 p-2 sm:p-3 shadow-md rounded-xl border border-amber-100 border-solid">
       <div className="px-3 sm:px-4 md:px-6 py-2 border-b flex flex-col sm:flex-row justify-between items-start sm:items-center gap-1 bg-white shadow-sm">
         <div className="flex items-center gap-2 sm:gap-3">
           <h1 className="text-xl sm:text-2xl font-semibold text-amber-800 tracking-tight">Cash Book</h1>
