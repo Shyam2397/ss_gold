@@ -209,7 +209,7 @@ const createUsersTable = async () => {
     
     // Check if admin user exists
     const adminCheck = await pool.query(
-      "SELECT * FROM users WHERE username = 'admin'"
+      "SELECT * FROM users WHERE username = 'ADMIN'"
     );
     
     // If admin doesn't exist, create it
@@ -218,19 +218,19 @@ const createUsersTable = async () => {
       try {
         const bcrypt = require('bcrypt');
         const salt = await bcrypt.genSalt(10);
-        hashedPassword = await bcrypt.hash('admin123', salt);
+        hashedPassword = await bcrypt.hash('ADMIN123', salt);
       } catch (bcryptErr) {
         console.warn('Warning: bcrypt not available, using plain password');
-        hashedPassword = 'admin123'; // Fallback to plain password if bcrypt fails
+        hashedPassword = 'ADMIN123'; // Fallback to plain password if bcrypt fails
       }
       
       await pool.query(
         "INSERT INTO users (username, password) VALUES ($1, $2)",
-        ['admin', hashedPassword]
+        ['ADMIN', hashedPassword]
       );
     }
   } catch (err) {
-    if (err.code !== '23505' || !err.detail.includes('(username)=(admin)')) {
+    if (err.code !== '23505' || !err.detail.includes('(username)=(ADMIN)')) {
       console.error('Error creating users table:', err);
       throw err;
     }

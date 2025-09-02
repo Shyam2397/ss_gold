@@ -12,7 +12,7 @@ const CashAdjustment = ({ isOpen, onClose, onSave, isLoading, initialData }) => 
     reason: '',
     reference_number: '',
     remarks: '',
-    entered_by: 'admin' // This should be replaced with actual user from auth context
+    entered_by: 'ADMIN' // This should be replaced with actual user from auth context
   });
   
   // Format date to YYYY-MM-DD without timezone conversion
