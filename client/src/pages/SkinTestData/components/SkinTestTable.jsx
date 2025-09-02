@@ -30,7 +30,7 @@ const SkinTestTable = ({ tests, loading }) => {
       case 'time':
         return 90;
       case 'name':
-        return 180;
+        return 250;
       case 'weight':
         return 80;
       case 'sample':
@@ -153,7 +153,7 @@ const SkinTestTable = ({ tests, loading }) => {
   const headers = Object.keys(firstTest);
 
   return (
-    <div className="mt-3 bg-white rounded-xl shadow-inner overflow-hidden h-[542px]">
+    <div className="mt-3 bg-white rounded-xl shadow-inner overflow-hidden h-[512px]">
       <AutoSizer>
         {({ width, height }) => (
           <div style={{ height, width, overflowX: 'auto', overflowY: 'hidden' }}>

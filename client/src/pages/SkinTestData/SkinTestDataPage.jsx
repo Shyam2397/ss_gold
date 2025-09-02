@@ -22,7 +22,7 @@ const SkinTestDataPage = () => {
 
   return (
     <div
-      className="p-6 sm:p-8 bg-gradient-to-br from-[#F9F3F1] to-[#FFF8F0] shadow-lg rounded-xl max-w-full h-full text-[#391145]"
+      className="p-6 sm:p-8 bg-white shadow-lg rounded-xl max-w-full h-full text-[#391145] m-4"
     >
       <div className="flex flex-col sm:flex-row justify-between items-center mb-5 pb-3 border-b-2 border-[#D3B04D] border-solid">
         <div className="flex items-center space-x-3 mb-4 sm:mb-0">
@@ -53,7 +53,7 @@ const SkinTestDataPage = () => {
         </div>
       )}
 
-      <div className="mb-5 bg-white px-5 py-2.5 rounded-lg shadow-sm">
+      <div className="mb-5 bg-[#F9F3F1] px-5 py-2.5 rounded-lg shadow-sm">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
           <DateInput
             label="From Date"
