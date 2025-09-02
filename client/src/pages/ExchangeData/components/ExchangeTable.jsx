@@ -292,17 +292,17 @@ const ExchangeTable = ({ exchanges, loading, onDelete, onUpdate }) => {
         return 80;
       case 'date':
       case 'time':
-        return 85;
+        return 90;
       case 'weight':
       case 'hweight':
       case 'aweight':
       case 'gweight':
       case 'exweight':
-        return 95;
+        return 90;
       case 'highest':
       case 'average':
       case 'exgold':
-        return 100;
+        return 90;
       case 'goldfineness':
         return 100;
       default:
@@ -467,7 +467,7 @@ const ExchangeTable = ({ exchanges, loading, onDelete, onUpdate }) => {
 
   return (
     <>
-      <div className="mt-3 bg-white rounded-xl shadow-inner overflow-hidden h-[542px]">
+      <div className="mt-3 bg-white rounded-xl shadow-inner overflow-hidden h-[513px]">
         <AutoSizer>
           {({ width, height }) => (
             <div style={{ height, width, overflowX: 'auto', overflowY: 'hidden' }}>
