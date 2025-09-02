@@ -14,18 +14,18 @@ const getColumnAlignment = (key) => {
 
 const getColumnWidth = (key) => {
   const columnWidths = {
-    token_no: 100,
-    name: 200,
+    token_no: 90,
+    name: 240,
     phone: 120,
     date: 100,
     time: 100,
     price: 100,
     quantity: 100,
-    amount: 120,
+    amount: 100,
     isPaid: 100,
   };
   
-  return columnWidths[key] || 130; // default width if not specified
+  return columnWidths[key] || 122; // default width if not specified
 };
 
 const formatValue = (value, key) => {
@@ -128,6 +128,14 @@ const formatValue = (value, key) => {
     });
   }
   
+  // Handle weight values that might be strings
+  if (key === 'weight' && typeof value === 'string') {
+    const numValue = parseFloat(value);
+    if (!isNaN(numValue)) {
+      return numValue.toFixed(3);
+    }
+  }
+  
   return value;
 };
 
@@ -209,12 +217,12 @@ const TokenTable = ({ tokens, loading, onDelete }) => {
               Actions
             </div>
           </div>
-          <div style={{ height: '500px' }}>
+          <div style={{ height: '472px' }}>
             <AutoSizer disableHeight>
               {({ width }) => (
                 <List
                   width={Math.max(width, getTotalWidth())}
-                  height={500}
+                  height={455}
                   rowCount={tokens.length}
                   rowHeight={45}
                   rowRenderer={rowRenderer}
