@@ -11,7 +11,7 @@ const AnalyticsPanel = ({
   // Memoize category content
   const CategoryContent = useMemo(() => (
     <List
-      height={170}
+      height={250}
       width="100%"
       itemCount={categorySummary.length}
       itemSize={60}
@@ -66,7 +66,7 @@ const AnalyticsPanel = ({
         </button>
       </div>
 
-      <div className="max-h-[170px] md:max-h-[170px] overflow-y-auto scrollbar-thin scrollbar-thumb-amber-200 scrollbar-track-gray-50">
+      <div className="max-h-[250px] md:max-h-[250px] overflow-y-auto scrollbar-thin scrollbar-thumb-amber-200 scrollbar-track-gray-50">
         {activeTab === 'categorywise' ? (
           <div className="divide-y">
             {CategoryContent}
