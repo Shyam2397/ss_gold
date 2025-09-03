@@ -56,13 +56,16 @@ const TableRow = React.memo(({
     const messageLines = [
       '*Dear Customer,*',
       '',
-      `🔖 *Token No:* ${rowData.tokenNo || rowData.tokenno || rowData.token_no}`,
+      `🔖 *Token No: ${rowData.tokenNo || rowData.tokenno || rowData.token_no}*`,
       `📅 *Date:* ${formatDateForDisplay(rowData.date)}`,
       `👤 *Name:* ${rowData.name}`,
-      `⚖️ *Weight:* ${parseFloat(rowData.weight).toFixed(3)} g`,
       `🔍 *Sample:* ${rowData.sample}`,
+      `⚖️ *Weight:* ${parseFloat(rowData.weight).toFixed(3)} g`,
       '',
-      resultMessage
+      resultMessage,
+      '',
+      `  *Karat: ${parseFloat(rowData.karat).toFixed(2)} K*`,
+      
     ];
 
     if (rowData.remarks && !rowData.remarks.toLowerCase().includes('melting defect')) {
@@ -71,7 +74,7 @@ const TableRow = React.memo(({
 
     messageLines.push(
       '',
-      'SS GOLD TESTING,',
+      '*SS GOLD TESTING*,',
       'Nilakottai.',
       'For any doubt/clarification, please contact',
       '8903225544'
