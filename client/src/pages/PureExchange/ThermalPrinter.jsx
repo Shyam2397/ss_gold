@@ -113,8 +113,8 @@ const ThermalPrinter = ({ tableData }) => {
             ${tableData.map((row) => {
               const weight = parseFloat(row.weight);
               const exGold = parseFloat(row.exGold);
-              const adjustedWeight = (weight - 0.010).toFixed(3);
-              const pure = ((weight - 0.010) * exGold / 100).toFixed(3);
+              const adjustedWeight = (weight).toFixed(3);
+              const pure = ((weight) * exGold / 100).toFixed(3);
               
               return `
                 <tr>
@@ -132,7 +132,7 @@ const ThermalPrinter = ({ tableData }) => {
             <span class="value">${(tableData.reduce((total, row) => {
               const weight = parseFloat(row.weight);
               const exGold = parseFloat(row.exGold);
-              return total + ((weight - 0.010) * exGold / 100);
+              return total + ((weight) * exGold / 100);
             }, 0).toFixed(3))}</span>
           </div>
           <div class="info-row">
@@ -141,7 +141,7 @@ const ThermalPrinter = ({ tableData }) => {
               const total = tableData.reduce((sum, row) => {
                 const weight = parseFloat(row.weight);
                 const exGold = parseFloat(row.exGold);
-                return sum + ((weight - 0.010) * exGold / 100);
+                return sum + ((weight) * exGold / 100);
               }, 0);
               
               // Custom rounding logic

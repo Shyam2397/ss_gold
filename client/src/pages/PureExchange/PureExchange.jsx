@@ -192,12 +192,14 @@ const PureExchange = () => {
         // Extract required values
         const { weight, highest, average, gold_fineness, name } = skinTestData;
 
+        const AfterScrapWeight = weight - 0.010;
+
         // Calculate values based on the logic
-        const hWeight = (parseFloat(weight) * parseFloat(highest)) / 100;
-        const aWeight = (parseFloat(weight) * parseFloat(average)) / 100;
-        const gWeight = (parseFloat(weight) * parseFloat(gold_fineness)) / 100;
+        const hWeight = (parseFloat(AfterScrapWeight) * parseFloat(highest)) / 100;
+        const aWeight = (parseFloat(AfterScrapWeight) * parseFloat(average)) / 100;
+        const gWeight = (parseFloat(AfterScrapWeight) * parseFloat(gold_fineness)) / 100;
         const exGold = parseFloat(gold_fineness) - parseFloat(point);
-        const exWeight = ((parseFloat(weight) - 0.010) * exGold)/100;
+        const exWeight = (parseFloat(AfterScrapWeight) * exGold)/100;
 
         const newRow = {
             id: tableData.length + 1,
@@ -205,7 +207,7 @@ const PureExchange = () => {
             name: name, 
             date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\/+/g, '-'),
             time: new Date().toLocaleTimeString(),
-            weight: parseFloat(weight).toFixed(3),
+            weight: parseFloat(AfterScrapWeight).toFixed(3),
             highest: parseFloat(highest).toFixed(2),
             hWeight: hWeight.toFixed(3),
             average: parseFloat(average).toFixed(2),
