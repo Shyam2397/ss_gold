@@ -150,20 +150,44 @@ const CashBook = () => {
         to_date: lastDayFormatted
       });
 
-      const tokenTransactions = tokensResponse.data.map(token => ({
-        id: `token-${token.id}`,
-        date: token.date,
-        particulars: {
-          test: token.test || 'No Test',
-          tokenNo: token.tokenNo,
-          name: token.name
-        },
-        type: token.isPaid ? 'Income' : 'Pending',
-        debit: token.isPaid ? 0 : parseFloat(token.amount) || 0,
-        credit: token.isPaid ? parseFloat(token.amount) || 0 : 0,
-        isPaid: token.isPaid,
-        amount: parseFloat(token.amount) || 0
-      }));
+      // Process token transactions with detailed logging
+      const tokenTransactions = [];
+      let totalTokenIncome = 0;
+      let totalTokenPending = 0;
+      
+      tokensResponse.data.forEach(token => {
+        const amount = parseFloat(token.amount) || 0;
+        const isPaid = Boolean(token.isPaid);
+        // Change: Set type based on payment status
+        const type = isPaid ? 'Income' : 'Pending';
+        
+        const transaction = {
+          id: `token-${token.id}`,
+          date: token.date,
+          particulars: {
+            test: token.test || 'No Test',
+            tokenNo: token.tokenNo,
+            name: token.name
+          },
+          type,
+          isPaid,
+          amount,
+          source: 'token',
+          // Change: Set credit/debit based on payment status
+          credit: isPaid ? amount : 0,
+          debit: !isPaid ? amount : 0,
+          paymentStatus: isPaid ? 'Paid' : 'Pending'
+        };
+        
+        tokenTransactions.push(transaction);
+      }); // Added missing closing bracket and semicolon here
+      
+      console.log('Token Transaction Summary:', {
+        totalTokens: tokensResponse.data.length,
+        totalTokenIncome,
+        totalTokenPending,
+        calculatedTotal: totalTokenIncome + totalTokenPending
+      });
 
       const expenseTransactions = expensesResponse.data.map(expense => ({
         id: `expense-${expense.id}`,
@@ -296,32 +320,143 @@ const CashBook = () => {
   useEffect(() => {
     if (!memoizedFilteredTransactions.length) return;
 
-    // Calculate totals from current month transactions
-    const totals = memoizedFilteredTransactions.reduce((acc, transaction) => {
-      const amount = parseFloat(transaction.amount || 0);
-      
-      switch(transaction.type) {
-        case 'Income':
-          acc.totalIncome += parseFloat(transaction.credit || 0);
-          break;
-        case 'Expense':
-          acc.totalExpense += parseFloat(transaction.debit || 0);
-          break;
-        case 'Pending':
-          acc.totalPending += parseFloat(transaction.debit || 0);
-          break;
-      }
-      return acc;
-    }, {
+    // Calculate totals from current month transactions with detailed breakdown
+    const totals = {
       totalIncome: 0,
       totalExpense: 0,
-      totalPending: 0
+      totalPending: 0,
+      incomeSources: [],
+      tokenIncome: 0,
+      adjustmentIncome: 0,
+      paidPendingIncome: 0
+    };
+
+    console.log('Processing', memoizedFilteredTransactions.length, 'transactions...');
+    
+    // First pass: process all tokens to identify paid pending transactions
+    const pendingToIncomeMap = new Map();
+    
+    memoizedFilteredTransactions.forEach((transaction) => {
+      // Map all pending transactions for reference
+      if (transaction.type === 'Pending') {
+        const amount = parseFloat(transaction.amount || 0);
+        if (transaction.isPaid) {
+          pendingToIncomeMap.set(transaction.id, {
+            amount,
+            isPaid: true,
+            source: transaction.source || 'token'
+          });
+        }
+      }
     });
+    
+    // Second pass: process all transactions
+    memoizedFilteredTransactions.forEach((transaction) => {
+      const amount = parseFloat(transaction.amount || 0);
+      const isPaid = transaction.isPaid;
+      const type = transaction.type;
+      const source = transaction.source || 'token'; // Default to 'token' for backward compatibility
+      
+      // Log transaction details for debugging
+      const logEntry = {
+        id: transaction.id,
+        type,
+        isPaid,
+        source,
+        amount,
+        credit: transaction.credit,
+        debit: transaction.debit
+      };
+      
+      // Process based on transaction type and payment status
+      if (type === 'Income' || type === 'Pending') {
+        const amount = parseFloat(transaction.amount || 0);
+        const isPending = type === 'Pending';
+        
+        if (amount > 0) {
+          if (isPending && !isPaid) {
+            // For pending/unpaid: show in debit column and track as pending
+            transaction.debit = amount;
+            transaction.credit = 0;
+            totals.totalPending += amount;
+            
+            // Add to income sources as pending
+            totals.incomeSources.push({
+              type: 'Pending',
+              source: source || 'token',
+              amount: amount,
+              id: transaction.id,
+              isPaid: false
+            });
+            
+            logEntry.processedAs = 'Pending (Unpaid)';
+            logEntry.addedToIncome = amount;
+          } else {
+            // For paid transactions: show in credit column and add to income
+            transaction.credit = amount;
+            transaction.debit = 0;
+            totals.totalIncome += amount;
+            
+            // Track token income
+            if (source === 'token') {
+              totals.tokenIncome += amount;
+            } else if (source === 'adjustment') {
+              totals.adjustmentIncome += amount;
+            }
+            
+            // Add to income sources as paid
+            totals.incomeSources.push({
+              type: isPending ? 'Paid Pending' : 'Income',
+              source: source || 'token',
+              amount: amount,
+              id: transaction.id,
+              isPaid: true
+            });
+            
+            logEntry.processedAs = isPending ? 'Pending (Paid)' : 'Income';
+            logEntry.addedToIncome = amount;
+          }
+        }
+        
+      } else if (type === 'Expense') {
+        const expenseAmount = parseFloat(transaction.debit || 0);
+        if (expenseAmount > 0) {
+          totals.totalExpense += expenseAmount;
+          logEntry.processedAs = 'Expense';
+          logEntry.addedToExpense = expenseAmount;
+        }
+      }
+      
+      console.log('Processed Transaction:', logEntry);
+    });
+
+    // Log detailed summary
+    console.log('\n=== Transaction Processing Summary ===');
+    console.log('Total Transactions Processed:', memoizedFilteredTransactions.length);
+    console.log('\nIncome Breakdown:');
+    console.log('- Token Income:', totals.tokenIncome);
+    console.log('- Adjustment Income:', totals.adjustmentIncome);
+    console.log('- Paid Pending Income:', totals.paidPendingIncome);
+    console.log('\nCalculated Totals:');
+    console.log('- Total Income:', totals.totalIncome);
+    console.log('- Total Expense:', totals.totalExpense);
+    console.log('- Total Pending:', totals.totalPending);
+    console.log('==================================\n');
+    
+    // Verify the sum of income sources matches total income
+    const calculatedTotalIncome = totals.incomeSources.reduce((sum, src) => sum + src.amount, 0);
+    if (Math.abs(calculatedTotalIncome - totals.totalIncome) > 0.01) {
+      console.warn('Warning: Income sources sum does not match total income!', {
+        calculatedTotalIncome,
+        totalIncome: totals.totalIncome,
+        difference: Math.abs(calculatedTotalIncome - totals.totalIncome)
+      });
+    }
 
     // Calculate balances
     const netChange = totals.totalIncome - totals.totalExpense;
     const openingBalance = parseFloat(cashInfo.openingBalance || 0);
-    const closingBalance = openingBalance + netChange - totals.totalPending;
+    const closingBalance = openingBalance + netChange;
     const totalPending = parseFloat(cashInfo.openingPending || 0) + parseFloat(totals.totalPending || 0);
 
     setCashInfo(prev => ({
@@ -476,6 +611,7 @@ const CashBook = () => {
                       filteredTransactions={filteredTransactions}
                       cashInfo={cashInfo}
                       rowGetter={rowGetter}
+                      totals={cashInfo} // Pass cashInfo as totals since it contains the required properties
                     />
                   </div>
                 </div>
