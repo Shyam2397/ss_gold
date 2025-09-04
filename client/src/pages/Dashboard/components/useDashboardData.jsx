@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { getApi } from '../../../services/api';
+import { fetchCashAdjustments } from '../services/dashboardService';
 import toast from 'react-hot-toast';
 import { useQueries, useQueryClient } from '@tanstack/react-query';
 import { debounce } from 'lodash';
@@ -14,6 +15,7 @@ function useDashboardData() {
   const [entries, setEntries] = useState([]);
   const [expenses, setExpenses] = useState([]);
   const [exchanges, setExchanges] = useState([]);
+  const [cashAdjustments, setCashAdjustments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [recentActivities, setRecentActivities] = useState([]);
@@ -76,6 +78,10 @@ function useDashboardData() {
     exchanges: async () => {
       const { data } = await api.get(`/pure-exchange?page=${currentPage}&limit=${PAGE_SIZE}`);
       return data.data || [];
+    },
+    cashAdjustments: async () => {
+      const { data } = await api.get(`/api/cash-adjustments?page=${currentPage}&limit=${PAGE_SIZE}`);
+      return data || [];
     }
   }), [currentPage]);
 
@@ -92,6 +98,13 @@ function useDashboardData() {
       {
         queryKey: ['expenses', currentPage],
         queryFn: queryFns.expenses,
+        staleTime: STALE_TIME,
+        cacheTime: CACHE_TIME,
+        keepPreviousData: true
+      },
+      {
+        queryKey: ['cashAdjustments', currentPage],
+        queryFn: queryFns.cashAdjustments,
         staleTime: STALE_TIME,
         cacheTime: CACHE_TIME,
         keepPreviousData: true
@@ -177,7 +190,7 @@ function useDashboardData() {
     }
   }, [exchanges, selectedPeriod]);
 
-  const processRecentActivities = (tokens, expenses, exchanges, entries) => {
+  const processRecentActivities = (tokens, expenses, exchanges, entries, cashAdjustments) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -267,6 +280,16 @@ function useDashboardData() {
           amount: 0,
           time: new Date(entry.created_at),
           details: entry.name || 'Unknown customer'
+        })),
+      ...(Array.isArray(cashAdjustments) ? cashAdjustments : [])
+        .filter(adjustment => adjustment && adjustment.date && isToday(adjustment.date))
+        .map(adjustment => ({
+          id: getUniqueId('adjustment', adjustment?._id),
+          type: 'adjustment',
+          action: 'Cash adjustment',
+          amount: parseFloat(adjustment?.amount || 0),
+          time: new Date(adjustment?.date),
+          details: `Type: ${adjustment?.type || 'Unknown'}`
         }))
     ];
 
@@ -327,24 +350,33 @@ function useDashboardData() {
       // Get a single API instance for all requests
       const api = await getApi();
       
-      const [tokensRes, expensesRes, entriesRes, exchangesRes] = await Promise.all([
+      // Fetch data in parallel
+      const [
+        tokensResult,
+        expensesResult,
+        entriesResult,
+        exchangesResult
+      ] = await Promise.all([
         api.get('/tokens'),
         api.get('/api/expenses'),
         api.get('/entries'),
         api.get('/pure-exchange')
       ]);
 
-      const tokenData = tokensRes.data;
-      const entriesData = entriesRes.data;
-      const exchangesData = exchangesRes.data.data || [];
+      // Fetch cash adjustments using the service
+      const cashAdjustmentsData = await fetchCashAdjustments();
       
-// Process exchange data to handle ISO date format
+      const tokenData = tokensResult?.data || [];
+      const entriesData = entriesResult?.data || [];
+      const exchangesData = exchangesResult?.data?.data || [];
+      
+      // Process exchange data to handle ISO date format
       const processedExchanges = exchangesData.map(exchange => {
         try {
           const isoDate = new Date(exchange.date);
           return {
             ...exchange,
-// Convert to DD/MM/YYYY format and ensure weight is a number
+            // Convert to DD/MM/YYYY format and ensure weight is a number
             date: `${isoDate.getDate().toString().padStart(2, '0')}/${(isoDate.getMonth() + 1).toString().padStart(2, '0')}/${isoDate.getFullYear()}`,
             weight: parseFloat(exchange.weight || '0'),
             exweight: parseFloat(exchange.exweight || '0')
@@ -356,6 +388,7 @@ function useDashboardData() {
       }).filter(Boolean); // Remove any null values
 
       setExchanges(processedExchanges);
+      setCashAdjustments(cashAdjustmentsData);
 
       const processedTokens = tokenData.map(token => {
         const processed = {
@@ -368,9 +401,15 @@ function useDashboardData() {
 
       setTokens(processedTokens);
       setEntries(entriesData);
-      setExpenses(expensesRes.data);
+      
+      // Process expenses to ensure amount is a number
+      const processedExpenses = (expensesResult?.data || []).map(expense => ({
+        ...expense,
+        amount: parseFloat(expense.amount || '0')
+      }));
+      setExpenses(processedExpenses);
 
-// Calculate total number of customers and test counts from entries
+      // Calculate total number of customers and test counts from entries
       const skinTestCount = processedTokens.filter(token => token.test === "Skin Test").length;
       const photoTestCount = processedTokens.filter(token => token.test === "Photo Testing").length;
 
@@ -382,7 +421,7 @@ function useDashboardData() {
         photoTestCount
       }));
 
-// Calculate today's totals
+      // Calculate today's totals
       const today = new Date().toISOString();
       
       const todayTokens = processedTokens.filter(token => {
@@ -394,7 +433,7 @@ function useDashboardData() {
                tokenDate.getDate() === todayDate.getDate();
       });
      
-      const todayExpenses = expensesRes.data.filter(expense => {
+      const todayExpenses = expensesResult.data.filter(expense => {
         if (!expense.date) return false;
         const expenseDate = new Date(expense.date); // Expense dates are already in YYYY-MM-DD format
         const todayDate = new Date(today);
@@ -403,9 +442,19 @@ function useDashboardData() {
                expenseDate.getDate() === todayDate.getDate();
       });
 
+      const todayCashAdjustments = cashAdjustmentsData.filter(adjustment => {
+        if (!adjustment.date) return false;
+        const adjustmentDate = new Date(adjustment.date); // Adjustment dates are already in YYYY-MM-DD format
+        const todayDate = new Date(today);
+        return adjustmentDate.getFullYear() === todayDate.getFullYear() &&
+               adjustmentDate.getMonth() === todayDate.getMonth() &&
+               adjustmentDate.getDate() === todayDate.getDate();
+      });
+
       const todayRevenue = todayTokens.reduce((sum, token) => sum + (token.totalAmount || 0), 0);
       const todayExpensesTotal = todayExpenses.reduce((sum, expense) => sum + (parseFloat(expense.amount) || 0), 0);
-      const todayNetTotal = todayRevenue - todayExpensesTotal;
+      const todayCashAdjustmentsTotal = todayCashAdjustments.reduce((sum, adjustment) => sum + (parseFloat(adjustment.amount) || 0), 0);
+      const todayNetTotal = todayRevenue - todayExpensesTotal + todayCashAdjustmentsTotal;
 
       setTodayTotal({
         revenue: todayRevenue,
@@ -418,9 +467,10 @@ function useDashboardData() {
 
       const recentActivities = processRecentActivities(
         processedTokens,
-        expensesRes.data,
+        expensesResult.data,
         processedExchanges,
-        entriesData
+        entriesData,
+        cashAdjustmentsData
       );
       setRecentActivities(recentActivities);
 
@@ -462,6 +512,7 @@ function useDashboardData() {
     const prefetchNextPage = async () => {
       await queryClient.prefetchQuery(['tokens', currentPage + 1], queryFns.tokens);
       await queryClient.prefetchQuery(['expenses', currentPage + 1], queryFns.expenses);
+      await queryClient.prefetchQuery(['cashAdjustments', currentPage + 1], queryFns.cashAdjustments);
       await queryClient.prefetchQuery(['entries', currentPage + 1], queryFns.entries);
       await queryClient.prefetchQuery(['exchanges', currentPage + 1], queryFns.exchanges);
     };
@@ -469,9 +520,25 @@ function useDashboardData() {
   }, [currentPage]);
 
   return {
-    tokens, entries, expenses, exchanges, loading, error, recentActivities,
-    todayTotal, dateRange, setDateRange, metrics, sparklineData, selectedPeriod, setSelectedPeriod,
-    currentPage, handlePageChange, hasNextPage: queries[0].hasNextPage, isFetchingNextPage: queries[0].isFetchingNextPage
+    tokens,
+    entries,
+    expenses,
+    exchanges,
+    cashAdjustments,
+    loading,
+    error,
+    recentActivities,
+    todayTotal,
+    dateRange,
+    setDateRange,
+    metrics,
+    sparklineData,
+    selectedPeriod,
+    setSelectedPeriod,
+    currentPage,
+    handlePageChange,
+    hasNextPage: queries[0].hasNextPage,
+    isFetchingNextPage: queries[0].isFetchingNextPage
   };
 }
 

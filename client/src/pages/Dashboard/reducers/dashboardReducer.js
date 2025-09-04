@@ -3,6 +3,7 @@ export const initialState = {
   entries: [],
   expenses: [],
   exchanges: [],
+  cashAdjustments: [],
   loading: true,
   error: null,
   recentActivities: [],
@@ -25,7 +26,8 @@ export const initialState = {
     totalTokens: 0,
     totalExchanges: 0,
     totalWeight: 0,
-    totalExWeight: 0
+    totalExWeight: 0,
+    totalCashAdjustments: 0
   },
   selectedPeriod: 'daily',
   currentPage: 1,
@@ -106,7 +108,7 @@ export function dashboardReducer(state, action) {
       };
 
     case actionTypes.SET_DATA_WITH_METRICS:
-      const { tokens, expenses, entries, exchanges } = action.payload;
+      const { tokens, expenses, entries, exchanges, cashAdjustments = [] } = action.payload;
       const todayTotal = calculateTodayTotal(tokens, expenses);
       const metrics = {
         totalCustomers: entries.length,
@@ -115,7 +117,8 @@ export function dashboardReducer(state, action) {
         totalTokens: tokens.length,
         totalExchanges: exchanges.length,
         totalWeight: exchanges.reduce((sum, ex) => sum + (parseFloat(ex.weight) || 0), 0),
-        totalExWeight: exchanges.reduce((sum, ex) => sum + (parseFloat(ex.exweight) || 0), 0)
+        totalExWeight: exchanges.reduce((sum, ex) => sum + (parseFloat(ex.exweight) || 0), 0),
+        totalCashAdjustments: cashAdjustments.reduce((sum, adj) => sum + (parseFloat(adj.amount) || 0), 0)
       };
 
       return {

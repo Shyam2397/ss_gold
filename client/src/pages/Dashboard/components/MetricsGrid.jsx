@@ -2,27 +2,52 @@ import React, { useMemo } from 'react';
 import DashboardCard from './DashboardCard';
 import { 
   CurrencyRupeeIcon, ScaleIcon, ReceiptPercentIcon, 
-  UserGroupIcon, BeakerIcon, ArrowsRightLeftIcon 
+  UserGroupIcon, BeakerIcon, ArrowsRightLeftIcon,
 } from '@heroicons/react/24/solid';
 import useTrends from '../hooks/useTrends';
 import usePerformanceMonitor from '../hooks/usePerformanceMonitor';
 
-const MetricsGrid = ({ metrics, tokens, expenses, entries, exchanges, sparklineData, selectedPeriod }) => {
+const MetricsGrid = ({ metrics, tokens, expenses, entries, exchanges, cashAdjustments, sparklineData, selectedPeriod }) => {
   usePerformanceMonitor('MetricsGrid');
 
   const calculations = useMemo(() => {
+    // Calculate base revenue and expenses
     const totalRevenue = tokens.reduce((sum, token) => sum + (parseFloat(token.totalAmount) || 0), 0);
-    const totalExpenses = expenses.reduce((sum, expense) => sum + (parseFloat(expense.amount) || 0), 0);
-    const netProfit = totalRevenue - totalExpenses;
-    const profitMargin = totalRevenue ? ((netProfit / totalRevenue) * 100).toFixed(2) : 0;
+    const totalExpenses = expenses.reduce((sum, expense) => {
+      const amount = parseFloat(expense.amount) || 0;
+      return sum + amount;
+    }, 0);
+    
+    const adjustments = (cashAdjustments || []).reduce((result, adj) => {
+      const amount = parseFloat(adj?.amount) || 0;
+      const adjustmentType = adj?.adjustment_type?.toLowerCase(); // 'addition' or 'deduction'
+      
+      if (adjustmentType === 'addition') {
+        result.credit += amount;
+      } else if (adjustmentType === 'deduction') {
+        result.debit += amount;
+      } else {
+        // Fallback for any unexpected adjustment types
+        result.debit += amount;
+      }
+      return result;
+    }, { credit: 0, debit: 0 });
+    
+    // Calculate adjusted totals
+    // Credits increase revenue, debits increase expenses
+    const adjustedRevenue = totalRevenue + adjustments.credit;
+    const adjustedExpenses = totalExpenses + adjustments.debit;
+    
+    const netProfit = adjustedRevenue - adjustedExpenses;
+    const profitMargin = adjustedRevenue > 0 ? ((netProfit / adjustedRevenue) * 100).toFixed(2) : 0;
 
     return {
-      totalRevenue,
-      totalExpenses,
+      totalRevenue: adjustedRevenue,
+      totalExpenses: adjustedExpenses,
       netProfit,
       profitMargin
     };
-  }, [tokens, expenses]);
+  }, [tokens, expenses, cashAdjustments]);
 
   const trends = useTrends({ tokens, expenses, entries, exchanges });
 

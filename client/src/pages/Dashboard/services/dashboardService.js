@@ -1,4 +1,5 @@
 import { getApi } from '../../../services/api';
+import cashAdjustmentService from '../../../services/cashAdjustmentService';
 
 export const fetchTokens = async () => {
   const api = await getApi();
@@ -22,4 +23,13 @@ export const fetchExchanges = async () => {
   const api = await getApi();
   const { data } = await api.get('/pure-exchange');
   return data.data || [];
+};
+
+export const fetchCashAdjustments = async (filters = {}) => {
+  try {
+    return await cashAdjustmentService.getAdjustments(filters);
+  } catch (error) {
+    console.error('Error fetching cash adjustments:', error);
+    return [];
+  }
 };

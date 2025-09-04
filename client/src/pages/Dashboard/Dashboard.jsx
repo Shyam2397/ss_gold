@@ -30,7 +30,7 @@ function DashboardContent() {
   usePerformanceMonitor('Dashboard');
   const dashboardData = useDashboardData();
   const {
-    tokens, entries, expenses, exchanges, loading, error, recentActivities,
+    tokens, entries, expenses, exchanges, cashAdjustments, loading, error, recentActivities,
     todayTotal, dateRange, metrics, selectedPeriod
   } = dashboardData;
 
@@ -77,7 +77,8 @@ function DashboardContent() {
             tokens={tokens} 
             expenses={expenses} 
             entries={entries} 
-            exchanges={exchanges} 
+            exchanges={exchanges}
+            cashAdjustments={cashAdjustments || []}
             sparklineData={sparklineData} 
             selectedPeriod={selectedPeriod}
           />
