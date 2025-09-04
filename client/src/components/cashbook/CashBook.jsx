@@ -354,127 +354,63 @@ const CashBook = () => {
       paidPendingIncome: 0
     };
 
-    console.log('Processing', memoizedFilteredTransactions.length, 'transactions...');
-    
-    // First pass: process all tokens to identify paid pending transactions
-    const pendingToIncomeMap = new Map();
-    
     memoizedFilteredTransactions.forEach((transaction) => {
-      // Map all pending transactions for reference
-      if (transaction.type === 'Pending') {
-        const amount = parseFloat(transaction.amount || 0);
-        if (transaction.isPaid) {
-          pendingToIncomeMap.set(transaction.id, {
-            amount,
-            isPaid: true,
-            source: transaction.source || 'token'
-          });
+      // Special handling for cash adjustments
+      if (transaction.isAdjustment) {
+        if (transaction.type === 'Income') {
+          totals.totalIncome += parseFloat(transaction.credit || 0);
+          totals.adjustmentIncome += parseFloat(transaction.credit || 0);
+        } else if (transaction.type === 'Expense') {
+          totals.totalExpense += parseFloat(transaction.debit || 0);
         }
+        return; // Skip the rest of the processing for adjustments
       }
-    });
-    
-    // Second pass: process all transactions
-    memoizedFilteredTransactions.forEach((transaction) => {
+
       const amount = parseFloat(transaction.amount || 0);
       const isPaid = transaction.isPaid;
       const type = transaction.type;
-      const source = transaction.source || 'token'; // Default to 'token' for backward compatibility
-      
-      // Log transaction details for debugging
-      const logEntry = {
-        id: transaction.id,
-        type,
-        isPaid,
-        source,
-        amount,
-        credit: transaction.credit,
-        debit: transaction.debit
-      };
+      const source = transaction.source || 'token';
       
       // Process based on transaction type and payment status
       if (type === 'Income' || type === 'Pending') {
-        const amount = parseFloat(transaction.amount || 0);
-        const isPending = type === 'Pending';
-        
         if (amount > 0) {
-          if (isPending && !isPaid) {
-            // For pending/unpaid: show in debit column and track as pending
+          if (type === 'Pending' && !isPaid) {
             transaction.debit = amount;
             transaction.credit = 0;
             totals.totalPending += amount;
             
-            // Add to income sources as pending
             totals.incomeSources.push({
               type: 'Pending',
-              source: source || 'token',
-              amount: amount,
+              source,
+              amount,
               id: transaction.id,
               isPaid: false
             });
-            
-            logEntry.processedAs = 'Pending (Unpaid)';
-            logEntry.addedToIncome = amount;
           } else {
-            // For paid transactions: show in credit column and add to income
             transaction.credit = amount;
             transaction.debit = 0;
             totals.totalIncome += amount;
             
-            // Track token income
             if (source === 'token') {
               totals.tokenIncome += amount;
-            } else if (source === 'adjustment') {
-              totals.adjustmentIncome += amount;
             }
             
-            // Add to income sources as paid
             totals.incomeSources.push({
-              type: isPending ? 'Paid Pending' : 'Income',
-              source: source || 'token',
-              amount: amount,
+              type: isPaid ? 'Paid Pending' : 'Income',
+              source,
+              amount,
               id: transaction.id,
               isPaid: true
             });
-            
-            logEntry.processedAs = isPending ? 'Pending (Paid)' : 'Income';
-            logEntry.addedToIncome = amount;
           }
         }
-        
-      } else if (type === 'Expense') {
+      } else if (type === 'Expense' && !transaction.isAdjustment) {
         const expenseAmount = parseFloat(transaction.debit || 0);
         if (expenseAmount > 0) {
           totals.totalExpense += expenseAmount;
-          logEntry.processedAs = 'Expense';
-          logEntry.addedToExpense = expenseAmount;
         }
       }
-      
-      console.log('Processed Transaction:', logEntry);
     });
-
-    // Log detailed summary
-    console.log('\n=== Transaction Processing Summary ===');
-    console.log('Total Transactions Processed:', memoizedFilteredTransactions.length);
-    console.log('\nIncome Breakdown:');
-    console.log('- Token Income:', totals.tokenIncome);
-    console.log('- Adjustment Income:', totals.adjustmentIncome);
-    console.log('- Paid Pending Income:', totals.paidPendingIncome);
-    console.log('\nCalculated Totals:');
-    console.log('- Total Income:', totals.totalIncome);
-    console.log('- Total Expense:', totals.totalExpense);
-    console.log('- Total Pending:', totals.totalPending);
-    console.log('==================================\n');
-    
-    // Verify the sum of income sources matches total income
-    const calculatedTotalIncome = totals.incomeSources.reduce((sum, src) => sum + src.amount, 0);
-    if (Math.abs(calculatedTotalIncome - totals.totalIncome) > 0.01) {
-      console.warn('Warning: Income sources sum does not match total income!', {
-        calculatedTotalIncome,
-        totalIncome: totals.totalIncome,
-        difference: Math.abs(calculatedTotalIncome - totals.totalIncome)
-      });
-    }
 
     // Calculate balances
     const netChange = totals.totalIncome - totals.totalExpense;
