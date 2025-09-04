@@ -57,9 +57,8 @@ const CashBook = () => {
       setIsInitialLoading(true);
     }
     setError('');
-    try {// Get current month dates
-
-// Get current month dates
+    try {
+      // Get current month dates
       const today = new Date();
       const currentMonth = today.getMonth();
       const currentYear = today.getFullYear();// Calculate first and last day of current month
@@ -78,24 +77,28 @@ const CashBook = () => {
       const lastDayOfPreviousMonthFormatted = lastDayOfPreviousMonth.toISOString().split('T')[0];
       
       const api = await apiService.getApi();
-      const [previousTokensResponse, previousExpensesResponse] = await Promise.all([
+      
+      // Fetch all previous transactions and adjustments
+      const [previousTokensResponse, previousExpensesResponse, previousAdjustments] = await Promise.all([
         api.get('/tokens', {
           params: {
             from_date: firstDayOfAllTime,
-            to_date: lastDayOfPreviousMonth
-          },
-          headers: {
-            'Cache-Control': 'max-age=300'
+            to_date: lastDayOfPreviousMonthFormatted
           }
         }),
         api.get('/api/expenses', {
           params: {
             from_date: firstDayOfAllTime,
-            to_date: lastDayOfPreviousMonth
+            to_date: lastDayOfPreviousMonthFormatted
           }
+        }),
+        cashAdjustmentService.getAdjustments({
+          from_date: firstDayOfAllTime,
+          to_date: lastDayOfPreviousMonthFormatted
         })
       ]);
-      
+
+      // Calculate previous month totals
       const previousIncome = previousTokensResponse.data.reduce((sum, token) => {
         const transactionDate = new Date(token.date);
         if (transactionDate <= lastDayOfPreviousMonth) {
@@ -103,15 +106,7 @@ const CashBook = () => {
         }
         return sum;
       }, 0);
-      
-      const previousPending = previousTokensResponse.data.reduce((sum, token) => {
-        const transactionDate = new Date(token.date);
-        if (transactionDate <= lastDayOfPreviousMonth) {
-          return !token.isPaid ? sum + parseFloat(token.amount || 0) : sum;
-        }
-        return sum;
-      }, 0);
-      
+
       const previousExpenses = previousExpensesResponse.data.reduce((sum, expense) => {
         const transactionDate = new Date(expense.date);
         if (transactionDate <= lastDayOfPreviousMonth) {
@@ -119,16 +114,44 @@ const CashBook = () => {
         }
         return sum;
       }, 0);
-      
-      const openingBalance = previousIncome - previousExpenses;
+
+      const previousAdjustmentTotal = previousAdjustments.reduce((sum, adj) => {
+        const transactionDate = new Date(adj.date);
+        if (transactionDate <= lastDayOfPreviousMonth) {
+          const amount = parseFloat(adj.amount || 0);
+          return adj.adjustment_type === 'addition' ? sum + amount : sum - amount;
+        }
+        return sum;
+      }, 0);
+
+      // Calculate pending amount separately
+      const previousPending = previousTokensResponse.data.reduce((sum, token) => {
+        const transactionDate = new Date(token.date);
+        if (transactionDate <= lastDayOfPreviousMonth) {
+          return !token.isPaid ? sum + parseFloat(token.amount || 0) : sum;
+        }
+        return sum;
+      }, 0);
+
+      // Final opening balance calculation
+      const openingBalance = previousIncome + previousAdjustmentTotal - previousExpenses;
       const openingPending = previousPending;
-      
-      setCashInfo(prev => ({ 
-        ...prev, 
+
+      console.log('Opening Balance Calculation:', {
+        previousIncome,
+        previousExpenses,
+        previousAdjustmentTotal,
+        previousPending,
+        finalOpeningBalance: openingBalance
+      });
+
+      setCashInfo(prev => ({
+        ...prev,
         openingBalance,
         openingPending
       }));
-      
+
+      // Continue with current month transactions...
       const [tokensResponse, expensesResponse] = await Promise.all([
         api.get('/tokens', {
           params: {

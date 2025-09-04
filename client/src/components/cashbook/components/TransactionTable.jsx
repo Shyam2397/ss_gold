@@ -317,7 +317,10 @@ const TransactionTable = ({ filteredTransactions, cashInfo, rowGetter, totals })
       (total, t) => {
         if (t.type === 'Income') return total + (t.credit || 0);
         if (t.type === 'Expense') return total - (t.debit || 0);
-        // Don't subtract pending amounts from final balance
+        // Add adjustment handling
+        if (t.isAdjustment) {
+          return t.credit ? total + t.credit : total - t.debit;
+        }
         return total;
       },
       cashInfo?.openingBalance || 0
