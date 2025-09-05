@@ -190,7 +190,7 @@ const DashboardCharts = ({ tokens, expenses, entries, exchanges }) => {
         const data = tokenMap.get(key);
         data.amount += parseFloat(token.amount) || 0;
         data.count++;
-        if (token.test === "Skin Test") data.skinTest++;
+        if (token.test === "Skin Testing") data.skinTest++;
         if (token.test === "Photo Testing") data.photoTest++;
       });
 
