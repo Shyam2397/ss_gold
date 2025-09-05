@@ -110,7 +110,7 @@ const CustomerList = ({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search customers..."
-              className="w-full rounded-md border border-amber-200 bg-white pl-10 shadow-sm focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 py-2 text-sm text-amber-900"
+              className="w-full rounded-md border border-amber-200 bg-white pl-10 shadow-sm focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 py-2 text-sm text-amber-900 rounded-xl"
             />
           </div>
           {searchQuery && (
