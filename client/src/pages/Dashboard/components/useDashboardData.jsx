@@ -455,7 +455,7 @@ function useDashboardData() {
       setExpenses(processedExpenses);
 
       // Calculate total number of customers and test counts from entries
-      const skinTestCount = processedTokens.filter(token => token.test === "Skin Test").length;
+      const skinTestCount = processedTokens.filter(token => token.test === "Skin Testing").length;
       const photoTestCount = processedTokens.filter(token => token.test === "Photo Testing").length;
 
       setMetrics(prev => ({
@@ -496,10 +496,24 @@ function useDashboardData() {
                adjustmentDate.getDate() === todayDate.getDate();
       });
 
-      const todayRevenue = todayTokens.reduce((sum, token) => sum + (token.totalAmount || 0), 0);
-      const todayExpensesTotal = todayExpenses.reduce((sum, expense) => sum + (parseFloat(expense.amount) || 0), 0);
-      const todayCashAdjustmentsTotal = todayCashAdjustments.reduce((sum, adjustment) => sum + (parseFloat(adjustment.amount) || 0), 0);
-      const todayNetTotal = todayRevenue - todayExpensesTotal + todayCashAdjustmentsTotal;
+      // Calculate base revenue and expenses
+      let todayRevenue = todayTokens.reduce((sum, token) => sum + (token.totalAmount || 0), 0);
+      let todayExpensesTotal = todayExpenses.reduce((sum, expense) => sum + (parseFloat(expense.amount) || 0), 0);
+      
+      // Process cash adjustments and add to revenue/expenses based on type
+      todayCashAdjustments.forEach(adjustment => {
+        const amount = parseFloat(adjustment.amount) || 0;
+        const isCredit = adjustment.adjustment_type?.toLowerCase() === 'addition';
+        
+        if (isCredit) {
+          todayRevenue += amount;  // Add to revenue for credits
+        } else {
+          todayExpensesTotal += amount;  // Add to expenses for debits
+        }
+      });
+      
+      // Calculate net total (Revenue - Expenses)
+      const todayNetTotal = todayRevenue - todayExpensesTotal;
 
       setTodayTotal({
         revenue: todayRevenue,
