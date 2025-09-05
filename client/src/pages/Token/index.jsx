@@ -80,23 +80,6 @@ const TokenPage = () => {
     dispatch({ type: 'SET_FIELD', field: 'filteredTokens', value: tokens });
   }, [tokens]);
 
-  // Search filter
-  useEffect(() => {
-    if (state.searchQuery.trim() === '') {
-      dispatch({ type: 'SET_FIELD', field: 'filteredTokens', value: tokens });
-    } else {
-      dispatch({
-        type: 'SET_FIELD',
-        field: 'filteredTokens',
-        value: tokens.filter((token) =>
-          Object.values(token)
-            .join(" ")
-            .toLowerCase()
-            .includes(state.searchQuery.toLowerCase())
-        )
-      });
-    }
-  }, [state.searchQuery, tokens]);
 
   const getCurrentDateTime = () => {
     const currentDate = new Date();
@@ -290,13 +273,42 @@ const TokenPage = () => {
     amount: state.amount
   }), [state.tokenNo, state.date, state.time, state.name, state.test, state.weight, state.sample, state.amount]);
 
-  // Optimize search with debounce and memo
-  const debouncedSearch = useMemo(() => 
-    debounce((query) => {
-      dispatch({ type: 'SET_FIELD', field: 'searchQuery', value: query });
-    }, 300),
-    []
-  );
+  // Debounced search handler
+  const handleSearch = useCallback(debounce((query) => {
+    if (!query.trim()) {
+      dispatch({ type: 'SET_FIELD', field: 'filteredTokens', value: tokens });
+      return;
+    }
+
+    const searchTerms = query.toLowerCase().split(' ').filter(term => term.length > 0);
+    
+    const filtered = tokens.filter(token => {
+      const searchFields = [
+        token.tokenNo?.toString() || '',
+        token.code?.toString() || '',
+        token.name || '',
+        token.test || '',
+        token.sample || '',
+        token.weight?.toString() || '',
+        token.amount?.toString() || ''
+      ];
+
+      return searchTerms.every(term => 
+        searchFields.some(field => 
+          field.toLowerCase().includes(term)
+        )
+      );
+    });
+
+    dispatch({ type: 'SET_FIELD', field: 'filteredTokens', value: filtered });
+  }, 300), [tokens]);
+
+  // Cleanup debounce on unmount
+  useEffect(() => {
+    return () => {
+      handleSearch.cancel();
+    };
+  }, [handleSearch]);
 
   // Memoize all handlers
   const handlers = useMemo(() => ({
@@ -478,9 +490,12 @@ const TokenPage = () => {
                   type="text"
                   placeholder="Search tokens..."
                   value={state.searchQuery}
-                  onChange={(e) => debouncedSearch(e.target.value)}
+                  onChange={(e) => {
+                    dispatch({ type: 'SET_FIELD', field: 'searchQuery', value: e.target.value });
+                    handleSearch(e.target.value);
+                  }}
                   onDoubleClick={resetForm}  // Add double-click to reset
-                  className="w-full pl-8 pr-3 py-1.5 rounded border border-amber-200 border-solid focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition-all text-sm text-amber-900"
+                  className="w-full pl-8 pr-3 py-1.5 rounded border border-amber-200 border-solid focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition-all text-sm text-amber-900 rounded-xl"
                   title="Double click to reset search"  // Add tooltip
                 />
                 <FiSearch className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-amber-400 w-4 h-4" />
