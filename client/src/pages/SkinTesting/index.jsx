@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   FiSearch,
   FiRotateCcw,
@@ -11,15 +11,45 @@ import {
   FiPercent,
   FiStar,
   FiMessageSquare,
+  FiX,
 } from 'react-icons/fi';
-
 
 import SkinTestForm from './components/SkinTestForm';
 import TableRow from './components/TableRow';
 import DeleteConfirmationModal from './components/DeleteConfirmationModal';
-import {useSkinTest} from './hooks/useSkinTest';
+import { useSkinTest } from './hooks/useSkinTest';
 import { initialFormData } from './constants/initialState';
 import { printData } from './utils/printUtils';
+
+// Fuzzy search helper function
+const fuzzySearch = (query, text) => {
+  if (!query) return true;
+  
+  const queryChars = query.toLowerCase().split('');
+  let searchIndex = 0;
+  const textLower = text?.toString().toLowerCase() || '';
+  
+  for (let i = 0; i < textLower.length; i++) {
+    if (textLower[i] === queryChars[searchIndex]) {
+      searchIndex++;
+      if (searchIndex === queryChars.length) return true;
+    }
+  }
+  return false;
+};
+
+// Debounce function
+const debounce = (func, wait) => {
+  let timeout;
+  return function executedFunction(...args) {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
+    };
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+};
 
 const SkinTesting = () => {
   const {
@@ -49,50 +79,47 @@ const SkinTesting = () => {
     loadSkinTests();
   }, [loadSkinTests]);
 
-  // Use ref to store the previous search results
-  const prevSearchRef = React.useRef('');
-  const prevResultsRef = React.useRef(skinTests);
-  
   // Memoize the filtered results with a stable reference
   const filteredSkinTests = React.useMemo(() => {
     const trimmedQuery = searchQuery.trim();
     
     // Return all tests if search is empty
     if (!trimmedQuery) {
-      prevSearchRef.current = '';
-      prevResultsRef.current = skinTests;
       return skinTests;
     }
     
-    // Check if we can use previous results for incremental search
-    if (trimmedQuery.startsWith(prevSearchRef.current) && prevSearchRef.current !== '') {
-      // If new search is an extension of previous search, filter previous results
-      const query = trimmedQuery.toLowerCase();
-      const results = prevResultsRef.current.filter(test => 
-        test.tokenNo?.toString().toLowerCase().includes(query) ||
-        test.name?.toString().toLowerCase().includes(query) ||
-        test.sample?.toString().toLowerCase().includes(query) ||
-        test.remarks?.toString().toLowerCase().includes(query)
-      );
-      
-      prevSearchRef.current = trimmedQuery;
-      prevResultsRef.current = results;
-      return results;
-    }
-    
-    // Full search
     const query = trimmedQuery.toLowerCase();
-    const results = skinTests.filter(test => 
-      test.tokenNo?.toString().toLowerCase().includes(query) ||
-      test.name?.toString().toLowerCase().includes(query) ||
-      test.sample?.toString().toLowerCase().includes(query) ||
-      test.remarks?.toString().toLowerCase().includes(query)
-    );
     
-    prevSearchRef.current = trimmedQuery;
-    prevResultsRef.current = results;
-    return results;
+    // Search across all relevant fields with fuzzy matching
+    return skinTests.filter(test => {
+      // Search in all relevant fields
+      const searchableFields = [
+        test.token_no?.toString() || '',
+        test.name || '',
+        test.weight || '',
+        test.sample || '',
+        test.remarks || '',
+        test.testType || '',
+        test.result || ''
+      ];
+      
+      // Check if any field contains the query (fuzzy match)
+      return searchableFields.some(field => 
+        fuzzySearch(query, field)
+      );
+    });
   }, [skinTests, searchQuery]);
+  
+  // Memoized search handler with debouncing
+  const handleSearch = useCallback(debounce((value) => {
+    setSearchQuery(value);
+  }, 200), []);
+  
+  // Clear search input
+  const clearSearch = useCallback(() => {
+    setInputValue('');
+    setSearchQuery('');
+  }, []);
 
   const handlePrint = (data) => {
     printData(data);
@@ -106,27 +133,17 @@ const SkinTesting = () => {
       onEdit={handleEdit}
       onDelete={(id) => setDeleteConfirmation({ isOpen: true, itemId: id })}
       onPrint={handlePrint}
+      searchQuery={searchQuery}
     />
-  ), [filteredSkinTests, handleEdit, handlePrint]);
-
-
+  ), [filteredSkinTests, handleEdit, handlePrint, searchQuery]);
 
   // Use state for immediate feedback
   const [inputValue, setInputValue] = React.useState('');
   
   // Update search with debounce
   React.useEffect(() => {
-    const handler = setTimeout(() => {
-      setSearchQuery(inputValue);
-    }, 100); // Reduced debounce time to 100ms
-    
-    return () => clearTimeout(handler);
-  }, [inputValue]);
-  
-  const handleSearchChange = (e) => {
-    // Update input immediately for better UX
-    setInputValue(e.target.value);
-  };
+    handleSearch(inputValue);
+  }, [inputValue, handleSearch]);
 
 
   const customerFields = {
@@ -184,15 +201,24 @@ const SkinTesting = () => {
             </h3>
           </div>
           <div className="flex items-center space-x-2">
-            <div className="relative w-64">
+            <div className="relative flex-1">
               <input
-                type="text"
-                placeholder="Search tests..."
-                onChange={handleSearchChange}
+                type="search"
+                placeholder="Search by token, name, sample, remarks..."
+                onChange={(e) => setInputValue(e.target.value)}
                 value={inputValue}
-                className="w-full pl-8 pr-3 py-2 rounded border border-amber-200 focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition-all text-sm text-amber-900"
+                className="w-full pl-8 pr-8 py-2 rounded-xl border border-amber-200 focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition-all text-sm text-amber-900"
               />
-              <FiSearch className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-amber-500 h-4 w-4" />
+              <FiSearch className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-amber-400 h-4 w-4" />
+              {inputValue && (
+                <button
+                  onClick={clearSearch}
+                  className="absolute right-2.5 top-1/2 transform -translate-y-1/2 text-amber-400 hover:text-amber-600 transition-colors"
+                  aria-label="Clear search"
+                >
+                  <FiX className="h-4 w-4" />
+                </button>
+              )}
             </div>
             {searchQuery && (
               <button

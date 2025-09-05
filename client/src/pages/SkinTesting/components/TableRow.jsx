@@ -341,8 +341,8 @@ const TableRow = React.memo(({
   const totalWidth = useMemo(() => getTotalTableWidth(columns), [columns]);
 
   return (
-    <div className="rounded border border-amber-100" style={{ height: '450px' }}>
-      <div style={{ width: '100%', height: '100%', overflow: 'hidden' }}>
+    <div className="rounded-xl border border-amber-100 overflow-hidden" style={{ height: '450px' }}>
+      <div style={{ width: '100%', height: '100%' }}>
         <AutoSizer>
           {({ height, width }) => (
             <div style={{ height, width, overflowX: 'auto', overflowY: 'hidden' }}>
@@ -379,8 +379,8 @@ const TableRow = React.memo(({
                   width={100} // Increased width
                   flexShrink={0}
                   cellRenderer={renderActions}
-                  headerClassName="bg-amber-500 text-white text-xs font-medium uppercase tracking-wider whitespace-nowrap text-center pointer-events-none"
-                  className="sticky left-0 z-10 bg-white"
+                  headerClassName="bg-amber-500 text-white text-xs font-medium uppercase tracking-wider whitespace-nowrap text-center pointer-events-none rounded-tl-lg"
+                  className="sticky left-0 z-10 bg-white rounded-bl-lg"
                 />
                 {columns.map(key => (
                   <Column
@@ -398,7 +398,7 @@ const TableRow = React.memo(({
                         {getCellValue({ dataKey, rowData })}
                       </div>
                     )}
-                    headerClassName="bg-amber-500 text-white text-xs font-medium uppercase tracking-wider whitespace-nowrap text-center pointer-events-none"
+                    headerClassName="bg-amber-500 text-white text-xs font-medium uppercase tracking-wider whitespace-nowrap text-center pointer-events-none last:rounded-tr-lg"
                     style={{ overflow: 'visible' }}
                   />
                 ))}
