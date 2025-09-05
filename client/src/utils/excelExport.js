@@ -1,9 +1,17 @@
-import ExcelJS from 'exceljs';
+// ExcelJS will be dynamically imported when needed
+let exceljsPromise = null;
+
+const getExcelJS = async () => {
+  if (!exceljsPromise) {
+    exceljsPromise = import(/* webpackChunkName: "exceljs" */ 'exceljs');
+  }
+  const { default: ExcelJS } = await exceljsPromise;
+  return ExcelJS;
+};
 
 const formatValue = (value, header) => {
   if (value === null || value === undefined) return '';
   
-  // Convert header to lowercase for comparison
   const headerLower = header.toLowerCase();
 
   // Handle isPaid or Is Paid status
@@ -55,40 +63,44 @@ const formatValue = (value, header) => {
   return String(value || '');
 };
 
-export const exportToExcel = async (data, sheetName, fileName) => {
+// Format data without loading ExcelJS
+const prepareDataForExport = (data) => {
   if (!data || !Array.isArray(data) || data.length === 0) {
-    console.error('Invalid or empty data for export:', data);
     throw new Error('No data available for export');
   }
+  
+  const headers = Object.keys(data[0]);
+  const rows = data.map(item => 
+    headers.map(header => formatValue(item[header], header))
+  );
+  
+  return { headers, rows };
+};
 
+export const exportToExcel = async (data, sheetName, fileName) => {
   try {
+    // Load ExcelJS only when needed
+    const ExcelJS = await getExcelJS();
+    const { headers } = prepareDataForExport(data);
+    
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet(sheetName);
 
-    // Get headers and format them
-    const headers = Object.keys(data[0]);
-    
     // Add headers row
     worksheet.addRow(headers);
     
     // Style headers
     const headerRow = worksheet.getRow(1);
-    // First set the style for the entire row
     headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 12 };
     headerRow.fill = {
       type: 'pattern',
       pattern: 'solid',
-      fgColor: { argb: 'FFD3B04D' } // Use a solid color for better compatibility
+      fgColor: { argb: 'FFD3B04D' }
     };
     headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
     
     // Apply header style to all cells in the row
     headerRow.eachCell((cell) => {
-      cell.fill = {
-        type: 'pattern',
-        pattern: 'solid',
-        fgColor: { argb: 'FFD3B04D' }
-      };
       cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 12 };
       cell.alignment = { vertical: 'middle', horizontal: 'center' };
     });
@@ -186,7 +198,11 @@ export const exportToExcel = async (data, sheetName, fileName) => {
 
     return true;
   } catch (error) {
-    console.error('Error during export:', error);
+    console.error('Error exporting to Excel:', error);
+    // Clear the promise on error to allow retry
+    if (error.message && error.message.includes('Loading chunk')) {
+      exceljsPromise = null;
+    }
     throw error;
   }
 };

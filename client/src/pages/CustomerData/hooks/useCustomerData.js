@@ -1,12 +1,12 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { exportToExcel } from '../../../utils/excelExport';
 import entryService from '../../../services/entryService';
 
+// Custom hook for managing customer data
 export const useCustomerData = () => {
   const [entries, setEntries] = useState([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
-
   const fetchEntries = useCallback(async () => {
     try {
       setLoading(true);

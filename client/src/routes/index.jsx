@@ -1,73 +1,108 @@
-import React from 'react';
+import React, { Suspense } from 'react';
 import { markRouteStart, measureRouteLoad } from '../utils/performance';
 import { ROUTE_PRIORITIES, SCROLL_BEHAVIOR } from './config';
+import LoadingSpinner from '../components/common/LoadingSpinner';
 
-// Define components with proper naming
-const Dashboard = React.lazy(() => 
-  import('../pages/Dashboard/Dashboard').then(module => ({
-    default: module.default || module
-  }))
+// Create a higher-order component for better error boundaries and loading states
+const withSuspense = (Component) => (props) => (
+  <Suspense fallback={<LoadingSpinner />}>
+    <Component {...props} />
+  </Suspense>
 );
-const NewEntries = React.lazy(() => 
-  import('../components/NewEntries/NewEntries').then(module => ({
-    default: module.default || module
-  }))
+
+// Helper for lazy loading components with retry logic
+const lazyLoad = (importFn) => {
+  const LazyComponent = React.lazy(() => 
+    importFn().catch(error => {
+      console.error('Failed to load component:', error);
+      return { default: () => <div>Failed to load component.</div> };
+    })
+  );
+  return withSuspense(LazyComponent);
+};
+
+// Define components with dynamic imports and code splitting
+const Dashboard = lazyLoad(() => import(
+  /* webpackChunkName: "dashboard" */
+  /* webpackPrefetch: true */
+  '../pages/Dashboard/Dashboard'
+));
+
+const NewEntries = lazyLoad(() => import(
+  /* webpackChunkName: "new-entries" */
+  /* webpackPrefetch: true */
+  '../components/NewEntries/NewEntries'
+));
+
+const SkinTesting = lazyLoad(() => import(
+  /* webpackChunkName: "skin-testing" */
+  '../pages/SkinTesting'
+));
+
+const PhotoTesting = lazyLoad(() => import(
+  /* webpackChunkName: "photo-testing" */
+  '../pages/PhotoTesting'
+));
+
+const Token = lazyLoad(() => import(
+  /* webpackChunkName: "token" */
+  /* webpackPrefetch: true */
+  '../pages/Token/index'
+));
+
+const CustomerDataPage = lazyLoad(() => import(
+  /* webpackChunkName: "customer-data" */
+  /* webpackPrefetch: true */
+  '../pages/CustomerData/CustomerDataPage'
+));
+
+// Heavy components with separate chunks
+const Tokendata = lazyLoad(() => import(
+  /* webpackChunkName: "token-data" */
+  /* webpackMode: "lazy" */
+  '../pages/TokenData/TokenDataPage'
+));
+
+const Skintestdata = lazyLoad(() => import(
+  /* webpackChunkName: "skintest-data" */
+  /* webpackMode: "lazy" */
+  '../pages/SkinTestData/SkinTestDataPage'
+));
+
+// Heavy charting components with dynamic imports for charting libraries
+const PureExchange = lazyLoad(() => 
+  Promise.all([
+    import('recharts'),
+    import(
+      /* webpackChunkName: "pure-exchange" */
+      /* webpackPrefetch: true */
+      '../pages/PureExchange/PureExchange'
+    )
+  ]).then(([_, module]) => module)
 );
-const SkinTesting = React.lazy(() => 
-  import('../pages/SkinTesting').then(module => ({
-    default: module.default || module
-  }))
-);
-const PhotoTesting = React.lazy(() => 
-  import('../pages/PhotoTesting').then(module => ({
-    default: module.default || module
-  }))
-);
-const Token = React.lazy(() => 
-  import('../pages/Token/index').then(module => ({
-    default: module.default || module
-  }))
-);
-const CustomerDataPage = React.lazy(() => 
-  import('../pages/CustomerData/CustomerDataPage').then(module => ({
-    default: module.default || module
-  }))
-);
-const Tokendata = React.lazy(() => 
-  import('../pages/TokenData/TokenDataPage').then(module => ({
-    default: module.default || module
-  }))
-);
-const Skintestdata = React.lazy(() => 
-  import('../pages/SkinTestData/SkinTestDataPage').then(module => ({
-    default: module.default || module
-  }))
-);
-const PureExchange = React.lazy(() => 
-  import('../pages/PureExchange/PureExchange').then(module => ({
-    default: module.default || module
-  }))
-);
-const ExchangeDataPage = React.lazy(() => 
-  import('../pages/ExchangeData/ExchangeDataPage').then(module => ({
-    default: module.default || module
-  }))
-);
-const CashAdjustmentList = React.lazy(() => 
-  import('../components/cashbook/CashAdjustmentList').then(module => ({
-    default: module.default || module
-  }))
-);
-const CashBook = React.lazy(() => 
-  import('../components/cashbook/CashBook').then(module => ({
-    default: module.default || module
-  }))
-);
+
+const ExchangeDataPage = lazyLoad(() => import(
+  /* webpackChunkName: "exchange-data" */
+  /* webpackMode: "lazy" */
+  '../pages/ExchangeData/ExchangeDataPage'
+));
+
+const CashAdjustmentList = lazyLoad(() => import(
+  /* webpackChunkName: "cash-adjustment" */
+  '../components/cashbook/CashAdjustmentList'
+));
+
+const CashBook = lazyLoad(() => import(
+  /* webpackChunkName: "cashbook" */
+  /* webpackPrefetch: true */
+  '../components/cashbook/CashBook'
+));
 
 // Enhanced route priorities with contextual information from config
 
-// Preload queue with better memory management
-const preloadQueue = new Map(); // Using Map for better metadata storage
+// Preload queue with better memory management and priority
+const preloadQueue = new Map();
+const MAX_CONCURRENT_PRELOADS = 3; // Limit concurrent prefetches
 
 const retryImport = async (importFn, maxRetries = 3) => {
   let lastError;
@@ -82,48 +117,65 @@ const retryImport = async (importFn, maxRetries = 3) => {
   throw lastError;
 };
 
-export const preloadRoute = (path) => {
+export const preloadRoute = async (path) => {
   markRouteStart(path);
   const route = routesConfig.find(r => r.path === path);
   const routeConfig = ROUTE_PRIORITIES[path];
 
-  if (route?.preload && !preloadQueue.has(path)) {
-    const metadata = {
-      timestamp: Date.now(),
-      priority: routeConfig?.priority || 3
-    };
-    preloadQueue.set(path, metadata);
+  if (!route?.preload || preloadQueue.has(path)) {
+    return Promise.resolve();
+  }
 
-    const loadStrategy = () => {
-      return retryImport(() => route.preload())
+  const metadata = {
+    timestamp: Date.now(),
+    priority: routeConfig?.priority || 3,
+    promise: null
+  };
+  
+  preloadQueue.set(path, metadata);
+
+  const loadStrategy = async () => {
+    try {
+      // Only preload if we have less than MAX_CONCURRENT_PRELOADS
+      const currentPreloads = Array.from(preloadQueue.values())
+        .filter(m => m.promise && m.promise !== metadata.promise);
+      
+      if (currentPreloads.length >= MAX_CONCURRENT_PRELOADS) {
+        // Wait for one of the current preloads to finish
+        await Promise.race(currentPreloads.map(m => m.promise));
+      }
+
+      metadata.promise = retryImport(() => route.preload())
         .then(module => {
           measureRouteLoad(path);
-          if (routeConfig?.keepInMemory) {
-            // Keep in memory
-            preloadQueue.set(path, { ...metadata, loaded: true });
-          } else {
-            preloadQueue.delete(path);
-          }
           return module;
         })
-        .catch(error => {
-          console.error(`Failed to load route ${path}:`, error);
-          throw error;
+        .finally(() => {
+          // Clean up after a short delay to handle rapid navigation
+          setTimeout(() => preloadQueue.delete(path), 1000);
         });
-    };
 
-    if (routeConfig?.priority === 1) {
-      return loadStrategy();
-    } else {
-      return new Promise(resolve => {
-        requestIdleCallback(() => resolve(loadStrategy()));
-      });
+      return await metadata.promise;
+    } catch (error) {
+      console.error(`Failed to preload route ${path}:`, error);
+      preloadQueue.delete(path);
+      throw error;
     }
+  };
+
+  // Use requestIdleCallback for non-critical prefetching
+  if (window.requestIdleCallback) {
+    window.requestIdleCallback(
+      () => loadStrategy(),
+      { timeout: 2000 } // Don't wait more than 2s
+    );
+    return Promise.resolve();
   }
-  return Promise.resolve();
+  
+  return loadStrategy();
 };
 
-// Update routes array with enhanced metadata
+// Update routes array with enhanced metadata and preloading
 const routesConfig = [
   {
     path: '/dashboard',
