@@ -376,6 +376,12 @@ async function createWindow() {
     show: false
   });
 
+  // Remove default menu in production
+  if (app.isPackaged) {
+    mainWindow.setMenuBarVisibility(false);
+    mainWindow.setAutoHideMenuBar(true);
+  }
+
   mainWindow.webContents.on('did-finish-load', () => {
     setTimeout(() => {
       if (splashWindow) {
