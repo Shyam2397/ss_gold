@@ -73,41 +73,69 @@ export const exportToExcel = async (data, sheetName, fileName) => {
     
     // Style headers
     const headerRow = worksheet.getRow(1);
+    // First set the style for the entire row
     headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 12 };
     headerRow.fill = {
-      type: 'gradient',
-      gradient: 'angle',
-      degree: 90,
-      stops: [
-        { position: 0, color: { argb: 'FFDD845A' } },
-        { position: 1, color: { argb: 'FFD3B04D' } }
-      ]
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFD3B04D' } // Use a solid color for better compatibility
     };
     headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
     
+    // Apply header style to all cells in the row
+    headerRow.eachCell((cell) => {
+      cell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFD3B04D' }
+      };
+      cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 12 };
+      cell.alignment = { vertical: 'middle', horizontal: 'center' };
+    });
+    
     // Add data rows
-    data.forEach((item, index) => {
+    data.forEach((item) => {
       const values = headers.map(header => formatValue(item[header], header));
       const row = worksheet.addRow(values);
       
       // Style data cells
       row.eachCell((cell, colNumber) => {
-        const header = headers[colNumber - 1];
+        const header = headers[colNumber - 1] || '';
+        const headerLower = header.toLowerCase();
         
-        // Set alignment based on data type
-        if (header.toLowerCase().includes('amount') || 
-            header.toLowerCase().includes('weight')) {
+        // Format numbers
+        if (typeof cell.value === 'number' || !isNaN(parseFloat(cell.value))) {
+          // Handle weights (3 decimal places)
+          if (headerLower.includes('weight')) {
+            cell.numFmt = '0.000';
+            cell.value = parseFloat(cell.value).toFixed(3);
+          } 
+          // Handle exgold and other numeric fields (2 decimal places)
+          else if (headerLower.includes('exgold') || 
+                  headerLower.includes('highest') || 
+                  headerLower.includes('average') ||
+                  headerLower.includes('fineness')) {
+            cell.numFmt = '0.00';
+            cell.value = parseFloat(cell.value).toFixed(2);
+          }
+        }
+        
+        // Set alignment
+        if (headerLower.includes('weight') || 
+            headerLower.includes('exgold') || 
+            headerLower.includes('highest') || 
+            headerLower.includes('average') ||
+            headerLower.includes('fineness')) {
           cell.alignment = { vertical: 'middle', horizontal: 'right' };
-        } else if (header.toLowerCase().includes('date') || 
-                  header.toLowerCase().includes('time') ||
-                  header.toLowerCase().includes('paid')) {
+        } else if (headerLower.includes('date') || 
+                  headerLower.includes('time')) {
           cell.alignment = { vertical: 'middle', horizontal: 'center' };
         } else {
           cell.alignment = { vertical: 'middle', horizontal: 'left' };
         }
         
         // Style isPaid cells
-        if (header.toLowerCase().includes('paid')) {
+        if (headerLower.includes('paid')) {
           const isPaid = cell.value === 'Paid';
           cell.fill = {
             type: 'pattern',
