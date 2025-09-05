@@ -315,7 +315,7 @@ const PureExchange = () => {
                             />
                             <button
                                 onClick={handleAdd}
-                                className="px-2 py-1 bg-amber-500 text-white text-sm rounded hover:bg-amber-600 transition-colors flex items-center space-x-1 h-[30px]"
+                                className="px-2 py-1 bg-amber-500 text-white text-sm rounded hover:bg-amber-600 transition-colors flex items-center space-x-1 h-[30px] rounded-xl"
                                 disabled={isLoading}
                             >
                                 {isLoading ? (
@@ -388,7 +388,7 @@ const PureExchange = () => {
                         <>
                             <button
                                 onClick={handleReset}
-                                className="px-2 py-1 border border-amber-300 border-solid text-amber-700 text-sm rounded hover:bg-amber-50 transition-colors flex items-center space-x-1 h-[30px]"
+                                className="px-2 py-1 border border-amber-300 border-solid text-amber-700 text-sm rounded hover:bg-amber-50 transition-colors flex items-center space-x-1 h-[30px] rounded-xl"
                                 disabled={isLoading}
                             >
                                 <FiRotateCcw className="w-3.5 h-3.5" />
@@ -396,7 +396,7 @@ const PureExchange = () => {
                             </button>
                             <button
                                 onClick={handleSave}
-                                className="px-2 py-1 bg-amber-500 text-white text-sm rounded hover:bg-amber-600 transition-colors flex items-center space-x-1 h-[30px]"
+                                className="px-2 py-1 bg-amber-500 text-white text-sm rounded hover:bg-amber-600 transition-colors flex items-center space-x-1 h-[30px] rounded-xl"
                                 disabled={isLoading || tableData.length === 0}
                             >
                                 {isLoading ? (
