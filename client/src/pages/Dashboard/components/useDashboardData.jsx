@@ -190,121 +190,166 @@ function useDashboardData() {
     }
   }, [exchanges, selectedPeriod]);
 
+  const parseDate = (dateStr, timeStr) => {
+    try {
+      if (!dateStr) return new Date(NaN);
+      
+      let date;
+      // Handle different date formats
+      if (dateStr.includes('-')) {
+        // For YYYY-MM-DD format
+        date = new Date(dateStr);
+      } else if (dateStr.includes('/')) {
+        // For DD/MM/YYYY format
+        const [day, month, year] = dateStr.split('/');
+        date = new Date(year, month - 1, day);
+      } else {
+        // For ISO string or other formats
+        date = new Date(dateStr);
+      }
+      
+      // If time is provided, set the time
+      if (timeStr) {
+        const [hours, minutes, seconds] = timeStr.split(':');
+        date.setHours(parseInt(hours, 10) || 0, parseInt(minutes, 10) || 0, parseInt(seconds, 10) || 0);
+      } else {
+        // Default to current time if no time provided
+        date.setHours(new Date().getHours(), new Date().getMinutes(), 0, 0);
+      }
+      
+      return date;
+    } catch (err) {
+      console.error('Date parsing error:', err);
+      return new Date(NaN);
+    }
+  };
+
   const processRecentActivities = (tokens, expenses, exchanges, entries, cashAdjustments) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    let uniqueCounter = 0;
     const getUniqueId = (prefix, id) => {
-      uniqueCounter += 1;
+      const uniqueCounter = Math.floor(Math.random() * 1000);
       return `${prefix}-${id || uniqueCounter}-${Date.now()}-${uniqueCounter}`;
     };
 
     const isToday = (dateStr) => {
-      try {
-        let date;
-        if (typeof dateStr === 'string') {
-          // Handle different date formats
-          if (dateStr.includes('-')) {
-            // For YYYY-MM-DD format
-            date = new Date(dateStr);
-          } else if (dateStr.includes('/')) {
-            // For DD/MM/YYYY format
-            const [day, month, year] = dateStr.split('/');
-            date = new Date(year, month - 1, day);
-          } else {
-            // For ISO string
-            date = new Date(dateStr);
-          }
-        } else {
-          date = new Date(dateStr);
-        }
-        
-        return date.getDate() === today.getDate() &&
-               date.getMonth() === today.getMonth() &&
-               date.getFullYear() === today.getFullYear();
-      } catch (err) {
-        console.error('Date parsing error:', err);
-        return false;
-      }
+      if (!dateStr) return false;
+      const date = parseDate(dateStr);
+      return date.getDate() === today.getDate() &&
+             date.getMonth() === today.getMonth() &&
+             date.getFullYear() === today.getFullYear();
     };
 
     const activities = [
       ...tokens
         .filter(token => token.date && isToday(token.date))
         .map(token => {
-          // Create a date object from the token's date and time
-          const tokenDate = new Date(token.date);
-          if (token.time) {
-            const [hours, minutes] = token.time.split(':');
-            tokenDate.setHours(parseInt(hours, 10), parseInt(minutes, 10));
-          }
-          
+          const time = parseDate(token.date, token.time);
           return {
             id: `token-${token._id || token.token_no || Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
             type: 'token',
             action: `${token.test || 'Token'} - ${token.name || 'Unknown'}`,
             amount: parseFloat(token.amount || 0),
-            time: tokenDate,
-            details: `Weight: ${parseFloat(token.weight || 0).toFixed(3)}g`
+            time: time,
+            details: `Weight: ${parseFloat(token.weight || 0).toFixed(3)}g`,
+            _sortTime: time.getTime()
           };
         }),
       ...expenses
         .filter(expense => expense.date && isToday(expense.date))
-        .map(expense => ({
-          id: getUniqueId('expense', expense._id),
-          type: 'expense',
-          action: expense.description || 'Expense added',
-          amount: -parseFloat(expense.amount || 0),
-          time: new Date(expense.created_at || expense.date),
-          details: `Category: ${expense.expense_type || 'Uncategorized'}`
-        })),
+        .map(expense => {
+          const time = parseDate(expense.created_at || expense.date);
+          return {
+            id: getUniqueId('expense', expense._id),
+            type: 'expense',
+            action: expense.description || 'Expense added',
+            amount: -parseFloat(expense.amount || 0),
+            time: time,
+            details: `Category: ${expense.expense_type || 'Uncategorized'}`,
+            _sortTime: time.getTime()
+          };
+        }),
       ...exchanges
         .filter(exchange => exchange.date && isToday(exchange.date))
-        .map(exchange => ({
-          id: getUniqueId('exchange', exchange._id),
-          type: 'exchange',
-          action: 'Exchange recorded',
-          amount: 0,
-          time: exchange.time ? 
-            new Date(`${exchange.date.split('/').reverse().join('-')}T${exchange.time}`) :
-            new Date(exchange.date.split('/').reverse().join('-')),
-          details: `Impure: ${parseFloat(exchange.weight || 0).toFixed(3)}g → Pure: ${parseFloat(exchange.exweight || 0).toFixed(3)}g`
-        })),
+        .map(exchange => {
+          const time = parseDate(exchange.date, exchange.time);
+          return {
+            id: getUniqueId('exchange', exchange._id),
+            type: 'exchange',
+            action: 'Exchange recorded',
+            amount: 0,
+            time: time,
+            details: `Impure: ${parseFloat(exchange.weight || 0).toFixed(3)}g → Pure: ${parseFloat(exchange.exweight || 0).toFixed(3)}g`,
+            _sortTime: time.getTime()
+          };
+        }),
       ...entries
         .filter(entry => entry.created_at && isToday(entry.created_at))
-        .map(entry => ({
-          id: getUniqueId('entry', entry._id),
-          type: 'entry',
-          action: 'New customer registered',
-          amount: 0,
-          time: new Date(entry.created_at),
-          details: entry.name || 'Unknown customer'
-        })),
+        .map(entry => {
+          const time = parseDate(entry.created_at);
+          return {
+            id: getUniqueId('entry', entry._id),
+            type: 'entry',
+            action: 'New customer registered',
+            amount: 0,
+            time: time,
+            details: entry.name || 'Unknown customer',
+            _sortTime: time.getTime()
+          };
+        }),
+      // In useDashboardData.jsx, update the cash adjustments mapping
       ...(Array.isArray(cashAdjustments) ? cashAdjustments : [])
-        .filter(adjustment => adjustment && adjustment.date && isToday(adjustment.date))
-        .map(adjustment => ({
+      .filter(adjustment => adjustment && adjustment.date && isToday(adjustment.date))
+      .map(adjustment => {
+        const amount = parseFloat(adjustment?.amount || 0);
+        const isCredit = adjustment?.adjustment_type?.toLowerCase() === 'addition';
+        const action = isCredit ? 'Cash Added' : 'Cash Deducted';
+        const time = parseDate(adjustment.date, adjustment.time);
+  
+        return {
           id: getUniqueId('adjustment', adjustment?._id),
           type: 'adjustment',
-          action: 'Cash adjustment',
-          amount: parseFloat(adjustment?.amount || 0),
-          time: new Date(adjustment?.date),
-          details: `Type: ${adjustment?.type || 'Unknown'}`
-        }))
+          action: action,
+          amount: isCredit ? amount : -amount,
+          time: time,
+          details: `Reason: ${adjustment?.reason || 'No reason provided'}`,
+          reference: adjustment?.reference_number ? `Ref: ${adjustment.reference_number}` : '',
+          remarks: adjustment?.remarks,
+          isCredit: isCredit,
+          _sortTime: time.getTime()
+        };
+      })
     ];
 
-    // Use original timestamps for sorting and display
-    return activities
-      .filter(activity => activity.time instanceof Date && !isNaN(activity.time))
-      .sort((a, b) => b.time.getTime() - a.time.getTime())
-      .map(activity => ({
-        ...activity,
-        time: activity.time.toLocaleTimeString('en-IN', {
-          hour: '2-digit',
-          minute: '2-digit',
-          hour12: true
-        })
-      }));
+    // Filter out invalid dates and sort by timestamp
+    const validActivities = activities.filter(activity => 
+      activity.time instanceof Date && !isNaN(activity.time.getTime())
+    );
+
+    // Sort by the pre-calculated timestamp (most recent first)
+    const sortedActivities = [...validActivities].sort((a, b) => {
+      // Use _sortTime if available, otherwise fall back to time.getTime()
+      const timeA = a._sortTime || a.time.getTime();
+      const timeB = b._sortTime || b.time.getTime();
+      return timeB - timeA;
+    });
+
+    // Format the display time and remove internal fields
+    return sortedActivities.map(activity => {
+      const displayTime = activity.time.toLocaleTimeString('en-IN', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      });
+
+      // Remove internal fields and add displayTime
+      const { _sortTime, ...rest } = activity;
+      return {
+        ...rest,
+        time: displayTime
+      };
+    });
   };
 
   const processTokenData = useCallback((tokens) => {

@@ -10,15 +10,29 @@ const FixedSizeList = React.lazy(() => import('react-window').then(mod => ({
 
 const ActivityRow = React.memo(({ data, index, style }) => {
   const activity = data[index];
+  const isAdjustment = activity.type === 'adjustment';
+  const isCredit = activity.amount > 0;
+  
   return (
     <div style={style}>
       <div className="flex items-start space-x-4 p-3 hover:bg-yellow-50 rounded-lg transition-colors duration-200">
-        <ActivityIcon type={activity.type} />
+        <ActivityIcon type={activity.type} isCredit={isCredit} />
         <div className="flex-1 min-w-0">
           <div className="flex justify-between items-start">
-            <div className="text-sm font-medium text-gray-900">{activity.action}</div>
+            <div className="text-sm font-medium text-gray-900">
+              {activity.action}
+              {isAdjustment && activity.reference && (
+                <span className="ml-2 text-xs text-gray-500">{activity.reference}</span>
+              )}
+            </div>
             {activity.amount !== 0 && (
-              <span className={`text-sm font-medium ${activity.amount > 0 ? 'text-green-600' : 'text-red-600'}`}>
+              <span 
+                className={`text-sm font-medium ${
+                  isAdjustment 
+                    ? isCredit ? 'text-teal-600' : 'text-orange-600'
+                    : activity.amount > 0 ? 'text-green-600' : 'text-red-600'
+                }`}
+              >
                 {activity.amount > 0 ? '₹' : '-₹'}{Math.abs(activity.amount).toLocaleString('en-IN', {
                   minimumFractionDigits: 2,
                   maximumFractionDigits: 2
@@ -27,7 +41,14 @@ const ActivityRow = React.memo(({ data, index, style }) => {
             )}
           </div>
           <div className="flex justify-between items-center mt-1">
-            <span className="text-xs text-gray-500">{activity.details}</span>
+            <span className="text-xs text-gray-500">
+              {isAdjustment ? (
+                <>
+                  {activity.details}
+                  {activity.remarks && ` • ${activity.remarks}`}
+                </>
+              ) : activity.details}
+            </span>
             <span className="text-xs text-gray-400">{activity.time}</span>
           </div>
         </div>
