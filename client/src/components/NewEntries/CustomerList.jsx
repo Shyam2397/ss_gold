@@ -132,7 +132,7 @@ const CustomerList = ({
           <div style={{ width: '100%', height: '100%' }}>
             <AutoSizer>
               {({ height, width }) => (
-                <div style={{ height, width }}>
+                <div style={{ height, width, overflowX: 'auto', overflowY: 'hidden' }}>
                   <Table
                     width={Math.max(width, minTableWidth)}
                     height={height}

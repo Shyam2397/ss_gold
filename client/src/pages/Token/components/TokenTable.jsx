@@ -152,7 +152,7 @@ const TokenTable = ({ tokens = [], onEdit, onDelete, onPaymentStatusChange }) =>
   );
 
   return (
-    <div className="rounded border border-amber-100 border-solid" style={{ height: '450px' }}>
+    <div className="rounded-xl border border-amber-100 border-solid" style={{ height: '450px', overflow: 'hidden' }}>
       <AutoSizer>
         {({ height, width }) => (
           <div style={{ height, width, overflowX: 'auto', overflowY: 'hidden' }}>
@@ -175,7 +175,7 @@ const TokenTable = ({ tokens = [], onEdit, onDelete, onPaymentStatusChange }) =>
                   flexGrow={flexGrow}
                   cellRenderer={cellRenderer}
                   headerRenderer={headerRenderer}
-                  className="divide-x divide-amber-100"
+                  className="divide-x divide-amber-100 rounded-xl"
                   style={{ overflow: 'hidden' }}
                 />
               ))}
