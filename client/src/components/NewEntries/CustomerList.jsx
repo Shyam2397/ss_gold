@@ -128,11 +128,11 @@ const CustomerList = ({
       {loading ? (
         <LoadingSpinner />
       ) : (
-        <div className="rounded border border-amber-100" style={{ height: '450px' }}>
-          <div style={{ width: '100%', height: '100%', overflow: 'hidden' }}>
+        <div className="rounded-xl border border-amber-100 overflow-hidden" style={{ height: '450px' }}>
+          <div style={{ width: '100%', height: '100%' }}>
             <AutoSizer>
               {({ height, width }) => (
-                <div style={{ height, width, overflowX: 'auto', overflowY: 'hidden' }}>
+                <div style={{ height, width }}>
                   <Table
                     width={Math.max(width, minTableWidth)}
                     height={height}
@@ -156,7 +156,7 @@ const CustomerList = ({
                         flexGrow={flexGrow}
                         cellRenderer={cellRenderer}
                         headerRenderer={headerRenderer}
-                        className="divide-x divide-amber-100"
+                        className="divide-x divide-amber-100 rounded-xl"
                         style={{ overflow: 'hidden' }}
                       />
                     ))}
