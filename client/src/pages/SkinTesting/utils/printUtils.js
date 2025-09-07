@@ -247,9 +247,9 @@ export const printData = (data) => {
 
         <section class="gold-info-bar" aria-label="Gold fineness and karat details">
           <span>GOLD FINENESS %</span>
-          <span>${data.gold_fineness ? data.gold_fineness.replace('%', '') : '-'}</span>
+          <span>${data.gold_fineness ? parseFloat(data.gold_fineness.replace('%', '')).toFixed(2) + ' %' : '-'}</span>
           <span>KARAT Ct</span>
-          <span>${data.karat ? data.karat + ' K' : '-'}</span>
+          <span>${data.karat ? parseFloat(data.karat.replace(' K', '')).toFixed(2) + ' K' : '-'}</span>
         </section>
 
         <section class="elements-table" aria-label="Elemental composition values">
