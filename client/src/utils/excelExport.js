@@ -1,12 +1,37 @@
 // ExcelJS will be dynamically imported when needed
 let exceljsPromise = null;
+let isExcelJSLoading = false;
 
 const getExcelJS = async () => {
-  if (!exceljsPromise) {
-    exceljsPromise = import(/* webpackChunkName: "exceljs" */ 'exceljs');
+  if (exceljsPromise) {
+    return exceljsPromise;
   }
-  const { default: ExcelJS } = await exceljsPromise;
-  return ExcelJS;
+
+  if (isExcelJSLoading) {
+    // If ExcelJS is already being loaded, wait for it
+    return new Promise((resolve) => {
+      const check = () => {
+        if (exceljsPromise) {
+          resolve(exceljsPromise);
+        } else {
+          setTimeout(check, 50);
+        }
+      };
+      check();
+    });
+  }
+
+  isExcelJSLoading = true;
+  try {
+    exceljsPromise = import(/* webpackChunkName: "exceljs" */ 'exceljs')
+      .then(module => module.default || module);
+    return await exceljsPromise;
+  } catch (error) {
+    console.error('Failed to load ExcelJS:', error);
+    exceljsPromise = null;
+    isExcelJSLoading = false;
+    throw error;
+  }
 };
 
 const formatValue = (value, header) => {
