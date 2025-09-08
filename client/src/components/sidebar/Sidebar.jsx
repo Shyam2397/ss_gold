@@ -9,9 +9,8 @@ import { SidebarDesktop } from './SidebarDesktop';
 import { SidebarMobile } from './SidebarMobile';
 
 // Lazy load modals
-const AddExpense = React.lazy(() => import('../expenses/AddExpense'));
+const AddExpense = React.lazy(() => import('../../pages/AddExpensePage'));
 const MasterExpense = React.lazy(() => import('../expenses/MasterExpense'));
-const ViewExpense = React.lazy(() => import('../expenses/ViewExpense'));
 
 // Main Sidebar component orchestrating context and content
 const Sidebar = ({ open: openProp, setOpen: setOpenProp, animate = true, user, setLoggedIn }) => {
@@ -31,7 +30,6 @@ const SidebarContent = memo(({ user, setLoggedIn }) => {
   const [isExpensesOpen, setIsExpensesOpen] = useState(false);
   const [showAddExpense, setShowAddExpense] = useState(false);
   const [showMasterExpense, setShowMasterExpense] = useState(false);
-  const [showViewExpense, setShowViewExpense] = useState(false);
   const scrollPositionsRef = useRef(new Map());
   const [isNavigating, setIsNavigating] = useState(false);
 
@@ -135,15 +133,24 @@ const SidebarContent = memo(({ user, setLoggedIn }) => {
   // Define modal setters for expense items
   const expenseModalSetters = useMemo(() => ({
     add: setShowAddExpense,
-    master: setShowMasterExpense,
-    view: setShowViewExpense,
+    master: setShowMasterExpense
   }), []);
 
   const expenseMenuItems = useMemo(() => [
-    { type: 'link', icon: Icons.Book, label: 'Cash Book', path: '/cashbook',onClick: () => handleNavigation('/cashbook') },
-    { icon: Icons.DollarSign, label: 'Add Expense', modalSetter: expenseModalSetters.add },
-    { icon: Icons.DollarSign, label: 'Master Expense', modalSetter: expenseModalSetters.master },
-    { icon: Icons.DollarSign, label: 'View Expenses', modalSetter: expenseModalSetters.view },
+    { type: 'link', icon: Icons.Book, label: 'Cash Book', path: '/cashbook', onClick: () => handleNavigation('/cashbook') },
+    { 
+      type: 'link', 
+      icon: Icons.DollarSign, 
+      label: 'Add Expense', 
+      path: '/expenses/add',
+      onClick: () => handleNavigation('/expenses/add')
+    },
+    { 
+      type: 'button',
+      icon: Icons.DollarSign, 
+      label: 'Master Expense', 
+      onClick: () => expenseModalSetters.master(true)
+    },
     { 
       type: 'link',
       icon: Icons.DollarSign, 
@@ -191,7 +198,6 @@ const SidebarContent = memo(({ user, setLoggedIn }) => {
       <Suspense fallback={<div>Loading...</div>}>
         {showAddExpense && <AddExpense isOpen={showAddExpense} onClose={() => setShowAddExpense(false)} />}
         {showMasterExpense && <MasterExpense isOpen={showMasterExpense} onClose={() => setShowMasterExpense(false)} />}
-        {showViewExpense && <ViewExpense isOpen={showViewExpense} onClose={() => setShowViewExpense(false)} />}
       </Suspense>
     </>
   );

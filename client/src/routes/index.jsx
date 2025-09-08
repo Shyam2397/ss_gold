@@ -98,6 +98,12 @@ const CashBook = lazyLoad(() => import(
   '../components/cashbook/CashBook'
 ));
 
+const AddExpensePage = lazyLoad(() => import(
+  /* webpackChunkName: "add-expense" */
+  /* webpackPrefetch: true */
+  '../pages/AddExpensePage'
+));
+
 // Enhanced route priorities with contextual information from config
 
 // Preload queue with better memory management and priority
@@ -246,8 +252,14 @@ const routesConfig = [
   {
     path: '/cashbook',
     Component: CashBook,
-    preload: () => import('../components/cashbook/CashBook'),
+    preload: () => import(/* webpackPrefetch: true */ '../components/cashbook/CashBook'),
     ...ROUTE_PRIORITIES['/cashbook']
+  },
+  {
+    path: '/expenses/add',
+    Component: AddExpensePage,
+    preload: () => import(/* webpackPrefetch: true */ '../pages/AddExpensePage'),
+    ...ROUTE_PRIORITIES['/expenses/add']
   }
 ];
 

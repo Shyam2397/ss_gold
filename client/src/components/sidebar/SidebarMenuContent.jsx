@@ -47,19 +47,24 @@ export const SidebarMenuContent = memo(({
   ), [isActive, handleNavigation, isMobile, setOpen]);
 
   const renderExpenseButtonItem = useCallback((item) => {
+    const commonProps = {
+      key: item.label,
+      className: cn(
+        "w-full flex items-center h-8 px-2",
+        "text-gray-600 hover:bg-amber-50 hover:text-amber-900",
+        "rounded-lg transition-all duration-200 text-left"
+      )
+    };
+
     if (item.type === 'link') {
       return (
         <button
-          key={item.label}
+          {...commonProps}
           onClick={() => {
-            onExpenseItemClick(item);
+            if (item.onClick) item.onClick();
+            if (onExpenseItemClick) onExpenseItemClick(item);
             if (isMobile) setOpen(false);
           }}
-          className={cn(
-            "w-full flex items-center h-8 px-2",
-            "text-gray-600 hover:bg-amber-50 hover:text-amber-900",
-            "rounded-lg transition-all duration-200 text-left"
-          )}
         >
           <div className="flex items-center justify-center w-5"><item.icon className="h-5 w-5 flex-shrink-0" /></div>
           <span className="font-medium text-md ml-3">{item.label}</span>
@@ -69,16 +74,13 @@ export const SidebarMenuContent = memo(({
     
     return (
       <button
-        key={item.label}
+        {...commonProps}
         onClick={() => {
-          onExpenseItemClick(item);
+          if (item.onClick) item.onClick();
+          if (item.modalSetter) item.modalSetter(true);
+          if (onExpenseItemClick) onExpenseItemClick(item);
           if (isMobile) setOpen(false);
         }}
-        className={cn(
-          "w-full flex items-center h-8 px-2",
-          "text-gray-600 hover:bg-amber-50 hover:text-amber-900",
-          "rounded-lg transition-all duration-200 text-left"
-        )}
       >
         <div className="flex items-center justify-center w-5"><item.icon className="h-5 w-5 flex-shrink-0" /></div>
         <span className="font-medium text-md ml-3">{item.label}</span>
