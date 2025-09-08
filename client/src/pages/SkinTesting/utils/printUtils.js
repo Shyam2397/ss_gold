@@ -96,41 +96,54 @@ export const printData = (data) => {
 
         /* MAIN INFO ROW */
         .main-info {
-          display: grid;
-          grid-template-columns: repeat(4, max-content 8px auto 16px);
-          gap: 1px 12px;
-          font-weight: 600;
+          padding: 0 53px;
           font-size: 9.5pt;
-          margin-bottom: 2px;
-          user-select: text;
-          align-items: center;
-          padding: 0 42px;
         }
         
-        .main-info > div {
-          display: contents;
+        .info-grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 1px 16px;
+          margin: 0 auto;
+          width: 100%;
+        }
+        
+        .grid-item {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          min-width: 0;
+        }
+        .dual {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          width: 25%;
         }
         
         .main-info label {
           font-weight: 600;
           user-select: text;
-          justify-self: start;
-          text-align: left;
-          padding-left: 13px;
+          white-space: nowrap;
         }
         
-        .main-info .padded-label {
-          padding-left: 55px; /* Add more padding for specific labels */
+        .main-info .value {
+          font-weight: 600;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          min-width: 0;
+          margin-left: 6px;
         }
         
         .main-info .sep {
-          justify-self: start;
           color: #333;
-        }
-        
-        .main-info span.value {
+          white-space: nowrap;
           font-weight: 600;
-          justify-self: start;
+        }
+
+        .padding-left {
+          padding-left: 16px;
         }
 
         /*#4CBB17 - Kelly Green,#008000 - Green*/
@@ -153,7 +166,9 @@ export const printData = (data) => {
           margin-bottom: 4px;
           padding: 8px 50px;
         }
-
+        .gold-info-bar .bar-value {
+          font-size: 14pt;
+        }
         /* ELEMENTS TABLE */
         .elements-table {
           display: grid;
@@ -229,27 +244,60 @@ export const printData = (data) => {
         </header>
 
         <section class="main-info" aria-label="Basic certificate information">
-          <div>
-            <label for="tokenNo">Token No</label><span class="sep">:</span><span id="tokenNo" class="value">${data.tokenNo || data.tokenno || '-'}</span>
-            <div></div><div></div><div></div><div></div><div></div>
-            <label for="date" class="padded-label">Date</label><span class="sep">:</span><span id="date" class="value">${formatDateForDisplay(data.date)}</span>
-            <div></div><div></div><div></div><div></div><div></div>
-            <label for="name">Name</label><span class="sep">:</span><span id="name" class="value">${data.name || '-'}</span>
-            <div></div><div></div><div></div><div></div><div></div>
-            <label for="time" class="padded-label">Time</label><span class="sep">:</span><span id="time" class="value">${formatTimeForDisplay(data.time)}</span>
-            <div></div><div></div><div></div><div></div><div></div>
-            <label for="sample">Sample</label><span class="sep">:</span><span id="sample" class="value">${data.sample || '-'}</span>
-            <div></div><div></div><div></div><div></div><div></div>
-            <label for="weight" class="padded-label">Weight</label><span class="sep">:</span><span id="weight" class="value">${data.weight ? parseFloat(data.weight).toFixed(3) + ' g' : '-'}</span>
-            <div></div><div></div><div></div><div></div><div></div>
+          <div class="info-grid">
+            <div class="grid-item">
+              <div class="dual">
+                <label for="tokenNo">Token No</label>
+                <span class="sep">:</span>
+              </div>
+              <span id="tokenNo" class="value">${data.tokenNo || data.tokenno || '-'}</span>
+            </div>
+            <div class="grid-item padding-left">
+              <div class="dual">
+              <label for="date">Date</label>
+              <span class="sep">:</span>
+              </div>
+              <span id="date" class="value">${formatDateForDisplay(data.date)}</span>
+            </div>
+            <div class="grid-item">
+              <div class="dual">
+              <label for="name">Name</label>
+              <span class="sep">:</span>
+              </div>
+              <span id="name" class="value">${data.name || '-'}</span>
+            </div> 
+            <div class="grid-item padding-left">
+              <div class="dual">
+              <label for="time">Time</label>
+              <span class="sep">:</span>
+              </div>
+              <span id="time" class="value">${formatTimeForDisplay(data.time)}</span>
+            </div>
+             <div class="grid-item">
+              <div class="dual">
+              <label for="sample">Sample</label>
+              <span class="sep">:</span>
+              </div>
+              <span id="sample" class="value">${data.sample || '-'}</span>
+            </div>
+            <div class="grid-item padding-left">
+              <div class="dual">
+              <label for="weight">Weight</label>
+              <span class="sep">:</span>
+              </div>
+              <span id="weight" class="value">${data.weight ? parseFloat(data.weight).toFixed(3) + ' g' : '-'}</span>
+            </div>
+            <!-- Add two empty divs to complete the 3x4 grid -->
+            <div class="grid-item"></div>
+            <div class="grid-item"></div>
           </div>
         </section>
 
         <section class="gold-info-bar" aria-label="Gold fineness and karat details">
           <span>GOLD FINENESS %</span>
-          <span>${data.gold_fineness ? parseFloat(data.gold_fineness.replace('%', '')).toFixed(2) + ' %' : '-'}</span>
+          <span class="bar-value">${data.gold_fineness ? parseFloat(data.gold_fineness.replace('%', '')).toFixed(2) + ' %' : '-'}</span>
           <span>KARAT Ct</span>
-          <span>${data.karat ? parseFloat(data.karat.replace(' K', '')).toFixed(2) + ' K' : '-'}</span>
+          <span class="bar-value">${data.karat ? parseFloat(data.karat.replace(' K', '')).toFixed(2) + ' K' : '-'}</span>
         </section>
 
         <section class="elements-table" aria-label="Elemental composition values">
