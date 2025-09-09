@@ -1,93 +1,237 @@
-import React from 'react';
-import { FiEye, FiEdit2, FiTrash2 } from 'react-icons/fi';
+import React, { useMemo, useCallback, memo } from 'react';
+import { FiEdit2, FiTrash2 } from 'react-icons/fi';
+import { FixedSizeList as List } from 'react-window';
 
-const ExpensesTable = ({ expenses, onView, onEdit, onDelete }) => {
+const formatDate = (dateString) => {
+  if (!dateString) return '';
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return dateString;
+    
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const year = date.getFullYear();
+    
+    return `${day}-${month}-${year}`;
+  } catch (error) {
+    console.error('Date parsing error:', error);
+    return dateString;
+  }
+};
+
+// Table dimensions
+const ROW_HEIGHT = 40;
+const HEADER_HEIGHT = 40;
+
+const ExpensesTable = ({ expenses = [], onEdit, onDelete }) => {
+  // Calculate equal width for each column
+  const columnCount = 6; // Number of columns
+  const columnWidth = 180; // Equal width for each column (reduced to fit more columns)
+
+  const columns = useMemo(() => [
+    {
+      label: 'Date',
+      key: 'date',
+      width: columnWidth,
+      render: (row) => formatDate(row.date)
+    },
+    {
+      label: 'Expense Type',
+      key: 'expenseType',
+      width: columnWidth,
+      render: (row) => {
+        // Handle different possible structures of expense type data
+        if (typeof row.expenseType === 'object' && row.expenseType !== null) {
+          return row.expenseType.expense_name || 'N/A';
+        } else if (row.expenseType) {
+          return row.expenseType; // In case it's already a string
+        } else if (row.expense_type) {
+          return row.expense_type; // Alternative field name
+        } else if (row.expenseTypeId) {
+          // If we have an ID but no populated object, we might need to fetch the name
+          return 'Loading...';
+        }
+        return 'N/A';
+      }
+    },
+    {
+      label: 'Paid To',
+      key: 'paidTo',
+      width: columnWidth,
+      render: (row) => row.paidTo || row.paid_to || '-'
+    },
+    {
+      label: 'Amount',
+      key: 'amount',
+      width: columnWidth,
+      render: (row) => `₹${parseFloat(row.amount || 0).toFixed(2)}`,
+      className: 'font-medium'
+    },
+    {
+      label: 'Payment Mode',
+      key: 'payMode',
+      width: columnWidth,
+      render: (row) => {
+        const mode = row.payMode || row.pay_mode || row.paymentMode || row.payment_mode;
+        if (!mode) return '-';
+        // Format the payment mode (e.g., 'CASH' -> 'Cash')
+        return mode.charAt(0).toUpperCase() + mode.slice(1).toLowerCase();
+      }
+    },
+    {
+      label: 'Remarks',
+      key: 'remarks',
+      width: columnWidth * 1.5, // Make remarks column slightly wider
+      render: (row) => row.remarks || '-',
+      className: 'whitespace-normal break-words' // Ensure long text wraps
+    },
+    {
+      label: 'Actions',
+      key: 'actions',
+      width: columnWidth,
+      render: (row) => (
+        <div className="flex items-center justify-center space-x-2">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onEdit(row);
+            }}
+            className="text-amber-600 hover:text-amber-900 p-1 rounded hover:bg-amber-50"
+            title="Edit"
+          >
+            <FiEdit2 className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(row._id);
+            }}
+            className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50"
+            title="Delete"
+          >
+            <FiTrash2 className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )
+    }
+  ], [onEdit, onDelete]);
+
+  // Calculate total width of all columns with some extra space for borders
+  const totalWidth = useMemo(() => 
+    columns.reduce((sum, col) => sum + col.width, 0) + (columns.length - 1) * 1 // Add 1px for each border
+  , [columns]);
+
+  // Track horizontal scroll position
+  const [scrollLeft, setScrollLeft] = React.useState(0);
+
+  // Handle scroll event
+  const handleScroll = (e) => {
+    setScrollLeft(e.target.scrollLeft);
+  };
+
+  // Render table header
+  const renderHeader = () => (
+    <div 
+      className="flex bg-amber-500 text-white rounded-t-lg relative z-10"
+      style={{
+        overflow: 'hidden',
+        width: '100%'
+      }}
+    >
+      <div 
+        className="flex"
+        style={{
+          minWidth: totalWidth,
+          transform: `translateX(-${scrollLeft}px)`,
+          transition: 'transform 0.1s ease-out'
+        }}
+      >
+        {columns.map((column, index) => (
+          <div 
+            key={column.key}
+            className="flex-shrink-0 flex items-center justify-center text-xs font-medium uppercase tracking-wider py-2"
+            style={{
+              width: column.width,
+              borderRight: index < columns.length - 1 ? '1px solid rgba(255, 255, 255, 0.1)' : 'none'
+            }}
+          >
+            {column.label}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  // Render a single row
+  const Row = useCallback(({ index, style }) => {
+    const row = expenses[index];
+    const isEven = index % 2 === 0;
+    
+    return (
+      <div 
+        className={`flex items-center ${isEven ? 'bg-white' : 'bg-amber-50/40'} hover:bg-amber-50/40 transition-colors`}
+        style={{
+          ...style,
+          width: '100%',
+          minWidth: '100%',
+          maxWidth: '100%',
+          boxSizing: 'border-box'
+        }}
+      >
+        {columns.map((column, colIndex) => (
+          <div
+            key={`${index}-${column.key}`}
+            className={`flex-shrink-0 flex items-center justify-center text-xs text-amber-900 py-2 ${column.className || ''}`}
+            style={{
+              width: column.width,
+              borderRight: colIndex < columns.length - 1 ? '1px solid #FEF3C7' : 'none',
+              height: ROW_HEIGHT - 1 // Subtract 1px for border
+            }}
+          >
+            {column.render ? column.render(row) : row[column.key] || '-'}
+          </div>
+        ))}
+      </div>
+    );
+  }, [expenses, columns]);
+
   if (!expenses || expenses.length === 0) {
     return (
-      <div className="text-center py-4 text-gray-500">
+      <div className="text-center py-8 text-gray-500">
         No expenses found. Add your first expense to see it here.
       </div>
     );
   }
 
   return (
-    <div className="mt-6 overflow-x-auto">
-      <div className="inline-block min-w-full align-middle">
-        <div className="overflow-hidden shadow-sm ring-1 ring-black ring-opacity-5 rounded-lg">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-amber-50">
-              <tr>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-amber-700 uppercase tracking-wider">
-                  Date
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-amber-700 uppercase tracking-wider">
-                  Expense Type
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-amber-700 uppercase tracking-wider">
-                  Amount
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-amber-700 uppercase tracking-wider">
-                  Paid To
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-amber-700 uppercase tracking-wider">
-                  Payment Mode
-                </th>
-                <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-amber-700 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {expenses.map((expense) => (
-                <tr key={expense._id} className="hover:bg-amber-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {new Date(expense.date).toLocaleDateString()}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {expense.expenseType?.expense_name || 'N/A'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    ₹{parseFloat(expense.amount).toFixed(2)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {expense.paidTo || '-'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 capitalize">
-                    {expense.payMode || '-'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <div className="flex justify-end space-x-2">
-                      <button
-                        onClick={() => onView(expense)}
-                        className="text-amber-600 hover:text-amber-800"
-                        title="View details"
-                      >
-                        <FiEye className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={() => onEdit(expense)}
-                        className="text-blue-600 hover:text-blue-800"
-                        title="Edit"
-                      >
-                        <FiEdit2 className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={() => onDelete(expense._id)}
-                        className="text-red-600 hover:text-red-800"
-                        title="Delete"
-                      >
-                        <FiTrash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+    <div className="rounded-xl border border-amber-100 border-solid overflow-hidden flex flex-col" style={{ height: '350px' }}>
+      {renderHeader()}
+      <div 
+        className="flex-1 overflow-auto"
+        onScroll={handleScroll}
+        style={{
+          scrollbarWidth: 'thin',
+          scrollbarColor: '#F59E0B transparent'
+        }}
+      >
+        <div style={{ width: totalWidth }}>
+          <List
+            height={350 - HEADER_HEIGHT - 2} // Subtract 2px for borders
+            itemCount={expenses.length}
+            itemSize={ROW_HEIGHT}
+            width={totalWidth}
+            style={{ overflow: 'visible' }}
+            overscanCount={5}
+          >
+            {Row}
+          </List>
         </div>
       </div>
     </div>
   );
 };
 
-export default ExpensesTable;
+export default memo(ExpensesTable, (prevProps, nextProps) => {
+  // Only re-render if expenses array changes
+  return prevProps.expenses === nextProps.expenses;
+});
