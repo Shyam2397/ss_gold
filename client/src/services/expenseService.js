@@ -12,7 +12,6 @@ export const getExpenseTypes = async () => {
     const response = await api.get('/api/expense-master');
     return response.data;
   } catch (error) {
-    console.error('Error fetching expense types:', error);
     throw new Error(error.response?.data?.error || 'Failed to fetch expense types');
   }
 };
@@ -25,7 +24,6 @@ export const createExpenseType = async (expenseData) => {
     });
     return response.data;
   } catch (error) {
-    console.error('Error creating expense type:', error);
     throw new Error(error.response?.data?.error || 'Failed to create expense type');
   }
 };
@@ -38,7 +36,6 @@ export const updateExpenseType = async (id, expenseData) => {
     });
     return response.data;
   } catch (error) {
-    console.error('Error updating expense type:', error);
     throw new Error(error.response?.data?.error || 'Failed to update expense type');
   }
 };
@@ -48,7 +45,6 @@ export const deleteExpenseType = async (id) => {
     const api = await getExpenseApi();
     await api.delete(`/api/expense-master/${id}`);
   } catch (error) {
-    console.error('Error deleting expense type:', error);
     throw new Error(error.response?.data?.error || 'Failed to delete expense type');
   }
 };
@@ -59,7 +55,6 @@ export const getExpenses = async () => {
     const response = await api.get('/api/expenses');
     return response.data;
   } catch (error) {
-    console.error('Error fetching expenses:', error);
     throw new Error(error.response?.data?.error || 'Failed to fetch expenses');
   }
 };
@@ -77,7 +72,6 @@ export const createExpense = async (expenseData) => {
     });
     return response.data;
   } catch (error) {
-    console.error('Error creating expense:', error);
     throw new Error(error.response?.data?.error || 'Failed to create expense');
   }
 };
@@ -85,10 +79,31 @@ export const createExpense = async (expenseData) => {
 export const updateExpense = async (id, expenseData) => {
   try {
     const api = await getExpenseApi();
-    const response = await api.put(`/api/expenses/${id}`, expenseData);
+    
+    // Ensure required fields are present and properly formatted
+    const requestData = {
+      date: expenseData.date,  // Required
+      expense_type: expenseData.expenseType,  // Required - note the underscore
+      amount: parseFloat(expenseData.amount),  // Required
+      paid_to: expenseData.paidTo || '',
+      pay_mode: expenseData.payMode || '',
+      remarks: expenseData.remarks || ''
+    };
+    
+    // Verify required fields
+    if (!requestData.date) {
+      throw new Error('Date is required');
+    }
+    if (!requestData.expense_type) {
+      throw new Error('Expense type is required');
+    }
+    if (isNaN(requestData.amount)) {
+      throw new Error('Valid amount is required');
+    }
+    
+    const response = await api.put(`/api/expenses/${id}`, requestData);
     return response.data;
   } catch (error) {
-    console.error('Error updating expense:', error);
     throw new Error(error.response?.data?.error || 'Failed to update expense');
   }
 };
@@ -102,7 +117,6 @@ export const deleteExpense = async (id) => {
     const response = await api.delete(`/api/expenses/${id}`);
     return response.data;
   } catch (error) {
-    console.error('Error deleting expense:', error);
     throw new Error(error.response?.data?.error || 'Failed to delete expense');
   }
 };

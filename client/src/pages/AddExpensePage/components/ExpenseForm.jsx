@@ -28,7 +28,7 @@ const ExpenseForm = ({ onSubmit }) => {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
-      <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 py-3 sm:py-4 px-3 sm:px-6 bg-amber-50/50 rounded-lg border border-amber-100">
+      <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 py-3 sm:py-4 px-3 sm:px-6 bg-amber-50/50 rounded-lg border border-amber-100 text-amber-900">
         <div className="xs:col-span-2 md:col-span-3 lg:col-span-1">
           <DateField value={formData.date} onChange={handleChange} />
         </div>
@@ -52,7 +52,11 @@ const ExpenseForm = ({ onSubmit }) => {
           <RemarksField value={formData.remarks} onChange={handleChange} />
         </div>
       </div>
-      <FormActions loading={loading} onReset={handleReset} />
+      <FormActions 
+        loading={loading} 
+        onReset={handleReset} 
+        isEditing={!!formData.id} 
+      />
     </form>
   );
 };

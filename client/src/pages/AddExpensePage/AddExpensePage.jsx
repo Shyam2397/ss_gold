@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { FiDollarSign, FiAlertCircle, FiPlus } from 'react-icons/fi';
-import { getExpenseTypes, createExpense, getExpenses, deleteExpense } from '../../services/expenseService';
+import { getExpenseTypes, createExpense, getExpenses, deleteExpense, updateExpense } from '../../services/expenseService';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { ExpenseFormProvider, useExpenseForm } from './context/ExpenseFormContext';
 import ExpenseForm from './components/ExpenseForm';
@@ -12,6 +12,7 @@ const AddExpenseContent = () => {
   const { loading, error, success } = state;
   const [expenses, setExpenses] = useState([]);
   const [isLoadingExpenses, setIsLoadingExpenses] = useState(false);
+  const [editingExpense, setEditingExpense] = useState(null);
 
   // Fetch expense types
   const fetchExpenseTypes = async () => {
@@ -39,7 +40,6 @@ const AddExpenseContent = () => {
       const data = await getExpenses();
       setExpenses(data);
     } catch (err) {
-      console.error('Error fetching expenses:', err);
       dispatch({ type: 'SET_ERROR', error: 'Failed to load expenses' });
     } finally {
       setIsLoadingExpenses(false);
@@ -47,13 +47,56 @@ const AddExpenseContent = () => {
   };
 
 const handleEditExpense = (expense) => {
-    // Set form values for editing
-    dispatch({ 
-      type: 'SET_FIELD', 
-      field: 'date', 
-      value: expense.date.split('T')[0] // Format date for input
+    // Handle date with timezone - create a date object and format it as YYYY-MM-DD
+    let formattedDate = '';
+    try {
+      const dateObj = new Date(expense.date);
+      if (!isNaN(dateObj.getTime())) {
+        const localDate = new Date(dateObj.getTime() - (dateObj.getTimezoneOffset() * 60000));
+        formattedDate = localDate.toISOString().split('T')[0];
+      } else {
+        formattedDate = new Date().toISOString().split('T')[0]; // Fallback to today's date
+      }
+    } catch (e) {
+      formattedDate = new Date().toISOString().split('T')[0]; // Fallback to today's date
+    }
+
+    // Handle expense type - ensure we have the correct format
+    let expenseTypeValue = '';
+    if (expense.expense_type) {
+      // If expense_type is an object with id, use that, otherwise use the value directly
+      expenseTypeValue = (typeof expense.expense_type === 'object' && expense.expense_type.id) 
+        ? expense.expense_type.id 
+        : expense.expense_type;
+    } else if (expense.expenseType) {
+      // Handle camelCase version if it exists
+      expenseTypeValue = (typeof expense.expenseType === 'object' && expense.expenseType.id)
+        ? expense.expenseType.id
+        : expense.expenseType;
+    }
+
+    // Set all form values for editing
+    const fieldsToUpdate = {
+      id: expense.id || expense._id, // Include the expense ID
+      date: formattedDate,
+      expenseType: expenseTypeValue,
+      amount: expense.amount ? String(expense.amount) : '',
+      paidTo: expense.paid_to || expense.paidTo || '',
+      payMode: expense.pay_mode || expense.payMode || '',
+      remarks: expense.remarks || ''
+    };
+
+    // Update each field in the form
+    Object.entries(fieldsToUpdate).forEach(([field, value]) => {
+      dispatch({
+        type: 'SET_FIELD',
+        field,
+        value
+      });
     });
-    // Set other fields...
+    
+    // Set the current expense being edited
+    setEditingExpense(expense);
     
     // Scroll to form
     document.getElementById('expense-form')?.scrollIntoView({ behavior: 'smooth' });
@@ -77,25 +120,50 @@ const handleEditExpense = (expense) => {
     }
   };
 
+  const handleReset = () => {
+    dispatch({ type: 'RESET_FORM' });
+    setEditingExpense(null);
+  };
+
   const handleExpenseSubmit = async (formData) => {
     try {
       dispatch({ type: 'SET_LOADING', loading: true });
-      await createExpense(formData);
       
-      // Reset form and show success message
-      dispatch({ type: 'RESET_FORM' });
-      dispatch({ 
-        type: 'SET_SUCCESS', 
-        success: 'Expense added successfully!' 
-      });
+      // Format the data before sending to the server
+      const formattedData = {
+        date: formData.date,
+        expenseType: formData.expenseType,
+        amount: formData.amount,
+        paidTo: formData.paidTo || '',
+        payMode: formData.payMode || '',
+        remarks: formData.remarks || ''
+      };
       
-      // Refresh expenses list
+      if (editingExpense) {
+        // Update existing expense
+        await updateExpense(editingExpense.id || editingExpense._id, formattedData);
+        dispatch({ 
+          type: 'SET_SUCCESS', 
+          success: 'Expense updated successfully!' 
+        });
+      } else {
+        // Create new expense
+        await createExpense(formattedData);
+        dispatch({ 
+          type: 'SET_SUCCESS', 
+          success: 'Expense added successfully!' 
+        });
+      }
+      
+      // Reset form and refresh expenses list
+      handleReset();
       await fetchExpenses();
       
       // Hide success message after 3 seconds
       setTimeout(() => {
         dispatch({ type: 'SET_SUCCESS', success: false });
       }, 3000);
+      
     } catch (err) {
       console.error('Error submitting expense:', err);
       dispatch({ 
