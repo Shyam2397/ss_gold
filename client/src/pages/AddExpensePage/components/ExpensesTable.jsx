@@ -104,7 +104,7 @@ const ExpensesTable = ({ expenses = [], onEdit, onDelete }) => {
           <button
             onClick={(e) => {
               e.stopPropagation();
-              onDelete(row._id);
+              onDelete(row.id || row._id);
             }}
             className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50"
             title="Delete"

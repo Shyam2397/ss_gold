@@ -60,22 +60,20 @@ const handleEditExpense = (expense) => {
   };
 
   const handleDeleteExpense = async (expenseId) => {
-    if (window.confirm('Are you sure you want to delete this expense?')) {
-      try {
-        await deleteExpense(expenseId);
-        await fetchExpenses(); // Refresh the list
-        dispatch({ 
-          type: 'SET_SUCCESS', 
-          success: 'Expense deleted successfully' 
-        });
-        setTimeout(() => dispatch({ type: 'SET_SUCCESS', success: false }), 3000);
-      } catch (err) {
-        console.error('Error deleting expense:', err);
-        dispatch({ 
-          type: 'SET_ERROR', 
-          error: 'Failed to delete expense' 
-        });
-      }
+    try {
+      await deleteExpense(expenseId);
+      await fetchExpenses(); // Refresh the list
+      dispatch({ 
+        type: 'SET_SUCCESS', 
+        success: 'Expense deleted successfully' 
+      });
+      setTimeout(() => dispatch({ type: 'SET_SUCCESS', success: false }), 3000);
+    } catch (err) {
+      console.error('Error deleting expense:', err);
+      dispatch({ 
+        type: 'SET_ERROR', 
+        error: 'Failed to delete expense' 
+      });
     }
   };
 

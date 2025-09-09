@@ -95,8 +95,12 @@ export const updateExpense = async (id, expenseData) => {
 
 export const deleteExpense = async (id) => {
   try {
+    if (!id) {
+      throw new Error('Expense ID is required');
+    }
     const api = await getExpenseApi();
-    await api.delete(`/api/expenses/${id}`);
+    const response = await api.delete(`/api/expenses/${id}`);
+    return response.data;
   } catch (error) {
     console.error('Error deleting expense:', error);
     throw new Error(error.response?.data?.error || 'Failed to delete expense');
