@@ -1,12 +1,15 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, Suspense } from 'react';
 import { ArrowUpDown, FileSpreadsheet, Printer, Mail } from 'lucide-react';
 import { debounce } from 'lodash';
 import apiService from '../../services/api';
 import cashAdjustmentService from '../../services/cashAdjustmentService';
-import TransactionTable from './components/TransactionTable';
-import AnalyticsPanel from './components/AnalyticsPanel';
-import CashAdjustment from './CashAdjustment';
-import BalanceSummary from './components/BalanceSummary';
+import { lazyLoad } from '../common/LazyLoad';
+
+// Lazy load components
+const TransactionTable = lazyLoad(() => import('./components/TransactionTable'));
+const AnalyticsPanel = lazyLoad(() => import('./components/AnalyticsPanel'));
+const CashAdjustment = lazyLoad(() => import('./CashAdjustment'));
+const BalanceSummary = lazyLoad(() => import('./components/BalanceSummary'));
 
 // Add new utility function outside component
 const calculateBalance = (transactions, openingBalance = 0) => {
@@ -576,12 +579,14 @@ const CashBook = () => {
                     </h3>
                   </div>
                   <div className="overflow-x-auto">
-                    <TransactionTable
-                      filteredTransactions={filteredTransactions}
-                      cashInfo={cashInfo}
-                      rowGetter={rowGetter}
-                      totals={cashInfo} // Pass cashInfo as totals since it contains the required properties
-                    />
+                    <Suspense fallback={<div className="p-4 text-center text-amber-600">Loading transactions...</div>}>
+                      <TransactionTable
+                        filteredTransactions={filteredTransactions}
+                        cashInfo={cashInfo}
+                        rowGetter={rowGetter}
+                        totals={cashInfo}
+                      />
+                    </Suspense>
                   </div>
                 </div>
               </div>
@@ -596,16 +601,20 @@ const CashBook = () => {
                   <span>Cash Adjustments</span>
                 </button>
                 
-                <BalanceSummary cashInfo={cashInfo} />
-                
-                <div className="sticky top-4">
+                <Suspense fallback={<div className="p-4 text-center text-amber-600">Loading balance...</div>}>
+                  <BalanceSummary cashInfo={cashInfo} />
+                </Suspense>
+              
+              <div className="sticky top-4">
+                <Suspense fallback={<div className="p-4 text-center text-amber-600">Loading analytics...</div>}>
                   <AnalyticsPanel
                     activeTab={activeTab}
                     setActiveTab={setActiveTab}
                     categorySummary={categorySummary}
                     monthlySummary={monthlySummary}
                   />
-                </div>
+                </Suspense>
+              </div>
               </div>
             </div>
           )}
@@ -633,12 +642,14 @@ const CashBook = () => {
             <span className="px-2 py-0.5 sm:py-1 bg-gray-100 rounded-full whitespace-nowrap">Limited Version</span>
           </div>
         </div>
-      <CashAdjustment 
-        isOpen={showAdjustment}
-        onClose={() => setShowAdjustment(false)}
-        onSave={handleAdjustmentSave}
-        isLoading={loading}
-      />
+      <Suspense fallback={null}>
+        <CashAdjustment 
+          isOpen={showAdjustment}
+          onClose={() => setShowAdjustment(false)}
+          onSave={handleAdjustmentSave}
+          isLoading={loading}
+        />
+      </Suspense>
     </div>
   );
 }
