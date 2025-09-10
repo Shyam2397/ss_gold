@@ -6,7 +6,6 @@ import AmountField from './FormFields/AmountField';
 import PaidToField from './FormFields/PaidToField';
 import PaymentModeField from './FormFields/PaymentModeField';
 import RemarksField from './FormFields/RemarksField';
-import FormActions from './FormActions';
 
 const ExpenseForm = ({ onSubmit }) => {
   const { state, dispatch } = useExpenseForm();
@@ -17,9 +16,6 @@ const ExpenseForm = ({ onSubmit }) => {
     dispatch({ type: 'SET_FIELD', field: name, value });
   };
 
-  const handleReset = () => {
-    dispatch({ type: 'RESET_FORM' });
-  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -52,11 +48,6 @@ const ExpenseForm = ({ onSubmit }) => {
           <RemarksField value={formData.remarks} onChange={handleChange} />
         </div>
       </div>
-      <FormActions 
-        loading={loading} 
-        onReset={handleReset} 
-        isEditing={!!formData.id} 
-      />
     </form>
   );
 };

@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiX, FiEdit2, FiTrash2, FiAlertCircle } from 'react-icons/fi';
+import { FixedSizeList as List } from 'react-window';
+import AutoSizer from 'react-virtualized-auto-sizer';
 import {
   getExpenseTypes,
   createExpenseType,
@@ -149,10 +151,10 @@ const MasterExpense = ({ isOpen, onClose }) => {
         initial={{ scale: 0.95, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.95, opacity: 0 }}
-        className="bg-white rounded-xl shadow-2xl w-full max-w-xl overflow-hidden"
+        className="bg-white rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden"
       >
         {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-300 flex justify-between items-center bg-gradient-to-r from-amber-500 to-yellow-500">
+        <div className="px-6 py-2 border-b border-gray-300 flex justify-between items-center bg-gradient-to-r from-amber-500 to-yellow-500">
           <h2 className="text-xl font-semibold text-white">Expense Master</h2>
           <button
             onClick={onClose}
@@ -163,10 +165,10 @@ const MasterExpense = ({ isOpen, onClose }) => {
           </button>
         </div>
 
-        <div className="p-6">
-          <div className="mb-6">
+        <div className="px-4 py-2">
+          <div className="mb-2">
             <div className="flex justify-between">
-            <h3 className="text-amber-700 font-medium mb-4">
+            <h3 className="text-amber-700 font-medium mb-2">
               {editingId ? 'Edit' : 'Add'} Expense Name
             </h3>
             
@@ -197,7 +199,7 @@ const MasterExpense = ({ isOpen, onClose }) => {
             </AnimatePresence>
             </div>
             
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-2">
               <div>
                 <label className="block text-sm font-medium text-amber-700 mb-1">
                   Expense Name <span className="text-red-500">*</span>
@@ -206,7 +208,7 @@ const MasterExpense = ({ isOpen, onClose }) => {
                   type="text"
                   value={expenseName}
                   onChange={(e) => setExpenseName(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-colors text-amber-900"
+                  className="w-full px-3 py-1.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-colors text-amber-900"
                   placeholder="Enter expense name"
                   required
                   disabled={loading}
@@ -214,7 +216,7 @@ const MasterExpense = ({ isOpen, onClose }) => {
               </div>
 
               {/* Action Buttons */}
-              <div className="flex justify-end pt-4 space-x-3">
+              <div className="flex justify-end space-x-3">
                 {editingId && (
                   <button
                     type="button"
@@ -227,7 +229,7 @@ const MasterExpense = ({ isOpen, onClose }) => {
                 )}
                 <button
                   type="submit"
-                  className="px-6 py-2.5 bg-amber-500 text-white font-medium rounded-lg hover:bg-amber-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 transition-colors disabled:opacity-50"
+                  className="px-6 py-1 bg-amber-500 text-white font-medium rounded-xl hover:bg-amber-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 transition-colors disabled:opacity-50"
                   disabled={loading}
                 >
                   {loading ? (
@@ -246,67 +248,75 @@ const MasterExpense = ({ isOpen, onClose }) => {
             </form>
           </div>
 
-          {/* Existing Data Section */}
-          <div className="max-h-[150px] overflow-y-auto scrollbar-thin scrollbar-thumb-amber-500 scrollbar-track-amber-100">
-            <table className="min-w-full divide-y divide-amber-200">
-              <thead className="bg-gradient-to-r from-amber-500 to-yellow-500 sticky top-0 z-10">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
-                    Expense Name
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-white uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-amber-200">
-                {loading && !expenseTypes.length ? (
-                  <tr>
-                    <td colSpan="2" className="px-6 py-4 text-center text-gray-500">
-                      <div className="flex items-center justify-center gap-2">
-                        <svg className="animate-spin h-5 w-5 text-amber-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        Loading...
-                      </div>
-                    </td>
-                  </tr>
-                ) : expenseTypes.length === 0 ? (
-                  <tr>
-                    <td colSpan="2" className="px-6 py-4 text-center text-gray-500">
-                      No expense types found
-                    </td>
-                  </tr>
-                ) : (
-                  expenseTypes.map((expense) => (
-                    <tr key={expense.id} className="hover:bg-amber-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {expense.expense_name}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
-                        <button
-                          onClick={() => handleEdit(expense)}
-                          className="text-amber-600 hover:text-amber-900 p-1 rounded-full hover:bg-amber-100 transition-colors"
-                          disabled={loading}
-                          title="Edit"
-                        >
-                          <FiEdit2 className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(expense.id)}
-                          className="text-red-600 hover:text-red-900 p-1 rounded-full hover:bg-red-100 transition-colors ml-2"
-                          disabled={loading}
-                          title="Delete"
-                        >
-                          <FiTrash2 className="w-4 h-4" />
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+          {/* Expense Types List */}
+          <div className="h-[300px] overflow-hidden rounded-lg border border-amber-200">
+            {loading && !expenseTypes.length ? (
+              <div className="h-full flex items-center justify-center bg-white">
+                <div className="flex items-center justify-center gap-2 text-gray-500">
+                  <svg className="animate-spin h-5 w-5 text-amber-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Loading...
+                </div>
+              </div>
+            ) : expenseTypes.length === 0 ? (
+              <div className="h-full flex items-center justify-center bg-white text-gray-500">
+                No expense types found
+              </div>
+            ) : (
+              <div className="h-full">
+                <div className="bg-gradient-to-r from-amber-500 to-yellow-500 px-6 py-2 text-left text-xs font-medium text-white uppercase tracking-wider">
+                  Expense Types
+                </div>
+                <div className="h-[calc(100%-32px)]">
+                  <AutoSizer>
+                    {({ height, width }) => (
+                      <List
+                        height={height}
+                        itemCount={expenseTypes.length}
+                        itemSize={34}
+                        width={width}
+                        itemData={expenseTypes}
+                      >
+                        {({ index, style, data }) => {
+                          const expense = data[index];
+                          return (
+                            <div 
+                              key={expense.id} 
+                              className="flex items-center justify-between px-6 py-3 hover:bg-amber-50 border-b border-amber-100"
+                              style={style}
+                            >
+                              <div className="text-sm text-gray-900 truncate">
+                                {expense.expense_name}
+                              </div>
+                              <div className="flex-shrink-0">
+                                <button
+                                  onClick={() => handleEdit(expense)}
+                                  className="text-amber-600 hover:text-amber-900 p-1 rounded-full hover:bg-amber-100 transition-colors"
+                                  disabled={loading}
+                                  title="Edit"
+                                >
+                                  <FiEdit2 className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleDelete(expense.id)}
+                                  className="text-red-600 hover:text-red-900 p-1 rounded-full hover:bg-red-100 transition-colors ml-2"
+                                  disabled={loading}
+                                  title="Delete"
+                                >
+                                  <FiTrash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        }}
+                      </List>
+                    )}
+                  </AutoSizer>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </motion.div>

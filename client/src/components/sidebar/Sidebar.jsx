@@ -10,7 +10,7 @@ import { SidebarMobile } from './SidebarMobile';
 
 // Lazy load modals
 const AddExpense = React.lazy(() => import('../../pages/AddExpensePage'));
-const MasterExpense = React.lazy(() => import('../expenses/MasterExpense'));
+const MasterExpense = React.lazy(() => import('../../pages/AddExpensePage/MasterExpense'));
 
 // Main Sidebar component orchestrating context and content
 const Sidebar = ({ open: openProp, setOpen: setOpenProp, animate = true, user, setLoggedIn }) => {

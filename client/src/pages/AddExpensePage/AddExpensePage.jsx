@@ -1,11 +1,13 @@
-import React, { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
+import React, { useEffect, useState, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { FiDollarSign, FiAlertCircle, FiPlus } from 'react-icons/fi';
 import { getExpenseTypes, createExpense, getExpenses, deleteExpense, updateExpense } from '../../services/expenseService';
+import MasterExpense from './MasterExpense';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { ExpenseFormProvider, useExpenseForm } from './context/ExpenseFormContext';
 import ExpenseForm from './components/ExpenseForm';
 import ExpensesTable from './components/ExpensesTable';
+import FormActions from './components/FormActions';
 
 const AddExpenseContent = () => {
   const { state, dispatch } = useExpenseForm();
@@ -13,21 +15,23 @@ const AddExpenseContent = () => {
   const [expenses, setExpenses] = useState([]);
   const [isLoadingExpenses, setIsLoadingExpenses] = useState(false);
   const [editingExpense, setEditingExpense] = useState(null);
+  const [expenseTypes, setExpenseTypes] = useState([]);
+  const [isMasterExpenseOpen, setIsMasterExpenseOpen] = useState(false);
 
   // Fetch expense types
-  const fetchExpenseTypes = async () => {
+  const fetchExpenseTypes = useCallback(async () => {
     try {
-      dispatch({ type: 'SET_LOADING', loading: true });
-      const data = await getExpenseTypes();
-      dispatch({ type: 'SET_EXPENSE_TYPES', expenseTypes: data });
-      dispatch({ type: 'SET_ERROR', error: null });
-    } catch (err) {
-      console.error('Error fetching expense types:', err);
-      dispatch({ type: 'SET_ERROR', error: err.message || 'Failed to fetch expense types' });
-    } finally {
-      dispatch({ type: 'SET_LOADING', loading: false });
+      const types = await getExpenseTypes();
+      setExpenseTypes(types);
+    } catch (error) {
+      dispatch({ type: 'SET_ERROR', error: 'Failed to load expense types' });
     }
-  };
+  }, []);
+
+  // Fetch expense types when component mounts or when master expense dialog closes
+  useEffect(() => {
+    fetchExpenseTypes();
+  }, [fetchExpenseTypes]);
 
   useEffect(() => {
     fetchExpenseTypes();
@@ -46,7 +50,7 @@ const AddExpenseContent = () => {
     }
   };
 
-const handleEditExpense = (expense) => {
+  const handleEditExpense = (expense) => {
     // Handle date with timezone - create a date object and format it as YYYY-MM-DD
     let formattedDate = '';
     try {
@@ -123,6 +127,16 @@ const handleEditExpense = (expense) => {
   const handleReset = () => {
     dispatch({ type: 'RESET_FORM' });
     setEditingExpense(null);
+  };
+
+  const handleOpenMasterExpense = () => {
+    setIsMasterExpenseOpen(true);
+  };
+
+  const handleCloseMasterExpense = () => {
+    setIsMasterExpenseOpen(false);
+    // Refresh expense types when the dialog closes
+    fetchExpenseTypes();
   };
 
   const handleExpenseSubmit = async (formData) => {
@@ -220,7 +234,18 @@ const handleEditExpense = (expense) => {
           </div>
 
           <div id="expense-form">
-            <ExpenseForm onSubmit={handleExpenseSubmit} />
+            <ExpenseForm
+              expenseTypes={expenseTypes}
+              onExpenseSubmit={handleExpenseSubmit}
+              loading={state.loading}
+              isEditing={!!editingExpense}
+            />
+            <FormActions
+              loading={state.loading}
+              onReset={handleReset}
+              onOpenMasterExpense={handleOpenMasterExpense}
+              isEditing={!!editingExpense}
+            />
           </div>
         </div>
 
@@ -249,6 +274,14 @@ const handleEditExpense = (expense) => {
         </div>
       </div>
 
+      <AnimatePresence>
+        {isMasterExpenseOpen && (
+          <MasterExpense
+            isOpen={isMasterExpenseOpen}
+            onClose={handleCloseMasterExpense}
+          />
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 };
