@@ -201,14 +201,11 @@ const MasterExpense = ({ isOpen, onClose }) => {
             
             <form onSubmit={handleSubmit} className="space-y-2">
               <div>
-                <label className="block text-sm font-medium text-amber-700 mb-1">
-                  Expense Name <span className="text-red-500">*</span>
-                </label>
                 <input
                   type="text"
                   value={expenseName}
                   onChange={(e) => setExpenseName(e.target.value)}
-                  className="w-full px-3 py-1.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-colors text-amber-900"
+                  className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-colors text-amber-900 text-sm"
                   placeholder="Enter expense name"
                   required
                   disabled={loading}
@@ -221,7 +218,7 @@ const MasterExpense = ({ isOpen, onClose }) => {
                   <button
                     type="button"
                     onClick={handleCancel}
-                    className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                    className="px-4 py-1 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
                     disabled={loading}
                   >
                     Cancel
