@@ -1,14 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiX, FiEdit2, FiTrash2, FiAlertCircle } from 'react-icons/fi';
-import { FixedSizeList as List } from 'react-window';
-import AutoSizer from 'react-virtualized-auto-sizer';
+import { FiX, FiEdit2, FiTrash2, FiAlertCircle, FiLoader } from 'react-icons/fi';
+import { lazyLoad } from '../../components/common/LazyLoad';
 import {
   getExpenseTypes,
   createExpenseType,
   updateExpenseType,
   deleteExpenseType
 } from '../../services/expenseService';
+
+// Lazy load heavy dependencies
+const LazyList = lazyLoad(() => import('react-window').then(module => ({
+  default: module.FixedSizeList
+})));
+
+const LazyAutoSizer = lazyLoad(() => import('react-virtualized-auto-sizer'));
 
 
 const MasterExpense = ({ isOpen, onClose }) => {
@@ -267,50 +273,56 @@ const MasterExpense = ({ isOpen, onClose }) => {
                   Expense Types
                 </div>
                 <div className="h-[calc(100%-32px)]">
-                  <AutoSizer>
-                    {({ height, width }) => (
-                      <List
-                        height={height}
-                        itemCount={expenseTypes.length}
-                        itemSize={34}
-                        width={width}
-                        itemData={expenseTypes}
-                      >
-                        {({ index, style, data }) => {
-                          const expense = data[index];
-                          return (
-                            <div 
-                              key={expense.id} 
-                              className="flex items-center justify-between px-6 py-3 hover:bg-amber-50 border-b border-amber-100"
-                              style={style}
-                            >
-                              <div className="text-sm text-gray-900 truncate">
-                                {expense.expense_name}
-                              </div>
-                              <div className="flex-shrink-0">
-                                <button
-                                  onClick={() => handleEdit(expense)}
-                                  className="text-amber-600 hover:text-amber-900 p-1 rounded-full hover:bg-amber-100 transition-colors"
-                                  disabled={loading}
-                                  title="Edit"
-                                >
-                                  <FiEdit2 className="w-4 h-4" />
-                                </button>
-                                <button
-                                  onClick={() => handleDelete(expense.id)}
-                                  className="text-red-600 hover:text-red-900 p-1 rounded-full hover:bg-red-100 transition-colors ml-2"
-                                  disabled={loading}
-                                  title="Delete"
-                                >
+                  <Suspense fallback={
+                    <div className="h-full flex items-center justify-center">
+                      <FiLoader className="animate-spin text-amber-500 w-5 h-5" />
+                    </div>
+                  }>
+                    <LazyAutoSizer>
+                      {({ height, width }) => (
+                        <LazyList
+                          height={height}
+                          itemCount={expenseTypes.length}
+                          itemSize={34}
+                          width={width}
+                          itemData={expenseTypes}
+                        >
+                          {({ index, style, data }) => {
+                            const expense = data[index];
+                            return (
+                              <div 
+                                key={expense.id} 
+                                className="flex items-center justify-between px-6 py-3 hover:bg-amber-50 border-b border-amber-100"
+                                style={style}
+                              >
+                                <div className="text-sm text-gray-900 truncate">
+                                  {expense.expense_name}
+                                </div>
+                                <div className="flex-shrink-0">
+                                  <button
+                                    onClick={() => handleEdit(expense)}
+                                    className="text-amber-600 hover:text-amber-900 p-1 rounded-full hover:bg-amber-100 transition-colors"
+                                    disabled={loading}
+                                    title="Edit"
+                                  >
+                                    <FiEdit2 className="w-4 h-4" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDelete(expense.id)}
+                                    className="text-red-600 hover:text-red-900 p-1 rounded-full hover:bg-red-100 transition-colors ml-2"
+                                    disabled={loading}
+                                    title="Delete"
+                                  >
                                   <FiTrash2 className="w-4 h-4" />
-                                </button>
+                                  </button>
+                                </div>
                               </div>
-                            </div>
-                          );
-                        }}
-                      </List>
-                    )}
-                  </AutoSizer>
+                            );
+                          }}
+                        </LazyList>
+                      )}
+                    </LazyAutoSizer>
+                  </Suspense>
                 </div>
               </div>
             )}

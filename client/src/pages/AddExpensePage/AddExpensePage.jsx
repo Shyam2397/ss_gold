@@ -1,12 +1,15 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiDollarSign, FiAlertCircle,FiPlus } from 'react-icons/fi';
+import { FiDollarSign, FiAlertCircle, FiPlus } from 'react-icons/fi';
 import { getExpenseTypes, createExpense, getExpenses, deleteExpense, updateExpense } from '../../services/expenseService';
-import MasterExpense from './MasterExpense';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { ExpenseFormProvider, useExpenseForm } from './context/ExpenseFormContext';
-import ExpenseForm from './components/ExpenseForm';
-import ExpensesTable from './components/ExpensesTable';
+import { lazyLoad } from '../../components/common/LazyLoad';
+
+// Lazy load components
+const MasterExpense = lazyLoad(() => import('./MasterExpense'));
+const ExpenseForm = lazyLoad(() => import('./components/ExpenseForm'));
+const ExpensesTable = lazyLoad(() => import('./components/ExpensesTable'));
 
 const AddExpenseContent = () => {
   const { state, dispatch } = useExpenseForm();
@@ -236,15 +239,16 @@ const AddExpenseContent = () => {
           </div>
 
           <div id="expense-form">
-            <ExpenseForm
-              expenseTypes={expenseTypes}
-              onSubmit={handleExpenseSubmit}
-              onReset={handleReset}
-              onOpenMasterExpense={handleOpenMasterExpense}
-              loading={state.loading}
-              isEditing={!!editingExpense}
-              isMasterExpenseOpen={isMasterExpenseOpen}
-            />
+            <Suspense fallback={<div className="min-h-[400px] flex items-center justify-center"><LoadingSpinner /></div>}>
+              <ExpenseForm
+                onSubmit={handleExpenseSubmit}
+                onReset={handleReset}
+                expenseTypes={expenseTypes}
+                isEditing={!!editingExpense}
+                onOpenMasterExpense={handleOpenMasterExpense}
+                isMasterExpenseOpen={isMasterExpenseOpen}
+              />
+            </Suspense>
           </div>
         </div>
 
@@ -258,28 +262,26 @@ const AddExpenseContent = () => {
           </div>
           
           <div className="overflow-hidden">
-            {isLoadingExpenses ? (
-              <div className="flex justify-center py-8">
-                <LoadingSpinner />
-              </div>
-            ) : (
+            <Suspense fallback={<div className="min-h-[300px] flex items-center justify-center"><LoadingSpinner /></div>}>
               <ExpensesTable 
                 expenses={expenses} 
                 onEdit={handleEditExpense}
                 onDelete={handleDeleteExpense}
+                isLoading={isLoadingExpenses}
+                expenseTypes={expenseTypes}
               />
-            )}
+            </Suspense>
           </div>
         </div>
       </div>
 
       <AnimatePresence>
-        {isMasterExpenseOpen && (
+        <Suspense fallback={null}>
           <MasterExpense
             isOpen={isMasterExpenseOpen}
             onClose={handleCloseMasterExpense}
           />
-        )}
+        </Suspense>
       </AnimatePresence>
     </motion.div>
   );
