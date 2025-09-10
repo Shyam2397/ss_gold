@@ -433,9 +433,14 @@ const CashBook = () => {
     
     const expenseMap = new Map();
     const monthlyMap = new Map();
+    let totalAdjustments = 0;
 
     transactions.forEach(transaction => {
-      if (transaction?.type === 'Expense' && transaction?.particulars) {
+      // Handle cash adjustments separately
+      if (transaction.isAdjustment) {
+        const adjustmentAmount = transaction.credit || -transaction.debit || 0;
+        totalAdjustments += adjustmentAmount;
+      } else if (transaction?.type === 'Expense' && transaction?.particulars) {
         const category = typeof transaction.particulars === 'string' 
           ? transaction.particulars.split(' - ')[0]
           : 'Other';
@@ -451,7 +456,7 @@ const CashBook = () => {
         
         const monthData = monthlyMap.get(monthKey) || { 
           month: monthKey,
-          timestamp: date.getTime(), // Add timestamp for better sorting
+          timestamp: date.getTime(),
           income: 0, 
           expense: 0, 
           pending: 0,
@@ -472,12 +477,17 @@ const CashBook = () => {
       }
     });
 
+    // Add cash adjustments as a separate category if there are any
+    if (totalAdjustments !== 0) {
+      expenseMap.set('Cash Adjustments', (expenseMap.get('Cash Adjustments') || 0) + Math.abs(totalAdjustments));
+    }
+
     const sortedCategories = Array.from(expenseMap.entries())
       .sort((a, b) => b[1] - a[1])
       .slice(0, 5);
 
     const monthlyData = Array.from(monthlyMap.values())
-      .sort((a, b) => b.timestamp - a.timestamp); // Sort by timestamp instead of parsing date string
+      .sort((a, b) => b.timestamp - a.timestamp);
 
     return { categories: sortedCategories, monthly: monthlyData };
   }, [transactions]); // Change dependency from memoizedFilteredTransactions to transactions
