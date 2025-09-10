@@ -10,7 +10,6 @@ import { SidebarMobile } from './SidebarMobile';
 
 // Lazy load modals
 const AddExpense = React.lazy(() => import('../../pages/AddExpensePage'));
-const MasterExpense = React.lazy(() => import('../../pages/AddExpensePage/MasterExpense'));
 
 // Main Sidebar component orchestrating context and content
 const Sidebar = ({ open: openProp, setOpen: setOpenProp, animate = true, user, setLoggedIn }) => {
@@ -29,7 +28,6 @@ const SidebarContent = memo(({ user, setLoggedIn }) => {
   const [isDataOpen, setIsDataOpen] = useState(false);
   const [isExpensesOpen, setIsExpensesOpen] = useState(false);
   const [showAddExpense, setShowAddExpense] = useState(false);
-  const [showMasterExpense, setShowMasterExpense] = useState(false);
   const scrollPositionsRef = useRef(new Map());
   const [isNavigating, setIsNavigating] = useState(false);
 
@@ -130,10 +128,9 @@ const SidebarContent = memo(({ user, setLoggedIn }) => {
     }
   }, [animate, setOpen]);
   
-  // Define modal setters for expense items
+  // Define modal setter for add expense
   const expenseModalSetters = useMemo(() => ({
-    add: setShowAddExpense,
-    master: setShowMasterExpense
+    add: setShowAddExpense
   }), []);
 
   const expenseMenuItems = useMemo(() => [
@@ -146,19 +143,13 @@ const SidebarContent = memo(({ user, setLoggedIn }) => {
       onClick: () => handleNavigation('/expenses/add')
     },
     { 
-      type: 'button',
-      icon: Icons.DollarSign, 
-      label: 'Master Expense', 
-      onClick: () => expenseModalSetters.master(true)
-    },
-    { 
       type: 'link',
       icon: Icons.DollarSign, 
       label: 'Cash Adjustments', 
       path: '/cash-adjustments',
       onClick: () => handleNavigation('/cash-adjustments')
     },
-  ], [expenseModalSetters, handleNavigation]);
+  ], [handleNavigation]);
 
   // Props to pass down to both Desktop and Mobile Sidebars
   const commonSidebarProps = {
@@ -197,7 +188,6 @@ const SidebarContent = memo(({ user, setLoggedIn }) => {
       {/* Wrap modals with Suspense */}
       <Suspense fallback={<div>Loading...</div>}>
         {showAddExpense && <AddExpense isOpen={showAddExpense} onClose={() => setShowAddExpense(false)} />}
-        {showMasterExpense && <MasterExpense isOpen={showMasterExpense} onClose={() => setShowMasterExpense(false)} />}
       </Suspense>
     </>
   );
