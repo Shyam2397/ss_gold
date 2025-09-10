@@ -6,8 +6,16 @@ import AmountField from './FormFields/AmountField';
 import PaidToField from './FormFields/PaidToField';
 import PaymentModeField from './FormFields/PaymentModeField';
 import RemarksField from './FormFields/RemarksField';
+import FormActions from './FormActions';
 
-const ExpenseForm = ({ onSubmit }) => {
+const ExpenseForm = ({ 
+  onSubmit, 
+  onReset, 
+  onOpenMasterExpense, 
+  loading: isLoading, 
+  isEditing,
+  isMasterExpenseOpen = false 
+}) => {
   const { state, dispatch } = useExpenseForm();
   const { formData, expenseTypes, loading } = state;
 
@@ -48,6 +56,14 @@ const ExpenseForm = ({ onSubmit }) => {
           <RemarksField value={formData.remarks} onChange={handleChange} />
         </div>
       </div>
+      
+      <FormActions
+        loading={isLoading}
+        onReset={onReset}
+        onOpenMasterExpense={onOpenMasterExpense}
+        isEditing={isEditing}
+        isMasterExpenseOpen={isMasterExpenseOpen}
+      />
     </form>
   );
 };

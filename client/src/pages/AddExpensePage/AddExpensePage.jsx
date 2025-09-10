@@ -1,13 +1,12 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiDollarSign, FiAlertCircle, FiPlus } from 'react-icons/fi';
+import { FiDollarSign, FiAlertCircle,FiPlus } from 'react-icons/fi';
 import { getExpenseTypes, createExpense, getExpenses, deleteExpense, updateExpense } from '../../services/expenseService';
 import MasterExpense from './MasterExpense';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { ExpenseFormProvider, useExpenseForm } from './context/ExpenseFormContext';
 import ExpenseForm from './components/ExpenseForm';
 import ExpensesTable from './components/ExpensesTable';
-import FormActions from './components/FormActions';
 
 const AddExpenseContent = () => {
   const { state, dispatch } = useExpenseForm();
@@ -23,10 +22,13 @@ const AddExpenseContent = () => {
     try {
       const types = await getExpenseTypes();
       setExpenseTypes(types);
+      // Update the context with the fetched expense types
+      dispatch({ type: 'SET_EXPENSE_TYPES', expenseTypes: types });
     } catch (error) {
+      console.error('Error fetching expense types:', error);
       dispatch({ type: 'SET_ERROR', error: 'Failed to load expense types' });
     }
-  }, []);
+  }, [dispatch]);
 
   // Fetch expense types when component mounts or when master expense dialog closes
   useEffect(() => {
@@ -236,15 +238,12 @@ const AddExpenseContent = () => {
           <div id="expense-form">
             <ExpenseForm
               expenseTypes={expenseTypes}
-              onExpenseSubmit={handleExpenseSubmit}
-              loading={state.loading}
-              isEditing={!!editingExpense}
-            />
-            <FormActions
-              loading={state.loading}
+              onSubmit={handleExpenseSubmit}
               onReset={handleReset}
               onOpenMasterExpense={handleOpenMasterExpense}
+              loading={state.loading}
               isEditing={!!editingExpense}
+              isMasterExpenseOpen={isMasterExpenseOpen}
             />
           </div>
         </div>
