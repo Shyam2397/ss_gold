@@ -436,13 +436,17 @@ const CashBook = () => {
     
     const expenseMap = new Map();
     const monthlyMap = new Map();
-    let totalAdjustments = 0;
+    let totalAdditions = 0;
+    let totalDeductions = 0;
 
     transactions.forEach(transaction => {
       // Handle cash adjustments separately
       if (transaction.isAdjustment) {
-        const adjustmentAmount = transaction.credit || -transaction.debit || 0;
-        totalAdjustments += adjustmentAmount;
+        if (transaction.type === 'Income') {  // Addition
+          totalAdditions += parseFloat(transaction.credit || 0);
+        } else if (transaction.type === 'Expense') {  // Deduction
+          totalDeductions += parseFloat(transaction.debit || 0);
+        }
       } else if (transaction?.type === 'Expense' && transaction?.particulars) {
         const category = typeof transaction.particulars === 'string' 
           ? transaction.particulars.split(' - ')[0]
@@ -480,9 +484,9 @@ const CashBook = () => {
       }
     });
 
-    // Add cash adjustments as a separate category if there are any
-    if (totalAdjustments !== 0) {
-      expenseMap.set('Cash Adjustments', (expenseMap.get('Cash Adjustments') || 0) + Math.abs(totalAdjustments));
+    // Only include cash deductions in top expenses (not additions, as those are income)
+    if (totalDeductions > 0) {
+      expenseMap.set('Cash Adjustments', (expenseMap.get('Cash Adjustments') || 0) + totalDeductions);
     }
 
     const sortedCategories = Array.from(expenseMap.entries())
