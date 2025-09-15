@@ -1,7 +1,8 @@
-import React, { useState, useRef, useCallback } from 'react';
-import { Upload, ZoomIn, ZoomOut, RotateCcw, Camera } from 'lucide-react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
+import { Upload, ZoomIn, ZoomOut, RotateCcw, Camera, Sliders } from 'lucide-react';
 import logo from '../assets/logo.png';
 import skinTestService from '../services/skinTestService';
+import LevelsAdjustment from '../components/LevelsAdjustment';
 
 const PhotoTesting = () => {
   const [uploadedImage, setUploadedImage] = useState(null);
@@ -11,6 +12,9 @@ const PhotoTesting = () => {
   const [isDraggingStarted, setIsDraggingStarted] = useState(false);
   const [startPos, setStartPos] = useState({ x: 0, y: 0 });
   const [tokenNo, setTokenNo] = useState('');
+  const [showLevels, setShowLevels] = useState(false);
+  const [originalImage, setOriginalImage] = useState(null);
+  const [adjustedImage, setAdjustedImage] = useState(null);
   const [formData, setFormData] = useState({
     name: '',
     sample: '',
@@ -79,7 +83,10 @@ const PhotoTesting = () => {
     if (file && file.type.startsWith('image/')) {
       const reader = new FileReader();
       reader.onload = (e) => {
-        setUploadedImage(e.target.result);
+        const imgUrl = e.target.result;
+        setOriginalImage(imgUrl);
+        setAdjustedImage(imgUrl);
+        setUploadedImage(imgUrl);
         // Reset transform when new image is uploaded
         setTransform({ scale: 1, x: 0, y: 0 });
       };
@@ -149,7 +156,82 @@ const PhotoTesting = () => {
     });
     setTokenNo('');
     setUploadedImage(null);
+    setOriginalImage(null);
+    setAdjustedImage(null);
     setTransform({ scale: 1, x: 0, y: 0 });
+  };
+
+  const handleApplyLevels = (adjustment) => {
+    if (!originalImage) return;
+    
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
+    
+    img.onload = () => {
+      canvas.width = img.width;
+      canvas.height = img.height;
+      
+      // Draw the original image
+      ctx.drawImage(img, 0, 0);
+      
+      if (adjustment.type === 'levels') {
+        const { black, white, gamma } = adjustment;
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imageData.data;
+        
+        // Calculate lookup table for levels adjustment
+        const lut = new Array(256);
+        const blackPoint = Math.round(black * 255);
+        const whitePoint = Math.round(white * 255);
+        
+        for (let i = 0; i < 256; i++) {
+          // Apply black and white points
+          let value = (i - blackPoint) * (255 / (whitePoint - blackPoint));
+          // Apply gamma correction
+          value = Math.pow(value / 255, 1 / gamma) * 255;
+          // Clamp to 0-255
+          lut[i] = Math.max(0, Math.min(255, Math.round(value)));
+        }
+        
+        // Apply the lookup table to the image
+        for (let i = 0; i < data.length; i += 4) {
+          data[i] = lut[data[i]];         // R
+          data[i + 1] = lut[data[i + 1]]; // G
+          data[i + 2] = lut[data[i + 2]]; // B
+        }
+        
+        ctx.putImageData(imageData, 0, 0);
+      } 
+      else if (adjustment.type === 'curves') {
+        const { curveLUT } = adjustment;
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imageData.data;
+        
+        // Apply the curve lookup table to each RGB channel
+        for (let i = 0; i < data.length; i += 4) {
+          data[i] = curveLUT[data[i]];         // R
+          data[i + 1] = curveLUT[data[i + 1]]; // G
+          data[i + 2] = curveLUT[data[i + 2]]; // B
+        }
+        
+        ctx.putImageData(imageData, 0, 0);
+      }
+      
+      // Update the displayed image
+      const adjustedUrl = canvas.toDataURL('image/png');
+      setAdjustedImage(adjustedUrl);
+      setUploadedImage(adjustedUrl);
+    };
+    
+    img.src = originalImage;
+  };
+  
+  const resetLevels = () => {
+    if (originalImage) {
+      setUploadedImage(originalImage);
+      setAdjustedImage(originalImage);
+    }
   };
 
   const handleDragOver = (e) => {
@@ -420,8 +502,47 @@ const PhotoTesting = () => {
           </div>
 
           {/* Right Side - Photo Upload Area */}
-          <div className="w-[275px]">
+          <div className="w-[275px] relative">
+            {uploadedImage && (
+              <div className="absolute top-2 right-2 z-10 flex flex-col space-y-2">
+                <button
+                  onClick={(e) => { e.stopPropagation(); setShowLevels(!showLevels); }}
+                  className={`p-2 rounded-full transition-all ${showLevels ? 'bg-blue-100 text-blue-600' : 'bg-white/80 hover:bg-gray-100'} shadow-md hover:scale-110`}
+                  title="Adjust Levels"
+                >
+                  <Sliders size={16} className="text-gray-700" />
+                </button>
+              </div>
+            )}
+            {showLevels && (
+              <div 
+                className="absolute left-full -top-60 ml-4 w-72 bg-white rounded-lg shadow-lg p-4 z-20"
+                onClick={(e) => e.stopPropagation()} // Prevent click from closing the panel
+              >
+                <LevelsAdjustment 
+                  image={originalImage}
+                  onApply={(levels) => {
+                    handleApplyLevels(levels);
+                    // Don't close on apply to allow real-time adjustments
+                  }}
+                  onReset={() => {
+                    resetLevels();
+                    // Optionally close on reset if desired
+                    // setShowLevels(false);
+                  }}
+                />
+                <div className="mt-2 flex justify-end space-x-2">
+                  <button 
+                    onClick={() => setShowLevels(false)}
+                    className="px-3 py-1 text-sm bg-gray-200 hover:bg-gray-300 rounded"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            )}
             <div
+              onClick={() => showLevels && setShowLevels(false)}
               className={`h-72 flex flex-col items-center justify-center cursor-pointer transition-all duration-200 ${
                 uploadedImage 
                   ? 'border-0' 
