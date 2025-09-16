@@ -502,9 +502,9 @@ const PhotoTesting = () => {
           </div>
 
           {/* Right Side - Photo Upload Area */}
-          <div className="w-[275px] relative">
+          <div className="w-[275px] relative group">
             {uploadedImage && (
-              <div className="absolute top-2 right-2 z-10 flex flex-col space-y-2">
+              <div className="absolute -top-10 right-2 z-10 flex flex-col space-y-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                 <button
                   onClick={(e) => { e.stopPropagation(); setShowLevels(!showLevels); }}
                   className={`p-2 rounded-full transition-all ${showLevels ? 'bg-blue-100 text-blue-600' : 'bg-white/80 hover:bg-gray-100'} shadow-md hover:scale-110`}
@@ -516,7 +516,7 @@ const PhotoTesting = () => {
             )}
             {showLevels && (
               <div 
-                className="absolute left-full -top-60 ml-4 w-72 bg-white rounded-lg shadow-lg p-4 z-20"
+                className="absolute left-full -top-48 ml-4 w-72 bg-white rounded-lg shadow-lg p-4 z-20"
                 onClick={(e) => e.stopPropagation()} // Prevent click from closing the panel
               >
                 <LevelsAdjustment 
@@ -534,7 +534,7 @@ const PhotoTesting = () => {
                 <div className="mt-2 flex justify-end space-x-2">
                   <button 
                     onClick={() => setShowLevels(false)}
-                    className="px-3 py-1 text-sm bg-gray-200 hover:bg-gray-300 rounded"
+                    className="px-3 py-1 text-sm text-red-600 bg-gray-200 hover:bg-gray-300 rounded"
                   >
                     Close
                   </button>
