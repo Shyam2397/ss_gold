@@ -1,21 +1,22 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useReducer, useRef, useCallback, useEffect } from 'react';
 import { Upload, ZoomIn, ZoomOut, RotateCcw, Camera, Sliders } from 'lucide-react';
-import logo from '../assets/logo.png';
-import skinTestService from '../services/skinTestService';
-import LevelsAdjustment from '../components/LevelsAdjustment';
+import logo from '../../assets/logo.png';
+import skinTestService from '../../services/skinTestService';
+import LevelsAdjustment from './LevelsAdjustment';
 
-const PhotoTesting = () => {
-  const [uploadedImage, setUploadedImage] = useState(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const [transform, setTransform] = useState({ scale: 1, x: 0, y: 0 });
-  const [isDraggingImage, setIsDraggingImage] = useState(false);
-  const [isDraggingStarted, setIsDraggingStarted] = useState(false);
-  const [startPos, setStartPos] = useState({ x: 0, y: 0 });
-  const [tokenNo, setTokenNo] = useState('');
-  const [showLevels, setShowLevels] = useState(false);
-  const [originalImage, setOriginalImage] = useState(null);
-  const [adjustedImage, setAdjustedImage] = useState(null);
-  const [formData, setFormData] = useState({
+// Initial state
+const initialState = {
+  uploadedImage: null,
+  isDragging: false,
+  transform: { scale: 1, x: 0, y: 0 },
+  isDraggingImage: false,
+  isDraggingStarted: false,
+  startPos: { x: 0, y: 0 },
+  tokenNo: '',
+  showLevels: false,
+  originalImage: null,
+  adjustedImage: null,
+  formData: {
     name: '',
     sample: '',
     weight: '',
@@ -26,7 +27,56 @@ const PhotoTesting = () => {
     zinc: '',
     cadmium: '',
     remarks: ''
-  });
+  }
+};
+
+// Reducer function
+const reducer = (state, action) => {
+  switch (action.type) {
+    case 'SET_UPLOADED_IMAGE':
+      return { ...state, uploadedImage: action.payload };
+    case 'SET_IS_DRAGGING':
+      return { ...state, isDragging: action.payload };
+    case 'SET_TRANSFORM':
+      return { ...state, transform: { ...state.transform, ...action.payload } };
+    case 'SET_IS_DRAGGING_IMAGE':
+      return { ...state, isDraggingImage: action.payload };
+    case 'SET_IS_DRAGGING_STARTED':
+      return { ...state, isDraggingStarted: action.payload };
+    case 'SET_START_POS':
+      return { ...state, startPos: { ...state.startPos, ...action.payload } };
+    case 'SET_TOKEN_NO':
+      return { ...state, tokenNo: action.payload };
+    case 'SET_SHOW_LEVELS':
+      return { ...state, showLevels: action.payload };
+    case 'SET_ORIGINAL_IMAGE':
+      return { ...state, originalImage: action.payload };
+    case 'SET_ADJUSTED_IMAGE':
+      return { ...state, adjustedImage: action.payload };
+    case 'UPDATE_FORM_DATA':
+      return { ...state, formData: { ...state.formData, ...action.payload } };
+    case 'RESET_FORM_DATA':
+      return { ...initialState };
+    default:
+      return state;
+  }
+};
+
+const PhotoTesting = () => {
+  const [state, dispatch] = useReducer(reducer, initialState);
+  const {
+    uploadedImage,
+    isDragging,
+    transform,
+    isDraggingImage,
+    isDraggingStarted,
+    startPos,
+    tokenNo,
+    showLevels,
+    originalImage,
+    adjustedImage,
+    formData
+  } = state;
   const fileInputRef = useRef(null);
   const imageRef = useRef(null);
 
@@ -44,28 +94,30 @@ const PhotoTesting = () => {
       );
 
       if (tokenData || skinTestData) {
-        setFormData({
-          tokenNo: tokenData?.tokenNo || skinTestData?.tokenNo || skinTestData?.token_no || '',
-          date: tokenData?.date || skinTestData?.date || '',
-          name: tokenData?.name || skinTestData?.name || '',
-          sample: tokenData?.sample || skinTestData?.sample || '',
-          weight: tokenData?.weight || skinTestData?.weight || '',
-          goldFineness: tokenData?.gold_fineness || tokenData?.goldFineness || 
-                        skinTestData?.gold_fineness || skinTestData?.goldFineness || '',
-          karat: tokenData?.karat || skinTestData?.karat || '',
-          silver: tokenData?.silver || skinTestData?.silver || '0.00',
-          copper: tokenData?.copper || skinTestData?.copper || '0.00',
-          zinc: tokenData?.zinc || skinTestData?.zinc || '0.00',
-          cadmium: tokenData?.cadmium || skinTestData?.cadmium || '0.00',
-          remarks: tokenData?.remarks || skinTestData?.remarks || ''
+        dispatch({
+          type: 'UPDATE_FORM_DATA',
+          payload: {
+            tokenNo: tokenData?.tokenNo || skinTestData?.tokenNo || skinTestData?.token_no || '',
+            date: tokenData?.date || skinTestData?.date || '',
+            name: tokenData?.name || skinTestData?.name || '',
+            sample: tokenData?.sample || skinTestData?.sample || '',
+            weight: tokenData?.weight || skinTestData?.weight || '',
+            goldFineness: tokenData?.gold_fineness || tokenData?.goldFineness || 
+                          skinTestData?.gold_fineness || skinTestData?.goldFineness || '',
+            karat: tokenData?.karat || skinTestData?.karat || '',
+            silver: tokenData?.silver || skinTestData?.silver || '0.00',
+            copper: tokenData?.copper || skinTestData?.copper || '0.00',
+            zinc: tokenData?.zinc || skinTestData?.zinc || '0.00',
+            cadmium: tokenData?.cadmium || skinTestData?.cadmium || '0.00',
+            remarks: tokenData?.remarks || skinTestData?.remarks || ''
+          }
         });
       } else {
-        // If no data found, reset the form with the token number
-        setFormData(prev => ({
-          ...prev,
-          tokenNo: tokenNo,
-          // Keep other fields as is or reset them as needed
-        }));
+        // If no data found, update just the token number
+        dispatch({
+          type: 'UPDATE_FORM_DATA',
+          payload: { tokenNo: tokenNo }
+        });
       }
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -84,11 +136,11 @@ const PhotoTesting = () => {
       const reader = new FileReader();
       reader.onload = (e) => {
         const imgUrl = e.target.result;
-        setOriginalImage(imgUrl);
-        setAdjustedImage(imgUrl);
-        setUploadedImage(imgUrl);
+        dispatch({ type: 'SET_ORIGINAL_IMAGE', payload: imgUrl });
+        dispatch({ type: 'SET_ADJUSTED_IMAGE', payload: imgUrl });
+        dispatch({ type: 'SET_UPLOADED_IMAGE', payload: imgUrl });
         // Reset transform when new image is uploaded
-        setTransform({ scale: 1, x: 0, y: 0 });
+        dispatch({ type: 'SET_TRANSFORM', payload: { scale: 1, x: 0, y: 0 } });
       };
       reader.readAsDataURL(file);
     }
@@ -97,22 +149,27 @@ const PhotoTesting = () => {
   const handleMouseDown = (e) => {
     e.stopPropagation();
     if (uploadedImage) {
-      setIsDraggingImage(true);
-      setIsDraggingStarted(false);
-      setStartPos({
-        x: e.clientX - transform.x,
-        y: e.clientY - transform.y
+      dispatch({ type: 'SET_IS_DRAGGING_IMAGE', payload: true });
+      dispatch({ type: 'SET_IS_DRAGGING_STARTED', payload: false });
+      dispatch({
+        type: 'SET_START_POS',
+        payload: {
+          x: e.clientX - transform.x,
+          y: e.clientY - transform.y
+        }
       });
     }
   };
 
   const handleMouseMove = useCallback((e) => {
     if (isDraggingImage) {
-      setIsDraggingStarted(true);
-      setTransform({
-        ...transform,
-        x: e.clientX - startPos.x,
-        y: e.clientY - startPos.y
+      dispatch({ type: 'SET_IS_DRAGGING_STARTED', payload: true });
+      dispatch({
+        type: 'SET_TRANSFORM',
+        payload: {
+          x: e.clientX - startPos.x,
+          y: e.clientY - startPos.y
+        }
       });
     }
   }, [isDraggingImage, startPos, transform]);
@@ -126,39 +183,24 @@ const PhotoTesting = () => {
       triggerFileSelect(e);
     }
     
-    setIsDraggingImage(false);
-    setIsDraggingStarted(false);
+    dispatch({ type: 'SET_IS_DRAGGING_IMAGE', payload: false });
+    dispatch({ type: 'SET_IS_DRAGGING_STARTED', payload: false });
   };
 
   const zoom = (factor) => {
-    setTransform(prev => ({
-      ...prev,
-      scale: Math.max(0.5, Math.min(prev.scale + factor, 3))
-    }));
+    const newScale = Math.max(0.5, Math.min(transform.scale + factor, 3));
+    dispatch({
+      type: 'SET_TRANSFORM',
+      payload: { scale: newScale }
+    });
   };
 
   const resetTransform = () => {
-    setTransform({ scale: 1, x: 0, y: 0 });
+    dispatch({ type: 'SET_TRANSFORM', payload: { scale: 1, x: 0, y: 0 } });
   };
 
   const resetForm = () => {
-    setFormData({
-      name: '',
-      sample: '',
-      weight: '',
-      goldFineness: '',
-      karat: '',
-      silver: '',
-      copper: '',
-      zinc: '',
-      cadmium: '',
-      remarks: ''
-    });
-    setTokenNo('');
-    setUploadedImage(null);
-    setOriginalImage(null);
-    setAdjustedImage(null);
-    setTransform({ scale: 1, x: 0, y: 0 });
+    dispatch({ type: 'RESET_FORM_DATA' });
   };
 
   const handleApplyLevels = (adjustment) => {
@@ -220,8 +262,8 @@ const PhotoTesting = () => {
       
       // Update the displayed image
       const adjustedUrl = canvas.toDataURL('image/png');
-      setAdjustedImage(adjustedUrl);
-      setUploadedImage(adjustedUrl);
+      dispatch({ type: 'SET_ADJUSTED_IMAGE', payload: adjustedUrl });
+      dispatch({ type: 'SET_UPLOADED_IMAGE', payload: adjustedUrl });
     };
     
     img.src = originalImage;
@@ -229,24 +271,24 @@ const PhotoTesting = () => {
   
   const resetLevels = () => {
     if (originalImage) {
-      setUploadedImage(originalImage);
-      setAdjustedImage(originalImage);
+      dispatch({ type: 'SET_UPLOADED_IMAGE', payload: originalImage });
+      dispatch({ type: 'SET_ADJUSTED_IMAGE', payload: originalImage });
     }
   };
 
   const handleDragOver = (e) => {
     e.preventDefault();
-    setIsDragging(true);
+    dispatch({ type: 'SET_IS_DRAGGING', payload: true });
   };
 
   const handleDragLeave = (e) => {
     e.preventDefault();
-    setIsDragging(false);
+    dispatch({ type: 'SET_IS_DRAGGING', payload: false });
   };
 
   const handleDrop = (e) => {
     e.preventDefault();
-    setIsDragging(false);
+    dispatch({ type: 'SET_IS_DRAGGING', payload: false });
     const files = Array.from(e.dataTransfer.files);
     if (files[0]) {
       handleImageUpload(files[0]);
@@ -269,16 +311,16 @@ const PhotoTesting = () => {
   };
 
   // Add event listeners for mouse move and up
-  React.useEffect(() => {
+  useEffect(() => {
     const handleGlobalMouseMove = (e) => {
       if (isDraggingImage) {
         handleMouseMove(e);
       }
     };
 
-    const handleGlobalMouseUp = () => {
+    const handleGlobalMouseUp = (e) => {
       if (isDraggingImage) {
-        handleMouseUp();
+        handleMouseUp(e);
       }
     };
 
@@ -309,7 +351,7 @@ const PhotoTesting = () => {
               id="tokenInput"
               type="text"
               value={tokenNo}
-              onChange={(e) => setTokenNo(e.target.value)}
+              onChange={(e) => dispatch({ type: 'SET_TOKEN_NO', payload: e.target.value })}
               onKeyDown={handleKeyDown}
               placeholder="Enter Token No"
               className="px-3 py-1.5 border border-amber-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent text-sm w-40 text-amber-900"
@@ -506,7 +548,7 @@ const PhotoTesting = () => {
             {uploadedImage && (
               <div className="absolute -top-10 right-2 z-10 flex flex-col space-y-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                 <button
-                  onClick={(e) => { e.stopPropagation(); setShowLevels(!showLevels); }}
+                  onClick={(e) => { e.stopPropagation(); dispatch({ type: 'SET_SHOW_LEVELS', payload: !showLevels }); }}
                   className={`p-2 rounded-full transition-all ${showLevels ? 'bg-blue-100 text-blue-600' : 'bg-white/80 hover:bg-gray-100'} shadow-md hover:scale-110`}
                   title="Adjust Levels"
                 >
@@ -533,7 +575,7 @@ const PhotoTesting = () => {
                 />
                 <div className="mt-2 flex justify-end space-x-2">
                   <button 
-                    onClick={() => setShowLevels(false)}
+                    onClick={() => dispatch({ type: 'SET_SHOW_LEVELS', payload: false })}
                     className="px-3 py-1 text-sm text-red-600 bg-gray-200 hover:bg-gray-300 rounded"
                   >
                     Close
@@ -542,7 +584,7 @@ const PhotoTesting = () => {
               </div>
             )}
             <div
-              onClick={() => showLevels && setShowLevels(false)}
+              onClick={() => showLevels && dispatch({ type: 'SET_SHOW_LEVELS', payload: false })}
               className={`h-72 flex flex-col items-center justify-center cursor-pointer transition-all duration-200 ${
                 uploadedImage 
                   ? 'border-0' 

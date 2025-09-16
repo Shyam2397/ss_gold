@@ -41,7 +41,8 @@ const SkinTesting = lazyLoad(() => import(
 
 const PhotoTesting = lazyLoad(() => import(
   /* webpackChunkName: "photo-testing" */
-  '../pages/PhotoTesting'
+  /* webpackPrefetch: true */
+  '../pages/PhotoTesting/PhotoTesting'
 ));
 
 const Token = lazyLoad(() => import(
@@ -210,7 +211,7 @@ const routesConfig = [
   {
     path: '/photo-testing',
     Component: PhotoTesting,
-    preload: () => import('../pages/PhotoTesting'),
+    preload: () => import('../pages/PhotoTesting/PhotoTesting'),
     ...ROUTE_PRIORITIES['/photo-testing']
   },
   {
