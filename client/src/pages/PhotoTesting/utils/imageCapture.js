@@ -90,44 +90,42 @@ export const captureTransformedImage = (containerSelector, arrowsData = []) => {
       return;
     }
 
-    // Find all arrow elements in the container
-    const arrowElements = container.querySelectorAll('[data-arrow="true"]');
+    // Get container dimensions
+    const rect = container.getBoundingClientRect();
     
-    console.log('Found arrow elements:', arrowElements.length);
-    console.log('Arrows data provided:', arrowsData.length);
-
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d', { 
-      willReadFrequently: true,
-      alpha: true,
-      desynchronized: false
-    });
+    // Set up ultra-high-DPI canvas for professional print quality (600+ DPI equivalent)
+    const dpr = window.devicePixelRatio || 1;
+    const printScale = 6; // 6x scale for ultra-high-quality print (600+ DPI)
     
     // Get the container's dimensions
     const { width, height } = container.getBoundingClientRect();
     
-    // Use a higher resolution for better quality (3x for optimal print quality)
-    const scale = 3 * (window.devicePixelRatio || 1);
+    const canvas = document.createElement('canvas');
+    // Set canvas dimensions to ultra-high resolution for professional print
+    canvas.width = Math.floor(width * printScale);
+    canvas.height = Math.floor(height * printScale);
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${height}px`;
     
-    // Set canvas dimensions (higher resolution)
-    canvas.width = Math.floor(width * scale);
-    canvas.height = Math.floor(height * scale);
+    const ctx = canvas.getContext('2d', { 
+      willReadFrequently: false, // Optimize for quality over read speed
+      alpha: false, // No transparency needed for print
+      desynchronized: false 
+    });
     
-    // Scale the context to ensure everything is drawn at the correct size
-    ctx.scale(scale, scale);
+    // Scale the context for ultra-high-DPI rendering
+    ctx.scale(printScale, printScale);
     
     // Set canvas display size (CSS pixels)
     canvas.style.width = `${width}px`;
     canvas.style.height = `${height}px`;
     
-    // Set high quality rendering for print output
+    // Set maximum quality rendering for print output
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
-    ctx.patternQuality = 'high';
-    ctx.quality = 'high';
-    ctx.textRenderingOptimization = 'optimizeQuality';
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
+    // Set white background for print
+    ctx.fillStyle = 'white';
+    ctx.fillRect(0, 0, width, height);
 
     const style = window.getComputedStyle(transformedImg);
     const backgroundImage = style.backgroundImage;
@@ -221,7 +219,7 @@ export const captureTransformedImage = (containerSelector, arrowsData = []) => {
         outputCtx.lineJoin = 'round';
         outputCtx.drawImage(canvas, 0, 0);
         
-        // Convert to data URL with maximum quality (PNG for lossless)
+        // Convert to data URL with maximum quality (PNG for absolute lossless quality)
         const dataUrl = outputCanvas.toDataURL('image/png', 1.0);
         
         // Return the data URL

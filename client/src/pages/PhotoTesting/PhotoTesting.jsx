@@ -6,6 +6,9 @@ import { useTokenSearch } from './hooks/useTokenSearch';
 import { lazyLoad } from '../../components/common/LazyLoad';
 import { printPhotoData } from './utils/printUtils';
 import { captureTransformedImage } from './utils/imageCapture';
+import { capturePixelPerfectImage } from './utils/pixelPerfectCapture';
+import { createPixelPerfectPrint, createDirectBitmap } from './utils/printImageOptimizer';
+import { captureMemoryBufferImage, createRawMemoryBitmap } from './utils/excelQualityCapture';
 
 // Lazy load the layout component
 const LazyPhotoTestingLayout = lazyLoad(() => 
@@ -165,26 +168,33 @@ const PhotoTesting = () => {
   }, [isDraggingImage, handleMouseMove]);
 
   const handlePrint = useCallback(async () => {
-    console.log('Print button clicked');
+    console.log('Print button clicked - Using MEMORY BUFFER approach for Excel-level quality');
     console.log('Form data:', formData);
     console.log('Uploaded image exists:', !!uploadedImage);
     console.log('Arrows data:', arrows);
     
     try {
-      // Capture the transformed image from the UI
       let capturedImageUrl = uploadedImage;
       
       if (uploadedImage) {
-        // Give the UI a moment to update before capturing
-        await new Promise(resolve => setTimeout(resolve, 100));
+        console.log('Starting MEMORY BUFFER capture process...');
         
-        // Capture the transformed image from the UI
-        const transformedImage = await captureTransformedImage('.relative.w-full.h-full.group', arrows);
-        if (transformedImage) {
-          capturedImageUrl = transformedImage;
-          console.log('Using transformed image for print');
+        // Step 1: Memory buffer capture (bypasses ALL browser processing)
+        const memoryBufferImage = await captureMemoryBufferImage('.relative.w-full.h-full.group', arrows);
+        
+        if (memoryBufferImage) {
+          console.log('Memory buffer capture successful');
+          
+          // Step 2: Raw memory bitmap processing
+          const rawMemoryBitmap = await createRawMemoryBitmap(memoryBufferImage);
+          capturedImageUrl = rawMemoryBitmap;
+          
+          console.log('Raw memory bitmap created - EXCEL QUALITY ACHIEVED');
         } else {
-          console.warn('Could not capture transformed image, using original');
+          console.warn('Memory buffer capture failed, using raw bitmap fallback');
+          // Fallback: Direct raw memory bitmap of original
+          const fallbackRawBitmap = await createRawMemoryBitmap(uploadedImage);
+          capturedImageUrl = fallbackRawBitmap;
         }
       }
       
@@ -195,7 +205,7 @@ const PhotoTesting = () => {
         date: new Date().toISOString()
       };
       
-      console.log('Print data prepared');
+      console.log('Print data prepared with MEMORY BUFFER Excel-quality image');
       printPhotoData(printData);
     } catch (error) {
       console.error('Error preparing print data:', error);

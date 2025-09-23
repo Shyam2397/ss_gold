@@ -17,6 +17,15 @@ export const printPhotoData = (formData) => {
             size: 6in 4in landscape;
             margin: 0;
             padding: 0;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            image-resolution: 600dpi;
+          }
+          
+          /* Ensure high quality rendering for print */
+          * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
           }
           body {
             width: 6in;
@@ -45,6 +54,19 @@ export const printPhotoData = (formData) => {
             align-items: center;
             width: 100%;
             height: 100%;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          
+          /* Optimize images for high-quality print rendering */
+          .photo-wrapper img {
+            image-rendering: auto;
+            image-rendering: high-quality;
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
           }
           .left-wrapper {
             width: 50%;
@@ -200,6 +222,32 @@ export const printPhotoData = (formData) => {
             text-align: center;
             margin-top: auto;
           }
+          
+          /* High-DPI print optimization - Excel-level quality */
+          @media print and (min-resolution: 300dpi) {
+            .right-wrapper img {
+              image-rendering: pixelated !important;
+              image-rendering: -moz-crisp-edges !important;
+              image-rendering: -webkit-optimize-contrast !important;
+              -ms-interpolation-mode: nearest-neighbor !important;
+              filter: none !important;
+              transform: translateZ(0) !important;
+            }
+          }
+          
+          /* Force pixel-perfect rendering in all browsers */
+          @media print {
+            .right-wrapper img {
+              image-rendering: pixelated !important;
+              image-rendering: -moz-crisp-edges !important;
+              image-rendering: -webkit-optimize-contrast !important;
+              -ms-interpolation-mode: nearest-neighbor !important;
+              backface-visibility: hidden !important;
+              -webkit-backface-visibility: hidden !important;
+              transform: translate3d(0,0,0) !important;
+              will-change: auto !important;
+            }
+          }
         </style>
       </head>
       <body>
@@ -282,15 +330,16 @@ export const printPhotoData = (formData) => {
                         width: auto;
                         height: auto;
                         object-fit: contain;
-                        image-rendering: -webkit-optimize-contrast;
-                        image-rendering: crisp-edges;
-                        image-rendering: high-quality;
                         image-rendering: pixelated;
-                        -ms-interpolation-mode: bicubic;
+                        image-rendering: -moz-crisp-edges;
+                        image-rendering: -webkit-optimize-contrast;
+                        -ms-interpolation-mode: nearest-neighbor;
                         -webkit-print-color-adjust: exact !important;
                         print-color-adjust: exact !important;
                         color-adjust: exact !important;
                         background-color: white;
+                        min-width: 100%;
+                        min-height: 100%;
                         filter: contrast(1.1) saturate(1.1);
                       "
                       onload="this.style.opacity=1"
@@ -306,7 +355,96 @@ export const printPhotoData = (formData) => {
     </html>
   `;
 
+  // Write content to print window
+  printWindow.document.open();
   printWindow.document.write(content);
   printWindow.document.close();
-
+  
+  // Enhanced image loading for pixel-perfect print
+  printWindow.addEventListener('load', () => {
+    console.log('Print window loaded, waiting for images...');
+    
+    // Wait for all images to load completely
+    const images = printWindow.document.querySelectorAll('img');
+    let loadedImages = 0;
+    const totalImages = images.length;
+    
+    const checkAllImagesLoaded = () => {
+      loadedImages++;
+      console.log(`Image ${loadedImages}/${totalImages} loaded`);
+      
+      if (loadedImages >= totalImages) {
+        console.log('All images loaded, preparing for print...');
+        
+        // Force all images to render at native resolution
+        images.forEach(img => {
+          // Ensure images maintain their pixel-perfect quality
+          img.style.imageRendering = 'pixelated';
+          img.style.imageRendering = '-moz-crisp-edges';
+          img.style.imageRendering = '-webkit-optimize-contrast';
+          img.style.msInterpolationMode = 'nearest-neighbor';
+        });
+        
+        // Extended delay for pixel-perfect rendering
+        setTimeout(() => {
+          try {
+            console.log('Triggering print...');
+            
+            // Force complete redraw for pixel-perfect output
+            printWindow.document.body.offsetHeight;
+            printWindow.document.documentElement.offsetHeight;
+            
+            // Multiple focus attempts for better print dialog handling
+            printWindow.focus();
+            setTimeout(() => {
+              printWindow.focus();
+              printWindow.print();
+              
+              // Close after longer delay to ensure print completion
+              setTimeout(() => {
+                printWindow.close();
+              }, 2000);
+            }, 100);
+            
+          } catch (e) {
+            console.error('Error during printing:', e);
+            printWindow.close();
+          }
+        }, 1000); // Longer delay for perfect rendering
+      }
+    };
+    
+    if (totalImages === 0) {
+      console.log('No images found, proceeding with print');
+      checkAllImagesLoaded();
+    } else {
+      console.log(`Waiting for ${totalImages} images to load`);
+      // Enhanced image loading detection
+      images.forEach((img, index) => {
+        if (img.complete && img.naturalWidth > 0) {
+          console.log(`Image ${index + 1} already loaded`);
+          checkAllImagesLoaded();
+        } else {
+          console.log(`Waiting for image ${index + 1} to load`);
+          
+          const onLoad = () => {
+            console.log(`Image ${index + 1} load event fired`);
+            img.removeEventListener('load', onLoad);
+            img.removeEventListener('error', onError);
+            checkAllImagesLoaded();
+          };
+          
+          const onError = () => {
+            console.warn(`Image ${index + 1} failed to load`);
+            img.removeEventListener('load', onLoad);
+            img.removeEventListener('error', onError);
+            checkAllImagesLoaded();
+          };
+          
+          img.addEventListener('load', onLoad);
+          img.addEventListener('error', onError);
+        }
+      });
+    }
+  });
 };

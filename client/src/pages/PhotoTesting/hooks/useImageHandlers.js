@@ -75,8 +75,8 @@ export const useImageHandlers = (state, dispatch) => {
         ctx.putImageData(imageData, 0, 0);
       }
       
-      // Update the displayed image
-      const adjustedUrl = canvas.toDataURL('image/png');
+      // Update the displayed image with high quality
+      const adjustedUrl = canvas.toDataURL('image/jpeg', 0.95); // High quality JPEG
       dispatch({ type: 'SET_ADJUSTED_IMAGE', payload: adjustedUrl });
       dispatch({ type: 'SET_UPLOADED_IMAGE', payload: adjustedUrl });
     };

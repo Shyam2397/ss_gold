@@ -1,21 +1,31 @@
 import imageCompression from 'browser-image-compression';
 
-export const optimizeImage = async (imageFile, maxSizeMB = 1, maxWidthOrHeight = 1920) => {
+export const optimizeImage = async (imageFile, maxSizeMB = 5, maxWidthOrHeight = 4000) => {
   try {
-    // Compression options
+    // For print quality, preserve original files when possible
     const options = {
-      maxSizeMB,
-      maxWidthOrHeight,
+      maxSizeMB, // Increased to 5MB for maximum quality retention
+      maxWidthOrHeight, // Increased to 4000px for ultra print quality
       useWebWorker: true,
-      fileType: 'image/webp' // Convert to WebP format
+      fileType: 'image/png', // PNG for lossless quality
+      initialQuality: 1.0 // Maximum quality setting
     };
 
-    // Compress the image
+    // Only compress if file is significantly larger than maxSizeMB
+    if (imageFile.size <= maxSizeMB * 1024 * 1024) {
+      // File is within size limit, return original without any processing
+      console.log('Image within size limit, preserving original quality');
+      return imageFile;
+    }
+
+    console.log('Image larger than limit, applying minimal compression');
+    // Very minimal compression only when absolutely necessary
     const compressedFile = await imageCompression(imageFile, options);
     return compressedFile;
   } catch (error) {
     console.error('Error optimizing image:', error);
-    throw error;
+    // If compression fails, return original file
+    return imageFile;
   }
 };
 
