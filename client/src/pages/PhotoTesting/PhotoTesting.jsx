@@ -4,6 +4,8 @@ import { useImageHandlers } from './hooks/useImageHandlers';
 import { useDragAndDrop } from './hooks/useDragAndDrop';
 import { useTokenSearch } from './hooks/useTokenSearch';
 import { lazyLoad } from '../../components/common/LazyLoad';
+import { printPhotoData } from './utils/printUtils';
+import { captureTransformedImage } from './utils/imageCapture';
 
 // Lazy load the layout component
 const LazyPhotoTestingLayout = lazyLoad(() => 
@@ -48,9 +50,10 @@ const PhotoTesting = () => {
     isDraggingImage,
     isDraggingStarted,
     tokenNo,
+    formData,
     showLevels,
     originalImage,
-    formData
+    arrows
   } = state;
   
   const fileInputRef = useRef(null);
@@ -67,6 +70,10 @@ const PhotoTesting = () => {
     handleDragLeave,
     handleDrop: handleDragDrop
   } = useDragAndDrop(state, dispatch);
+
+  const handleArrowsChange = useCallback((newArrows) => {
+    dispatch({ type: 'SET_ARROWS', payload: newArrows });
+  }, [dispatch]);
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter') {
@@ -157,9 +164,49 @@ const PhotoTesting = () => {
     };
   }, [isDraggingImage, handleMouseMove]);
 
+  const handlePrint = useCallback(async () => {
+    console.log('Print button clicked');
+    console.log('Form data:', formData);
+    console.log('Uploaded image exists:', !!uploadedImage);
+    console.log('Arrows data:', arrows);
+    
+    try {
+      // Capture the transformed image from the UI
+      let capturedImageUrl = uploadedImage;
+      
+      if (uploadedImage) {
+        // Give the UI a moment to update before capturing
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // Capture the transformed image from the UI
+        const transformedImage = await captureTransformedImage('.relative.w-full.h-full.group', arrows);
+        if (transformedImage) {
+          capturedImageUrl = transformedImage;
+          console.log('Using transformed image for print');
+        } else {
+          console.warn('Could not capture transformed image, using original');
+        }
+      }
+      
+      const printData = {
+        ...formData,
+        tokenNo,
+        photoUrl: capturedImageUrl,
+        date: new Date().toISOString()
+      };
+      
+      console.log('Print data prepared');
+      printPhotoData(printData);
+    } catch (error) {
+      console.error('Error preparing print data:', error);
+      alert('Error preparing print data. Please try again.');
+    }
+  }, [formData, tokenNo, uploadedImage, arrows]);
+
   return (
     <Suspense fallback={<LoadingFallback />}>
       <LazyPhotoTestingLayout
+        onPrint={handlePrint}
         tokenNo={tokenNo}
         onTokenNoChange={handleTokenNoChange}
         onTokenSearch={() => handleTokenSearch(tokenNo)}
@@ -187,6 +234,7 @@ const PhotoTesting = () => {
         onFileSelect={handleFileSelect}
         uploadedImage={uploadedImage}
         isDragging={isDragging}
+        onArrowsChange={handleArrowsChange}
         // Pass lazy-loaded components as props
         components={{
           ImageEditor: LazyImageEditor,

@@ -20,7 +20,6 @@ export const printData = (data) => {
           size: A4 portrait;
           margin: 0;
           size: 210mm 297mm; /* A4 dimensions in mm */
-          margin: 0;
           padding: 0;
         }
         

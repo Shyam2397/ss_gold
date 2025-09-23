@@ -25,6 +25,8 @@ const photoTestingReducer = (state, action) => {
       return { ...state, adjustedImage: action.payload };
     case 'UPDATE_FORM_DATA':
       return { ...state, formData: { ...state.formData, ...action.payload } };
+    case 'SET_ARROWS':
+      return { ...state, arrows: action.payload };
     case 'RESET_FORM_DATA':
       return { ...initialState };
     default:
@@ -44,6 +46,7 @@ export const initialState = {
   showLevels: false,
   originalImage: null,
   adjustedImage: null,
+  arrows: [],
   formData: {
     name: '',
     sample: '',
