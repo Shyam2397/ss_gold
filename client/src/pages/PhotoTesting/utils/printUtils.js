@@ -207,12 +207,26 @@ export const printPhotoData = (formData) => {
             align-items: center;
             padding: 5px;
             box-sizing: border-box;
+            background-color: white;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
           }
           .right-wrapper img {
             flex-grow: 1;
             max-width: 100%;
             object-fit: cover;
             max-height: 100%;
+            background-color: white;
+          }
+          
+          /* Pure white background for no-image state */
+          .right-wrapper .no-image {
+            width: 100%;
+            height: 100%;
+            background-color: white !important;
+            border: none !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
           }
 
           .footer {
@@ -246,6 +260,13 @@ export const printPhotoData = (formData) => {
               -webkit-backface-visibility: hidden !important;
               transform: translate3d(0,0,0) !important;
               will-change: auto !important;
+            }
+            
+            /* Ensure pure white background when no image */
+            .right-wrapper {
+              background-color: white !important;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
             }
           }
         </style>
@@ -346,7 +367,21 @@ export const printPhotoData = (formData) => {
                       style="opacity: 0; transition: opacity 0.3s ease-in-out;"
                     />
                   </div>
-                ` : `<div class="placeholder">No photo available</div>`}
+                ` : `
+                  <div style="
+                    width: 100%;
+                    height: 100%;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    background-color: white;
+                    border: none;
+                    -webkit-print-color-adjust: exact !important;
+                    print-color-adjust: exact !important;
+                  ">
+                    <!-- Pure white background when no image -->
+                  </div>
+                `}
                 <div class="footer">Result are only for skin of the sample.</div>
               </div>
             </div>
@@ -415,7 +450,7 @@ export const printPhotoData = (formData) => {
     };
     
     if (totalImages === 0) {
-      console.log('No images found, proceeding with print');
+      console.log('No images found - proceeding with print (pure white background)');
       checkAllImagesLoaded();
     } else {
       console.log(`Waiting for ${totalImages} images to load`);
@@ -435,7 +470,7 @@ export const printPhotoData = (formData) => {
           };
           
           const onError = () => {
-            console.warn(`Image ${index + 1} failed to load`);
+            console.warn(`Image ${index + 1} failed to load - continuing with print`);
             img.removeEventListener('load', onLoad);
             img.removeEventListener('error', onError);
             checkAllImagesLoaded();

@@ -168,16 +168,16 @@ const PhotoTesting = () => {
   }, [isDraggingImage, handleMouseMove]);
 
   const handlePrint = useCallback(async () => {
-    console.log('Print button clicked - Using MEMORY BUFFER approach for Excel-level quality');
+    console.log('Print button clicked - Supporting print with or without image');
     console.log('Form data:', formData);
     console.log('Uploaded image exists:', !!uploadedImage);
     console.log('Arrows data:', arrows);
     
     try {
-      let capturedImageUrl = uploadedImage;
+      let capturedImageUrl = null; // Default to null for no image
       
       if (uploadedImage) {
-        console.log('Starting MEMORY BUFFER capture process...');
+        console.log('Image available - Starting MEMORY BUFFER capture process...');
         
         // Step 1: Memory buffer capture (bypasses ALL browser processing)
         const memoryBufferImage = await captureMemoryBufferImage('.relative.w-full.h-full.group', arrows);
@@ -196,16 +196,19 @@ const PhotoTesting = () => {
           const fallbackRawBitmap = await createRawMemoryBitmap(uploadedImage);
           capturedImageUrl = fallbackRawBitmap;
         }
+      } else {
+        console.log('No image uploaded - Printing with pure white background');
+        // No image processing needed, will show pure white background
       }
       
       const printData = {
         ...formData,
         tokenNo,
-        photoUrl: capturedImageUrl,
+        photoUrl: capturedImageUrl, // Will be null if no image
         date: new Date().toISOString()
       };
       
-      console.log('Print data prepared with MEMORY BUFFER Excel-quality image');
+      console.log('Print data prepared', capturedImageUrl ? 'with MEMORY BUFFER Excel-quality image' : 'without image (pure white background)');
       printPhotoData(printData);
     } catch (error) {
       console.error('Error preparing print data:', error);
