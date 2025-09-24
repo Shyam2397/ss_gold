@@ -3,43 +3,111 @@ import { usePhotoTestingState } from './hooks/usePhotoTestingState';
 import { useImageHandlers } from './hooks/useImageHandlers';
 import { useDragAndDrop } from './hooks/useDragAndDrop';
 import { useTokenSearch } from './hooks/useTokenSearch';
-import { lazyLoad } from '../../components/common/LazyLoad';
-import { printPhotoData } from './utils/printUtils';
-import { captureTransformedImage } from './utils/imageCapture';
-import { capturePixelPerfectImage } from './utils/pixelPerfectCapture';
-import { createPixelPerfectPrint, createDirectBitmap } from './utils/printImageOptimizer';
-import { captureMemoryBufferImage, createRawMemoryBitmap } from './utils/excelQualityCapture';
+import { useProgressiveLoading } from './hooks/useComponentLoader';
+import { 
+  createLazyComponent, 
+  componentDefinitions, 
+  analyzeBundleSize, 
+  preloadCriticalComponents,
+  loadUtility 
+} from './utils/componentLoader';
+import { 
+  withEnhancedLazyLoading, 
+  SkeletonLoader, 
+  SmartFallback 
+} from './components/LazyLoadWrapper';
 
-// Lazy load the layout component
-const LazyPhotoTestingLayout = lazyLoad(() => 
-  import('./components/PhotoTestingLayout')
+// Create lazy components with enhanced loading and webpack chunk names
+const LazyPhotoTestingLayout = createLazyComponent(
+  componentDefinitions.PhotoTestingLayout.loader,
+  componentDefinitions.PhotoTestingLayout.chunkName,
+  componentDefinitions.PhotoTestingLayout.options
 );
 
-// Lazy load other heavy components
-const LazyImageEditor = lazyLoad(() => 
-  import('./components/ImageEditor')
+const LazyImageEditor = createLazyComponent(
+  componentDefinitions.ImageEditor.loader,
+  componentDefinitions.ImageEditor.chunkName,
+  componentDefinitions.ImageEditor.options
 );
 
-const LazyTestResultForm = lazyLoad(() => 
-  import('./components/TestResultForm')
+const LazyTestResultForm = createLazyComponent(
+  componentDefinitions.TestResultForm.loader,
+  componentDefinitions.TestResultForm.chunkName,
+  componentDefinitions.TestResultForm.options
 );
 
-const LazyTokenSearchForm = lazyLoad(() => 
-  import('./components/TokenSearchForm')
+const LazyTokenSearchForm = createLazyComponent(
+  componentDefinitions.TokenSearchForm.loader,
+  componentDefinitions.TokenSearchForm.chunkName,
+  componentDefinitions.TokenSearchForm.options
 );
 
-const LazyHeader = lazyLoad(() => 
-  import('./components/Header')
+const LazyHeader = createLazyComponent(
+  componentDefinitions.Header.loader,
+  componentDefinitions.Header.chunkName,
+  componentDefinitions.Header.options
 );
 
-const LazyGridOverlay = lazyLoad(() => 
-  import('./components/GridOverlay')
+const LazyGridOverlay = createLazyComponent(
+  componentDefinitions.GridOverlay.loader,
+  componentDefinitions.GridOverlay.chunkName,
+  componentDefinitions.GridOverlay.options
 );
 
-// Loading fallback component
-const LoadingFallback = () => (
-  <div className="flex items-center justify-center h-64">
-    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-amber-500"></div>
+// Enhanced wrapper components with intelligent fallbacks
+const PhotoTestingLayoutWithFallback = withEnhancedLazyLoading(LazyPhotoTestingLayout, {
+  componentName: 'PhotoTesting Layout',
+  fallbackType: 'layout',
+  showProgress: true,
+  enableSkeleton: true
+});
+
+const ImageEditorWithFallback = withEnhancedLazyLoading(LazyImageEditor, {
+  componentName: 'Image Editor',
+  fallbackType: 'imageEditor',
+  enableSkeleton: true
+});
+
+const TestResultFormWithFallback = withEnhancedLazyLoading(LazyTestResultForm, {
+  componentName: 'Test Result Form',
+  fallbackType: 'form',
+  enableSkeleton: true
+});
+
+const TokenSearchFormWithFallback = withEnhancedLazyLoading(LazyTokenSearchForm, {
+  componentName: 'Token Search Form',
+  fallbackType: 'form',
+  enableSkeleton: true
+});
+
+const HeaderWithFallback = withEnhancedLazyLoading(LazyHeader, {
+  componentName: 'Header',
+  fallbackType: 'header',
+  enableSkeleton: true
+});
+
+const GridOverlayWithFallback = withEnhancedLazyLoading(LazyGridOverlay, {
+  componentName: 'Grid Overlay',
+  fallbackType: 'default',
+  enableSkeleton: false
+});
+
+// Enhanced loading fallback with progress
+const LoadingFallback = ({ progress }) => (
+  <div className="flex flex-col items-center justify-center h-64">
+    <div className="relative">
+      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-amber-500"></div>
+      {progress > 0 && (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <span className="text-xs font-semibold text-amber-600">
+            {progress}%
+          </span>
+        </div>
+      )}
+    </div>
+    <div className="mt-3 text-sm text-gray-600">
+      Loading PhotoTesting Module...
+    </div>
   </div>
 );
 
@@ -73,6 +141,30 @@ const PhotoTesting = () => {
     handleDragLeave,
     handleDrop: handleDragDrop
   } = useDragAndDrop(state, dispatch);
+
+  // Initialize progressive loading for development insights
+  const progressiveLoading = useProgressiveLoading([
+    { name: 'PhotoTestingLayout', loader: componentDefinitions.PhotoTestingLayout.loader },
+    { name: 'ImageEditor', loader: componentDefinitions.ImageEditor.loader },
+    { name: 'TestResultForm', loader: componentDefinitions.TestResultForm.loader },
+    { name: 'TokenSearchForm', loader: componentDefinitions.TokenSearchForm.loader },
+    { name: 'Header', loader: componentDefinitions.Header.loader },
+    { name: 'GridOverlay', loader: componentDefinitions.GridOverlay.loader }
+  ], {
+    batchSize: 2,
+    delay: 50,
+    enableMemoryOptimization: true
+  });
+  
+  // Performance monitoring and bundle analysis
+  useEffect(() => {
+    analyzeBundleSize();
+    preloadCriticalComponents();
+    
+    if (process.env.NODE_ENV === 'development') {
+      console.log('📊 Progressive Loading Progress:', progressiveLoading.loadingState.progress + '%');
+    }
+  }, [progressiveLoading.loadingState.progress]);
 
   const handleArrowsChange = useCallback((newArrows) => {
     dispatch({ type: 'SET_ARROWS', payload: newArrows });
@@ -181,6 +273,12 @@ const PhotoTesting = () => {
         console.log('Container selector: .w-full.h-full.overflow-hidden.relative');
         console.log('Arrows for capture:', arrows.map(a => ({ x: a.x, y: a.y, angle: a.angle })));
         
+        // Dynamically load image processing utilities only when needed
+        const [{ captureMemoryBufferImage, createRawMemoryBitmap }, { printPhotoData }] = await Promise.all([
+          loadUtility('excelQualityCapture'),
+          loadUtility('printUtils')
+        ]);
+        
         // Step 1: Memory buffer capture (bypasses ALL browser processing)
         const memoryBufferImage = await captureMemoryBufferImage('.w-full.h-full.overflow-hidden.relative', arrows);
         
@@ -198,20 +296,32 @@ const PhotoTesting = () => {
           const fallbackRawBitmap = await createRawMemoryBitmap(uploadedImage);
           capturedImageUrl = fallbackRawBitmap;
         }
+        
+        const printData = {
+          ...formData,
+          tokenNo,
+          photoUrl: capturedImageUrl, // Will be null if no image
+          date: new Date().toISOString()
+        };
+        
+        console.log('Print data prepared with MEMORY BUFFER Excel-quality image');
+        printPhotoData(printData);
       } else {
         console.log('No image uploaded - Printing with pure white background');
-        // No image processing needed, will show pure white background
+        
+        // Load only print utils for no-image scenario
+        const { printPhotoData } = await loadUtility('printUtils');
+        
+        const printData = {
+          ...formData,
+          tokenNo,
+          photoUrl: null, // No image
+          date: new Date().toISOString()
+        };
+        
+        console.log('Print data prepared without image (pure white background)');
+        printPhotoData(printData);
       }
-      
-      const printData = {
-        ...formData,
-        tokenNo,
-        photoUrl: capturedImageUrl, // Will be null if no image
-        date: new Date().toISOString()
-      };
-      
-      console.log('Print data prepared', capturedImageUrl ? 'with MEMORY BUFFER Excel-quality image' : 'without image (pure white background)');
-      printPhotoData(printData);
     } catch (error) {
       console.error('Error preparing print data:', error);
       alert('Error preparing print data. Please try again.');
@@ -219,8 +329,8 @@ const PhotoTesting = () => {
   }, [formData, tokenNo, uploadedImage, arrows]);
 
   return (
-    <Suspense fallback={<LoadingFallback />}>
-      <LazyPhotoTestingLayout
+    <Suspense fallback={<LoadingFallback progress={progressiveLoading.loadingState.progress} />}>
+      <PhotoTestingLayoutWithFallback
         onPrint={handlePrint}
         tokenNo={tokenNo}
         onTokenNoChange={handleTokenNoChange}
@@ -250,15 +360,28 @@ const PhotoTesting = () => {
         uploadedImage={uploadedImage}
         isDragging={isDragging}
         onArrowsChange={handleArrowsChange}
-        // Pass lazy-loaded components as props
+        // Pass enhanced lazy-loaded components with fallbacks
         components={{
-          ImageEditor: LazyImageEditor,
-          TestResultForm: LazyTestResultForm,
-          TokenSearchForm: LazyTokenSearchForm,
-          Header: LazyHeader,
-          GridOverlay: LazyGridOverlay
+          ImageEditor: ImageEditorWithFallback,
+          TestResultForm: TestResultFormWithFallback,
+          TokenSearchForm: TokenSearchFormWithFallback,
+          Header: HeaderWithFallback,
+          GridOverlay: GridOverlayWithFallback
         }}
+        // Progressive loading state for development insights
+        loadingState={progressiveLoading.loadingState}
       />
+      
+      {/* Development insights */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="fixed bottom-4 right-4 bg-gray-900 text-white p-2 rounded text-xs">
+          <div>Loading: {progressiveLoading.loadingState.progress}%</div>
+          <div>Loaded: {progressiveLoading.loadingState.loaded.size}/{Object.keys(componentDefinitions).length}</div>
+          {progressiveLoading.hasErrors && (
+            <div className="text-red-400">Errors: {progressiveLoading.loadingState.failed.size}</div>
+          )}
+        </div>
+      )}
     </Suspense>
   );
 };
