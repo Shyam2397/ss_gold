@@ -63,8 +63,8 @@ const ImageEditor = ({
   onArrowsChange // New prop to pass arrows up
 }) => {
   const [arrows, setArrows] = useState([
-    { id: 1, x: 50, y: 50, angle: 0, isDragging: false },
-    { id: 2, x: 150, y: 150, angle: 45, isDragging: false }
+    { id: 1, x: 80, y: 80, angle: 0, isDragging: false },
+    { id: 2, x: 180, y: 180, angle: 45, isDragging: false }
   ]);
   const [activeArrow, setActiveArrow] = useState(null);
 
@@ -77,10 +77,23 @@ const ImageEditor = ({
 
   const addArrow = useCallback(() => {
     const newId = Math.max(0, ...arrows.map(a => a.id)) + 1;
+    
+    // Get container bounds to place new arrow in a reasonable position
+    const imageContainer = document.querySelector('.w-full.h-full.overflow-hidden.relative');
+    const fallbackContainer = document.querySelector('.relative.w-full.h-full.group');
+    const container = imageContainer || fallbackContainer;
+    let containerWidth = 300, containerHeight = 300; // defaults
+    
+    if (container) {
+      const rect = container.getBoundingClientRect();
+      containerWidth = rect.width;
+      containerHeight = rect.height;
+    }
+    
     const newArrow = {
       id: newId,
-      x: 100 + (newId * 20), // Offset new arrows
-      y: 100 + (newId * 20),
+      x: Math.min(50 + (newId * 30), containerWidth - 100), // Container-relative positioning
+      y: Math.min(50 + (newId * 30), containerHeight - 50),
       angle: 0,
       isDragging: false
     };
@@ -95,12 +108,34 @@ const ImageEditor = ({
 
   const handleArrowMouseDown = (e, arrowId) => {
     e.stopPropagation();
+    
+    // Get the image container bounds for proper coordinate conversion
+    const imageContainer = e.currentTarget.closest('.w-full.h-full.overflow-hidden.relative');
+    const containerRect = imageContainer ? imageContainer.getBoundingClientRect() : 
+                         e.currentTarget.closest('.relative.w-full.h-full.group').getBoundingClientRect();
+    
     if (e.shiftKey) {
       // Rotate on shift + drag
-      setActiveArrow({ id: arrowId, type: 'rotate', startX: e.clientX });
+      setActiveArrow({ 
+        id: arrowId, 
+        type: 'rotate', 
+        startX: e.clientX,
+        containerRect
+      });
     } else {
-      // Move on normal drag
-      setActiveArrow({ id: arrowId, type: 'move', startX: e.clientX, startY: e.clientY });
+      // Move on normal drag - store container-relative coordinates
+      const containerX = e.clientX - containerRect.left;
+      const containerY = e.clientY - containerRect.top;
+      
+      setActiveArrow({ 
+        id: arrowId, 
+        type: 'move', 
+        startX: e.clientX, 
+        startY: e.clientY,
+        containerRect,
+        startContainerX: containerX,
+        startContainerY: containerY
+      });
     }
     
     setArrows(arrows.map(arrow => 
@@ -114,35 +149,40 @@ const ImageEditor = ({
     setArrows(arrows.map(arrow => {
       if (arrow.id === activeArrow.id) {
         if (activeArrow.type === 'rotate') {
-          // Rotate arrow
-          const rect = e.currentTarget.getBoundingClientRect();
-          const centerX = rect.left + (rect.width / 2);
-          const centerY = rect.top + (rect.height / 2);
+          // Rotate arrow - use container center as rotation center
+          const containerRect = activeArrow.containerRect;
+          const centerX = containerRect.left + (containerRect.width / 2);
+          const centerY = containerRect.top + (containerRect.height / 2);
           const angle = Math.atan2(e.clientY - centerY, e.clientX - centerX) * (180 / Math.PI);
           return {
             ...arrow,
             angle: angle
           };
         } else {
-          // Move arrow
-          const deltaX = e.clientX - activeArrow.startX;
-          const deltaY = e.clientY - activeArrow.startY;
+          // Move arrow - calculate new container-relative position
+          const containerRect = activeArrow.containerRect;
+          const newContainerX = e.clientX - containerRect.left;
+          const newContainerY = e.clientY - containerRect.top;
+          
+          // Constrain to container bounds with arrow dimensions
+          const arrowWidth = 43; // 35px shaft + 8px head
+          const maxX = containerRect.width - arrowWidth;
+          const maxY = containerRect.height - 10; // account for arrow height
+          
+          const finalX = Math.max(0, Math.min(newContainerX, maxX));
+          const finalY = Math.max(0, Math.min(newContainerY, maxY));
+          
           return {
             ...arrow,
-            x: Math.max(0, Math.min(arrow.x + deltaX, window.innerWidth - 100)),
-            y: Math.max(0, Math.min(arrow.y + deltaY, window.innerHeight - 100))
+            x: finalX,
+            y: finalY
           };
         }
       }
       return arrow;
     }));
 
-    if (activeArrow.type === 'move') {
-      activeArrow.startX = e.clientX;
-      activeArrow.startY = e.clientY;
-    } else {
-      activeArrow.startX = e.clientX;
-    }
+    // Update active arrow tracking (no need to update coordinates as they're recalculated)
   }, [activeArrow, arrows]);
 
   const handleMouseUp = useCallback((e) => {
@@ -235,7 +275,7 @@ const ImageEditor = ({
       >
         {uploadedImage ? (
           <div className="relative w-full h-full group">
-            <div className="w-full h-full overflow-hidden">
+            <div className="w-full h-full overflow-hidden relative">
               <div 
                 className="absolute inset-0"
                 style={{
@@ -251,6 +291,7 @@ const ImageEditor = ({
                 }}
                 onMouseDown={handleImageDragStart}
               />
+              {/* Arrows positioned relative to the image container */}
               {arrows.map(arrow => (
                 <Arrow
                   key={arrow.id}

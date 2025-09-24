@@ -438,8 +438,8 @@ export const printPhotoData = (formData) => {
               // Close after longer delay to ensure print completion
               setTimeout(() => {
                 printWindow.close();
-              }, 2000);
-            }, 100);
+              }, 200);
+            },250);
             
           } catch (e) {
             console.error('Error during printing:', e);

@@ -178,9 +178,11 @@ const PhotoTesting = () => {
       
       if (uploadedImage) {
         console.log('Image available - Starting MEMORY BUFFER capture process...');
+        console.log('Container selector: .w-full.h-full.overflow-hidden.relative');
+        console.log('Arrows for capture:', arrows.map(a => ({ x: a.x, y: a.y, angle: a.angle })));
         
         // Step 1: Memory buffer capture (bypasses ALL browser processing)
-        const memoryBufferImage = await captureMemoryBufferImage('.relative.w-full.h-full.group', arrows);
+        const memoryBufferImage = await captureMemoryBufferImage('.w-full.h-full.overflow-hidden.relative', arrows);
         
         if (memoryBufferImage) {
           console.log('Memory buffer capture successful');

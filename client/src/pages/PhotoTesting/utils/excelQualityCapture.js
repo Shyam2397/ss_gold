@@ -104,7 +104,7 @@ export const captureMemoryBufferImage = (containerSelector, arrowsData = []) => 
   return new Promise((resolve) => {
     const container = document.querySelector(containerSelector);
     if (!container) {
-      console.error('Image container not found');
+      console.error('Image container not found with selector:', containerSelector);
       resolve(null);
       return;
     }
@@ -120,6 +120,10 @@ export const captureMemoryBufferImage = (containerSelector, arrowsData = []) => 
     const style = window.getComputedStyle(transformedImg);
     const backgroundImage = style.backgroundImage;
     const imgUrl = backgroundImage.replace(/^url\(["']?/, '').replace(/["']?\)$/, '');
+    
+    console.log('Container selector used:', containerSelector);
+    console.log('Container dimensions:', container.getBoundingClientRect());
+    console.log('Arrows data for capture:', arrowsData.map(a => ({ id: a.id, x: a.x, y: a.y, angle: a.angle })));
     
     const img = new Image();
     img.crossOrigin = 'anonymous';
@@ -161,6 +165,10 @@ export const captureMemoryBufferImage = (containerSelector, arrowsData = []) => 
         const scaleX = nativeWidth / containerRect.width;
         const scaleY = nativeHeight / containerRect.height;
         
+        console.log('Scale factors for coordinate conversion:', { scaleX, scaleY });
+        console.log('Container rect:', { width: containerRect.width, height: containerRect.height });
+        console.log('Native dimensions:', { width: nativeWidth, height: nativeHeight });
+        
         // Apply transforms in memory buffer space
         const transform = window.getComputedStyle(transformedImg).transform;
         
@@ -187,8 +195,11 @@ export const captureMemoryBufferImage = (containerSelector, arrowsData = []) => 
         
         bufferCtx.restore();
         
-        // Draw arrows in memory buffer space
+        // Draw arrows in memory buffer space with reset transform matrix
         if (arrowsData && arrowsData.length > 0) {
+          console.log('Drawing arrows in memory buffer with scale factors:', { scaleX, scaleY });
+          // CRITICAL: Reset transform matrix before drawing arrows to ensure consistent coordinate system
+          bufferCtx.setTransform(1, 0, 0, 1, 0, 0);
           drawMemoryBufferArrows(bufferCtx, arrowsData, nativeWidth, nativeHeight, scaleX, scaleY);
         }
         
@@ -220,6 +231,7 @@ export const captureMemoryBufferImage = (containerSelector, arrowsData = []) => 
         const memoryBufferDataUrl = outputCanvas.toDataURL('image/png');
         
         console.log('Memory buffer capture completed:', nativeWidth, 'x', nativeHeight);
+        console.log('Total arrows processed:', arrowsData.length);
         
         // Cleanup
         bufferCanvas.width = 1;
@@ -251,18 +263,27 @@ const drawMemoryBufferArrows = (ctx, arrowsData, canvasWidth, canvasHeight, scal
   if (!arrowsData || arrowsData.length === 0) return;
 
   console.log('Drawing memory buffer arrows at native resolution');
+  console.log('Canvas dimensions:', { canvasWidth, canvasHeight });
+  console.log('Scale factors:', { scaleX, scaleY });
 
   arrowsData.forEach((arrow, index) => {
     try {
-      // Calculate exact memory buffer coordinates
+      // Calculate exact memory buffer coordinates from UI coordinates
       const arrowX = arrow.x * scaleX;
       const arrowY = arrow.y * scaleY;
       const rotation = arrow.angle * (Math.PI / 180);
       
-      // Scale-aware dimensions for memory buffer
-      const arrowLength = 35 * scaleX;
-      const arrowWidth = Math.max(1, 1.5 * Math.min(scaleX, scaleY));
-      const arrowHeadSize = Math.max(3, 5 * Math.min(scaleX, scaleY));
+      console.log(`Arrow ${index + 1}:`);
+      console.log(`  UI coordinates: (${arrow.x}, ${arrow.y})`);
+      console.log(`  Scaled coordinates: (${arrowX}, ${arrowY})`);
+      console.log(`  Angle: ${arrow.angle}°`);
+      
+      // Scale-aware dimensions for memory buffer - adjusted to match UI more closely
+      const arrowLength = 35 * Math.min(scaleX, scaleY); // Use minimum scale to maintain proportion
+      const arrowWidth = Math.max(0.8, 1.5 * Math.min(scaleX, scaleY) * 0.7); // Reduced thickness scaling
+      const arrowHeadSize = Math.max(2, 5 * Math.min(scaleX, scaleY) * 0.8); // Reduced head size scaling
+      
+      console.log(`  Scaled dimensions: length=${arrowLength}, width=${arrowWidth}, headSize=${arrowHeadSize}`);
       
       ctx.save();
       
@@ -289,17 +310,17 @@ const drawMemoryBufferArrows = (ctx, arrowsData, canvasWidth, canvasHeight, scal
       ctx.lineTo(arrowLength, 0);
       ctx.stroke();
       
-      // Draw head in memory buffer
+      // Draw head in memory buffer - adjusted proportions
       ctx.beginPath();
       ctx.moveTo(arrowLength, 0);
-      ctx.lineTo(arrowLength - 8 * scaleX, -arrowHeadSize);
-      ctx.lineTo(arrowLength - 8 * scaleX, arrowHeadSize);
+      ctx.lineTo(arrowLength - 8 * Math.min(scaleX, scaleY) * 0.8, -arrowHeadSize);
+      ctx.lineTo(arrowLength - 8 * Math.min(scaleX, scaleY) * 0.8, arrowHeadSize);
       ctx.closePath();
       ctx.fill();
       
       ctx.restore();
       
-      console.log(`Memory buffer arrow ${index + 1} processed`);
+      console.log(`Memory buffer arrow ${index + 1} processed successfully`);
       
     } catch (error) {
       console.warn(`Error drawing memory buffer arrow ${index + 1}:`, error);

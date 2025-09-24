@@ -7,17 +7,17 @@ const drawArrows = (ctx, arrowsData, containerWidth, containerHeight) => {
 
   console.log('Drawing arrows with data:', arrowsData);
   console.log('Container dimensions:', { containerWidth, containerHeight });
-  console.log('Canvas context transform before drawing arrows:');
+  console.log('Canvas context transform after reset:');
   console.log('Current transform matrix:', ctx.getTransform());
 
   arrowsData.forEach((arrow, index) => {
     try {
-      // Use exact arrow state data (x, y, angle) instead of DOM positioning
+      // Use exact arrow state data (x, y, angle) - these should be container-relative coordinates
       const arrowX = arrow.x;
       const arrowY = arrow.y;
       const rotation = arrow.angle * (Math.PI / 180); // Convert degrees to radians
       
-      console.log(`Arrow ${index + 1} - Position: (${arrowX}, ${arrowY}), Angle: ${arrow.angle}°`);
+      console.log(`Canvas Arrow ${index + 1} - Position: (${arrowX}, ${arrowY}), Angle: ${arrow.angle}°`);
       
       // Save context state
       ctx.save();
@@ -29,31 +29,22 @@ const drawArrows = (ctx, arrowsData, containerWidth, containerHeight) => {
       ctx.lineJoin = 'miter';                 // Match UI sharp corners
       ctx.miterLimit = 10;
       
-      // Move to exact arrow position from state (no sub-pixel adjustments)
+      // Move to exact arrow position from state (container-relative coordinates)
       ctx.translate(arrowX, arrowY);
       
       // Apply rotation from state
       ctx.rotate(rotation);
       
       // Enhanced arrow drawing properties to match UI exactly
-      ctx.strokeStyle = 'red';        // Match UI backgroundColor: 'red'
-      ctx.fillStyle = 'red';          // Match UI borderLeft color
+      ctx.strokeStyle = '#FF0000';        // Match UI backgroundColor: 'red'
+      ctx.fillStyle = '#FF0000';          // Match UI borderLeft color
       ctx.lineWidth = 1.5;            // Match UI height: '1.5px'
-      
-      // Remove enhanced effects to match simple UI rendering
-      // ctx.shadowColor = 'rgba(220, 38, 38, 0.2)';
-      // ctx.shadowBlur = 0.5;
-      // ctx.shadowOffsetX = 0;
-      // ctx.shadowOffsetY = 0;
       
       // Draw arrow shaft to match UI dimensions exactly
       ctx.beginPath();
       ctx.moveTo(0, 0);
       ctx.lineTo(35, 0);              // Match UI width: '35px'
       ctx.stroke();
-      
-      // Remove shadow reset since no shadow is used
-      // ctx.shadowColor = 'transparent';
       
       // Draw arrowhead to match UI CSS border triangle exactly
       ctx.beginPath();
@@ -66,9 +57,9 @@ const drawArrows = (ctx, arrowsData, containerWidth, containerHeight) => {
       // Restore context state
       ctx.restore();
       
-      console.log(`Arrow ${index + 1} drawn successfully`);
+      console.log(`Canvas Arrow ${index + 1} drawn successfully`);
     } catch (error) {
-      console.warn(`Error drawing arrow ${index + 1}:`, error);
+      console.warn(`Error drawing canvas arrow ${index + 1}:`, error);
     }
   });
 };
@@ -77,7 +68,7 @@ export const captureTransformedImage = (containerSelector, arrowsData = []) => {
   return new Promise((resolve) => {
     const container = document.querySelector(containerSelector);
     if (!container) {
-      console.error('Image container not found');
+      console.error('Image container not found with selector:', containerSelector);
       resolve(null);
       return;
     }
@@ -92,6 +83,9 @@ export const captureTransformedImage = (containerSelector, arrowsData = []) => {
 
     // Get container dimensions
     const rect = container.getBoundingClientRect();
+    console.log('Container selector used:', containerSelector);
+    console.log('Container dimensions for capture:', { width: rect.width, height: rect.height });
+    console.log('Arrows data for capture:', arrowsData.map(a => ({ id: a.id, x: a.x, y: a.y, angle: a.angle })));
     
     // Set up ultra-high-DPI canvas for professional print quality (600+ DPI equivalent)
     const dpr = window.devicePixelRatio || 1;
@@ -194,6 +188,9 @@ export const captureTransformedImage = (containerSelector, arrowsData = []) => {
         
         // Restore the outer context (from translate to center)
         ctx.restore();
+        
+        // CRITICAL: Reset transform matrix before drawing arrows to ensure consistent coordinate system
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
         
         // Draw arrows on top of the image (after restoring all transforms)
         // Arrows are drawn in the original coordinate system (0,0 = top-left)
