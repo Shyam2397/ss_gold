@@ -46,7 +46,7 @@ export const printPhotoData = (formData) => {
             align-items: center;
             box-shadow: inset 0 0 0 1.4px #FFD700;
             box-sizing: border-box;
-            padding: 7px;
+            padding: 4px; /* Match UI p-[4px] */
           }
           .photo-wrapper {
             display: flex;
@@ -73,6 +73,8 @@ export const printPhotoData = (formData) => {
             height: 100%;
             display: flex;
             flex-direction: column;
+            box-sizing: border-box;
+            padding-left: 4px;
           }
           .header {
             display: flex;
@@ -215,7 +217,8 @@ export const printPhotoData = (formData) => {
             flex-grow: 1;
             max-width: 100%;
             object-fit: cover;
-            max-height: 100%;
+            /* Match UI: max-height should account for footer space */
+            max-height: calc(100% - 20px);
             background-color: white;
           }
           
@@ -235,6 +238,10 @@ export const printPhotoData = (formData) => {
             font-size: 10px;
             text-align: center;
             margin-top: auto;
+            height: 20px; /* Match UI footer space calc(100%-20px) */
+            display: flex;
+            align-items: center;
+            justify-content: center;
           }
           
           /* High-DPI print optimization - Excel-level quality */
@@ -330,58 +337,66 @@ export const printPhotoData = (formData) => {
               </div>
 
               <div class="right-wrapper">
-                ${formData.photoUrl ? `
-                  <div style="
-                    width: 100%;
-                    height: 100%;
-                    display: flex;
-                    justify-content: center;
-                    align-items: center;
-                    overflow: hidden;
-                    background-color: white;
-                    -webkit-print-color-adjust: exact !important;
-                    print-color-adjust: exact !important;
-                  ">
-                    <img 
-                      src="${formData.photoUrl}" 
-                      alt="Uploaded Photo" 
-                      style="
-                        max-width: 100%;
-                        max-height: 100%;
-                        width: auto;
-                        height: auto;
-                        object-fit: contain;
-                        image-rendering: pixelated;
-                        image-rendering: -moz-crisp-edges;
-                        image-rendering: -webkit-optimize-contrast;
-                        -ms-interpolation-mode: nearest-neighbor;
-                        -webkit-print-color-adjust: exact !important;
-                        print-color-adjust: exact !important;
-                        color-adjust: exact !important;
-                        background-color: white;
-                        min-width: 100%;
-                        min-height: 100%;
-                        filter: contrast(1.1) saturate(1.1);
-                      "
-                      onload="this.style.opacity=1"
-                      style="opacity: 0; transition: opacity 0.3s ease-in-out;"
-                    />
-                  </div>
-                ` : `
-                  <div style="
-                    width: 100%;
-                    height: 100%;
-                    display: flex;
-                    justify-content: center;
-                    align-items: center;
-                    background-color: white;
-                    border: none;
-                    -webkit-print-color-adjust: exact !important;
-                    print-color-adjust: exact !important;
-                  ">
-                    <!-- Pure white background when no image -->
-                  </div>
-                `}
+                <div style="
+                  flex-grow: 1;
+                  max-height: calc(100% - 20px);
+                  width: 100%;
+                  display: flex;
+                  flex-direction: column;
+                  align-items: center;
+                  justify-content: center;
+                ">
+                  ${formData.photoUrl ? `
+                    <div style="
+                      width: 100%;
+                      height: 100%;
+                      display: flex;
+                      justify-content: center;
+                      align-items: center;
+                      overflow: hidden;
+                      background-color: white;
+                      -webkit-print-color-adjust: exact !important;
+                      print-color-adjust: exact !important;
+                    ">
+                      <img 
+                        src="${formData.photoUrl}" 
+                        alt="Uploaded Photo" 
+                        style="
+                          max-width: 100%;
+                          max-height: 100%;
+                          width: auto;
+                          height: auto;
+                          object-fit: contain;
+                          image-rendering: pixelated;
+                          image-rendering: -moz-crisp-edges;
+                          image-rendering: -webkit-optimize-contrast;
+                          -ms-interpolation-mode: nearest-neighbor;
+                          -webkit-print-color-adjust: exact !important;
+                          print-color-adjust: exact !important;
+                          color-adjust: exact !important;
+                          background-color: white;
+                          filter: contrast(1.1) saturate(1.1);
+                        "
+                        onload="this.style.opacity=1"
+                        style="opacity: 0; transition: opacity 0.3s ease-in-out;"
+                      />
+                    </div>
+                  ` : `
+                    <div style="
+                      width: 100%;
+                      height: 100%;
+                      display: flex;
+                      justify-content: center;
+                      align-items: center;
+                      background-color: white;
+                      border: none;
+                      -webkit-print-color-adjust: exact !important;
+                      print-color-adjust: exact !important;
+                    ">
+                      <!-- Pure white background when no image -->
+                    </div>
+                  `}
+                </div>
                 <div class="footer">Result are only for skin of the sample.</div>
               </div>
             </div>
