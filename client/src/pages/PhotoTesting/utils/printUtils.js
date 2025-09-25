@@ -2,8 +2,7 @@ import logo from '../../../assets/logo.png';
 
 export const printPhotoData = (formData) => {
   const printWindow = window.open('', '_blank', 'width=900,height=700,left=100,top=100');
-  const logoUrl = `${window.location.origin}${logo.startsWith('/') ? logo : '/' + logo}`;
-
+  
   const content = `
     <!DOCTYPE html>
     <html>
@@ -283,7 +282,7 @@ export const printPhotoData = (formData) => {
             <div class="photo-wrapper">
               <div class="left-wrapper">
                 <div class="header">
-                  <img src="${logoUrl}" alt="Logo" />
+                  <img src="${logo}" alt="Logo" />
                   <div>
                     <h1>SS GOLD</h1>
                     <h2>Computer X-ray Testing</h2>
@@ -405,96 +404,106 @@ export const printPhotoData = (formData) => {
     </html>
   `;
 
-  // Write content to print window
-  printWindow.document.open();
-  printWindow.document.write(content);
-  printWindow.document.close();
+  // Write content to print window with error handling
+  try {
+    printWindow.document.open();
+    printWindow.document.write(content);
+    printWindow.document.close();
+  } catch (error) {
+    console.error('Error writing to print window:', error);
+    // Fallback: Try alternative method
+    try {
+      printWindow.document.body.innerHTML = content.match(/<body[^>]*>([\s\S]*)<\/body>/i)[1];
+    } catch (fallbackError) {
+      console.error('Fallback method also failed:', fallbackError);
+      alert('Unable to open print dialog. Please try again.');
+      printWindow.close();
+      return;
+    }
+  }
   
-  // Enhanced image loading for pixel-perfect print
+  // Simplified print dialog management
   printWindow.addEventListener('load', () => {
-    console.log('Print window loaded, waiting for images...');
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Print window loaded');
+    }
     
-    // Wait for all images to load completely
+    // Wait for images to load with simplified logic
     const images = printWindow.document.querySelectorAll('img');
-    let loadedImages = 0;
     const totalImages = images.length;
     
-    const checkAllImagesLoaded = () => {
-      loadedImages++;
-      console.log(`Image ${loadedImages}/${totalImages} loaded`);
-      
-      if (loadedImages >= totalImages) {
-        console.log('All images loaded, preparing for print...');
-        
-        // Force all images to render at native resolution
-        images.forEach(img => {
-          // Ensure images maintain their pixel-perfect quality
-          img.style.imageRendering = 'pixelated';
-          img.style.imageRendering = '-moz-crisp-edges';
-          img.style.imageRendering = '-webkit-optimize-contrast';
-          img.style.msInterpolationMode = 'nearest-neighbor';
-        });
-        
-        // Extended delay for pixel-perfect rendering
-        setTimeout(() => {
-          try {
-            console.log('Triggering print...');
-            
-            // Force complete redraw for pixel-perfect output
-            printWindow.document.body.offsetHeight;
-            printWindow.document.documentElement.offsetHeight;
-            
-            // Multiple focus attempts for better print dialog handling
-            printWindow.focus();
-            setTimeout(() => {
-              printWindow.focus();
-              printWindow.print();
-              
-              // Close after longer delay to ensure print completion
-              setTimeout(() => {
-                printWindow.close();
-              }, 200);
-            },250);
-            
-          } catch (e) {
-            console.error('Error during printing:', e);
-            printWindow.close();
-          }
-        }, 1000); // Longer delay for perfect rendering
-      }
-    };
-    
     if (totalImages === 0) {
-      console.log('No images found - proceeding with print (pure white background)');
-      checkAllImagesLoaded();
+      if (process.env.NODE_ENV === 'development') {
+        console.log('No images - printing immediately (pure white background)');
+      }
+      initiatePrint();
     } else {
-      console.log(`Waiting for ${totalImages} images to load`);
-      // Enhanced image loading detection
-      images.forEach((img, index) => {
-        if (img.complete && img.naturalWidth > 0) {
-          console.log(`Image ${index + 1} already loaded`);
-          checkAllImagesLoaded();
-        } else {
-          console.log(`Waiting for image ${index + 1} to load`);
-          
-          const onLoad = () => {
-            console.log(`Image ${index + 1} load event fired`);
-            img.removeEventListener('load', onLoad);
-            img.removeEventListener('error', onError);
-            checkAllImagesLoaded();
-          };
-          
-          const onError = () => {
-            console.warn(`Image ${index + 1} failed to load - continuing with print`);
-            img.removeEventListener('load', onLoad);
-            img.removeEventListener('error', onError);
-            checkAllImagesLoaded();
-          };
-          
-          img.addEventListener('load', onLoad);
-          img.addEventListener('error', onError);
-        }
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`Waiting for ${totalImages} images to load`);
+      }
+      
+      let loadedCount = 0;
+      const imagePromises = Array.from(images).map(img => {
+        return new Promise((resolve) => {
+          if (img.complete && img.naturalWidth > 0) {
+            resolve();
+          } else {
+            const onLoad = () => {
+              img.removeEventListener('load', onLoad);
+              img.removeEventListener('error', onError);
+              resolve();
+            };
+            const onError = () => {
+              if (process.env.NODE_ENV === 'development') {
+                console.warn('Image failed to load - continuing with print');
+              }
+              img.removeEventListener('load', onLoad);
+              img.removeEventListener('error', onError);
+              resolve();
+            };
+            img.addEventListener('load', onLoad);
+            img.addEventListener('error', onError);
+          }
+        });
       });
+      
+      // Wait for all images with timeout fallback
+      Promise.allSettled(imagePromises).then(() => {
+        if (process.env.NODE_ENV === 'development') {
+          console.log('All images processed');
+        }
+        initiatePrint();
+      });
+      
+      // Fallback timeout to prevent hanging
+      setTimeout(() => {
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Timeout reached - proceeding with print');
+        }
+        initiatePrint();
+      }, 3000);
+    }
+    
+    function initiatePrint() {
+      try {
+        // Force redraw and focus
+        printWindow.document.body.offsetHeight;
+        printWindow.focus();
+        
+        // Simple print trigger with minimal delay
+        setTimeout(() => {
+          printWindow.print();
+          
+          // Close window after print dialog
+          setTimeout(() => {
+            printWindow.close();
+          }, 100);
+        }, 100);
+        
+      } catch (error) {
+        console.error('Error during printing:', error);
+        printWindow.close();
+      }
     }
   });
 };
