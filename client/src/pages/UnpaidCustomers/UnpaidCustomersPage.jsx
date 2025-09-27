@@ -1,4 +1,4 @@
-import React, { useState, useMemo, Suspense, lazy } from 'react';
+import React, { useMemo, Suspense, lazy, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getUnpaidCustomers } from '../../services/customerService';
 import { format, parseISO } from 'date-fns';
@@ -53,10 +53,12 @@ const LazyComponent = ({ children }) => (
   </Suspense>
 );
 
+// Import the reducer and actions
+import { useUnpaidCustomers } from './reducers/unpaidCustomersReducer';
+
 const UnpaidCustomersPage = () => {
-  const [isExporting, setIsExporting] = useState(false);
-  const [expandedCustomers, setExpandedCustomers] = useState(new Set());
-  const [searchTerm, setSearchTerm] = useState('');
+  const [state, actions] = useUnpaidCustomers();
+  const { isExporting, expandedCustomers, searchTerm } = state;
 
   const { data: customers = [], isLoading, error, refetch } = useQuery({
     queryKey: ['unpaid-customers'],
@@ -132,20 +134,14 @@ const UnpaidCustomersPage = () => {
       }));
   }, [customersByCode, searchTerm]);
 
-  const toggleCustomerExpansion = (code) => {
-    const newExpanded = new Set(expandedCustomers);
-    if (newExpanded.has(code)) {
-      newExpanded.delete(code);
-    } else {
-      newExpanded.add(code);
-    }
-    setExpandedCustomers(newExpanded);
-  };
+  const toggleCustomerExpansion = useCallback((code) => {
+    actions.toggleCustomer(code);
+  }, [actions]);
 
   const handleExport = async () => {
     if (isExporting || filteredCustomers.length === 0) return;
     
-    setIsExporting(true);
+    actions.setExporting(true);
     try {
       // Prepare data for export - flatten the grouped data
       const exportData = [];
@@ -177,7 +173,7 @@ const UnpaidCustomersPage = () => {
     } catch (err) {
       console.error('Error exporting to Excel:', err);
     } finally {
-      setIsExporting(false);
+      actions.setExporting(false);
     }
   };
 
@@ -223,7 +219,7 @@ const UnpaidCustomersPage = () => {
             <LazyComponent>
               <SearchBar 
                 searchTerm={searchTerm}
-                onSearchChange={setSearchTerm}
+                onSearchChange={actions.setSearchTerm}
                 placeholder="Search by code, name, or phone..."
               />
             </LazyComponent>
@@ -266,7 +262,7 @@ const UnpaidCustomersPage = () => {
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">No unpaid customers found</h3>
                   <p className="text-sm text-gray-500 mb-4">Try adjusting your search criteria or check back later.</p>
                   <button 
-                    onClick={() => setSearchTerm('')}
+                    onClick={() => actions.setSearchTerm('')}
                     className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-[#D3B04D] to-[#DD845A] text-white text-sm font-medium rounded-lg hover:shadow-lg transition-all duration-200"
                   >
                     Clear Search
