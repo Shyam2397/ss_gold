@@ -5,7 +5,8 @@ export const ROUTE_PRIORITIES = {
   '/skin-testing': { priority: 2, preloadChunks: false },
   '/cash-adjustments': { priority: 2, preloadChunks: true },
   '/cashbook': { priority: 2, preloadChunks: true, keepInMemory: true },
-  '/expenses/add': { priority: 1, preloadChunks: true }
+  '/expenses/add': { priority: 1, preloadChunks: true },
+  '/unpaid-customers': { priority: 2, preloadChunks: true }
 };
 
 export const SCROLL_BEHAVIOR = {

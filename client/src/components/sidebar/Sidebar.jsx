@@ -114,6 +114,7 @@ const SidebarContent = memo(({ user, setLoggedIn }) => {
     { icon: Icons.Database, label: 'Token Data', path: '/token-data' },
     { icon: Icons.Database, label: 'Skin Test Data', path: '/skintest-data' },
     { icon: Icons.Database, label: 'Exchange Data', path: '/exchange-data' },
+    { icon: Icons.DollarSign, label: 'Unpaid Customers', path: '/unpaid-customers' },
   ], []);
 
   const handleExpenseClick = useCallback((item) => {

@@ -28,6 +28,12 @@ const Dashboard = lazyLoad(() => import(
   '../pages/Dashboard/Dashboard'
 ));
 
+const UnpaidCustomersPage = lazyLoad(() => import(
+  /* webpackChunkName: "unpaid-customers" */
+  /* webpackPrefetch: true */
+  '../pages/UnpaidCustomers/UnpaidCustomersPage'
+));
+
 const NewEntries = lazyLoad(() => import(
   /* webpackChunkName: "new-entries" */
   /* webpackPrefetch: true */
@@ -261,6 +267,12 @@ const routesConfig = [
     Component: AddExpensePage,
     preload: () => import(/* webpackPrefetch: true */ '../pages/AddExpensePage'),
     ...ROUTE_PRIORITIES['/expenses/add']
+  },
+  {
+    path: '/unpaid-customers',
+    Component: UnpaidCustomersPage,
+    preload: () => import(/* webpackPrefetch: true */ '../pages/UnpaidCustomers/UnpaidCustomersPage'),
+    ...ROUTE_PRIORITIES['/unpaid-customers']
   }
 ];
 

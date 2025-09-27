@@ -1,0 +1,228 @@
+import React, { useState, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { getUnpaidCustomers } from '../../services/customerService';
+import { format, parseISO } from 'date-fns';
+import * as XLSX from 'xlsx';
+
+// Components
+import UnpaidCustomersHeader from './components/UnpaidCustomersHeader';
+import UnpaidCustomersError from './components/UnpaidCustomersError';
+import UnpaidCustomersLoader from './components/UnpaidCustomersLoader';
+import SummaryCards from './components/SummaryCards';
+import SearchBar from './components/SearchBar';
+import CustomerGroup from './components/CustomerGroup';
+import CustomerInvoiceTable from './components/CustomerInvoiceTable';
+
+const UnpaidCustomersPage = () => {
+  const [isExporting, setIsExporting] = useState(false);
+  const [expandedCustomers, setExpandedCustomers] = useState(new Set());
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const { data: customers = [], isLoading, error, refetch } = useQuery({
+    queryKey: ['unpaid-customers'],
+    queryFn: getUnpaidCustomers,
+    staleTime: 0, // Always consider data stale to ensure fresh data on refetch
+    refetchOnWindowFocus: true,
+    refetchOnMount: true,
+    refetchOnReconnect: true,
+    refetchInterval: 30000, // Refetch every 30 seconds
+    retry: 2,
+    select: (data) => 
+      data.map(customer => {
+        // Format dates consistently
+        const formatDate = (dateString) => {
+          if (!dateString || dateString === 'N/A') return 'N/A';
+          try {
+            // Try to parse the date string
+            const date = typeof dateString === 'string' ? parseISO(dateString) : dateString;
+            return format(date, 'dd/MM/yyyy');
+          } catch (e) {
+            console.error('Error formatting date:', dateString, e);
+            return 'N/A';
+          }
+        };
+
+        return {
+          ...customer,
+          // Format dates and ensure consistent data types
+          date: formatDate(customer.date || customer.createdAt || customer.lastPaymentDate),
+          time: customer.time || 'N/A',
+          // Ensure amount is a number with 2 decimal places
+          outstandingBalance: parseFloat(customer.outstandingBalance || 0).toFixed(2),
+          // Ensure all required fields have values
+          name: customer.name || 'N/A',
+          phone: customer.phone || 'N/A',
+          tokenNo: customer.tokenNo || 'N/A',
+          test: customer.test || 'N/A',
+          code: customer.code || 'N/A'
+        };
+      })
+  });
+
+  // Group customers by code
+  const customersByCode = useMemo(() => {
+    const grouped = {};
+    customers.forEach(customer => {
+      if (!grouped[customer.code]) {
+        grouped[customer.code] = [];
+      }
+      grouped[customer.code].push(customer);
+    });
+    return grouped;
+  }, [customers]);
+
+  // Filter customers by search term
+  const filteredCustomers = useMemo(() => {
+    const searchLower = searchTerm.toLowerCase();
+    return Object.entries(customersByCode)
+      .filter(([code, customers]) => {
+        const firstCustomer = customers[0];
+        return (
+          code.toLowerCase().includes(searchLower) ||
+          firstCustomer.name.toLowerCase().includes(searchLower) ||
+          firstCustomer.phone.toLowerCase().includes(searchLower)
+        );
+      })
+      .map(([code, customers]) => ({
+        code,
+        customers,
+        totalAmount: customers.reduce((sum, c) => sum + parseFloat(c.outstandingBalance || 0), 0).toFixed(2),
+        customerName: customers[0].name,
+        customerPhone: customers[0].phone
+      }));
+  }, [customersByCode, searchTerm]);
+
+  const toggleCustomerExpansion = (code) => {
+    const newExpanded = new Set(expandedCustomers);
+    if (newExpanded.has(code)) {
+      newExpanded.delete(code);
+    } else {
+      newExpanded.add(code);
+    }
+    setExpandedCustomers(newExpanded);
+  };
+
+  const handleExport = async () => {
+    if (isExporting || filteredCustomers.length === 0) return;
+    
+    setIsExporting(true);
+    try {
+      // Prepare data for export - flatten the grouped data
+      const exportData = [];
+      
+      filteredCustomers.forEach(({ code, customers }) => {
+        customers.forEach(customer => {
+          exportData.push({
+            'Code': code,
+            'Token No': customer.tokenNo,
+            'Customer Name': customer.name,
+            'Phone': customer.phone || customer.code,
+            'Test': customer.test,
+            'Amount': parseFloat(customer.outstandingBalance || 0).toFixed(2),
+            'Date': customer.date,
+            'Time': customer.time !== 'N/A' ? customer.time : ''
+          });
+        });
+      });
+
+      // Create workbook and worksheet
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(exportData);
+      
+      // Add worksheet to workbook
+      XLSX.utils.book_append_sheet(wb, ws, 'Unpaid Customers');
+      
+      // Generate Excel file
+      XLSX.writeFile(wb, `unpaid-customers-${new Date().toISOString().split('T')[0]}.xlsx`);
+    } catch (err) {
+      console.error('Error exporting to Excel:', err);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  // Calculate totals for the summary cards
+  const totalUnpaid = useMemo(() => {
+    return filteredCustomers.reduce((sum, group) => sum + parseFloat(group.totalAmount), 0).toFixed(2);
+  }, [filteredCustomers]);
+
+  const totalInvoices = useMemo(() => {
+    return filteredCustomers.reduce((sum, group) => sum + group.customers.length, 0);
+  }, [filteredCustomers]);
+
+  return (
+    <div className="min-h-screen">
+      <div className="p-6 sm:p-8 bg-white/80 backdrop-blur-sm shadow-xl rounded-2xl max-w-full h-full text-[#391145] m-4 border border-white/20">
+        <UnpaidCustomersHeader 
+          onExport={handleExport} 
+          isExporting={isExporting} 
+        />
+        
+        <UnpaidCustomersError error={error} onRetry={refetch} />
+
+        {isLoading ? (
+          <UnpaidCustomersLoader />
+        ) : (
+          <>
+            <SummaryCards 
+              totalUnpaid={totalUnpaid}
+              totalInvoices={totalInvoices}
+              customerCount={filteredCustomers.length}
+            />
+
+            <SearchBar 
+              searchTerm={searchTerm}
+              onSearchChange={setSearchTerm}
+              placeholder="Search by code, name, or phone..."
+            />
+
+            <div className="bg-white/70 backdrop-blur-sm rounded-2xl border border-gray-200/50 overflow-hidden shadow-lg">
+              {filteredCustomers.length > 0 ? (
+                <ul className="divide-y divide-gray-200/50">
+                  {filteredCustomers.map(({ code, customers, totalAmount, customerName, customerPhone }) => (
+                    <React.Fragment key={code}>
+                      <CustomerGroup
+                        code={code}
+                        customers={customers}
+                        totalAmount={totalAmount}
+                        customerName={customerName}
+                        customerPhone={customerPhone}
+                        isExpanded={expandedCustomers.has(code)}
+                        onToggle={() => toggleCustomerExpansion(code)}
+                      />
+                      {expandedCustomers.has(code) && (
+                        <CustomerInvoiceTable 
+                        customers={customers}
+                        isLoading={isLoading}
+                        onPaymentStatusUpdate={refetch} 
+                      />
+                      )}
+                    </React.Fragment>
+                  ))}
+                </ul>
+              ) : (
+                <div className="text-center py-16">
+                  <div className="mx-auto h-24 w-24 bg-gradient-to-br from-gray-200 to-gray-300 rounded-full flex items-center justify-center mb-4">
+                    <svg className="h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No unpaid customers found</h3>
+                  <p className="text-sm text-gray-500 mb-4">Try adjusting your search criteria or check back later.</p>
+                  <button 
+                    onClick={() => setSearchTerm('')}
+                    className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-[#D3B04D] to-[#DD845A] text-white text-sm font-medium rounded-lg hover:shadow-lg transition-all duration-200"
+                  >
+                    Clear Search
+                  </button>
+                </div>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default UnpaidCustomersPage;
