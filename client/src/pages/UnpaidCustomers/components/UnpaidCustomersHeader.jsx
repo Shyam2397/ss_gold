@@ -24,7 +24,7 @@ export const UnpaidCustomersHeader = ({ onExport, isExporting }) => (
         <button
           onClick={onExport}
           disabled={isExporting}
-          className="group flex items-center gap-2 bg-gradient-to-r from-[#D3B04D] to-[#DD845A] text-white px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-70 hover:scale-105 transform"
+          className="group flex items-center gap-2 bg-gradient-to-r from-[#D3B04D] to-[#DD845A] text-white px-4 py-2 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-70 hover:scale-105 transform"
         >
           <FiDownload className={`h-4.5 w-4.5 transition-transform duration-300 ${isExporting ? 'animate-bounce' : 'group-hover:translate-y-0.5'}`} />
           <span className="font-medium">

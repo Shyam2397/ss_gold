@@ -1,6 +1,5 @@
 import { useState, useMemo } from 'react';
 import { FixedSizeList as List } from 'react-window';
-import AutoSizer from 'react-virtualized-auto-sizer';
 import { Check, AlertCircle, Loader2, Hash, Calendar, Clock, TestTube, IndianRupee, RefreshCw } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import tokenService from '../../../services/tokenService';

@@ -1,17 +1,57 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, Suspense, lazy } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getUnpaidCustomers } from '../../services/customerService';
 import { format, parseISO } from 'date-fns';
 import * as XLSX from 'xlsx';
 
 // Components
-import UnpaidCustomersHeader from './components/UnpaidCustomersHeader';
-import UnpaidCustomersError from './components/UnpaidCustomersError';
-import UnpaidCustomersLoader from './components/UnpaidCustomersLoader';
-import SummaryCards from './components/SummaryCards';
-import SearchBar from './components/SearchBar';
-import CustomerGroup from './components/CustomerGroup';
-import CustomerInvoiceTable from './components/CustomerInvoiceTable';
+const UnpaidCustomersHeader = lazy(() => import('./components/UnpaidCustomersHeader'));
+const UnpaidCustomersError = lazy(() => import('./components/UnpaidCustomersError'));
+const UnpaidCustomersLoader = lazy(() => import('./components/UnpaidCustomersLoader'));
+const SummaryCards = lazy(() => import('./components/SummaryCards'));
+const SearchBar = lazy(() => import('./components/SearchBar'));
+const CustomerGroup = lazy(() => import('./components/CustomerGroup'));
+const CustomerInvoiceTable = lazy(() => import('./components/CustomerInvoiceTable'));
+
+// Loading fallback component
+const LoadingFallback = () => (
+  <div className="flex items-center justify-center p-8">
+    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#D3B04D]"></div>
+  </div>
+);
+
+// Error boundary component
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error('Error in component:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return <div className="p-4 text-red-600">Something went wrong. Please try again.</div>;
+    }
+
+    return this.props.children;
+  }
+}
+
+// Wrapper component for lazy loading
+const LazyComponent = ({ children }) => (
+  <Suspense fallback={<LoadingFallback />}>
+    <ErrorBoundary>
+      {children}
+    </ErrorBoundary>
+  </Suspense>
+);
 
 const UnpaidCustomersPage = () => {
   const [isExporting, setIsExporting] = useState(false);
@@ -153,49 +193,65 @@ const UnpaidCustomersPage = () => {
   return (
     <div className="min-h-screen">
       <div className="p-6 sm:p-8 bg-white/80 backdrop-blur-sm shadow-xl rounded-2xl max-w-full h-full text-[#391145] m-4 border border-white/20">
-        <UnpaidCustomersHeader 
-          onExport={handleExport} 
-          isExporting={isExporting} 
-        />
+        <LazyComponent>
+          <UnpaidCustomersHeader 
+            onExport={handleExport} 
+            isExporting={isExporting} 
+          />
+        </LazyComponent>
         
-        <UnpaidCustomersError error={error} onRetry={refetch} />
+        {error && (
+          <LazyComponent>
+            <UnpaidCustomersError error={error} onRetry={refetch} />
+          </LazyComponent>
+        )}
 
         {isLoading ? (
-          <UnpaidCustomersLoader />
+          <LazyComponent>
+            <UnpaidCustomersLoader />
+          </LazyComponent>
         ) : (
           <>
-            <SummaryCards 
-              totalUnpaid={totalUnpaid}
-              totalInvoices={totalInvoices}
-              customerCount={filteredCustomers.length}
-            />
+            <LazyComponent>
+              <SummaryCards 
+                totalUnpaid={totalUnpaid}
+                totalInvoices={totalInvoices}
+                customerCount={filteredCustomers.length}
+              />
+            </LazyComponent>
 
-            <SearchBar 
-              searchTerm={searchTerm}
-              onSearchChange={setSearchTerm}
-              placeholder="Search by code, name, or phone..."
-            />
+            <LazyComponent>
+              <SearchBar 
+                searchTerm={searchTerm}
+                onSearchChange={setSearchTerm}
+                placeholder="Search by code, name, or phone..."
+              />
+            </LazyComponent>
 
             <div className="bg-white/70 backdrop-blur-sm rounded-2xl border border-gray-200/50 overflow-hidden shadow-lg">
               {filteredCustomers.length > 0 ? (
                 <ul className="divide-y divide-gray-200/50">
                   {filteredCustomers.map(({ code, customers, totalAmount, customerName, customerPhone }) => (
                     <React.Fragment key={code}>
-                      <CustomerGroup
-                        code={code}
-                        customers={customers}
-                        totalAmount={totalAmount}
-                        customerName={customerName}
-                        customerPhone={customerPhone}
-                        isExpanded={expandedCustomers.has(code)}
-                        onToggle={() => toggleCustomerExpansion(code)}
-                      />
+                      <LazyComponent>
+                        <CustomerGroup
+                          code={code}
+                          customers={customers}
+                          totalAmount={totalAmount}
+                          customerName={customerName}
+                          customerPhone={customerPhone}
+                          isExpanded={expandedCustomers.has(code)}
+                          onToggle={() => toggleCustomerExpansion(code)}
+                        />
+                      </LazyComponent>
                       {expandedCustomers.has(code) && (
-                        <CustomerInvoiceTable 
-                        customers={customers}
-                        isLoading={isLoading}
-                        onPaymentStatusUpdate={refetch} 
-                      />
+                        <LazyComponent>
+                          <CustomerInvoiceTable 
+                            customers={customers}
+                            isLoading={isLoading}
+                            onPaymentStatusUpdate={refetch} 
+                          />
+                        </LazyComponent>
                       )}
                     </React.Fragment>
                   ))}
