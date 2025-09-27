@@ -81,6 +81,7 @@ export const generatePrintContent = (tokenData, logoBase64) => {
             filter: grayscale(100%) contrast(120%) brightness(0%);
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
+            margin-top: -4px;
           }
           .header-text {
             display: flex;
