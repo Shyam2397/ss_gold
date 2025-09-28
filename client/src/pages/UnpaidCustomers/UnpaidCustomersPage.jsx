@@ -137,6 +137,11 @@ const UnpaidCustomersPage = () => {
   const toggleCustomerExpansion = useCallback((code) => {
     actions.toggleCustomer(code);
   }, [actions]);
+  
+  // Memoize the expanded state check for better performance
+  const isCustomerExpanded = useCallback((code) => {
+    return expandedCustomers.includes(code);
+  }, [expandedCustomers]);
 
   const handleExport = async () => {
     if (isExporting || filteredCustomers.length === 0) return;
@@ -236,11 +241,11 @@ const UnpaidCustomersPage = () => {
                           totalAmount={totalAmount}
                           customerName={customerName}
                           customerPhone={customerPhone}
-                          isExpanded={expandedCustomers.has(code)}
+                          isExpanded={isCustomerExpanded(code)}
                           onToggle={() => toggleCustomerExpansion(code)}
                         />
                       </LazyComponent>
-                      {expandedCustomers.has(code) && (
+                      {isCustomerExpanded(code) && (
                         <LazyComponent>
                           <CustomerInvoiceTable 
                             customers={customers}

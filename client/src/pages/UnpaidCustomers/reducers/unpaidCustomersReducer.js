@@ -11,7 +11,7 @@ export const ACTIONS = {
 // Initial State
 export const initialState = {
   isExporting: false,
-  expandedCustomers: new Set(),
+  expandedCustomers: [], // Changed from Set to array
   searchTerm: ''
 };
 
@@ -22,13 +22,13 @@ export function unpaidCustomersReducer(state, action) {
       return { ...state, isExporting: action.payload };
       
     case ACTIONS.TOGGLE_CUSTOMER: {
-      const newExpanded = new Set(state.expandedCustomers);
-      if (newExpanded.has(action.payload)) {
-        newExpanded.delete(action.payload);
-      } else {
-        newExpanded.add(action.payload);
-      }
-      return { ...state, expandedCustomers: newExpanded };
+      const customerId = action.payload;
+      return {
+        ...state,
+        expandedCustomers: state.expandedCustomers.includes(customerId)
+          ? state.expandedCustomers.filter(id => id !== customerId)
+          : [...state.expandedCustomers, customerId]
+      };
     }
       
     case ACTIONS.SET_SEARCH_TERM:
