@@ -18,7 +18,39 @@ export const preloadImages = (imagePaths) => {
 // Format date for display as dd-mm-yy
 const formatDate = (dateString) => {
   if (!dateString) return '';
-  const date = new Date(dateString);
+  
+  // Handle different date string formats
+  let date;
+  if (typeof dateString === 'string') {
+    // Try parsing ISO date string
+    if (dateString.includes('T')) {
+      date = new Date(dateString);
+    } 
+    // Handle dd-mm-yyyy or dd/mm/yyyy formats
+    else if (dateString.includes('-') || dateString.includes('/')) {
+      const [day, month, year] = dateString.split(/[-/]/);
+      // Note: Month is 0-indexed in JavaScript Date
+      date = new Date(year, month - 1, day);
+    }
+    // Handle timestamp
+    else if (!isNaN(dateString)) {
+      date = new Date(parseInt(dateString));
+    } else {
+      // Fallback to default parsing
+      date = new Date(dateString);
+    }
+  } else if (dateString instanceof Date) {
+    date = dateString;
+  } else {
+    return '';
+  }
+
+  // Validate the date
+  if (isNaN(date.getTime())) {
+    console.warn('Invalid date:', dateString);
+    return '';
+  }
+
   const day = String(date.getDate()).padStart(2, '0');
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const year = String(date.getFullYear()).slice(-2);
