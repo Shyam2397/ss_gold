@@ -111,6 +111,12 @@ const AddExpensePage = lazyLoad(() => import(
   '../pages/AddExpensePage'
 ));
 
+const Settings = lazyLoad(() => import(
+  /* webpackChunkName: "settings" */
+  /* webpackPrefetch: true */
+  '../pages/Settings'
+));
+
 // Enhanced route priorities with contextual information from config
 
 // Preload queue with better memory management and priority
@@ -273,6 +279,12 @@ const routesConfig = [
     Component: UnpaidCustomersPage,
     preload: () => import(/* webpackPrefetch: true */ '../pages/UnpaidCustomers/UnpaidCustomersPage'),
     ...ROUTE_PRIORITIES['/unpaid-customers']
+  },
+  {
+    path: '/settings',
+    Component: Settings,
+    preload: () => import(/* webpackPrefetch: true */ '../pages/Settings'),
+    ...ROUTE_PRIORITIES['/settings']
   }
 ];
 
