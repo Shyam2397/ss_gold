@@ -4,19 +4,49 @@ import { getUnpaidCustomers } from '../../services/customerService';
 import { format, parseISO } from 'date-fns';
 import * as XLSX from 'xlsx';
 
-// Components
+// Components - Group related components that should load together
 const UnpaidCustomersHeader = lazy(() => import('./components/UnpaidCustomersHeader'));
 const UnpaidCustomersError = lazy(() => import('./components/UnpaidCustomersError'));
 const UnpaidCustomersLoader = lazy(() => import('./components/UnpaidCustomersLoader'));
-const SummaryCards = lazy(() => import('./components/SummaryCards'));
-const SearchBar = lazy(() => import('./components/SearchBar'));
+
+// Group these components as they're usually needed together
+const DashboardComponents = lazy(() => Promise.all([
+  import('./components/SummaryCards'),
+  import('./components/SearchBar')
+]).then(([SummaryCards, SearchBar]) => ({ 
+  default: function Dashboard({ summaryProps, searchProps }) {
+    return (
+      <>
+        <SummaryCards.default {...summaryProps} />
+        <SearchBar.default {...searchProps} />
+      </>
+    );
+  }
+})));
+
+// Keep these separate as they might not be immediately visible
 const CustomerGroup = lazy(() => import('./components/CustomerGroup'));
 const CustomerInvoiceTable = lazy(() => import('./components/CustomerInvoiceTable'));
 
-// Loading fallback component
-const LoadingFallback = () => (
-  <div className="flex items-center justify-center p-8">
+// Loading fallback components
+const LoadingFallback = ({ className = '' }) => (
+  <div className={`flex items-center justify-center p-8 ${className}`}>
     <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#D3B04D]"></div>
+  </div>
+);
+
+// Skeleton loader for dashboard section
+const DashboardSkeleton = () => (
+  <div className="space-y-6">
+    {/* Summary Cards Skeleton */}
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      {[1, 2, 3].map((i) => (
+        <div key={i} className="h-32 bg-gray-100 rounded-xl animate-pulse"></div>
+      ))}
+    </div>
+    
+    {/* Search Bar Skeleton */}
+    <div className="h-14 bg-gray-100 rounded-lg animate-pulse"></div>
   </div>
 );
 
@@ -45,8 +75,8 @@ class ErrorBoundary extends React.Component {
 }
 
 // Wrapper component for lazy loading
-const LazyComponent = ({ children }) => (
-  <Suspense fallback={<LoadingFallback />}>
+const LazyComponent = ({ children, fallback = <LoadingFallback /> }) => (
+  <Suspense fallback={fallback}>
     <ErrorBoundary>
       {children}
     </ErrorBoundary>
@@ -210,51 +240,54 @@ const UnpaidCustomersPage = () => {
         )}
 
         {isLoading ? (
-          <LazyComponent>
-            <UnpaidCustomersLoader />
-          </LazyComponent>
+          <div className="mt-8">
+            <DashboardSkeleton />
+          </div>
         ) : (
-          <>
-            <LazyComponent>
-              <SummaryCards 
-                totalUnpaid={totalUnpaid}
-                totalInvoices={totalInvoices}
-                customerCount={filteredCustomers.length}
+          <div className="space-y-6">
+            <Suspense fallback={<DashboardSkeleton />}>
+              <DashboardComponents 
+                summaryProps={{
+                  totalUnpaid,
+                  totalInvoices,
+                  customerCount: filteredCustomers.length
+                }}
+                searchProps={{
+                  searchTerm,
+                  onSearchChange: actions.setSearchTerm,
+                  placeholder: "Search by code, name, or phone..."
+                }}
               />
-            </LazyComponent>
-
-            <LazyComponent>
-              <SearchBar 
-                searchTerm={searchTerm}
-                onSearchChange={actions.setSearchTerm}
-                placeholder="Search by code, name, or phone..."
-              />
-            </LazyComponent>
+            </Suspense>
 
             <div className="bg-white/70 backdrop-blur-sm rounded-2xl border border-gray-200/50 overflow-hidden shadow-lg">
               {filteredCustomers.length > 0 ? (
                 <ul className="divide-y divide-gray-200/50">
                   {filteredCustomers.map(({ code, customers, totalAmount, customerName, customerPhone }) => (
                     <React.Fragment key={code}>
-                      <LazyComponent>
-                        <CustomerGroup
-                          code={code}
-                          customers={customers}
-                          totalAmount={totalAmount}
-                          customerName={customerName}
-                          customerPhone={customerPhone}
-                          isExpanded={isCustomerExpanded(code)}
-                          onToggle={() => toggleCustomerExpansion(code)}
-                        />
-                      </LazyComponent>
-                      {isCustomerExpanded(code) && (
+                      <li>
                         <LazyComponent>
-                          <CustomerInvoiceTable 
+                          <CustomerGroup
+                            code={code}
                             customers={customers}
-                            isLoading={isLoading}
-                            onPaymentStatusUpdate={refetch} 
+                            totalAmount={totalAmount}
+                            customerName={customerName}
+                            customerPhone={customerPhone}
+                            isExpanded={isCustomerExpanded(code)}
+                            onToggle={() => toggleCustomerExpansion(code)}
                           />
                         </LazyComponent>
+                      </li>
+                      {isCustomerExpanded(code) && (
+                        <li>
+                          <LazyComponent>
+                            <CustomerInvoiceTable 
+                              customers={customers}
+                              isLoading={isLoading}
+                              onPaymentStatusUpdate={refetch} 
+                            />
+                          </LazyComponent>
+                        </li>
                       )}
                     </React.Fragment>
                   ))}
@@ -277,11 +310,11 @@ const UnpaidCustomersPage = () => {
                 </div>
               )}
             </div>
-          </>
+          </div>
         )}
       </div>
     </div>
   );
-}
+};
 
 export default UnpaidCustomersPage;
