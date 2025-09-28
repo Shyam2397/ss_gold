@@ -63,11 +63,12 @@ const UnpaidCustomersPage = () => {
   const { data: customers = [], isLoading, error, refetch } = useQuery({
     queryKey: ['unpaid-customers'],
     queryFn: getUnpaidCustomers,
-    staleTime: 0, // Always consider data stale to ensure fresh data on refetch
-    refetchOnWindowFocus: true,
-    refetchOnMount: true,
-    refetchOnReconnect: true,
-    refetchInterval: 30000, // Refetch every 30 seconds
+    staleTime: 0,              // Always consider data stale to trigger immediate refetch on mount
+    gcTime: 5 * 60 * 1000,    // 5 minutes before unused data is removed from cache
+    refetchOnWindowFocus: false, // Disable refetch on window focus to avoid too many requests
+    refetchOnMount: 'always',  // Always refetch when the component mounts
+    refetchOnReconnect: true,  // Refetch when network reconnects
+    refetchInterval: 5 * 60 * 1000, // Refetch every 5 minutes
     retry: 2,
     select: (data) => 
       data.map(customer => {
@@ -101,7 +102,7 @@ const UnpaidCustomersPage = () => {
       })
   });
 
-  // Group customers by code
+  // Group customers by code - memoized as it's an expensive operation
   const customersByCode = useMemo(() => {
     const grouped = {};
     customers.forEach(customer => {
@@ -113,7 +114,7 @@ const UnpaidCustomersPage = () => {
     return grouped;
   }, [customers]);
 
-  // Filter customers by search term
+  // Filter customers by search term - memoized as it involves filtering and mapping
   const filteredCustomers = useMemo(() => {
     const searchLower = searchTerm.toLowerCase();
     return Object.entries(customersByCode)
@@ -134,14 +135,23 @@ const UnpaidCustomersPage = () => {
       }));
   }, [customersByCode, searchTerm]);
 
-  const toggleCustomerExpansion = useCallback((code) => {
+  // Calculate totals - memoized as they reduce over potentially large arrays
+  const totalUnpaid = useMemo(() => {
+    return filteredCustomers.reduce((sum, group) => sum + parseFloat(group.totalAmount), 0).toFixed(2);
+  }, [filteredCustomers]);
+
+  const totalInvoices = useMemo(() => {
+    return filteredCustomers.reduce((sum, group) => sum + group.customers.length, 0);
+  }, [filteredCustomers]);
+
+  // Simple functions don't need useCallback
+  const toggleCustomerExpansion = (code) => {
     actions.toggleCustomer(code);
-  }, [actions]);
-  
-  // Memoize the expanded state check for better performance
-  const isCustomerExpanded = useCallback((code) => {
+  };
+
+  const isCustomerExpanded = (code) => {
     return expandedCustomers.includes(code);
-  }, [expandedCustomers]);
+  };
 
   const handleExport = async () => {
     if (isExporting || filteredCustomers.length === 0) return;
@@ -182,14 +192,6 @@ const UnpaidCustomersPage = () => {
     }
   };
 
-  // Calculate totals for the summary cards
-  const totalUnpaid = useMemo(() => {
-    return filteredCustomers.reduce((sum, group) => sum + parseFloat(group.totalAmount), 0).toFixed(2);
-  }, [filteredCustomers]);
-
-  const totalInvoices = useMemo(() => {
-    return filteredCustomers.reduce((sum, group) => sum + group.customers.length, 0);
-  }, [filteredCustomers]);
 
   return (
     <div className="min-h-screen">
