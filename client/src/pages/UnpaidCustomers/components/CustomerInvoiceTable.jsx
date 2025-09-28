@@ -1,9 +1,8 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { FixedSizeList as List } from 'react-window';
 import { Check, AlertCircle, Loader2, Hash, Calendar, Clock, TestTube, IndianRupee, RefreshCw } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import tokenService from '../../../services/tokenService';
-
 const ROW_HEIGHT = 36; // Height of each row in pixels
 
 // Define column widths as constants to ensure consistency
@@ -16,15 +15,48 @@ const columnWidths = {
   amount: 'w-48',
 };
 
-const CustomerInvoiceTable = ({ customers = [], onPaymentStatusUpdate, isLoading }) => {
-  const [updatingIds, setUpdatingIds] = useState(new Set());
+// Move utility functions outside the component
+const formatCurrency = (amount) => {
+  try {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(parseFloat(amount) || 0);
+  } catch (e) {
+    return '₹0.00';
+  }
+};
 
-  const handlePaymentStatusChange = async (tokenId, isPaid) => {
+const formatDate = (dateString) => {
+  if (!dateString || dateString === 'N/A') return 'N/A';
+  try {
+    const [day, month, year] = dateString.split('/');
+    const shortYear = year ? year.slice(-2) : '';
+    return `${day}-${month}-${shortYear}`;
+  } catch (e) {
+    return dateString;
+  }
+};
+
+// Memoize the customers array to prevent unnecessary re-renders
+const memoizedCustomers = (customers) => {
+  return useMemo(() => customers, [JSON.stringify(customers)]);
+};
+
+const CustomerInvoiceTable = ({ customers: propCustomers = [], onPaymentStatusUpdate, isLoading }) => {
+  const [updatingIds, setUpdatingIds] = useState(new Set());
+  // Use memoized customers
+  const customers = memoizedCustomers(propCustomers);
+
+  // Memoize the payment status change handler
+  const handlePaymentStatusChange = useCallback(async (tokenId, isPaid) => {
     try {
       setUpdatingIds(prev => new Set([...prev, tokenId]));
       await tokenService.updatePaymentStatus(tokenId, isPaid);
       toast.success('Payment status updated successfully');
-      onPaymentStatusUpdate?.(); // Trigger refetch of unpaid customers
+      onPaymentStatusUpdate?.();
     } catch (error) {
       console.error('Error updating payment status:', error);
       toast.error('Failed to update payment status');
@@ -35,30 +67,7 @@ const CustomerInvoiceTable = ({ customers = [], onPaymentStatusUpdate, isLoading
         return newSet;
       });
     }
-  };
-  const formatCurrency = (amount) => {
-    try {
-      return new Intl.NumberFormat('en-IN', {
-        style: 'currency',
-        currency: 'INR',
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      }).format(parseFloat(amount) || 0);
-    } catch (e) {
-      return '₹0.00';
-    }
-  };
-
-  const formatDate = (dateString) => {
-    if (!dateString || dateString === 'N/A') return 'N/A';
-    try {
-      const [day, month, year] = dateString.split('/');
-      const shortYear = year ? year.slice(-2) : '';
-      return `${day}-${month}-${shortYear}`;
-    } catch (e) {
-      return dateString;
-    }
-  };
+  }, [onPaymentStatusUpdate]);
 
   // Create a memoized row renderer
   const Row = useMemo(() => {
@@ -131,7 +140,7 @@ const CustomerInvoiceTable = ({ customers = [], onPaymentStatusUpdate, isLoading
         </div>
       );
     };
-  }, [customers]);
+  }, [customers, updatingIds, handlePaymentStatusChange]);
 
   if (isLoading) {
     return (

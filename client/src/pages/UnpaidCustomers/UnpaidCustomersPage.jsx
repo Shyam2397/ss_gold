@@ -4,6 +4,7 @@ import { getUnpaidCustomers } from '../../services/customerService';
 import { format, parseISO } from 'date-fns';
 import * as XLSX from 'xlsx';
 
+// Remove unused imports and state variables
 // Components
 const UnpaidCustomersHeader = lazy(() => import('./components/UnpaidCustomersHeader'));
 const UnpaidCustomersError = lazy(() => import('./components/UnpaidCustomersError'));
@@ -60,15 +61,22 @@ const UnpaidCustomersPage = () => {
   const [state, actions] = useUnpaidCustomers();
   const { isExporting, expandedCustomers, searchTerm } = state;
 
-  const { data: customers = [], isLoading, error, refetch } = useQuery({
+  // Optimized query configuration
+  const { 
+    data: customers = [],
+    isLoading, 
+    error, 
+    refetch 
+  } = useQuery({
     queryKey: ['unpaid-customers'],
     queryFn: getUnpaidCustomers,
-    staleTime: 0, // Always consider data stale to ensure fresh data on refetch
-    refetchOnWindowFocus: true,
-    refetchOnMount: true,
+    staleTime: 5 * 60 * 1000, // 5 minutes before data is considered stale
+    gcTime: 10 * 60 * 1000, // 10 minutes before garbage collection
+    refetchOnWindowFocus: false, // Disable auto-refetch on window focus
+    refetchOnMount: true, // Only refetch on mount if data is stale
     refetchOnReconnect: true,
-    refetchInterval: 30000, // Refetch every 30 seconds
-    retry: 2,
+    refetchInterval: 5 * 60 * 1000, // Refetch every 5 minutes
+    retry: 1, // Only retry once on failure
     select: (data) => 
       data.map(customer => {
         // Format dates consistently
@@ -269,6 +277,7 @@ const UnpaidCustomersPage = () => {
                   </button>
                 </div>
               )}
+              
             </div>
           </>
         )}
