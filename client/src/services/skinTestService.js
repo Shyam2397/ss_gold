@@ -6,12 +6,8 @@ const skinTestService = {
   getSkinTests: async () => {
     const api = await getApi();
     const response = await api.get('/skin-tests');
-    // Sort by token number in descending order
-    return response.data.sort((a, b) => {
-      const tokenA = a.token_no || a.tokenNo;
-      const tokenB = b.token_no || b.tokenNo;
-      return parseFloat(tokenB) - parseFloat(tokenA);
-    });
+    // Sorting is now handled on the server
+    return response.data;
   },
 
   // Create a new skin test
@@ -119,7 +115,7 @@ const skinTestService = {
       
       return phoneNumbersMap;
     } catch (error) {
-      console.error('Error fetching phone numbers:', error);
+      console.error('Error fetching phone numbers for codes:', codes, error);
       // Return empty object on error to maintain consistency
       return {};
     }

@@ -94,13 +94,12 @@ const SkinTesting = () => {
     return skinTests.filter(test => {
       // Search in all relevant fields
       const searchableFields = [
-        test.token_no?.toString() || '',
+        test.tokenNo?.toString() || test.token_no?.toString() || test.tokenno?.toString() || '',
         test.name || '',
         test.weight || '',
         test.sample || '',
         test.remarks || '',
-        test.testType || '',
-        test.result || ''
+        test.code || ''
       ];
       
       // Check if any field contains the query (fuzzy match)

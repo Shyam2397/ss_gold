@@ -196,7 +196,7 @@ export const useSkinTest = () => {
                 // Only return a new object if phoneNumber exists
                 return phoneNumber ? { ...test, phoneNumber } : test;
               } catch (err) {
-                console.error('Error fetching phone number:', err);
+                console.error('Error fetching phone number for code:', test.code, err);
                 return test; // Return original test if there's an error
               }
             })
