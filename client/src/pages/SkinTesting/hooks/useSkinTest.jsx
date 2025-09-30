@@ -132,24 +132,36 @@ export const useSkinTest = () => {
   
   // Clear error messages after a timeout
   useEffect(() => {
+    let timer;
     if (state.error) {
-      const timer = setTimeout(() => {
+      timer = setTimeout(() => {
         dispatch({ type: ACTIONS.SET_ERROR, payload: '' });
       }, 5000); // 5 seconds timeout
-      
-      return () => clearTimeout(timer);
     }
+    
+    // Cleanup function to clear the timeout if component unmounts
+    return () => {
+      if (timer) {
+        clearTimeout(timer);
+      }
+    };
   }, [state.error]);
   
   // Clear success messages after a timeout
   useEffect(() => {
+    let timer;
     if (state.success) {
-      const timer = setTimeout(() => {
+      timer = setTimeout(() => {
         dispatch({ type: ACTIONS.SET_SUCCESS, payload: '' });
       }, 5000); // 5 seconds timeout
-      
-      return () => clearTimeout(timer);
     }
+    
+    // Cleanup function to clear the timeout if component unmounts
+    return () => {
+      if (timer) {
+        clearTimeout(timer);
+      }
+    };
   }, [state.success]);
 
   const loadSkinTests = useCallback(async () => {
@@ -158,50 +170,43 @@ export const useSkinTest = () => {
       let skinTests = await skinTestService.getSkinTests();
       
       // Only fetch phone numbers if we have tests with codes
-      if (skinTests.some(test => test.code)) {
-        // Use Promise.all for parallel fetching
-        const updatedTests = await Promise.all(
-          skinTests.map(async (test) => {
-            if (!test.code) return test;
-            
-            try {
-              const phoneNumber = await skinTestService.getPhoneNumber(test.code);
-              // Only return a new object if phoneNumber exists
-              return phoneNumber ? { ...test, phoneNumber } : test;
-            } catch (err) {
-              console.error('Error fetching phone number:', err);
-              return test; // Return original test if there's an error
+      const testsWithCodes = skinTests.filter(test => test.code);
+      if (testsWithCodes.length > 0) {
+        try {
+          // Use batch fetching for better performance
+          const codes = testsWithCodes.map(test => test.code);
+          const phoneNumbersMap = await skinTestService.getPhoneNumbers(codes);
+          
+          // Update tests with phone numbers
+          skinTests = skinTests.map(test => {
+            if (test.code && phoneNumbersMap[test.code]) {
+              return { ...test, phoneNumber: phoneNumbersMap[test.code] };
             }
-          })
-        );
-        skinTests = updatedTests;
+            return test;
+          });
+        } catch (batchError) {
+          console.error('Error in batch phone number fetching, falling back to individual fetching:', batchError);
+          // Fallback to individual fetching if batch fetching fails
+          const updatedTests = await Promise.all(
+            skinTests.map(async (test) => {
+              if (!test.code) return test;
+              
+              try {
+                const phoneNumber = await skinTestService.getPhoneNumber(test.code);
+                // Only return a new object if phoneNumber exists
+                return phoneNumber ? { ...test, phoneNumber } : test;
+              } catch (err) {
+                console.error('Error fetching phone number:', err);
+                return test; // Return original test if there's an error
+              }
+            })
+          );
+          skinTests = updatedTests;
+        }
       }
       
-      // Sort the tests by token number (A1, A2, ..., A999, B1, B2, ...)
-      const sortedTests = [...skinTests].sort((a, b) => {
-        const getTokenParts = (test) => {
-          const tokenStr = (test.tokenNo || test.tokenno || '').toString();
-          // Match letter part and number part separately
-          const match = tokenStr.match(/^([A-Za-z]*)(\d*)$/) || ['', '', ''];
-          return {
-            prefix: match[1] || '',
-            number: parseInt(match[2] || '0', 10)
-          };
-        };
-        
-        const tokenA = getTokenParts(a);
-        const tokenB = getTokenParts(b);
-        
-        // First compare the letter prefix
-        const prefixCompare = tokenA.prefix.localeCompare(tokenB.prefix);
-        if (prefixCompare !== 0) return prefixCompare;
-        
-        // If prefixes are the same, compare the numbers
-        return tokenA.number - tokenB.number;
-      });
-      
-      // Update the state with sorted tests
-      dispatch({ type: ACTIONS.SET_SKIN_TESTS, payload: sortedTests });
+      // Update the state with tests (sorting is now handled on the server)
+      dispatch({ type: ACTIONS.SET_SKIN_TESTS, payload: skinTests });
     } catch (err) {
       console.error('Error loading skin tests:', err);
       dispatch({ type: ACTIONS.SET_ERROR, payload: 'Failed to fetch skin tests: ' + (err.message || 'Unknown error') });
@@ -442,71 +447,6 @@ export const useSkinTest = () => {
 
   const clearFormFields = () => {
     dispatch({ type: ACTIONS.CLEAR_FORM_FIELDS });
-  };
-
-  const handleChange = (e) => {
-    e.preventDefault(); // Prevent form submission
-    const { name, value } = e.target;
-    
-    // Prevent token number changes during editing
-    if (state.isEditing && name === 'tokenNo') {
-      return;
-    }
-    
-    if (state.error) dispatch({ type: ACTIONS.SET_ERROR, payload: '' });
-    updateFormData(name, value);
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    // Create a custom setError function that uses dispatch
-    const setErrorWithDispatch = (errorMsg) => {
-      dispatch({ type: ACTIONS.SET_ERROR, payload: errorMsg });
-    };
-    
-    if (!validateForm(state.formData, setErrorWithDispatch, state.isEditing)) return;
-
-    try {
-      dispatch({ type: ACTIONS.SET_LOADING, payload: true });
-      const processedData = processFormData({
-        ...state.formData,
-        tokenNo: state.formData.tokenNo || ''
-      });
-
-      if (state.isEditing) {
-        if (!processedData.tokenNo) {
-          throw new Error('Token number is required for updating');
-        }
-
-        // Update existing skin test
-        await skinTestService.updateSkinTest(processedData.tokenNo, processedData);
-        dispatch({ type: ACTIONS.SET_IS_EDITING, payload: false });
-        dispatch({ type: ACTIONS.SET_SUCCESS, payload: `Skin test #${processedData.tokenNo} updated successfully!` });
-      } else {
-        // Check for duplicate token number
-        const exists = state.skinTests.some(test => test.tokenNo === processedData.tokenNo);
-        if (exists) {
-          throw new Error('Token number already exists');
-        }
-
-        // Create new skin test
-        await skinTestService.createSkinTest(processedData);
-        dispatch({ type: ACTIONS.SET_SUCCESS, payload: `Skin test #${processedData.tokenNo} saved successfully!` });
-      }
-
-      // Common success actions
-      await loadSkinTests();
-      dispatch({ type: ACTIONS.SET_FORM_DATA, payload: initialFormData });
-      dispatch({ type: ACTIONS.SET_ERROR, payload: '' });
-      dispatch({ type: ACTIONS.SET_SUM, payload: 0 });
-    } catch (err) {
-      console.error('Error submitting form:', err);
-      const errorMessage = err.message || 'Failed to submit form';
-      dispatch({ type: ACTIONS.SET_ERROR, payload: errorMessage });
-    } finally {
-      dispatch({ type: ACTIONS.SET_LOADING, payload: false });
-    }
   };
 
   // Memoize handlers to prevent recreation on each render

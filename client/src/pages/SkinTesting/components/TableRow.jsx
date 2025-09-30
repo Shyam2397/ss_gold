@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { FiEdit2, FiTrash2 } from 'react-icons/fi';
 import { FaWhatsapp } from 'react-icons/fa';
 import { AutoSizer, Table, Column } from 'react-virtualized';
@@ -6,6 +6,7 @@ import 'react-virtualized/styles.css';
 import { formatDateForDisplay, formatTimeForDisplay } from '../utils/validation';
 import { toast } from 'react-toastify';
 import entryService from '../../../services/entryService';
+import { isEqual } from 'lodash';
 
 const TableRow = React.memo(({ 
   skinTests, 
@@ -13,130 +14,124 @@ const TableRow = React.memo(({
   onEdit, 
   onDelete,
 }) => {
-  // Sort tests by alphanumeric token number (A1, A2, ..., A999, B1, B2, ...)
-  const sortedTests = useMemo(() => {
-    if (!skinTests.length) return [];
-    return [...skinTests].sort((a, b) => {
-      const getTokenParts = (token) => {
-        const str = (token.tokenNo || token.tokenno || '').toString();
-        // Match letter part and number part separately
-        const match = str.match(/^([A-Za-z]*)(\d*)$/) || ['', '', ''];
-        return {
-          prefix: match[1] || '',
-          number: parseInt(match[2] || '0', 10)
-        };
-      };
-      
-      const tokenA = getTokenParts(a);
-      const tokenB = getTokenParts(b);
-      
-      // First compare the letter prefix
-      const prefixCompare = tokenA.prefix.localeCompare(tokenB.prefix);
-      if (prefixCompare !== 0) return prefixCompare;
-      
-      // If prefixes are the same, compare the numbers
-      return tokenA.number - tokenB.number;
-    });
-  }, [skinTests]);
+  // State for tracking loading states of individual operations
+  const [loadingStates, setLoadingStates] = useState({});
+
+  // Use skinTests directly without sorting (sorting is handled on the server)
+  const sortedTests = skinTests;
 
   const handleWhatsAppShare = async (rowData) => {
-    let resultMessage;
+    const rowKey = rowData.tokenNo || rowData.tokenno || rowData.token_no;
     
-    // Check for melting defect in remarks
-    if (rowData.remarks && rowData.remarks.toLowerCase().includes('melting defect')) {
-      resultMessage = '✨ *RESULT:* *Melting Defect*\n👉 *Please collect the sample, remelt it, and return it.*';
-    } else if (parseFloat(rowData.gold_fineness) === 0 && parseFloat(rowData.silver || 0) === 0) {
-      resultMessage = '✨ *RESULT:* Analysis indicates the sample contains no detectable gold or silver content.';
-    } else if (parseFloat(rowData.gold_fineness) === 0 && rowData.silver) {
-      resultMessage = `✨ *SILVER RESULT:* *${parseFloat(rowData.silver).toFixed(2)}* %`;
-    } else {
-      resultMessage = `✨ *RESULT:* *${parseFloat(rowData.gold_fineness).toFixed(2)}* %`;
-    }
-
-    const messageLines = [
-      '*Dear Customer,*',
-      '',
-      `🔖 *Token No: ${rowData.tokenNo || rowData.tokenno || rowData.token_no}*`,
-      `📅 *Date:* ${formatDateForDisplay(rowData.date)}`,
-      `👤 *Name:* ${rowData.name}`,
-      `🔍 *Sample:* ${rowData.sample}`,
-      `⚖️ *Weight:* ${parseFloat(rowData.weight).toFixed(3)} g`,
-      '',
-      resultMessage,
-      '',
-      `  *Karat: ${parseFloat(rowData.karat).toFixed(2)} K*`,
+    // Set loading state for this specific row
+    setLoadingStates(prev => ({ ...prev, [rowKey]: true }));
+    
+    try {
+      let resultMessage;
       
-    ];
+      // Check for melting defect in remarks
+      if (rowData.remarks && rowData.remarks.toLowerCase().includes('melting defect')) {
+        resultMessage = '✨ *RESULT:* *Melting Defect*\n👉 *Please collect the sample, remelt it, and return it.*';
+      } else if (parseFloat(rowData.gold_fineness) === 0 && parseFloat(rowData.silver || 0) === 0) {
+        resultMessage = '✨ *RESULT:* Analysis indicates the sample contains no detectable gold or silver content.';
+      } else if (parseFloat(rowData.gold_fineness) === 0 && rowData.silver) {
+        resultMessage = `✨ *SILVER RESULT:* *${parseFloat(rowData.silver).toFixed(2)}* %`;
+      } else {
+        resultMessage = `✨ *RESULT:* *${parseFloat(rowData.gold_fineness).toFixed(2)}* %`;
+      }
 
-    if (rowData.remarks && !rowData.remarks.toLowerCase().includes('melting defect')) {
-      messageLines.push('', `📝 *Remarks:* ${rowData.remarks}`);
-    }
+      const messageLines = [
+        '*Dear Customer,*',
+        '',
+        `🔖 *Token No: ${rowData.tokenNo || rowData.tokenno || rowData.token_no}*`,
+        `📅 *Date:* ${formatDateForDisplay(rowData.date)}`,
+        `👤 *Name:* ${rowData.name}`,
+        `🔍 *Sample:* ${rowData.sample}`,
+        `⚖️ *Weight:* ${parseFloat(rowData.weight).toFixed(3)} g`,
+        '',
+        resultMessage,
+        '',
+        `  *Karat: ${parseFloat(rowData.karat).toFixed(2)} K*`,
+        
+      ];
 
-    messageLines.push(
-      '',
-      '*SS GOLD TESTING*,',
-      'Nilakottai.',
-      'For any doubt/clarification, please contact',
-      '8903225544'
-    );
+      if (rowData.remarks && !rowData.remarks.toLowerCase().includes('melting defect')) {
+        messageLines.push('', `📝 *Remarks:* ${rowData.remarks}`);
+      }
 
-    const message = encodeURIComponent(messageLines.join('\n'));
-    
-    // Extract and validate phone number
-    let phoneNumber = '';
-    
-    // Try to get phone number from rowData
-    if (rowData.phoneNumber) {
-      phoneNumber = rowData.phoneNumber.toString().replace(/\D/g, '');
-    } 
-    // If no phone number found, try to fetch it using the code
-    else if (rowData.code) {
-      try {
-        const entry = await entryService.getEntryWithPhone(rowData.code);
-        if (entry?.phoneNumber) {
-          phoneNumber = entry.phoneNumber.toString().replace(/\D/g, '');
-          // Cache the phone number in rowData for future use
-          rowData.phoneNumber = phoneNumber;
+      messageLines.push(
+        '',
+        '*SS GOLD TESTING*,',
+        'Nilakottai.',
+        'For any doubt/clarification, please contact',
+        '8903225544'
+      );
+
+      const message = encodeURIComponent(messageLines.join('\n'));
+      
+      // Extract and validate phone number
+      let phoneNumber = '';
+      
+      // Try to get phone number from rowData
+      if (rowData.phoneNumber) {
+        phoneNumber = rowData.phoneNumber.toString().replace(/\D/g, '');
+      } 
+      // If no phone number found, try to fetch it using the code
+      else if (rowData.code) {
+        try {
+          const entry = await entryService.getEntryWithPhone(rowData.code);
+          if (entry?.phoneNumber) {
+            phoneNumber = entry.phoneNumber.toString().replace(/\D/g, '');
+            // Cache the phone number in rowData for future use
+            rowData.phoneNumber = phoneNumber;
+          }
+        } catch (err) {
+          console.error('Error fetching phone number:', err);
+          toast.error('Failed to fetch customer details. Please try again.');
+          return;
         }
-      } catch (err) {
-        console.error('Error fetching phone number:', err);
-        toast.error('Failed to fetch customer details. Please try again.');
-        return;
       }
-    }
 
-    // If still no phone number, prompt the user
-    if (!phoneNumber) {
-      const userInput = prompt('No phone number found. Please enter a 10-digit mobile number (without country code):');
-      if (!userInput) return; // User cancelled
-      phoneNumber = userInput.replace(/\D/g, '');
+      // If still no phone number, prompt the user
+      if (!phoneNumber) {
+        const userInput = prompt('No phone number found. Please enter a 10-digit mobile number (without country code):');
+        if (!userInput) return; // User cancelled
+        phoneNumber = userInput.replace(/\D/g, '');
+        
+        // Basic validation
+        if (phoneNumber.length !== 10) {
+          toast.error('Please enter a valid 10-digit mobile number');
+          return;
+        }
+      }
+
+      // Format phone number
+      phoneNumber = phoneNumber.replace(/^0+/, '');
       
-      // Basic validation
+      // Remove country code if present
+      if (phoneNumber.startsWith('91') && phoneNumber.length > 10) {
+        phoneNumber = phoneNumber.substring(2);
+      }
+
+      // Validate phone number
       if (phoneNumber.length !== 10) {
-        toast.error('Please enter a valid 10-digit mobile number');
+        alert('Invalid phone number format. Please enter a 10-digit mobile number.');
         return;
       }
+
+      // Add country code
+      phoneNumber = '91' + phoneNumber;
+
+      // Open WhatsApp
+      window.open(`https://wa.me/${phoneNumber}?text=${message}`, '_blank');
+    } finally {
+      // Reset loading state for this specific row
+      setLoadingStates(prev => {
+        const newState = { ...prev };
+        delete newState[rowKey];
+        return newState;
+      });
     }
-
-    // Format phone number
-    phoneNumber = phoneNumber.replace(/^0+/, '');
-    
-    // Remove country code if present
-    if (phoneNumber.startsWith('91') && phoneNumber.length > 10) {
-      phoneNumber = phoneNumber.substring(2);
-    }
-
-    // Validate phone number
-    if (phoneNumber.length !== 10) {
-      alert('Invalid phone number format. Please enter a 10-digit mobile number.');
-      return;
-    }
-
-    // Add country code
-    phoneNumber = '91' + phoneNumber;
-
-    // Open WhatsApp
-    window.open(`https://wa.me/${phoneNumber}?text=${message}`, '_blank');
   };
 
   const getColumns = () => {
@@ -241,36 +236,48 @@ const TableRow = React.memo(({
     }
   };
 
-  const renderActions = ({ rowData }) => (
-    <div className="flex items-center justify-center space-x-2">
-      <button 
-        onClick={() => onEdit(rowData)}
-        className="text-amber-600 hover:text-amber-900 p-1 rounded hover:bg-amber-50"
-        title="Edit Test"
-      >
-        <FiEdit2 className="w-3.5 h-3.5" />
-      </button>
-      <button 
-        onClick={() => {
-          const tokenNo = rowData.tokenNo || rowData.tokenno || rowData.token_no;
-          if (tokenNo) {
-            onDelete(tokenNo.toString());
-          }
-        }}
-        className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50"
-        title="Delete Test"
-      >
-        <FiTrash2 className="w-3.5 h-3.5" />
-      </button>
-      <button 
-        onClick={() => handleWhatsAppShare(rowData)}
-        className="text-green-600 hover:text-green-700 p-1 rounded hover:bg-green-50"
-        title="Share on WhatsApp"
-      >
-        <FaWhatsapp className="w-3.5 h-3.5" />
-      </button>
-    </div>
-  );
+  const renderActions = ({ rowData }) => {
+    const rowKey = rowData.tokenNo || rowData.tokenno || rowData.token_no;
+    const isLoading = loadingStates[rowKey];
+    
+    return (
+      <div className="flex items-center justify-center space-x-2">
+        <button 
+          onClick={() => onEdit(rowData)}
+          className="text-amber-600 hover:text-amber-900 p-1 rounded hover:bg-amber-50"
+          title="Edit Test"
+          disabled={isLoading}
+        >
+          <FiEdit2 className="w-3.5 h-3.5" />
+        </button>
+        <button 
+          onClick={() => {
+            const tokenNo = rowData.tokenNo || rowData.tokenno || rowData.token_no;
+            if (tokenNo) {
+              onDelete(tokenNo.toString());
+            }
+          }}
+          className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50"
+          title="Delete Test"
+          disabled={isLoading}
+        >
+          <FiTrash2 className="w-3.5 h-3.5" />
+        </button>
+        <button 
+          onClick={() => handleWhatsAppShare(rowData)}
+          className="text-green-600 hover:text-green-700 p-1 rounded hover:bg-green-50"
+          title={isLoading ? "Loading..." : "Share on WhatsApp"}
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <div className="w-3.5 h-3.5 border-2 border-green-600 border-t-transparent rounded-full animate-spin"></div>
+          ) : (
+            <FaWhatsapp className="w-3.5 h-3.5" />
+          )}
+        </button>
+      </div>
+    );
+  };
 
   const getCellValue = ({ dataKey, rowData }) => {
     // Special handling for token number variations
@@ -414,7 +421,7 @@ const TableRow = React.memo(({
 // Custom comparison function for React.memo
 const areEqual = (prevProps, nextProps) => {
   // Only re-render if the skinTest data has actually changed
-  return JSON.stringify(prevProps.skinTests) === JSON.stringify(nextProps.skinTests) &&
+  return isEqual(prevProps.skinTests, nextProps.skinTests) &&
          prevProps.onEdit === nextProps.onEdit &&
          prevProps.onDelete === nextProps.onDelete;
 };

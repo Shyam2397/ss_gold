@@ -6,6 +6,7 @@ const {
   updateSkinTest,
   deleteSkinTest,
   getPhoneNumberByCode,
+  getPhoneNumbersByCodes,
   resetSkinTests
 } = require('../controllers/skinTestsController');
 const { validateSkinTest } = require('../middleware/validation');
@@ -24,6 +25,15 @@ router.get('/phone_number/:code', async (req, res) => {
     await getPhoneNumberByCode(req, res);
   } catch (err) {
     handleDatabaseError(err, res, 'Failed to fetch phone number');
+  }
+});
+
+// New route for batch phone number fetching
+router.post('/phone_numbers', async (req, res) => {
+  try {
+    await getPhoneNumbersByCodes(req, res);
+  } catch (err) {
+    handleDatabaseError(err, res, 'Failed to fetch phone numbers');
   }
 });
 

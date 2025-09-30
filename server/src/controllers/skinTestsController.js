@@ -12,7 +12,12 @@ const getAllSkinTests = async (req, res) => {
              rhenium, indium, titanium, palladium, platinum,
              others, remarks, code
       FROM skin_tests
-      ORDER BY date DESC, time DESC`;
+      ORDER BY 
+        -- First sort by letter prefix
+        SUBSTRING(token_no FROM '^[A-Za-z]*'),
+        -- Then sort by numeric part
+        CAST(SUBSTRING(token_no FROM '[0-9]+$') AS INTEGER)
+    `;
     
     const result = await pool.query(query);
     res.json(result.rows);
@@ -246,6 +251,34 @@ const getPhoneNumberByCode = async (req, res) => {
   }
 };
 
+// New function to get multiple phone numbers by codes
+const getPhoneNumbersByCodes = async (req, res) => {
+  const { codes } = req.body;
+  
+  if (!codes || !Array.isArray(codes) || codes.length === 0) {
+    return res.status(400).json({ error: "Codes array is required" });
+  }
+  
+  try {
+    // Create placeholders for the IN clause
+    const placeholders = codes.map((_, i) => `$${i + 1}`).join(', ');
+    const query = `SELECT code, phone_number as "phoneNumber" FROM entries WHERE code IN (${placeholders})`;
+    
+    const result = await pool.query(query, codes);
+    
+    // Create a map of code to phoneNumber for easy lookup
+    const phoneNumbersMap = {};
+    result.rows.forEach(row => {
+      phoneNumbersMap[row.code] = row.phoneNumber;
+    });
+    
+    res.json({ phoneNumbers: phoneNumbersMap });
+  } catch (err) {
+    console.error('Error in getPhoneNumbersByCodes:', err);
+    return handleDatabaseError(err, res, "Failed to retrieve phone numbers");
+  }
+};
+
 const resetSkinTests = async (req, res) => {
   try {
     await resetSkinTestsTable();
@@ -261,5 +294,6 @@ module.exports = {
   updateSkinTest,
   deleteSkinTest,
   getPhoneNumberByCode,
+  getPhoneNumbersByCodes,
   resetSkinTests
 };

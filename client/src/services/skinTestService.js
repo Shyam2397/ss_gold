@@ -1,4 +1,5 @@
 import { getApi } from './api';
+import { phoneNumbersCache } from '../pages/SkinTesting/utils/cacheUtils';
 
 const skinTestService = {
   // Get all skin tests
@@ -80,11 +81,48 @@ const skinTestService = {
     return response.data;
   },
 
-  // Get phone number by code
+  // Get phone number by code with caching
   getPhoneNumber: async (code) => {
+    // Check cache first
+    const cached = phoneNumbersCache.get(code);
+    if (cached !== undefined) {
+      return cached;
+    }
+    
+    try {
+      const api = await getApi();
+      const response = await api.get(`/skin-tests/phone_number/${code}`);
+      const phoneNumber = response.data.phone || '';
+      
+      // Cache the result
+      phoneNumbersCache.set(code, phoneNumber);
+      
+      return phoneNumber;
+    } catch (error) {
+      // Cache error results as well to prevent repeated failed requests
+      phoneNumbersCache.set(code, null);
+      throw error;
+    }
+  },
+
+  // Get multiple phone numbers by codes with caching
+  getPhoneNumbers: async (codes) => {
     const api = await getApi();
-    const response = await api.get(`/entries/code/${code}`);
-    return response.data.phone || '';
+    try {
+      const response = await api.post('/skin-tests/phone_numbers', { codes });
+      const phoneNumbersMap = response.data.phoneNumbers || {};
+      
+      // Cache the results
+      Object.entries(phoneNumbersMap).forEach(([code, phoneNumber]) => {
+        phoneNumbersCache.set(code, phoneNumber);
+      });
+      
+      return phoneNumbersMap;
+    } catch (error) {
+      console.error('Error fetching phone numbers:', error);
+      // Return empty object on error to maintain consistency
+      return {};
+    }
   }
 };
 
