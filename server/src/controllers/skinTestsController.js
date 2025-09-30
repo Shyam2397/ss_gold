@@ -13,10 +13,10 @@ const getAllSkinTests = async (req, res) => {
              others, remarks, code
       FROM skin_tests
       ORDER BY 
-        -- First sort by letter prefix
-        SUBSTRING(token_no FROM '^[A-Za-z]*'),
-        -- Then sort by numeric part
-        CAST(SUBSTRING(token_no FROM '[0-9]+$') AS INTEGER)
+        -- First sort by letter prefix in descending order
+        SUBSTRING(token_no FROM '^[A-Za-z]*') DESC,
+        -- Then sort by numeric part in descending order
+        CAST(SUBSTRING(token_no FROM '[0-9]+$') AS INTEGER) DESC
     `;
     
     const result = await pool.query(query);
