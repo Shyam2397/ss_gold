@@ -1,4 +1,4 @@
-import React, { useReducer, useEffect, useMemo, useCallback, Suspense } from "react";
+import React, { useReducer, useEffect, useMemo, useCallback, Suspense, useRef } from "react";
 import debounce from 'lodash/debounce';
 import {
   FiUser,
@@ -34,8 +34,22 @@ import { preloadImages, convertImageToBase64, generatePrintContent } from './uti
 
 import { tokenReducer, initialState } from './reducers/tokenReducer';
 
+// Add performance monitoring
+const useRenderCounter = () => {
+  const renderCount = useRef(0);
+  renderCount.current++;
+  
+  useEffect(() => {
+    console.log(`TokenPage rendered ${renderCount.current} times`);
+  });
+  
+  return renderCount.current;
+};
+
 const TokenPage = () => {
   const [state, dispatch] = useReducer(tokenReducer, initialState);
+  const searchCacheRef = useRef(new Map());
+  const renderCount = useRenderCounter();
   
   // Custom hook for token operations
   const {
@@ -273,7 +287,7 @@ const TokenPage = () => {
     amount: state.amount
   }), [state.tokenNo, state.date, state.time, state.name, state.test, state.weight, state.sample, state.amount]);
 
-  // Debounced search handler
+  // Debounced search handler with memoization
   const handleSearch = useCallback(debounce((query) => {
     if (!query.trim()) {
       dispatch({ type: 'SET_FIELD', field: 'filteredTokens', value: tokens });
@@ -281,6 +295,14 @@ const TokenPage = () => {
     }
 
     const searchTerms = query.toLowerCase().split(' ').filter(term => term.length > 0);
+    
+    // Memoize search results for the same query
+    const cacheKey = `${query}-${tokens.length}`;
+    
+    if (searchCacheRef.current.has(cacheKey)) {
+      dispatch({ type: 'SET_FIELD', field: 'filteredTokens', value: searchCacheRef.current.get(cacheKey) });
+      return;
+    }
     
     const filtered = tokens.filter(token => {
       const searchFields = [
@@ -300,8 +322,14 @@ const TokenPage = () => {
       );
     });
 
+    searchCacheRef.current.set(cacheKey, filtered);
     dispatch({ type: 'SET_FIELD', field: 'filteredTokens', value: filtered });
   }, 300), [tokens]);
+
+  // Clear cache when tokens change
+  useEffect(() => {
+    searchCacheRef.current.clear();
+  }, [tokens]);
 
   // Cleanup debounce on unmount
   useEffect(() => {

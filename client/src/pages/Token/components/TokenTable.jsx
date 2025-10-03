@@ -3,43 +3,77 @@ import { FiEdit2, FiTrash2, FiCheckCircle, FiXCircle } from 'react-icons/fi';
 import { AutoSizer, Table, Column } from 'react-virtualized';
 import 'react-virtualized/styles.css';
 
-const formatDateToIST = (dateString) => {
-  if (!dateString) return '';
-  try {
-    // Handle different date formats
-    const date = new Date(dateString);
-    if (isNaN(date.getTime())) {
-      // Try parsing DD-MM-YYYY format
-      const [day, month, year] = dateString.split('-');
-      if (day && month && year) {
-        return `${day}-${month}-${year}`;
-      }
-      return dateString;
+// Create a cache for date formatting functions
+const createDateFormatter = () => {
+  const cache = new Map();
+  
+  return (dateString) => {
+    if (!dateString) return '';
+    
+    // Check cache first
+    if (cache.has(dateString)) {
+      return cache.get(dateString);
     }
     
-    // Format to DD-MM-YYYY
-    const day = date.getDate().toString().padStart(2, '0');
-    const month = (date.getMonth() + 1).toString().padStart(2, '0');
-    const year = date.getFullYear();
-    
-    return `${day}-${month}-${year}`;
-  } catch (error) {
-    console.error('Date parsing error:', error);
-    return dateString;
-  }
+    try {
+      // Handle different date formats
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) {
+        // Try parsing DD-MM-YYYY format
+        const [day, month, year] = dateString.split('-');
+        if (day && month && year) {
+          const result = `${day}-${month}-${year}`;
+          cache.set(dateString, result);
+          return result;
+        }
+        cache.set(dateString, dateString);
+        return dateString;
+      }
+      
+      // Format to DD-MM-YYYY
+      const day = date.getDate().toString().padStart(2, '0');
+      const month = (date.getMonth() + 1).toString().padStart(2, '0');
+      const year = date.getFullYear();
+      
+      const result = `${day}-${month}-${year}`;
+      cache.set(dateString, result);
+      return result;
+    } catch (error) {
+      console.error('Date parsing error:', error);
+      cache.set(dateString, dateString);
+      return dateString;
+    }
+  };
 };
 
-const formatTimeToIST = (timeString) => {
-  if (!timeString) return '';
-  const [hours, minutes] = timeString.split(':');
-  const date = new Date();
-  date.setHours(parseInt(hours), parseInt(minutes));
-  return date.toLocaleTimeString('en-IN', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: true
-  });
+const createTimeFormatter = () => {
+  const cache = new Map();
+  
+  return (timeString) => {
+    if (!timeString) return '';
+    
+    // Check cache first
+    if (cache.has(timeString)) {
+      return cache.get(timeString);
+    }
+    
+    const [hours, minutes] = timeString.split(':');
+    const date = new Date();
+    date.setHours(parseInt(hours), parseInt(minutes));
+    const result = date.toLocaleTimeString('en-IN', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    });
+    
+    cache.set(timeString, result);
+    return result;
+  };
 };
+
+// Create formatter instances
+const formatDateToIST = createDateFormatter();
+const formatTimeToIST = createTimeFormatter();
 
 // Memoize formatters outside component to prevent recreation
 const formatters = {
@@ -119,14 +153,21 @@ const TokenTable = ({ tokens = [], onEdit, onDelete, onPaymentStatusChange }) =>
     [columns]
   );
 
+  // Memoize handlers to prevent unnecessary re-renders
+  const memoizedHandlers = useMemo(() => ({
+    onEdit,
+    onDelete,
+    onPaymentStatusChange
+  }), [onEdit, onDelete, onPaymentStatusChange]);
+
   const cellRenderer = useCallback(({ rowData, dataKey }) => {
     if (dataKey === 'actions') {
       return (
         <ActionsCell
           rowData={rowData}
-          onEdit={onEdit}
-          onDelete={onDelete}
-          onPaymentStatusChange={onPaymentStatusChange}
+          onEdit={memoizedHandlers.onEdit}
+          onDelete={memoizedHandlers.onDelete}
+          onPaymentStatusChange={memoizedHandlers.onPaymentStatusChange}
         />
       );
     }
@@ -137,7 +178,7 @@ const TokenTable = ({ tokens = [], onEdit, onDelete, onPaymentStatusChange }) =>
         formatter={formatters[dataKey]}
       />
     );
-  }, [onEdit, onDelete, onPaymentStatusChange]);
+  }, [memoizedHandlers]);
 
   const headerRenderer = useCallback(({ label }) => (
     <div className="text-center text-xs font-medium text-white uppercase tracking-wider py-2">
@@ -187,22 +228,39 @@ const TokenTable = ({ tokens = [], onEdit, onDelete, onPaymentStatusChange }) =>
   );
 };
 
-// Memoize the entire component but ensure it refreshes when token data changes
-export default memo(TokenTable, (prevProps, nextProps) => {
-  // Always re-render if token count changes
-  if (prevProps.tokens.length !== nextProps.tokens.length) return false;
+// Create a more efficient comparison function
+const areTokensEqual = (prevTokens, nextTokens) => {
+  // Quick length check
+  if (prevTokens.length !== nextTokens.length) return false;
   
-  // Check if any token data has changed (more thorough comparison)
-  return prevProps.tokens.every((token, index) => {
-    const nextToken = nextProps.tokens[index];
-    if (!nextToken) return false;
+  // Check only the most recent tokens (last 50) for changes as an optimization
+  const checkCount = Math.min(50, prevTokens.length);
+  for (let i = 0; i < checkCount; i++) {
+    const prevToken = prevTokens[i];
+    const nextToken = nextTokens[i];
     
-    // Compare essential properties that would affect display
-    return token.id === nextToken.id && 
-           token.isPaid === nextToken.isPaid &&
-           token.name === nextToken.name &&
-           token.amount === nextToken.amount &&
-           token.weight === nextToken.weight &&
-           token.sample === nextToken.sample;
-  });
+    if (prevToken.id !== nextToken.id || 
+        prevToken.isPaid !== nextToken.isPaid ||
+        prevToken.name !== nextToken.name ||
+        prevToken.amount !== nextToken.amount ||
+        prevToken.weight !== nextToken.weight ||
+        prevToken.sample !== nextToken.sample) {
+      return false;
+    }
+  }
+  
+  return true;
+};
+
+// Memoize the entire component with improved comparison
+export default memo(TokenTable, (prevProps, nextProps) => {
+  // Compare tokens efficiently
+  if (!areTokensEqual(prevProps.tokens, nextProps.tokens)) return false;
+  
+  // Compare other props
+  return (
+    prevProps.onEdit === nextProps.onEdit &&
+    prevProps.onDelete === nextProps.onDelete &&
+    prevProps.onPaymentStatusChange === nextProps.onPaymentStatusChange
+  );
 });

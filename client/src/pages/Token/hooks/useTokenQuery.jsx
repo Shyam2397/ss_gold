@@ -78,13 +78,25 @@ const useTokenQuery = () => {
         throw new Error(error.response?.data?.message || 'Failed to save token');
       }
     },
-    onSuccess: () => {
+    onSuccess: (newToken, variables) => {
       batch(() => {
         setSuccess('Token saved successfully!');
         setError('');
       });
       toast.success('Token saved successfully!');
-      queryClient.invalidateQueries({ queryKey: ['tokens'] });
+      
+      // Use setQueryData instead of invalidateQueries for better performance
+      queryClient.setQueryData(['tokens'], (oldTokens = []) => {
+        if (variables.editId) {
+          // Update existing token
+          return oldTokens.map(token => 
+            token.id === variables.editId ? { ...token, ...newToken } : token
+          );
+        } else {
+          // Add new token to the beginning of the list
+          return [newToken, ...oldTokens];
+        }
+      });
     },
     onError: (error) => {
       toast.error(error.message);
@@ -101,10 +113,14 @@ const useTokenQuery = () => {
         throw new Error(error.response?.data?.message || 'Failed to delete token');
       }
     },
-    onSuccess: () => {
+    onSuccess: (data, tokenId) => {
       toast.success('Token deleted successfully!');
       setSuccess('Token deleted successfully!');
-      queryClient.invalidateQueries({ queryKey: ['tokens'] });
+      
+      // Use setQueryData instead of invalidateQueries for better performance
+      queryClient.setQueryData(['tokens'], (oldTokens = []) => 
+        oldTokens.filter(token => token.id !== tokenId)
+      );
     },
     onError: (error) => {
       toast.error(error.message);
@@ -121,10 +137,18 @@ const useTokenQuery = () => {
         throw new Error(error.response?.data?.message || 'Failed to update payment status');
       }
     },
-    onSuccess: () => {
+    onSuccess: (updatedToken, variables) => {
       toast.success('Payment status updated successfully!');
       setSuccess('Payment status updated successfully!');
-      queryClient.invalidateQueries({ queryKey: ['tokens'] });
+      
+      // Use setQueryData instead of invalidateQueries for better performance
+      queryClient.setQueryData(['tokens'], (oldTokens = []) => 
+        oldTokens.map(token => 
+          token.id === variables.tokenId 
+            ? { ...token, isPaid: variables.isPaid } 
+            : token
+        )
+      );
     },
     onError: (error) => {
       toast.error(error.message);
