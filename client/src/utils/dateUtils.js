@@ -35,7 +35,7 @@ export const parseDate = (dateStr) => {
   }
 };
 
-export const formatDate = (date, formatStr = 'dd/MM/yyyy') => {
+export const formatDate = (date, formatStr = 'dd-MM-yyyy') => {
   try {
     return format(date, formatStr);
   } catch (e) {
