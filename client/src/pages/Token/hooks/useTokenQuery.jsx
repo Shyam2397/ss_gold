@@ -24,6 +24,19 @@ const useTokenQuery = () => {
     };
   }, [success]);
 
+  // Clear error message after timeout
+  useEffect(() => {
+    let errorTimer;
+    if (error) {
+      errorTimer = setTimeout(() => {
+        setError('');
+      }, MESSAGE_TIMEOUT);
+    }
+    return () => {
+      if (errorTimer) clearTimeout(errorTimer);
+    };
+  }, [error]);
+
   // Query for fetching tokens
   const {
     data: tokens = [],

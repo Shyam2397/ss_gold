@@ -17,14 +17,18 @@ import {
 import { BsReceipt } from "react-icons/bs";
 import logoPath from '../../assets/logo.png';
 
-// Components
+// Components - using dynamic imports for better code splitting
 import {
   FormField,
   FormSelect,
   TokenTable,
-  DeleteConfirmationModal,
   LoadingSpinner
 } from './components/LazyComponents';
+
+// Dynamically import DeleteConfirmationModal only when needed
+const DeleteConfirmationModal = React.lazy(() => 
+  import(/* webpackChunkName: "token-delete-modal" */ './components/DeleteConfirmationModal')
+);
 
 // Hooks
 import useToken from './hooks/useTokenQuery';
@@ -43,6 +47,7 @@ const TokenPage = () => {
   const [state, dispatch] = useReducer(tokenReducer, initialState);
   const searchCacheRef = useRef(new Map());
   const renderCount = useRenderCounter();
+  const MESSAGE_TIMEOUT = 5000; // 5 seconds
   
   // Custom hook for token operations
   const {
@@ -57,6 +62,32 @@ const TokenPage = () => {
     fetchNameByCode,
     updatePaymentStatus
   } = useToken();
+
+  // Clear error message after timeout (for errors from useToken hook)
+  useEffect(() => {
+    let errorTimer;
+    if (error) {
+      errorTimer = setTimeout(() => {
+        dispatch({ type: 'SET_FIELD', field: 'error', value: '' });
+      }, MESSAGE_TIMEOUT);
+    }
+    return () => {
+      if (errorTimer) clearTimeout(errorTimer);
+    };
+  }, [error]);
+
+  // Clear local error messages after timeout
+  useEffect(() => {
+    let localErrorTimer;
+    if (state.error && !error) { // Only for local errors, not from useToken hook
+      localErrorTimer = setTimeout(() => {
+        dispatch({ type: 'SET_FIELD', field: 'error', value: '' });
+      }, MESSAGE_TIMEOUT);
+    }
+    return () => {
+      if (localErrorTimer) clearTimeout(localErrorTimer);
+    };
+  }, [state.error, error]);
 
   // Optimize initial data fetching
   useEffect(() => {
@@ -343,11 +374,11 @@ const TokenPage = () => {
                   {state.editMode ? "Edit Token" : "New Token"}
                 </h2>
               </div>
-              {error && (
+              {state.error && (
                 <div className="p-1.5 bg-red-50 border-l-3 border-red-500 rounded">
                   <div className="flex">
                     <div className="ml-2">
-                      <p className="text-xs text-red-700">{error}</p>
+                      <p className="text-xs text-red-700">{state.error}</p>
                     </div>
                   </div>
                 </div>
@@ -510,10 +541,12 @@ const TokenPage = () => {
           </div>
 
           {state.deleteConfirmation.isOpen && (
-            <DeleteConfirmationModal
-              onCancel={() => dispatch({ type: 'SET_FIELD', field: 'deleteConfirmation', value: { isOpen: false, tokenId: null } })}
-              onConfirm={handlers.handleConfirmDelete}
-            />
+            <Suspense fallback={<LoadingSpinner />}>
+              <DeleteConfirmationModal
+                onCancel={() => dispatch({ type: 'SET_FIELD', field: 'deleteConfirmation', value: { isOpen: false, tokenId: null } })}
+                onConfirm={handlers.handleConfirmDelete}
+              />
+            </Suspense>
           )}
         </div>
       </Suspense>
