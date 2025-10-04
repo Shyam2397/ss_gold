@@ -25,6 +25,32 @@ export const initialState = {
 
 import { formatDate } from '../../../utils/dateUtils';
 
+// Helper function to check if two objects are deeply equal
+const deepEqual = (obj1, obj2) => {
+  if (obj1 === obj2) return true;
+  
+  if (obj1 == null || obj2 == null) return false;
+  
+  if (typeof obj1 !== 'object' || typeof obj2 !== 'object') return false;
+  
+  const keys1 = Object.keys(obj1);
+  const keys2 = Object.keys(obj2);
+  
+  if (keys1.length !== keys2.length) return false;
+  
+  for (let key of keys1) {
+    if (!keys2.includes(key)) return false;
+    
+    if (typeof obj1[key] === 'object' && typeof obj2[key] === 'object') {
+      if (!deepEqual(obj1[key], obj2[key])) return false;
+    } else if (obj1[key] !== obj2[key]) {
+      return false;
+    }
+  }
+  
+  return true;
+};
+
 export const tokenReducer = (state, action) => {
   switch (action.type) {
     case 'SET_FIELD':
@@ -66,12 +92,8 @@ export const tokenReducer = (state, action) => {
         success: ""
       };
       
-      // Check if state actually changed
-      const hasChanged = Object.keys(newFormState).some(key => 
-        state[key] !== newFormState[key]
-      );
-      
-      if (!hasChanged && !action.tokenNo) {
+      // Check if state actually changed using deep equality
+      if (deepEqual(state, { ...state, ...newFormState })) {
         return state;
       }
       

@@ -56,8 +56,12 @@ const useTokenQuery = () => {
         throw new Error(error.response?.data?.message || 'Failed to fetch tokens');
       }
     },
-    staleTime: 5 * 60 * 1000, // 5 minutes (matches the existing cache config)
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    cacheTime: 10 * 60 * 1000, // 10 minutes
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
     onError: (err) => {
+      toast.error(err.message);
       setError(err.message);
     }
   });
@@ -124,18 +128,19 @@ const useTokenQuery = () => {
   const deleteTokenMutation = useMutation({
     mutationFn: async (tokenId) => {
       try {
-        return await tokenService.deleteToken(tokenId);
+        const response = await tokenService.deleteToken(tokenId);
+        return { ...response, tokenId };
       } catch (error) {
         throw new Error(error.response?.data?.message || 'Failed to delete token');
       }
     },
-    onSuccess: (data, tokenId) => {
+    onSuccess: (data) => {
       toast.success('Token deleted successfully!');
       setSuccess('Token deleted successfully!');
       
       // Use setQueryData instead of invalidateQueries for better performance
       queryClient.setQueryData(['tokens'], (oldTokens = []) => 
-        oldTokens.filter(token => token.id !== tokenId)
+        oldTokens.filter(token => token.id !== data.tokenId)
       );
     },
     onError: (error) => {
@@ -148,20 +153,21 @@ const useTokenQuery = () => {
   const updatePaymentStatusMutation = useMutation({
     mutationFn: async ({ tokenId, isPaid }) => {
       try {
-        return await tokenService.updatePaymentStatus(tokenId, isPaid);
+        const response = await tokenService.updatePaymentStatus(tokenId, isPaid);
+        return { ...response, tokenId, isPaid };
       } catch (error) {
         throw new Error(error.response?.data?.message || 'Failed to update payment status');
       }
     },
-    onSuccess: (updatedToken, variables) => {
+    onSuccess: (data) => {
       toast.success('Payment status updated successfully!');
       setSuccess('Payment status updated successfully!');
       
       // Use setQueryData instead of invalidateQueries for better performance
       queryClient.setQueryData(['tokens'], (oldTokens = []) => 
         oldTokens.map(token => 
-          token.id === variables.tokenId 
-            ? { ...token, isPaid: variables.isPaid } 
+          token.id === data.tokenId 
+            ? { ...token, isPaid: data.isPaid } 
             : token
         )
       );
@@ -175,15 +181,30 @@ const useTokenQuery = () => {
   // Query for fetching name by code
   const fetchNameByCode = useCallback(async (code) => {
     try {
+      // Add caching for name lookups
+      const cacheKey = ['name', code];
+      const cachedData = queryClient.getQueryData(cacheKey);
+      
+      if (cachedData) {
+        return cachedData;
+      }
+      
       const data = await entryService.getEntryByCode(code);
-      return data?.data?.name || 'Not Found';
+      const name = data?.data?.name || 'Not Found';
+      
+      // Cache the result for 5 minutes
+      queryClient.setQueryData(cacheKey, name, {
+        staleTime: 5 * 60 * 1000
+      });
+      
+      return name;
     } catch (error) {
       console.error('Error fetching name by code:', error);
       toast.error('Failed to fetch name');
       setError('Failed to fetch name');
       return 'Not Found';
     }
-  }, []);
+  }, [queryClient]);
 
   // Wrapper functions to expose a similar API to the original useToken hook
   const generateTokenNumber = useCallback(async () => {

@@ -91,6 +91,8 @@ const TokenPage = () => {
 
   // Optimize initial data fetching
   useEffect(() => {
+    let isMounted = true;
+    
     const initializeData = async () => {
       try {
         dispatch({ type: 'SET_FIELD', field: 'loading', value: true });
@@ -99,18 +101,28 @@ const TokenPage = () => {
           generateTokenNumber()
         ]);
         
-        if (newTokenNo) {
+        if (isMounted && newTokenNo) {
           dispatch({ type: 'SET_FIELD', field: 'tokenNo', value: newTokenNo });
         }
-        getCurrentDateTime();
+        if (isMounted) {
+          getCurrentDateTime();
+        }
       } catch (error) {
-        dispatch({ type: 'SET_FIELD', field: 'error', value: error.message });
+        if (isMounted) {
+          dispatch({ type: 'SET_FIELD', field: 'error', value: error.message });
+        }
       } finally {
-        dispatch({ type: 'SET_FIELD', field: 'loading', value: false });
+        if (isMounted) {
+          dispatch({ type: 'SET_FIELD', field: 'loading', value: false });
+        }
       }
     };
     
     initializeData();
+    
+    return () => {
+      isMounted = false;
+    };
   }, []); // Empty dependencies array is correct here
 
   // Initialize filteredTokens with tokens - optimize with useMemo
@@ -150,8 +162,12 @@ const TokenPage = () => {
     handleFieldChange('code', inputCode);
 
     if (inputCode.length === 4) {
-      const fetchedName = await fetchNameByCode(inputCode);
-      handleFieldChange('name', fetchedName);
+      try {
+        const fetchedName = await fetchNameByCode(inputCode);
+        handleFieldChange('name', fetchedName);
+      } catch (error) {
+        handleFieldChange('name', 'Not Found');
+      }
     } else {
       handleFieldChange('name', '');
     }
@@ -374,11 +390,11 @@ const TokenPage = () => {
                   {state.editMode ? "Edit Token" : "New Token"}
                 </h2>
               </div>
-              {state.error && (
+              {(state.error || error) && (
                 <div className="p-1.5 bg-red-50 border-l-3 border-red-500 rounded">
                   <div className="flex">
                     <div className="ml-2">
-                      <p className="text-xs text-red-700">{state.error}</p>
+                      <p className="text-xs text-red-700">{state.error || error}</p>
                     </div>
                   </div>
                 </div>

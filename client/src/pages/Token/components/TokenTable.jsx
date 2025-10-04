@@ -98,12 +98,14 @@ const ActionsCell = memo(({ rowData, onEdit, onDelete, onPaymentStatusChange }) 
     <button
       onClick={() => onEdit(rowData)}
       className="text-amber-600 hover:text-amber-900 p-1 rounded hover:bg-amber-50"
+      aria-label={`Edit token ${rowData.tokenNo}`}
     >
       <FiEdit2 className="w-3.5 h-3.5" />
     </button>
     <button
       onClick={() => onDelete(rowData.id)}
       className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50"
+      aria-label={`Delete token ${rowData.tokenNo}`}
     >
       <FiTrash2 className="w-3.5 h-3.5" />
     </button>
@@ -126,14 +128,9 @@ const DataCell = memo(({ value, formatter }) => {
 });
 
 const TokenTable = ({ tokens = [], onEdit, onDelete, onPaymentStatusChange }) => {
-  if (!tokens || tokens.length === 0) {
-    return (
-      <div className="text-center py-8 text-gray-500">
-        No tokens found
-      </div>
-    );
-  }
-
+  // Handle empty state
+  const isEmpty = !tokens || tokens.length === 0;
+  
   const columns = useMemo(() => [
     { label: "Actions", key: "actions", width: 130, flexGrow: 0 },
     { label: "Token No", key: "tokenNo", width: 100, flexGrow: 0 },
@@ -192,6 +189,15 @@ const TokenTable = ({ tokens = [], onEdit, onDelete, onPaymentStatusChange }) =>
     []
   );
 
+  // Handle empty state
+  if (isEmpty) {
+    return (
+      <div className="text-center py-8 text-gray-500">
+        No tokens found
+      </div>
+    );
+  }
+
   return (
     <div className="rounded-xl border border-amber-100 border-solid" style={{ height: '450px', overflow: 'hidden' }}>
       <AutoSizer>
@@ -206,6 +212,8 @@ const TokenTable = ({ tokens = [], onEdit, onDelete, onPaymentStatusChange }) =>
               rowGetter={({ index }) => tokens[index]}
               rowClassName={getRowClassName}
               overscanRowCount={5}
+              // Add accessibility attributes
+              aria-label="Tokens table"
             >
               {columns.map(({ label, key, width, flexGrow }) => (
                 <Column
@@ -218,6 +226,8 @@ const TokenTable = ({ tokens = [], onEdit, onDelete, onPaymentStatusChange }) =>
                   headerRenderer={headerRenderer}
                   className="divide-x divide-amber-100 rounded-xl"
                   style={{ overflow: 'hidden' }}
+                  // Add accessibility attributes
+                  aria-label={`${label} column`}
                 />
               ))}
             </Table>
@@ -233,7 +243,7 @@ const areTokensEqual = (prevTokens, nextTokens) => {
   // Quick length check
   if (prevTokens.length !== nextTokens.length) return false;
   
-  // Check only the most recent tokens (last 50) for changes as an optimization
+  // For large datasets, only check the most recent tokens (last 50) for changes as an optimization
   const checkCount = Math.min(50, prevTokens.length);
   for (let i = 0; i < checkCount; i++) {
     const prevToken = prevTokens[i];
