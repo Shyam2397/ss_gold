@@ -34,16 +34,9 @@ import { preloadImages, convertImageToBase64, generatePrintContent } from './uti
 
 import { tokenReducer, initialState } from './reducers/tokenReducer';
 
-// Add performance monitoring
+// Remove the render counter to avoid unnecessary logging
 const useRenderCounter = () => {
-  const renderCount = useRef(0);
-  renderCount.current++;
-  
-  useEffect(() => {
-    console.log(`TokenPage rendered ${renderCount.current} times`);
-  });
-  
-  return renderCount.current;
+  return 0;
 };
 
 const TokenPage = () => {
@@ -87,13 +80,15 @@ const TokenPage = () => {
     };
     
     initializeData();
-  }, []); // Remove dependencies since we're handling everything in the effect
+  }, []); // Empty dependencies array is correct here
 
-  // Initialize filteredTokens with tokens
-  useEffect(() => {
-    dispatch({ type: 'SET_FIELD', field: 'filteredTokens', value: tokens });
-  }, [tokens]);
-
+  // Initialize filteredTokens with tokens - optimize with useMemo
+  const filteredTokens = useMemo(() => {
+    if (!state.searchQuery) {
+      return tokens;
+    }
+    return state.filteredTokens;
+  }, [tokens, state.searchQuery, state.filteredTokens]);
 
   const getCurrentDateTime = () => {
     const currentDate = new Date();
@@ -113,12 +108,12 @@ const TokenPage = () => {
     dispatch({ type: 'SET_FIELD', field: 'time', value: formattedTime });
   };
 
-  // Handle form field changes
-  const handleFieldChange = (field, value) => {
+  // Handle form field changes - memoize this handler
+  const handleFieldChange = useCallback((field, value) => {
     dispatch({ type: 'SET_FIELD', field, value });
-  };
+  }, []);
 
-  // Handle code change with name fetch
+  // Handle code change with name fetch - optimize dependencies
   const handleCodeChange = useCallback(async (e) => {
     const inputCode = e.target.value;
     handleFieldChange('code', inputCode);
@@ -129,9 +124,9 @@ const TokenPage = () => {
     } else {
       handleFieldChange('name', '');
     }
-  }, [fetchNameByCode]);
+  }, [handleFieldChange, fetchNameByCode]);
 
-  const validateForm = () => {
+  const validateForm = useCallback(() => {
     if (state.code.length !== 4 || isNaN(state.code)) {
       dispatch({ type: 'SET_FIELD', field: 'error', value: "Code must be a 4-digit number." });
       return false;
@@ -149,9 +144,9 @@ const TokenPage = () => {
       return false;
     }
     return true;
-  };
+  }, [state.code, state.name, state.weight, state.sample]);
 
-  // Optimize form submission with immediate table refresh
+  // Optimize form submission with proper dependencies
   const handleSubmit = useCallback(async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
@@ -189,7 +184,10 @@ const TokenPage = () => {
     } catch (error) {
       dispatch({ type: 'SET_FIELD', field: 'error', value: error.message });
     }
-  }, [state, validateForm, saveToken, generateTokenNumber, fetchTokens]);
+  }, [state.tokenNo, state.date, state.time, state.code, state.name, 
+      state.test, state.weight, state.sample, state.amount, 
+      state.editMode, state.editId, validateForm, saveToken, 
+      generateTokenNumber, fetchTokens]);
 
   // Add table refresh interval (optional)
   useEffect(() => {
@@ -200,26 +198,7 @@ const TokenPage = () => {
     return () => clearInterval(interval);
   }, [fetchTokens]);
 
-  const handleEdit = useCallback((token) => {
-    dispatch({ type: 'SET_EDIT_MODE', token });
-  }, []);
-
-  const handleConfirmDelete = async () => {
-    if (!state.deleteConfirmation.tokenId) return;
-
-    const success = await deleteToken(state.deleteConfirmation.tokenId);
-    
-    if (success) {
-      // Immediately refresh the table data
-      await fetchTokens();
-      
-      dispatch({ type: 'SET_FIELD', field: 'deleteConfirmation', value: { isOpen: false, tokenId: null } });
-      resetForm();
-      generateTokenNumber().then((newTokenNo) => dispatch({ type: 'SET_FIELD', field: 'tokenNo', value: newTokenNo }));
-    }
-  };
-
-  // Reset form and generate new token number
+  // Reset form and generate new token number - optimize dependencies
   const resetForm = useCallback(async () => {
     try {
       const newTokenNo = await generateTokenNumber();
@@ -234,7 +213,7 @@ const TokenPage = () => {
     }
   }, [generateTokenNumber]);
 
-  const handlePrint = async () => {
+  const handlePrint = useCallback(async () => {
     try {
       const imagesToPreload = [logoPath];
       await preloadImages(imagesToPreload);
@@ -265,29 +244,9 @@ const TokenPage = () => {
       console.error('Print error:', error);
       dispatch({ type: 'SET_FIELD', field: 'error', value: 'Failed to print token' });
     }
-  };
+  }, [state.tokenNo, state.date, state.time, state.name, state.test, state.weight, state.sample, state.amount]);
 
-  const handlePaymentStatusChange = async (tokenId, isPaid) => {
-    const success = await updatePaymentStatus(tokenId, isPaid);
-    if (success) {
-      // Immediately refresh the table data after payment status change
-      await fetchTokens();
-    }
-  };
-
-  // Add memoization for expensive operations
-  const memoizedTokenData = useMemo(() => ({
-    tokenNo: state.tokenNo,
-    date: state.date,
-    time: state.time,
-    name: state.name,
-    test: state.test,
-    weight: state.weight,
-    sample: state.sample,
-    amount: state.amount
-  }), [state.tokenNo, state.date, state.time, state.name, state.test, state.weight, state.sample, state.amount]);
-
-  // Debounced search handler with memoization
+  // Debounced search handler with memoization - optimize dependencies
   const handleSearch = useCallback(debounce((query) => {
     if (!query.trim()) {
       dispatch({ type: 'SET_FIELD', field: 'filteredTokens', value: tokens });
@@ -326,23 +285,31 @@ const TokenPage = () => {
     dispatch({ type: 'SET_FIELD', field: 'filteredTokens', value: filtered });
   }, 300), [tokens]);
 
-  // Clear cache when tokens change
+  // Clear cache when tokens change - optimize this effect
   useEffect(() => {
     searchCacheRef.current.clear();
-  }, [tokens]);
+  }, [tokens]); // This is correct - we want to clear cache when tokens change
 
-  // Cleanup debounce on unmount
+  // Cleanup debounce on unmount - fix dependency
   useEffect(() => {
     return () => {
       handleSearch.cancel();
     };
   }, [handleSearch]);
 
-  // Memoize all handlers
+  // Memoize all handlers to prevent unnecessary re-renders
   const handlers = useMemo(() => ({
-    handleEdit,
+    handleEdit: (token) => {
+      dispatch({ type: 'SET_EDIT_MODE', token });
+    },
     handlePrint,
-    handlePaymentStatusChange,
+    handlePaymentStatusChange: async (tokenId, isPaid) => {
+      const success = await updatePaymentStatus(tokenId, isPaid);
+      if (success) {
+        // Immediately refresh the table data after payment status change
+        await fetchTokens();
+      }
+    },
     handleCodeChange,
     handleFieldChange: (field, value) => {
       dispatch({ type: 'SET_FIELD', field, value });
@@ -353,13 +320,13 @@ const TokenPage = () => {
       if (success) {
         // Immediately refresh the table data
         await fetchTokens();
-        dispatch({ type: 'SET_DELETE_CONFIRMATION', value: { isOpen: false, tokenId: null } });
+        dispatch({ type: 'SET_FIELD', field: 'deleteConfirmation', value: { isOpen: false, tokenId: null } });
         dispatch({ type: 'RESET_FORM' });
         const newTokenNo = await generateTokenNumber();
         dispatch({ type: 'SET_FIELD', field: 'tokenNo', value: newTokenNo });
       }
     }
-  }), [state.deleteConfirmation.tokenId, deleteToken, generateTokenNumber]);
+  }), [handlePrint, updatePaymentStatus, fetchTokens, handleCodeChange, deleteToken, generateTokenNumber, state.deleteConfirmation.tokenId]);
 
   // Add error boundary wrapper
   return (
@@ -428,7 +395,7 @@ const TokenPage = () => {
                   label="Code"
                   icon={FiHash}
                   value={state.code}
-                  onChange={handleCodeChange}
+                  onChange={handlers.handleCodeChange}
                   required
                   size="lg"
                 />
@@ -534,10 +501,10 @@ const TokenPage = () => {
               <LoadingSpinner />
             ) : (
               <TokenTable
-                tokens={state.filteredTokens}
-                onEdit={handleEdit}
+                tokens={filteredTokens}
+                onEdit={handlers.handleEdit}
                 onDelete={(id) => dispatch({ type: 'SET_FIELD', field: 'deleteConfirmation', value: { isOpen: true, tokenId: id } })}
-                onPaymentStatusChange={handlePaymentStatusChange}
+                onPaymentStatusChange={handlers.handlePaymentStatusChange}
               />
             )}
           </div>
@@ -545,7 +512,7 @@ const TokenPage = () => {
           {state.deleteConfirmation.isOpen && (
             <DeleteConfirmationModal
               onCancel={() => dispatch({ type: 'SET_FIELD', field: 'deleteConfirmation', value: { isOpen: false, tokenId: null } })}
-              onConfirm={handleConfirmDelete}
+              onConfirm={handlers.handleConfirmDelete}
             />
           )}
         </div>

@@ -28,6 +28,10 @@ import { formatDate } from '../../../utils/dateUtils';
 export const tokenReducer = (state, action) => {
   switch (action.type) {
     case 'SET_FIELD':
+      // Only update if the value actually changed
+      if (state[action.field] === action.value) {
+        return state;
+      }
       return {
         ...state,
         [action.field]: action.value
@@ -41,8 +45,7 @@ export const tokenReducer = (state, action) => {
       const hours = now.getHours().toString().padStart(2, '0');
       const minutes = now.getMinutes().toString().padStart(2, '0');
       
-      return {
-        ...state,
+      const newFormState = {
         // Reset all form fields to initial state
         code: "",
         name: "",
@@ -62,8 +65,26 @@ export const tokenReducer = (state, action) => {
         error: "",
         success: ""
       };
+      
+      // Check if state actually changed
+      const hasChanged = Object.keys(newFormState).some(key => 
+        state[key] !== newFormState[key]
+      );
+      
+      if (!hasChanged && !action.tokenNo) {
+        return state;
+      }
+      
+      return {
+        ...state,
+        ...newFormState
+      };
     }
     case 'SET_EDIT_MODE':
+      // Only update if we're not already in edit mode or editing a different token
+      if (state.editMode && state.editId === action.token.id) {
+        return state;
+      }
       
       return {
         ...state,
@@ -83,21 +104,36 @@ export const tokenReducer = (state, action) => {
         amount: action.token.amount ? String(action.token.amount) : "50"
       };
     case 'SET_DELETE_CONFIRMATION':
+      // Only update if values actually changed
+      if (state.deleteConfirmation.isOpen === action.value.isOpen && 
+          state.deleteConfirmation.tokenId === action.value.tokenId) {
+        return state;
+      }
       return {
         ...state,
         deleteConfirmation: action.value
       };
     case 'SET_ERROR':
+      if (state.error === action.error) {
+        return state;
+      }
       return {
         ...state,
         error: action.error
       };
     case 'SET_SUCCESS':
+      if (state.success === action.message) {
+        return state;
+      }
       return {
         ...state,
         success: action.message
       };
     case 'SET_FILTERED_TOKENS':
+      // Only update if tokens actually changed
+      if (state.filteredTokens === action.tokens) {
+        return state;
+      }
       return {
         ...state,
         filteredTokens: action.tokens
@@ -111,13 +147,19 @@ export const tokenReducer = (state, action) => {
       const hours = now.getHours().toString().padStart(2, '0');
       const minutes = now.getMinutes().toString().padStart(2, '0');
       
-      return {
+      const resetState = {
         ...initialState,
         tokenNo: action.tokenNo,
         date: `${day}-${month}-${year}`,
-        time: `${hours}:${minutes}`,
-        filteredTokens: state.filteredTokens
+        time: `${hours}:${minutes}`
       };
+      
+      // Preserve filteredTokens to avoid unnecessary re-renders
+      if (state.filteredTokens) {
+        resetState.filteredTokens = state.filteredTokens;
+      }
+      
+      return resetState;
     }
     default:
       return state;

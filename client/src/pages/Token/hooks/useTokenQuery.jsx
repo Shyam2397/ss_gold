@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { unstable_batchedUpdates as batch } from 'react-dom';
 import tokenService from '../../../services/tokenService';
 import entryService from '../../../services/entryService';
@@ -48,6 +48,9 @@ const useTokenQuery = () => {
       setError(err.message);
     }
   });
+
+  // Memoize tokens to prevent unnecessary re-renders
+  const memoizedTokens = useMemo(() => tokens, [JSON.stringify(tokens)]);
 
   // Mutation for generating token number
   const generateTokenNumberMutation = useMutation({
@@ -205,9 +208,9 @@ const useTokenQuery = () => {
     }
   }, [updatePaymentStatusMutation]);
 
-  // Expose the same API as the original useToken hook
-  return {
-    tokens,
+  // Memoize the return object to prevent unnecessary re-renders
+  return useMemo(() => ({
+    tokens: memoizedTokens,
     loading,
     error,
     success,
@@ -217,7 +220,7 @@ const useTokenQuery = () => {
     deleteToken,
     fetchNameByCode,
     updatePaymentStatus
-  };
+  }), [memoizedTokens, loading, error, success, refetchTokens, generateTokenNumber, saveToken, deleteToken, fetchNameByCode, updatePaymentStatus]);
 };
 
 export default useTokenQuery;

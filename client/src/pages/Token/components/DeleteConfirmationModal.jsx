@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { FiAlertCircle } from 'react-icons/fi';
 
 const DeleteConfirmationModal = ({ onCancel, onConfirm }) => (
@@ -34,4 +34,5 @@ const DeleteConfirmationModal = ({ onCancel, onConfirm }) => (
   </div>
 );
 
-export default DeleteConfirmationModal;
+// Memoize the component to prevent unnecessary re-renders
+export default memo(DeleteConfirmationModal);

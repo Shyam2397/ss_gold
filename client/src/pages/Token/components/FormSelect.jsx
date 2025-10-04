@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { FiAlertCircle, FiChevronDown, FiClipboard } from 'react-icons/fi';
 
 const FormSelect = ({
@@ -73,4 +73,9 @@ const FormSelect = ({
   </div>
 );
 
-export default FormSelect;
+// Memoize the component to prevent unnecessary re-renders
+export default memo(FormSelect, (prevProps, nextProps) => {
+  return prevProps.value === nextProps.value && 
+         prevProps.options === nextProps.options &&
+         prevProps.error === nextProps.error;
+});
