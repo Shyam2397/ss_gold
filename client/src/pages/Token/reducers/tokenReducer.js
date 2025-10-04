@@ -23,7 +23,7 @@ export const initialState = {
   success: ""
 };
 
-import { parseDate, formatDate } from '../../../utils/dateUtils';
+import { formatDate } from '../../../utils/dateUtils';
 
 export const tokenReducer = (state, action) => {
   switch (action.type) {
@@ -64,9 +64,6 @@ export const tokenReducer = (state, action) => {
       };
     }
     case 'SET_EDIT_MODE':
-      // Parse and format the date consistently
-      const parsedDate = parseDate(action.token.date);
-      const formattedDate = parsedDate ? formatDate(parsedDate, 'dd-MM-yyyy') : '';
       
       return {
         ...state,
