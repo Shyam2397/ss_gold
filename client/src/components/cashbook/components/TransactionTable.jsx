@@ -186,8 +186,6 @@ const TransactionTable = ({ filteredTransactions, cashInfo, rowGetter, totals })
     )
   }), [cashInfo, filteredTransactions, totals]);
 
-  console.log(filteredTransactions);
-  console.log(cashInfo);
 
   const cellRenderer = ({ columnIndex, rowIndex, key, style }) => {
     const transaction = rowGetter({ index: rowIndex });
