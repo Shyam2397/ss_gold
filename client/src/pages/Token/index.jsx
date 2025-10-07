@@ -351,10 +351,16 @@ const TokenPage = () => {
     },
     handlePrint,
     handlePaymentStatusChange: async (tokenId, isPaid) => {
-      const success = await updatePaymentStatus(tokenId, isPaid);
-      if (success) {
-        // Immediately refresh the table data after payment status change
-        await fetchTokens();
+      // Use optimistic update without refetching
+      await updatePaymentStatus(tokenId, isPaid);
+      
+      // Update filtered tokens to reflect the change immediately
+      if (state.searchQuery) {
+        // If we're in search mode, update the filtered tokens
+        const updatedFilteredTokens = state.filteredTokens.map(token => 
+          token.id === tokenId ? { ...token, isPaid } : token
+        );
+        dispatch({ type: 'SET_FIELD', field: 'filteredTokens', value: updatedFilteredTokens });
       }
     },
     handleCodeChange,
@@ -373,7 +379,7 @@ const TokenPage = () => {
         dispatch({ type: 'SET_FIELD', field: 'tokenNo', value: newTokenNo });
       }
     }
-  }), [handlePrint, updatePaymentStatus, fetchTokens, handleCodeChange, deleteToken, generateTokenNumber, state.deleteConfirmation.tokenId]);
+  }), [handlePrint, updatePaymentStatus, fetchTokens, handleCodeChange, deleteToken, generateTokenNumber, state.deleteConfirmation.tokenId, state.searchQuery, state.filteredTokens]);
 
   // Add error boundary wrapper
   return (

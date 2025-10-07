@@ -243,18 +243,23 @@ const areTokensEqual = (prevTokens, nextTokens) => {
   // Quick length check
   if (prevTokens.length !== nextTokens.length) return false;
   
-  // For large datasets, only check the most recent tokens (last 50) for changes as an optimization
-  const checkCount = Math.min(50, prevTokens.length);
-  for (let i = 0; i < checkCount; i++) {
+  // Check all tokens for changes (not just the first 50)
+  for (let i = 0; i < prevTokens.length; i++) {
     const prevToken = prevTokens[i];
     const nextToken = nextTokens[i];
     
+    // Check all relevant fields including isPaid
     if (prevToken.id !== nextToken.id || 
         prevToken.isPaid !== nextToken.isPaid ||
+        prevToken.tokenNo !== nextToken.tokenNo ||
+        prevToken.code !== nextToken.code ||
         prevToken.name !== nextToken.name ||
-        prevToken.amount !== nextToken.amount ||
+        prevToken.test !== nextToken.test ||
         prevToken.weight !== nextToken.weight ||
-        prevToken.sample !== nextToken.sample) {
+        prevToken.sample !== nextToken.sample ||
+        prevToken.amount !== nextToken.amount ||
+        prevToken.date !== nextToken.date ||
+        prevToken.time !== nextToken.time) {
       return false;
     }
   }
