@@ -19,11 +19,13 @@ const ExpenseTypeField = ({ value, onChange, expenseTypes }) => (
         required
       >
         <option value="">Select expense type</option>
-        {expenseTypes.map((type) => (
-          <option key={type._id} value={type._id}>
-            {type.expense_name}
-          </option>
-        ))}
+        {expenseTypes
+          .filter(type => type && type._id) // Filter out invalid entries
+          .map((type) => (
+            <option key={type._id} value={type._id}>
+              {type.expense_name}
+            </option>
+          ))}
       </select>
       <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
         <svg className="h-4 w-4 text-amber-500" fill="currentColor" viewBox="0 0 20 20">
