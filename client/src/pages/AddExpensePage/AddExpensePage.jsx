@@ -243,7 +243,7 @@ const AddExpenseContent = () => {
               <ExpenseForm
                 onSubmit={handleExpenseSubmit}
                 onReset={handleReset}
-                expenseTypes={expenseTypes}
+                expenseTypes={state.expenseTypes} // Use expenseTypes from context state
                 isEditing={!!editingExpense}
                 onOpenMasterExpense={handleOpenMasterExpense}
                 isMasterExpenseOpen={isMasterExpenseOpen}
@@ -268,7 +268,7 @@ const AddExpenseContent = () => {
                 onEdit={handleEditExpense}
                 onDelete={handleDeleteExpense}
                 isLoading={isLoadingExpenses}
-                expenseTypes={expenseTypes}
+                expenseTypes={state.expenseTypes}
               />
             </Suspense>
           </div>

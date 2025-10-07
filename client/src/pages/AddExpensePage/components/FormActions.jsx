@@ -6,7 +6,11 @@ const FormActions = ({ loading, onReset, onOpenMasterExpense, isEditing = false,
     {!isMasterExpenseOpen && (
       <button
         type="button"
-        onClick={onOpenMasterExpense}
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          onOpenMasterExpense();
+        }}
         disabled={loading}
         className="inline-flex items-center px-3 py-1.5 h-8 text-sm font-medium rounded-xl border border-blue-300 text-blue-700 bg-white hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
       >

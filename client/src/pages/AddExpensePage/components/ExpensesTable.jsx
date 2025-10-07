@@ -23,10 +23,19 @@ const formatDate = (dateString) => {
 const ROW_HEIGHT = 40;
 const HEADER_HEIGHT = 40;
 
-const ExpensesTable = ({ expenses = [], onEdit, onDelete }) => {
+const ExpensesTable = ({ expenses = [], expenseTypes = [], onEdit, onDelete }) => {
   // Calculate equal width for each column
   const columnCount = 6; // Number of columns
   const columnWidth = 180; // Equal width for each column (reduced to fit more columns)
+
+  // Create a map of expense type IDs to names for quick lookup
+  const expenseTypeMap = useMemo(() => {
+    const map = {};
+    expenseTypes.forEach(type => {
+      map[type._id || type.id] = type.expense_name;
+    });
+    return map;
+  }, [expenseTypes]);
 
   const columns = useMemo(() => [
     {
@@ -44,12 +53,20 @@ const ExpensesTable = ({ expenses = [], onEdit, onDelete }) => {
         if (typeof row.expenseType === 'object' && row.expenseType !== null) {
           return row.expenseType.expense_name || 'N/A';
         } else if (row.expenseType) {
-          return row.expenseType; // In case it's already a string
+          // If expenseType is an ID, look up the name
+          if (typeof row.expenseType === 'string') {
+            return expenseTypeMap[row.expenseType] || row.expenseType;
+          }
+          return row.expenseType;
         } else if (row.expense_type) {
-          return row.expense_type; // Alternative field name
+          // If expense_type is an ID, look up the name
+          if (typeof row.expense_type === 'string') {
+            return expenseTypeMap[row.expense_type] || row.expense_type;
+          }
+          return row.expense_type;
         } else if (row.expenseTypeId) {
-          // If we have an ID but no populated object, we might need to fetch the name
-          return 'Loading...';
+          // If we have an ID but no populated object, look up the name
+          return expenseTypeMap[row.expenseTypeId] || 'Loading...';
         }
         return 'N/A';
       }
@@ -114,7 +131,7 @@ const ExpensesTable = ({ expenses = [], onEdit, onDelete }) => {
         </div>
       )
     }
-  ], [onEdit, onDelete]);
+  ], [onEdit, onDelete, expenseTypeMap]);
 
   // Calculate total width of all columns with some extra space for borders
   const totalWidth = useMemo(() => 
@@ -233,5 +250,5 @@ const ExpensesTable = ({ expenses = [], onEdit, onDelete }) => {
 
 export default memo(ExpensesTable, (prevProps, nextProps) => {
   // Only re-render if expenses array changes
-  return prevProps.expenses === nextProps.expenses;
+  return prevProps.expenses === nextProps.expenses && prevProps.expenseTypes === nextProps.expenseTypes;
 });

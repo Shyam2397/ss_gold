@@ -19,13 +19,14 @@ const FieldLoading = () => (
 const ExpenseForm = ({ 
   onSubmit, 
   onReset, 
-  onOpenMasterExpense, 
+  onOpenMasterExpense, // Accept onOpenMasterExpense as a prop
+  expenseTypes, // Accept expenseTypes as a prop
   loading: isLoading, 
   isEditing,
   isMasterExpenseOpen = false 
 }) => {
   const { state, dispatch } = useExpenseForm();
-  const { formData, expenseTypes, loading } = state;
+  const { formData, loading } = state;
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -81,7 +82,7 @@ const ExpenseForm = ({
         <LazyFormActions
           loading={isLoading}
           onReset={onReset}
-          onOpenMasterExpense={onOpenMasterExpense}
+          onOpenMasterExpense={onOpenMasterExpense} // Pass the actual handler
           isEditing={isEditing}
           isMasterExpenseOpen={isMasterExpenseOpen}
         />

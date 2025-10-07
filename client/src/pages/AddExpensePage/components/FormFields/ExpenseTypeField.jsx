@@ -20,9 +20,9 @@ const ExpenseTypeField = ({ value, onChange, expenseTypes }) => (
       >
         <option value="">Select expense type</option>
         {expenseTypes
-          .filter(type => type && type._id) // Filter out invalid entries
+          .filter(type => type && (type._id || type.id)) // Filter out invalid entries
           .map((type) => (
-            <option key={type._id} value={type._id}>
+            <option key={type._id || type.id} value={type._id || type.id}>
               {type.expense_name}
             </option>
           ))}
