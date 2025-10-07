@@ -265,19 +265,17 @@ const UnpaidCustomersPage = () => {
                 <ul className="divide-y divide-gray-200/50">
                   {filteredCustomers.map(({ code, customers, totalAmount, customerName, customerPhone }) => (
                     <React.Fragment key={code}>
-                      <li>
-                        <LazyComponent>
-                          <CustomerGroup
-                            code={code}
-                            customers={customers}
-                            totalAmount={totalAmount}
-                            customerName={customerName}
-                            customerPhone={customerPhone}
-                            isExpanded={isCustomerExpanded(code)}
-                            onToggle={() => toggleCustomerExpansion(code)}
-                          />
-                        </LazyComponent>
-                      </li>
+                      <LazyComponent>
+                        <CustomerGroup
+                          code={code}
+                          customers={customers}
+                          totalAmount={totalAmount}
+                          customerName={customerName}
+                          customerPhone={customerPhone}
+                          isExpanded={isCustomerExpanded(code)}
+                          onToggle={() => toggleCustomerExpansion(code)}
+                        />
+                      </LazyComponent>
                       {isCustomerExpanded(code) && (
                         <li>
                           <LazyComponent>
