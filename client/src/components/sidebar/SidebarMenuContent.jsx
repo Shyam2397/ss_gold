@@ -48,7 +48,6 @@ export const SidebarMenuContent = memo(({
 
   const renderExpenseButtonItem = useCallback((item) => {
     const commonProps = {
-      key: item.label,
       className: cn(
         "w-full flex items-center h-8 px-2",
         "text-gray-600 hover:bg-amber-50 hover:text-amber-900",
@@ -59,6 +58,7 @@ export const SidebarMenuContent = memo(({
     if (item.type === 'link') {
       return (
         <button
+          key={item.label}
           {...commonProps}
           onClick={() => {
             if (item.onClick) item.onClick();
@@ -74,6 +74,7 @@ export const SidebarMenuContent = memo(({
     
     return (
       <button
+        key={item.label}
         {...commonProps}
         onClick={() => {
           if (item.onClick) item.onClick();
