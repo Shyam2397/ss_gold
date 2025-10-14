@@ -44,45 +44,49 @@ const formatValue = (value, header) => {
     return value === true || value === 1 || value === 'true' || value === '1' ? 'Paid' : 'Not Paid';
   }
 
-  // Handle time format
+  // Handle time format - return actual time object for Excel
   if (headerLower.includes('time') && value) {
     try {
+      // Parse the time string (HH:MM format)
       const [hours, minutes] = value.split(':').map(Number);
       if (!isNaN(hours) && !isNaN(minutes)) {
-        const period = hours >= 12 ? 'PM' : 'AM';
-        const hours12 = hours % 12 || 12;
-        return `${hours12.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')} ${period}`;
+        // Create a time object that Excel can recognize
+        const date = new Date();
+        date.setHours(hours, minutes, 0, 0);
+        return date;
       }
     } catch (e) {
       console.warn('Error formatting time:', e);
-      return value;
     }
+    return value;
   }
 
-  // Handle date format
+  // Handle date format - return actual date object for Excel
   if (headerLower.includes('date') && value) {
     try {
       const date = new Date(value);
       if (!isNaN(date)) {
-        const day = date.getDate().toString().padStart(2, '0');
-        const month = (date.getMonth() + 1).toString().padStart(2, '0');
-        const year = date.getFullYear();
-        return `${day}-${month}-${year}`;
+        return date;
       }
     } catch (e) {
       console.warn('Error formatting date:', e);
-      return value;
     }
+    return value;
   }
 
-  // Handle amount format
+  // Handle amount format - return numeric value for Excel
   if (headerLower.includes('amount') && !isNaN(value)) {
-    return Number(value).toFixed(2);
+    return parseFloat(value);
   }
 
-  // Handle weight format
+  // Handle weight format - return numeric value for Excel
   if (headerLower.includes('weight') && !isNaN(value)) {
-    return Number(value).toFixed(2);
+    return parseFloat(value);
+  }
+
+  // Handle other numeric fields - return numeric value for Excel
+  if (!isNaN(value)) {
+    return parseFloat(value);
   }
 
   return String(value || '');
@@ -112,22 +116,20 @@ export const exportToExcel = async (data, sheetName, fileName) => {
     const worksheet = workbook.addWorksheet(sheetName);
 
     // Add headers row
-    worksheet.addRow(headers);
+    const headerRow = worksheet.addRow(headers);
     
-    // Style headers
-    const headerRow = worksheet.getRow(1);
-    headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 12 };
-    headerRow.fill = {
-      type: 'pattern',
-      pattern: 'solid',
-      fgColor: { argb: 'FFD3B04D' }
-    };
-    headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
-    
-    // Apply header style to all cells in the row
-    headerRow.eachCell((cell) => {
-      cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 12 };
-      cell.alignment = { vertical: 'middle', horizontal: 'center' };
+    // Style only the actual header cells, not the entire row
+    headerRow.eachCell((cell, colNumber) => {
+      // Only apply styling if there's a header in this column
+      if (colNumber <= headers.length) {
+        cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 12 };
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFD3B04D' }
+        };
+        cell.alignment = { vertical: 'middle', horizontal: 'center' };
+      }
     });
     
     // Add data rows
@@ -142,19 +144,33 @@ export const exportToExcel = async (data, sheetName, fileName) => {
         
         // Format numbers
         if (typeof cell.value === 'number' || !isNaN(parseFloat(cell.value))) {
+          const numericValue = typeof cell.value === 'number' ? cell.value : parseFloat(cell.value);
+          
           // Handle weights (3 decimal places)
           if (headerLower.includes('weight')) {
             cell.numFmt = '0.000';
-            cell.value = parseFloat(cell.value).toFixed(3);
+            cell.value = numericValue;
           } 
           // Handle exgold and other numeric fields (2 decimal places)
           else if (headerLower.includes('exgold') || 
                   headerLower.includes('highest') || 
                   headerLower.includes('average') ||
-                  headerLower.includes('fineness')) {
+                  headerLower.includes('fineness') ||
+                  headerLower.includes('amount')) {
             cell.numFmt = '0.00';
-            cell.value = parseFloat(cell.value).toFixed(2);
+            cell.value = numericValue;
+          } else {
+            // For other numeric values, keep them as numbers without specific formatting
+            cell.value = numericValue;
           }
+        }
+        // Handle date formatting
+        else if (headerLower.includes('date') && cell.value instanceof Date) {
+          cell.numFmt = 'DD-MM-YYYY';
+        }
+        // Handle time formatting
+        else if (headerLower.includes('time') && cell.value instanceof Date) {
+          cell.numFmt = 'HH:MM AM/PM';
         }
         
         // Set alignment
@@ -162,7 +178,8 @@ export const exportToExcel = async (data, sheetName, fileName) => {
             headerLower.includes('exgold') || 
             headerLower.includes('highest') || 
             headerLower.includes('average') ||
-            headerLower.includes('fineness')) {
+            headerLower.includes('fineness') ||
+            headerLower.includes('amount')) {
           cell.alignment = { vertical: 'middle', horizontal: 'right' };
         } else if (headerLower.includes('date') || 
                   headerLower.includes('time')) {
