@@ -106,7 +106,7 @@ const ThermalPrinter = ({ tableData }) => {
             <tr>
               <th>TokenNo</th>
               <th>Weight</th>
-              <th>ExGold</th>
+              <th>Purity</th>
               <th>Pure</th>
             </tr>
             
