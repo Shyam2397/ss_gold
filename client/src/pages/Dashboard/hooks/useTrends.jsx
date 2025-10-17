@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 
 function useTrends({ tokens, expenses, entries, exchanges }) {
   const [trends, setTrends] = useState({
@@ -12,20 +12,31 @@ function useTrends({ tokens, expenses, entries, exchanges }) {
     weightTrend: 0,
   });
   
+  const workerRef = useRef(null);
+  
+  // Track if data has been sent to worker to avoid duplicate processing
+  const dataSentRef = useRef(false);
+  
   // Create a memoized worker instance
   const worker = useMemo(() => {
+    // Reuse existing worker if available
+    if (workerRef.current) {
+      return workerRef.current;
+    }
+    
     // Create a new worker
     const newWorker = new Worker(
       new URL('../workers/trendsProcessor.js', import.meta.url),
       { type: 'module' }
     );
     
+    workerRef.current = newWorker;
     return newWorker;
   }, []);
   
   // Set up worker communication
   useEffect(() => {
-    if (!worker) return;
+    if (!worker || dataSentRef.current) return;
     
     // Handle messages from the worker
     const handleWorkerMessage = (event) => {
@@ -34,20 +45,39 @@ function useTrends({ tokens, expenses, entries, exchanges }) {
         return;
       }
       
+      // Handle progress updates
+      if (event.data.progress !== undefined) {
+        // Could update a progress indicator here
+        return;
+      }
+      
       // Update state with calculated trends
       setTrends(event.data);
+      dataSentRef.current = false; // Reset for next update
     };
     
-    // Add event listener
-    worker.addEventListener('message', handleWorkerMessage);
+    // Handle worker errors
+    const handleWorkerError = (error) => {
+      console.error('Worker error:', error);
+      dataSentRef.current = false; // Reset for next update
+    };
     
-    // Send data to worker for processing
-    worker.postMessage({ tokens, expenses, entries, exchanges });
+    // Add event listeners
+    worker.addEventListener('message', handleWorkerMessage);
+    worker.addEventListener('error', handleWorkerError);
+    
+    // Debounce data processing to avoid excessive computations
+    const timeoutId = setTimeout(() => {
+      worker.postMessage({ tokens, expenses, entries, exchanges });
+      dataSentRef.current = true;
+    }, 100);
     
     // Clean up worker when component unmounts
     return () => {
+      clearTimeout(timeoutId);
       worker.removeEventListener('message', handleWorkerMessage);
-      worker.terminate();
+      worker.removeEventListener('error', handleWorkerError);
+      // Don't terminate the worker to allow reuse
     };
   }, [worker, tokens, expenses, entries, exchanges]);
   

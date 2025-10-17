@@ -1,12 +1,8 @@
-import React, { useEffect, useRef, useState, Suspense } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ActivitySkeleton } from './LoadingSkeleton';
 import SimpleList from './SimpleList';
 import ActivityIcon from './ActivityIcon';
-
-// Lazy load react-window
-const FixedSizeList = React.lazy(() => import('react-window').then(mod => ({ 
-  default: mod.FixedSizeList 
-})));
+import VirtualizedList from '../../../components/common/VirtualizedList';
 
 const ActivityRow = React.memo(({ data, index, style }) => {
   const activity = data[index];
@@ -102,17 +98,19 @@ const RecentActivity = ({ activities = [], loading = false }) => {
         </span>
       </div>
       <div className="w-full" style={{ height: listHeight }}>
-        <Suspense fallback={<SimpleList data={activities} rowComponent={ActivityRow} height={listHeight} />}>
-          <FixedSizeList
-            height={listHeight}
-            itemCount={activities.length}
-            itemSize={80}
-            width="100%"
-            itemData={activities}
-          >
-            {ActivityRow}
-          </FixedSizeList>
-        </Suspense>
+        <VirtualizedList
+          items={activities}
+          itemHeight={80}
+          renderItem={({ item, index }) => (
+            <ActivityRow 
+              data={activities}
+              index={index}
+              style={{ position: 'relative' }}
+            />
+          )}
+          minItems={10}
+          className="w-full"
+        />
       </div>
     </div>
   );

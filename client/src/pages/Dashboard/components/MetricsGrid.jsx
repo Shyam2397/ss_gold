@@ -10,15 +10,20 @@ import usePerformanceMonitor from '../hooks/usePerformanceMonitor';
 const MetricsGrid = ({ metrics, tokens, expenses, entries, exchanges, cashAdjustments, sparklineData, selectedPeriod }) => {
   usePerformanceMonitor('MetricsGrid');
 
-  const calculations = useMemo(() => {
-    // Calculate base revenue and expenses
-    const totalRevenue = tokens.reduce((sum, token) => sum + (parseFloat(token.totalAmount) || 0), 0);
-    const totalExpenses = expenses.reduce((sum, expense) => {
+  // Memoize individual calculations for better performance
+  const totalRevenue = useMemo(() => {
+    return tokens.reduce((sum, token) => sum + (parseFloat(token.totalAmount) || 0), 0);
+  }, [tokens]);
+
+  const totalExpenses = useMemo(() => {
+    return expenses.reduce((sum, expense) => {
       const amount = parseFloat(expense.amount) || 0;
       return sum + amount;
     }, 0);
-    
-    const adjustments = (cashAdjustments || []).reduce((result, adj) => {
+  }, [expenses]);
+
+  const adjustments = useMemo(() => {
+    return (cashAdjustments || []).reduce((result, adj) => {
       const amount = parseFloat(adj?.amount) || 0;
       const adjustmentType = adj?.adjustment_type?.toLowerCase(); // 'addition' or 'deduction'
       
@@ -32,22 +37,13 @@ const MetricsGrid = ({ metrics, tokens, expenses, entries, exchanges, cashAdjust
       }
       return result;
     }, { credit: 0, debit: 0 });
-    
-    // Calculate adjusted totals
-    // Credits increase revenue, debits increase expenses
-    const adjustedRevenue = totalRevenue + adjustments.credit;
-    const adjustedExpenses = totalExpenses + adjustments.debit;
-    
-    const netProfit = adjustedRevenue - adjustedExpenses;
-    const profitMargin = adjustedRevenue > 0 ? ((netProfit / adjustedRevenue) * 100).toFixed(2) : 0;
+  }, [cashAdjustments]);
 
-    return {
-      totalRevenue: adjustedRevenue,
-      totalExpenses: adjustedExpenses,
-      netProfit,
-      profitMargin
-    };
-  }, [tokens, expenses, cashAdjustments]);
+  // Calculate adjusted totals
+  const adjustedRevenue = useMemo(() => totalRevenue + adjustments.credit, [totalRevenue, adjustments]);
+  const adjustedExpenses = useMemo(() => totalExpenses + adjustments.debit, [totalExpenses, adjustments]);
+  const netProfit = useMemo(() => adjustedRevenue - adjustedExpenses, [adjustedRevenue, adjustedExpenses]);
+  const profitMargin = useMemo(() => adjustedRevenue > 0 ? ((netProfit / adjustedRevenue) * 100).toFixed(2) : 0, [adjustedRevenue, netProfit]);
 
   const trends = useTrends({ tokens, expenses, entries, exchanges });
 
@@ -55,7 +51,7 @@ const MetricsGrid = ({ metrics, tokens, expenses, entries, exchanges, cashAdjust
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       <DashboardCard 
         title="Total Revenue" 
-        value={`₹${calculations.totalRevenue.toLocaleString()}`}
+        value={`₹${adjustedRevenue.toLocaleString()}`}
         trend={trends.revenueGrowth}
         icon={CurrencyRupeeIcon}
         description="Total revenue from tokens"
@@ -66,7 +62,7 @@ const MetricsGrid = ({ metrics, tokens, expenses, entries, exchanges, cashAdjust
       />
       <DashboardCard 
         title="Total Expenses" 
-        value={`₹${calculations.totalExpenses.toLocaleString()}`}
+        value={`₹${adjustedExpenses.toLocaleString()}`}
         trend={trends.expensesGrowth}
         icon={ScaleIcon}
         description="Total expenses this month"
@@ -77,7 +73,7 @@ const MetricsGrid = ({ metrics, tokens, expenses, entries, exchanges, cashAdjust
       />
       <DashboardCard 
         title="Net Profit" 
-        value={`₹${calculations.netProfit.toLocaleString()}`}
+        value={`₹${netProfit.toLocaleString()}`}
         trend={trends.profitGrowth}
         icon={ReceiptPercentIcon}
         description="Net profit this month"
@@ -88,7 +84,7 @@ const MetricsGrid = ({ metrics, tokens, expenses, entries, exchanges, cashAdjust
       />
       <DashboardCard 
         title="Profit Margin" 
-        value={`${calculations.profitMargin}%`}
+        value={`${profitMargin}%`}
         trend={trends.marginGrowth}
         icon={UserGroupIcon}
         description="Current profit margin"

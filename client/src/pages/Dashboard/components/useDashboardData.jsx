@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { getApi } from '../../../services/api';
-import { fetchCashAdjustments } from '../services/dashboardService';
+import { fetchCashAdjustments, fetchTokens, fetchExpenses, fetchEntries, fetchExchanges } from '../services/dashboardService';
 import toast from 'react-hot-toast';
 import { useQueries, useQueryClient } from '@tanstack/react-query';
 import { debounce } from 'lodash';
@@ -9,6 +9,7 @@ import { debounce } from 'lodash';
 const PAGE_SIZE = 50;
 const CACHE_TIME = 5 * 60 * 1000; // 5 minutes
 const STALE_TIME = 2 * 60 * 1000; // 2 minutes
+const PROGRESSIVE_LOADING_DELAY = 100; // ms delay between loading different data sets
 
 function useDashboardData() {
   const [tokens, setTokens] = useState([]);
@@ -64,22 +65,32 @@ function useDashboardData() {
   // Memoized query functions with pagination
   const queryFns = useMemo(() => ({
     tokens: async () => {
+      // Use service function with pagination
+      const api = await getApi();
       const { data } = await api.get(`/tokens?page=${currentPage}&limit=${PAGE_SIZE}`);
       return data;
     },
     expenses: async () => {
+      // Use service function with pagination
+      const api = await getApi();
       const { data } = await api.get(`/api/expenses?page=${currentPage}&limit=${PAGE_SIZE}`);
       return data;
     },
     entries: async () => {
+      // Use service function with pagination
+      const api = await getApi();
       const { data } = await api.get(`/entries?page=${currentPage}&limit=${PAGE_SIZE}`);
       return data;
     },
     exchanges: async () => {
+      // Use service function with pagination
+      const api = await getApi();
       const { data } = await api.get(`/pure-exchange?page=${currentPage}&limit=${PAGE_SIZE}`);
-      return data.data || [];
+      return data?.data || [];
     },
     cashAdjustments: async () => {
+      // Use service function with pagination
+      const api = await getApi();
       const { data } = await api.get(`/api/cash-adjustments?page=${currentPage}&limit=${PAGE_SIZE}`);
       return data || [];
     }
@@ -387,153 +398,292 @@ function useDashboardData() {
     [currentPage]
   );
 
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = async (isProgressive = false) => {
     try {
-      setLoading(true);
+      if (!isProgressive) {
+        setLoading(true);
+      }
       setError(null);
 
-      // Get a single API instance for all requests
-      const api = await getApi();
-      
-      // Fetch data in parallel
-      const [
-        tokensResult,
-        expensesResult,
-        entriesResult,
-        exchangesResult
-      ] = await Promise.all([
-        api.get('/tokens'),
-        api.get('/api/expenses'),
-        api.get('/entries'),
-        api.get('/pure-exchange')
-      ]);
-
-      // Fetch cash adjustments using the service
-      const cashAdjustmentsData = await fetchCashAdjustments();
-      
-      const tokenData = tokensResult?.data || [];
-      const entriesData = entriesResult?.data || [];
-      const exchangesData = exchangesResult?.data?.data || [];
-      
-      // Process exchange data to handle ISO date format
-      const processedExchanges = exchangesData.map(exchange => {
-        try {
-          const isoDate = new Date(exchange.date);
-          return {
-            ...exchange,
-            // Convert to DD/MM/YYYY format and ensure weight is a number
-            date: `${isoDate.getDate().toString().padStart(2, '0')}/${(isoDate.getMonth() + 1).toString().padStart(2, '0')}/${isoDate.getFullYear()}`,
-            weight: parseFloat(exchange.weight || '0'),
-            exweight: parseFloat(exchange.exweight || '0')
-          };
-        } catch (err) {
-          console.error('Error processing exchange:', err);
-          return null;
-        }
-      }).filter(Boolean); // Remove any null values
-
-      setExchanges(processedExchanges);
-      setCashAdjustments(cashAdjustmentsData);
-
-      const processedTokens = tokenData.map(token => {
-        const processed = {
+      if (isProgressive) {
+        // Progressive loading - load critical data first
+        const tokenData = await fetchTokens();
+        
+        const processedTokens = tokenData.map(token => ({
           ...token,
           totalAmount: parseFloat(token.amount || '0'),
           weight: parseFloat(token.weight || '0')
-        };
-        return processed;
-      });
-
-      setTokens(processedTokens);
-      setEntries(entriesData);
-      
-      // Process expenses to ensure amount is a number
-      const processedExpenses = (expensesResult?.data || []).map(expense => ({
-        ...expense,
-        amount: parseFloat(expense.amount || '0')
-      }));
-      setExpenses(processedExpenses);
-
-      // Calculate total number of customers and test counts from entries
-      const skinTestCount = processedTokens.filter(token => token.test === "Skin Testing").length;
-      const photoTestCount = processedTokens.filter(token => token.test === "Photo Testing").length;
-
-      setMetrics(prev => ({
-        ...prev,
-        totalCustomers: entriesData.length,
-        totalTokens: processedTokens.length,
-        skinTestCount,
-        photoTestCount
-      }));
-
-      // Calculate today's totals
-      const today = new Date().toISOString();
-      
-      const todayTokens = processedTokens.filter(token => {
-        if (!token.date) return false;
-        const tokenDate = new Date(token.date);
-        const todayDate = new Date(today);
-        return tokenDate.getFullYear() === todayDate.getFullYear() &&
-               tokenDate.getMonth() === todayDate.getMonth() &&
-               tokenDate.getDate() === todayDate.getDate();
-      });
-     
-      const todayExpenses = expensesResult.data.filter(expense => {
-        if (!expense.date) return false;
-        const expenseDate = new Date(expense.date); // Expense dates are already in YYYY-MM-DD format
-        const todayDate = new Date(today);
-        return expenseDate.getFullYear() === todayDate.getFullYear() &&
-               expenseDate.getMonth() === todayDate.getMonth() &&
-               expenseDate.getDate() === todayDate.getDate();
-      });
-
-      const todayCashAdjustments = cashAdjustmentsData.filter(adjustment => {
-        if (!adjustment.date) return false;
-        const adjustmentDate = new Date(adjustment.date); // Adjustment dates are already in YYYY-MM-DD format
-        const todayDate = new Date(today);
-        return adjustmentDate.getFullYear() === todayDate.getFullYear() &&
-               adjustmentDate.getMonth() === todayDate.getMonth() &&
-               adjustmentDate.getDate() === todayDate.getDate();
-      });
-
-      // Calculate base revenue and expenses
-      let todayRevenue = todayTokens.reduce((sum, token) => sum + (token.totalAmount || 0), 0);
-      let todayExpensesTotal = todayExpenses.reduce((sum, expense) => sum + (parseFloat(expense.amount) || 0), 0);
-      
-      // Process cash adjustments and add to revenue/expenses based on type
-      todayCashAdjustments.forEach(adjustment => {
-        const amount = parseFloat(adjustment.amount) || 0;
-        const isCredit = adjustment.adjustment_type?.toLowerCase() === 'addition';
+        }));
         
-        if (isCredit) {
-          todayRevenue += amount;  // Add to revenue for credits
-        } else {
-          todayExpensesTotal += amount;  // Add to expenses for debits
-        }
-      });
-      
-      // Calculate net total (Revenue - Expenses)
-      const todayNetTotal = todayRevenue - todayExpensesTotal;
+        setTokens(processedTokens);
+        
+        // Calculate test counts
+        const skinTestCount = processedTokens.filter(token => token.test === "Skin Testing").length;
+        const photoTestCount = processedTokens.filter(token => token.test === "Photo Testing").length;
+        
+        setMetrics(prev => ({
+          ...prev,
+          totalTokens: processedTokens.length,
+          skinTestCount,
+          photoTestCount
+        }));
+        
+        // Small delay to allow UI to update
+        await new Promise(resolve => setTimeout(resolve, PROGRESSIVE_LOADING_DELAY));
+        
+        // Load expenses
+        const expensesData = await fetchExpenses();
+        const processedExpenses = (expensesData || []).map(expense => ({
+          ...expense,
+          amount: parseFloat(expense.amount || '0')
+        }));
+        setExpenses(processedExpenses);
+        
+        // Small delay
+        await new Promise(resolve => setTimeout(resolve, PROGRESSIVE_LOADING_DELAY));
+        
+        // Load entries
+        const entriesData = await fetchEntries();
+        setEntries(entriesData);
+        
+        setMetrics(prev => ({
+          ...prev,
+          totalCustomers: entriesData.length
+        }));
+        
+        // Small delay
+        await new Promise(resolve => setTimeout(resolve, PROGRESSIVE_LOADING_DELAY));
+        
+        // Load exchanges
+        const exchangesData = await fetchExchanges();
+        
+        const processedExchanges = exchangesData.map(exchange => {
+          try {
+            const isoDate = new Date(exchange.date);
+            return {
+              ...exchange,
+              date: `${isoDate.getDate().toString().padStart(2, '0')}/${(isoDate.getMonth() + 1).toString().padStart(2, '0')}/${isoDate.getFullYear()}`,
+              weight: parseFloat(exchange.weight || '0'),
+              exweight: parseFloat(exchange.exweight || '0')
+            };
+          } catch (err) {
+            console.error('Error processing exchange:', err);
+            return null;
+          }
+        }).filter(Boolean);
+        
+        setExchanges(processedExchanges);
+        
+        setMetrics(prev => ({
+          ...prev,
+          totalExchanges: exchangesData.length
+        }));
+        
+        // Small delay
+        await new Promise(resolve => setTimeout(resolve, PROGRESSIVE_LOADING_DELAY));
+        
+        // Load cash adjustments last
+        const cashAdjustmentsData = await fetchCashAdjustments();
+        setCashAdjustments(cashAdjustmentsData);
+        
+        // Calculate today's totals
+        const today = new Date().toISOString();
+        
+        const todayTokens = processedTokens.filter(token => {
+          if (!token.date) return false;
+          const tokenDate = new Date(token.date);
+          const todayDate = new Date(today);
+          return tokenDate.getFullYear() === todayDate.getFullYear() &&
+                 tokenDate.getMonth() === todayDate.getMonth() &&
+                 tokenDate.getDate() === todayDate.getDate();
+        });
+       
+        const todayExpenses = processedExpenses.filter(expense => {
+          if (!expense.date) return false;
+          const expenseDate = new Date(expense.date);
+          const todayDate = new Date(today);
+          return expenseDate.getFullYear() === todayDate.getFullYear() &&
+                 expenseDate.getMonth() === todayDate.getMonth() &&
+                 expenseDate.getDate() === todayDate.getDate();
+        });
 
-      setTodayTotal({
-        revenue: todayRevenue,
-        expenses: todayExpensesTotal,
-        netTotal: todayNetTotal,
-        formattedRevenue: `₹${todayRevenue.toFixed(2)}`,
-        formattedExpenses: `₹${todayExpensesTotal.toFixed(2)}`,
-        formattedNetTotal: `₹${todayNetTotal.toFixed(2)}`
-      });
+        const todayCashAdjustments = cashAdjustmentsData.filter(adjustment => {
+          if (!adjustment.date) return false;
+          const adjustmentDate = new Date(adjustment.date);
+          const todayDate = new Date(today);
+          return adjustmentDate.getFullYear() === todayDate.getFullYear() &&
+                 adjustmentDate.getMonth() === todayDate.getMonth() &&
+                 adjustmentDate.getDate() === todayDate.getDate();
+        });
 
-      const recentActivities = processRecentActivities(
-        processedTokens,
-        expensesResult.data,
-        processedExchanges,
-        entriesData,
-        cashAdjustmentsData
-      );
-      setRecentActivities(recentActivities);
+        let todayRevenue = todayTokens.reduce((sum, token) => sum + (token.totalAmount || 0), 0);
+        let todayExpensesTotal = todayExpenses.reduce((sum, expense) => sum + (parseFloat(expense.amount) || 0), 0);
+        
+        todayCashAdjustments.forEach(adjustment => {
+          const amount = parseFloat(adjustment.amount) || 0;
+          const isCredit = adjustment.adjustment_type?.toLowerCase() === 'addition';
+          
+          if (isCredit) {
+            todayRevenue += amount;
+          } else {
+            todayExpensesTotal += amount;
+          }
+        });
+        
+        const todayNetTotal = todayRevenue - todayExpensesTotal;
 
-      setLoading(false);
+        setTodayTotal({
+          revenue: todayRevenue,
+          expenses: todayExpensesTotal,
+          netTotal: todayNetTotal,
+          formattedRevenue: `₹${todayRevenue.toFixed(2)}`,
+          formattedExpenses: `₹${todayExpensesTotal.toFixed(2)}`,
+          formattedNetTotal: `₹${todayNetTotal.toFixed(2)}`
+        });
+
+        const recentActivities = processRecentActivities(
+          processedTokens,
+          processedExpenses,
+          processedExchanges,
+          entriesData,
+          cashAdjustmentsData
+        );
+        setRecentActivities(recentActivities);
+        
+        setLoading(false);
+      } else {
+        // Fetch all data in parallel for full refresh
+        const [
+          tokenData,
+          expensesData,
+          entriesData,
+          exchangesData
+        ] = await Promise.all([
+          fetchTokens(),
+          fetchExpenses(),
+          fetchEntries(),
+          fetchExchanges()
+        ]);
+
+        // Fetch cash adjustments using the service
+        const cashAdjustmentsData = await fetchCashAdjustments();
+        
+        // Process exchange data to handle ISO date format
+        const processedExchanges = exchangesData.map(exchange => {
+          try {
+            const isoDate = new Date(exchange.date);
+            return {
+              ...exchange,
+              date: `${isoDate.getDate().toString().padStart(2, '0')}/${(isoDate.getMonth() + 1).toString().padStart(2, '0')}/${isoDate.getFullYear()}`,
+              weight: parseFloat(exchange.weight || '0'),
+              exweight: parseFloat(exchange.exweight || '0')
+            };
+          } catch (err) {
+            console.error('Error processing exchange:', err);
+            return null;
+          }
+        }).filter(Boolean);
+
+        setExchanges(processedExchanges);
+        setCashAdjustments(cashAdjustmentsData);
+
+        const processedTokens = tokenData.map(token => ({
+          ...token,
+          totalAmount: parseFloat(token.amount || '0'),
+          weight: parseFloat(token.weight || '0')
+        }));
+
+        setTokens(processedTokens);
+        setEntries(entriesData);
+        
+        // Process expenses to ensure amount is a number
+        const processedExpenses = (expensesData || []).map(expense => ({
+          ...expense,
+          amount: parseFloat(expense.amount || '0')
+        }));
+        setExpenses(processedExpenses);
+
+        // Calculate total number of customers and test counts from entries
+        const skinTestCount = processedTokens.filter(token => token.test === "Skin Testing").length;
+        const photoTestCount = processedTokens.filter(token => token.test === "Photo Testing").length;
+
+        setMetrics(prev => ({
+          ...prev,
+          totalCustomers: entriesData.length,
+          totalTokens: processedTokens.length,
+          skinTestCount,
+          photoTestCount
+        }));
+
+        // Calculate today's totals
+        const today = new Date().toISOString();
+        
+        const todayTokens = processedTokens.filter(token => {
+          if (!token.date) return false;
+          const tokenDate = new Date(token.date);
+          const todayDate = new Date(today);
+          return tokenDate.getFullYear() === todayDate.getFullYear() &&
+                 tokenDate.getMonth() === todayDate.getMonth() &&
+                 tokenDate.getDate() === todayDate.getDate();
+        });
+       
+        const todayExpenses = processedExpenses.filter(expense => {
+          if (!expense.date) return false;
+          const expenseDate = new Date(expense.date);
+          const todayDate = new Date(today);
+          return expenseDate.getFullYear() === todayDate.getFullYear() &&
+                 expenseDate.getMonth() === todayDate.getMonth() &&
+                 expenseDate.getDate() === todayDate.getDate();
+        });
+
+        const todayCashAdjustments = cashAdjustmentsData.filter(adjustment => {
+          if (!adjustment.date) return false;
+          const adjustmentDate = new Date(adjustment.date);
+          const todayDate = new Date(today);
+          return adjustmentDate.getFullYear() === todayDate.getFullYear() &&
+                 adjustmentDate.getMonth() === todayDate.getMonth() &&
+                 adjustmentDate.getDate() === todayDate.getDate();
+        });
+
+        // Calculate base revenue and expenses
+        let todayRevenue = todayTokens.reduce((sum, token) => sum + (token.totalAmount || 0), 0);
+        let todayExpensesTotal = todayExpenses.reduce((sum, expense) => sum + (parseFloat(expense.amount) || 0), 0);
+        
+        // Process cash adjustments and add to revenue/expenses based on type
+        todayCashAdjustments.forEach(adjustment => {
+          const amount = parseFloat(adjustment.amount) || 0;
+          const isCredit = adjustment.adjustment_type?.toLowerCase() === 'addition';
+          
+          if (isCredit) {
+            todayRevenue += amount;
+          } else {
+            todayExpensesTotal += amount;
+          }
+        });
+        
+        // Calculate net total (Revenue - Expenses)
+        const todayNetTotal = todayRevenue - todayExpensesTotal;
+
+        setTodayTotal({
+          revenue: todayRevenue,
+          expenses: todayExpensesTotal,
+          netTotal: todayNetTotal,
+          formattedRevenue: `₹${todayRevenue.toFixed(2)}`,
+          formattedExpenses: `₹${todayExpensesTotal.toFixed(2)}`,
+          formattedNetTotal: `₹${todayNetTotal.toFixed(2)}`
+        });
+
+        const recentActivities = processRecentActivities(
+          processedTokens,
+          processedExpenses,
+          processedExchanges,
+          entriesData,
+          cashAdjustmentsData
+        );
+        setRecentActivities(recentActivities);
+
+        setLoading(false);
+      }
     } catch (err) {
       setError(err.message);
       setLoading(false);
@@ -542,9 +692,9 @@ function useDashboardData() {
   };
 
   useEffect(() => {
-    fetchDashboardData();
+    fetchDashboardData(true); // Use progressive loading on initial load
     const interval = setInterval(() => {
-      fetchDashboardData();
+      fetchDashboardData(); // Full refresh on interval
       toast.success('Dashboard updated!', { icon: '🔄', position: 'top-right' });
     }, 300000);
     return () => clearInterval(interval);
@@ -569,14 +719,33 @@ function useDashboardData() {
   // Pre-fetch next page
   useEffect(() => {
     const prefetchNextPage = async () => {
-      await queryClient.prefetchQuery(['tokens', currentPage + 1], queryFns.tokens);
-      await queryClient.prefetchQuery(['expenses', currentPage + 1], queryFns.expenses);
-      await queryClient.prefetchQuery(['cashAdjustments', currentPage + 1], queryFns.cashAdjustments);
-      await queryClient.prefetchQuery(['entries', currentPage + 1], queryFns.entries);
-      await queryClient.prefetchQuery(['exchanges', currentPage + 1], queryFns.exchanges);
+      try {
+        await queryClient.prefetchQuery({
+          queryKey: ['tokens', currentPage + 1],
+          queryFn: queryFns.tokens
+        });
+        await queryClient.prefetchQuery({
+          queryKey: ['expenses', currentPage + 1],
+          queryFn: queryFns.expenses
+        });
+        await queryClient.prefetchQuery({
+          queryKey: ['cashAdjustments', currentPage + 1],
+          queryFn: queryFns.cashAdjustments
+        });
+        await queryClient.prefetchQuery({
+          queryKey: ['entries', currentPage + 1],
+          queryFn: queryFns.entries
+        });
+        await queryClient.prefetchQuery({
+          queryKey: ['exchanges', currentPage + 1],
+          queryFn: queryFns.exchanges
+        });
+      } catch (error) {
+        console.error('Error prefetching next page:', error);
+      }
     };
     prefetchNextPage();
-  }, [currentPage]);
+  }, [currentPage, queryClient, queryFns.tokens, queryFns.expenses, queryFns.cashAdjustments, queryFns.entries, queryFns.exchanges]);
 
   return {
     tokens,

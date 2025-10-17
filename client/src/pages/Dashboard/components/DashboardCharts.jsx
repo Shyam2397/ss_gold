@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import TimeSelector from './TimeSelector';
+import VirtualizedList from '../../../components/common/VirtualizedList';
 
 const CHART_COLORS = {
   revenue: '#FFD93D',     // Modern gold
@@ -62,16 +63,22 @@ const DashboardCharts = ({ tokens, expenses, entries, exchanges }) => {
   const [period, setPeriod] = useState('daily');
   const [workerData, setWorkerData] = useState(null);
   const [viewportStart, setViewportStart] = useState(0);
+  const [error, setError] = useState(null);
   const chartRef = useRef(null);
   
   // Initialize worker with cleanup
   const worker = useMemo(() => {
-    const newWorker = new Worker(
-      new URL('../workers/chartProcessor.js', import.meta.url),
-      { type: 'module' }
-    );
-
-    return newWorker;
+    try {
+      const newWorker = new Worker(
+        new URL('../workers/chartProcessor.js', import.meta.url),
+        { type: 'module' }
+      );
+      return newWorker;
+    } catch (err) {
+      console.error('Failed to create worker:', err);
+      setError('Failed to initialize data processing');
+      return null;
+    }
   }, []);
 
   // Improved worker communication with error handling and cleanup
@@ -81,19 +88,39 @@ const DashboardCharts = ({ tokens, expenses, entries, exchanges }) => {
     const handleWorkerMessage = (event) => {
       if (event.data.error) {
         console.error('Worker error:', event.data.error);
+        setError(event.data.error);
         return;
       }
+      
+      // Handle progress updates
+      if (event.data.progress !== undefined) {
+        // Could update a progress indicator here
+        return;
+      }
+      
       setWorkerData(event.data);
+      setError(null); // Clear any previous errors
+    };
+
+    const handleWorkerError = (error) => {
+      console.error('Worker error:', error);
+      setError('Data processing failed');
     };
 
     worker.addEventListener('message', handleWorkerMessage);
+    worker.addEventListener('error', handleWorkerError);
     
     // Send initial data to worker with chunking
     const sendChunkedData = async () => {
-      const chunks = chunkData({ tokens, expenses, entries, exchanges });
-      for (const chunk of chunks) {
-        await new Promise(resolve => setTimeout(resolve, 0)); // Yield to main thread
-        worker.postMessage(chunk);
+      try {
+        const chunks = chunkData({ tokens, expenses, entries, exchanges });
+        for (const chunk of chunks) {
+          await new Promise(resolve => setTimeout(resolve, 0)); // Yield to main thread
+          worker.postMessage(chunk);
+        }
+      } catch (err) {
+        console.error('Failed to send data to worker:', err);
+        setError('Failed to process data');
       }
     };
 
@@ -101,6 +128,7 @@ const DashboardCharts = ({ tokens, expenses, entries, exchanges }) => {
 
     return () => {
       worker.removeEventListener('message', handleWorkerMessage);
+      worker.removeEventListener('error', handleWorkerError);
       worker.terminate();
     };
   }, [worker, tokens, expenses, entries, exchanges]);
@@ -138,6 +166,18 @@ const DashboardCharts = ({ tokens, expenses, entries, exchanges }) => {
   }, []);
 
   const chartData = useMemo(() => {
+    // If we have worker data, use it instead of processing locally
+    if (workerData) {
+      // Flatten and sort worker data
+      const flattenedData = Object.values(workerData).flat();
+      return flattenedData.sort((a, b) => {
+        // Handle both string and Date object comparisons
+        const dateA = typeof a.date === 'string' ? new Date(a.date) : a.date;
+        const dateB = typeof b.date === 'string' ? new Date(b.date) : b.date;
+        return dateA - dateB;
+      });
+    }
+    
     try {
       const today = new Date();
       let startDate = new Date();
@@ -259,7 +299,7 @@ const DashboardCharts = ({ tokens, expenses, entries, exchanges }) => {
       console.error('Error processing chart data:', error);
       return [];
     }
-  }, [tokens, expenses, exchanges, period]);
+  }, [tokens, expenses, exchanges, period, workerData]);
 
   // Calculate visible data based on viewport
   const visibleData = useMemo(() => {
@@ -326,104 +366,117 @@ const DashboardCharts = ({ tokens, expenses, entries, exchanges }) => {
             </div>
           </div>
         </div>
-        <div className="h-[400px]" ref={chartRef}>
-          <ResponsiveContainer>
-            <AreaChart 
-              data={visibleData} 
-              margin={{ top: 20, right: 30, left: 10, bottom: 0 }}
-              baseValue="dataMin"
+        
+        {error ? (
+          <div className="p-4 text-center text-red-500 bg-red-50 rounded-lg border border-red-200">
+            <p>Error loading chart data: {error}</p>
+            <button 
+              onClick={() => window.location.reload()}
+              className="mt-2 px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition-colors duration-200 text-sm"
             >
-              <defs>
-                {Object.entries(CHART_COLORS).map(([name, color]) => (
-                  <linearGradient key={name} id={`color${name}`} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={color} stopOpacity={0.4} />
-                    <stop offset="50%" stopColor={color} stopOpacity={0.1} />
-                    <stop offset="100%" stopColor={color} stopOpacity={0.02} />
-                  </linearGradient>
-                ))}
-              </defs>
-              <XAxis 
-                dataKey="date" 
-                tickFormatter={formatDate}
-                axisLine={false} 
-                tickLine={false}
-                dy={10}
-                tick={{ fill: '#6B7280', fontSize: 12 }}
-              />
-              <YAxis 
-                yAxisId="left"
-                axisLine={false} 
-                tickLine={false}
-                tickFormatter={value => `₹${value.toLocaleString()}`}
-                tick={{ fill: '#6B7280', fontSize: 12 }}
-                dx={-10}
-              />
-              <YAxis 
-                yAxisId="right"
-                orientation="right"
-                axisLine={false} 
-                tickLine={false}
-                tickFormatter={value => value.toLocaleString()}
-                tick={{ fill: '#6B7280', fontSize: 12 }}
-                dx={10}
-              />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                  borderRadius: '12px',
-                  boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
-                  border: 'none',
-                  padding: '12px 16px'
-                }}
-                labelStyle={{
-                  color: '#374151',
-                  fontWeight: 600,
-                  marginBottom: '8px'
-                }}
-                itemStyle={{
-                  padding: '4px 0'
-                }}
-                labelFormatter={formatDate}
-                formatter={(value, name) => {
-                  if (['revenue', 'expenses', 'profit'].includes(name.toLowerCase())) {
-                    return [`₹${value.toLocaleString()}`, name];
-                  } else if (name === 'Impure Weight' || name === 'Pure Weight') {
-                    return [`${value.toFixed(3)} g`, name];
-                  } else if (name === 'Exchange Count') {
-                    return [`${value}`, 'Exchanges'];
-                  } else if (name === 'Skin Tests' || name === 'Photo Tests') {
-                    return [`${value}`, name];
-                  } else {
-                    return [value.toLocaleString(), name];
-                  }
-                }}
-              />
-              {CHART_SERIES.map(([key, name, color, axis]) => (
-                <Area
-                  key={key}
-                  yAxisId={axis}
-                  type="monotoneX"
-                  dataKey={key}
-                  name={name}
-                  stroke={color}
-                  strokeWidth={2}
-                  fill={`url(#color${key})`}
-                  fillOpacity={1}
-                  animationDuration={1500}
-                  animationEasing="ease-in-out"
-                  dot={false}
-                  activeDot={{
-                    r: 8,
-                    strokeWidth: 2,
-                    stroke: '#fff',
-                    fill: color,
-                    boxShadow: '0 0 10px rgba(0,0,0,0.2)'
+              Reload
+            </button>
+          </div>
+        ) : (
+          <div className="h-[400px]" ref={chartRef}>
+            <ResponsiveContainer>
+              <AreaChart 
+                data={visibleData} 
+                margin={{ top: 20, right: 30, left: 10, bottom: 0 }}
+                baseValue="dataMin"
+              >
+                <defs>
+                  {Object.entries(CHART_COLORS).map(([name, color]) => (
+                    <linearGradient key={name} id={`color${name}`} x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={color} stopOpacity={0.4} />
+                      <stop offset="50%" stopColor={color} stopOpacity={0.1} />
+                      <stop offset="100%" stopColor={color} stopOpacity={0.02} />
+                    </linearGradient>
+                  ))}
+                </defs>
+                <XAxis 
+                  dataKey="date" 
+                  tickFormatter={formatDate}
+                  axisLine={false} 
+                  tickLine={false}
+                  dy={10}
+                  tick={{ fill: '#6B7280', fontSize: 12 }}
+                />
+                <YAxis 
+                  yAxisId="left"
+                  axisLine={false} 
+                  tickLine={false}
+                  tickFormatter={value => `₹${value.toLocaleString()}`}
+                  tick={{ fill: '#6B7280', fontSize: 12 }}
+                  dx={-10}
+                />
+                <YAxis 
+                  yAxisId="right"
+                  orientation="right"
+                  axisLine={false} 
+                  tickLine={false}
+                  tickFormatter={value => value.toLocaleString()}
+                  tick={{ fill: '#6B7280', fontSize: 12 }}
+                  dx={10}
+                />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                    borderRadius: '12px',
+                    boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+                    border: 'none',
+                    padding: '12px 16px'
+                  }}
+                  labelStyle={{
+                    color: '#374151',
+                    fontWeight: 600,
+                    marginBottom: '8px'
+                  }}
+                  itemStyle={{
+                    padding: '4px 0'
+                  }}
+                  labelFormatter={formatDate}
+                  formatter={(value, name) => {
+                    if (['revenue', 'expenses', 'profit'].includes(name.toLowerCase())) {
+                      return [`₹${value.toLocaleString()}`, name];
+                    } else if (name === 'Impure Weight' || name === 'Pure Weight') {
+                      return [`${value.toFixed(3)} g`, name];
+                    } else if (name === 'Exchange Count') {
+                      return [`${value}`, 'Exchanges'];
+                    } else if (name === 'Skin Tests' || name === 'Photo Tests') {
+                      return [`${value}`, name];
+                    } else {
+                      return [value.toLocaleString(), name];
+                    }
                   }}
                 />
-              ))}
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
+                {CHART_SERIES.map(([key, name, color, axis]) => (
+                  <Area
+                    key={key}
+                    yAxisId={axis}
+                    type="monotoneX"
+                    dataKey={key}
+                    name={name}
+                    stroke={color}
+                    strokeWidth={2}
+                    fill={`url(#color${key})`}
+                    fillOpacity={1}
+                    animationDuration={1500}
+                    animationEasing="ease-in-out"
+                    dot={false}
+                    activeDot={{
+                      r: 8,
+                      strokeWidth: 2,
+                      stroke: '#fff',
+                      fill: color,
+                      boxShadow: '0 0 10px rgba(0,0,0,0.2)'
+                    }}
+                  />
+                ))}
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        )}
       </div>
     </div>
   );
