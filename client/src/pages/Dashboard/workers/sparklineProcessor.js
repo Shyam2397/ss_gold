@@ -5,109 +5,91 @@ const dateCache = new Map();
 
 // Helper function to parse dates with caching
 const parseDate = (dateStr) => {
-  // Check if dateStr is a valid string before processing
-  if (!dateStr || typeof dateStr !== 'string') {
-    return new Date(NaN);
-  }
-  
   if (!dateCache.has(dateStr)) {
-    // Handle different date formats more efficiently
-    let date;
-    if (dateStr.includes && dateStr.includes('/')) {
-      // DD/MM/YYYY format
-      const [day, month, year] = dateStr.split('/');
-      date = new Date(year, month - 1, day);
-    } else {
-      // YYYY-MM-DD format
-      date = new Date(dateStr);
-    }
-    dateCache.set(dateStr, date);
+    dateCache.set(dateStr, new Date(dateStr.split('-').reverse().join('-')));
   }
   return dateCache.get(dateStr);
-};
-
-// Process items in batches to avoid blocking
-const processBatch = (items, processorFn, batchSize = 100) => {
-  const results = [];
-  for (let i = 0; i < items.length; i += batchSize) {
-    const batch = items.slice(i, i + batchSize);
-    results.push(...processorFn(batch));
-    // Allow other operations to run
-    if (i % (batchSize * 5) === 0) {
-      self.postMessage({ progress: (i / items.length) * 100 });
-    }
-  }
-  return results;
-};
-
-// Optimized daily total calculation using maps for better performance
-const getDailyTotalOptimized = (items, dateField, valueField = 'totalAmount') => {
-  const today = new Date();
-  const days = Array.from({ length: 7 }, (_, i) => {
-    const date = new Date(today);
-    date.setDate(today.getDate() - (6 - i));
-    return date;
-  });
-
-  // Create a map of dates for faster lookup
-  const dateMap = new Map();
-  days.forEach(day => {
-    dateMap.set(day.toDateString(), { date: day, value: 0 });
-  });
-
-  // Process items in batches
-  processBatch(items, (batch) => {
-    batch.forEach(item => {
-      // Check if item has the required date field before processing
-      if (!item[dateField]) return;
-      
-      const itemDate = parseDate(item[dateField]);
-      if (isNaN(itemDate.getTime())) return; // Skip invalid dates
-      
-      const dateKey = itemDate.toDateString();
-      if (dateMap.has(dateKey)) {
-        const entry = dateMap.get(dateKey);
-        // Handle both string field names and function value fields
-        const value = typeof valueField === 'function' 
-          ? valueField(item)
-          : parseFloat(item[valueField]) || 0;
-        entry.value += value;
-      }
-    });
-    return [];
-  });
-
-  // Convert map to array
-  return Array.from(dateMap.values()).map(entry => ({
-    date: entry.date.toISOString(),
-    value: entry.value
-  }));
 };
 
 // Process sparkline data for dashboard metrics
 const processSparklineData = ({ tokens, expenseData, entries, exchanges }) => {
   try {
+    const today = new Date();
+    const days = Array.from({ length: 7 }, (_, i) => {
+      const date = new Date(today);
+      date.setDate(today.getDate() - (6 - i));
+      return date;
+    });
+
+    // Helper function to get daily total
+    const getDailyTotal = (items, dateField, valueField = 'totalAmount') => {
+      return days.map(day => {
+        const dayValue = items
+          .filter(item => {
+            const itemDate = parseDate(item[dateField]);
+            return itemDate.toDateString() === day.toDateString();
+          })
+          .reduce((sum, item) => sum + (parseFloat(item[valueField]) || 0), 0);
+          
+        return {
+          date: day.toISOString(),
+          value: dayValue
+        };
+      });
+    };
+
     // Revenue sparkline data
-    const revenue = getDailyTotalOptimized(tokens, 'date');
+    const revenue = getDailyTotal(tokens, 'date');
 
     // Expenses sparkline data
-    const expenses = getDailyTotalOptimized(expenseData, 'date', 'amount');
+    const expenses = getDailyTotal(expenseData, 'date', 'amount');
 
     // Profit sparkline data
-    const profit = revenue.map((rev, index) => ({
-      date: rev.date,
-      value: rev.value - expenses[index].value
+    const profit = days.map((day, index) => ({
+      date: day.toISOString(),
+      value: revenue[index].value - expenses[index].value
     }));
 
     // Customers sparkline data
-    const customers = getDailyTotalOptimized(entries, 'createdAt', () => 1);
+    const customers = days.map(day => {
+      const value = entries.filter(entry => {
+        const entryDate = new Date(entry.createdAt);
+        return entryDate.toDateString() === day.toDateString();
+      }).length;
+      
+      return {
+        date: day.toISOString(),
+        value
+      };
+    });
 
     // Skin tests sparkline data
-    const skinTestTokens = tokens.filter(token => token.test === "Skin Testing");
-    const skinTests = getDailyTotalOptimized(skinTestTokens, 'date', () => 1);
+    const skinTests = days.map(day => {
+      const value = tokens.filter(token => {
+        const tokenDate = parseDate(token.date);
+        return tokenDate.toDateString() === day.toDateString() && token.testType === 'skin';
+      }).length;
+      
+      return {
+        date: day.toISOString(),
+        value
+      };
+    });
 
     // Weights sparkline data
-    const weights = getDailyTotalOptimized(exchanges, 'date', 'weight');
+    const weights = days.map(day => {
+      const value = exchanges
+        .filter(exchange => {
+          const exchangeDate = parseDate(exchange.date);
+          return exchangeDate.toDateString() === day.toDateString();
+        })
+        .reduce((sum, exchange) => sum + parseFloat(exchange.weight || '0'), 0);
+      
+      return {
+        date: day.toISOString(),
+        value
+      };
+    });
 
     return {
       revenue,

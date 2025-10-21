@@ -1,9 +1,13 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, Suspense } from 'react';
 import { CurrencyRupeeIcon, ExclamationCircleIcon, MagnifyingGlassIcon } from '@heroicons/react/24/solid';
 import { debounce } from 'lodash';
 import { CustomerSkeleton } from './LoadingSkeleton';
 import SimpleList from './SimpleList';
-import VirtualizedList from '../../../components/common/VirtualizedList';
+
+// Lazy load react-window
+const FixedSizeList = React.lazy(() => import('react-window').then(mod => ({ 
+  default: mod.FixedSizeList 
+})));
 
 const CustomerRow = ({ data, index, style }) => {
   const customer = data[index];
@@ -132,19 +136,17 @@ const UnpaidCustomers = ({ tokens = [], loading = false }) => {
         </div>
       </div>
       <div className="w-full" style={{ height: listHeight }}>
-        <VirtualizedList
-          items={filteredCustomers}
-          itemHeight={80}
-          renderItem={({ item, index }) => (
-            <CustomerRow 
-              data={filteredCustomers}
-              index={index}
-              style={{ position: 'relative' }}
-            />
-          )}
-          minItems={10}
-          className="w-full"
-        />
+        <Suspense fallback={<SimpleList data={filteredCustomers} rowComponent={CustomerRow} height={listHeight} />}>
+          <FixedSizeList
+            height={listHeight}
+            itemCount={filteredCustomers.length}
+            itemSize={80}
+            width="100%"
+            itemData={filteredCustomers}
+          >
+            {CustomerRow}
+          </FixedSizeList>
+        </Suspense>
       </div>
     </div>
   );

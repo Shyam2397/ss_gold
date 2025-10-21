@@ -76,52 +76,19 @@ const DashboardCard = ({ title, value, trend, icon: Icon, description, sparkline
   );
 };
 
-// Memoization comparison function with better performance
+// Memoization comparison function
 const areEqual = (prevProps, nextProps) => {
-  // Shallow comparison for primitive values
-  if (
-    prevProps.title !== nextProps.title ||
-    prevProps.value !== nextProps.value ||
-    prevProps.trend !== nextProps.trend ||
-    prevProps.icon !== nextProps.icon ||
-    prevProps.description !== nextProps.description ||
-    prevProps.className !== nextProps.className ||
-    prevProps.iconClassName !== nextProps.iconClassName ||
-    prevProps.valueClassName !== nextProps.valueClassName
-  ) {
-    return false;
-  }
-  
-  // Deep comparison for sparkline data only if needed
-  if (prevProps.sparklineData !== nextProps.sparklineData) {
-    // Only compare if both are arrays
-    if (Array.isArray(prevProps.sparklineData) && Array.isArray(nextProps.sparklineData)) {
-      // Compare length first for quick rejection
-      if (prevProps.sparklineData.length !== nextProps.sparklineData.length) {
-        return false;
-      }
-      
-      // Compare only first and last elements for performance
-      if (prevProps.sparklineData.length > 0) {
-        const prevFirst = prevProps.sparklineData[0];
-        const prevLast = prevProps.sparklineData[prevProps.sparklineData.length - 1];
-        const nextFirst = nextProps.sparklineData[0];
-        const nextLast = nextProps.sparklineData[nextProps.sparklineData.length - 1];
-        
-        if (
-          prevFirst?.value !== nextFirst?.value ||
-          prevLast?.value !== nextLast?.value
-        ) {
-          return false;
-        }
-      }
-    } else {
-      // One is array and other is not
-      return false;
-    }
-  }
-  
-  return true;
+  return (
+    prevProps.title === nextProps.title &&
+    prevProps.value === nextProps.value &&
+    prevProps.trend === nextProps.trend &&
+    prevProps.icon === nextProps.icon &&
+    prevProps.description === nextProps.description &&
+    prevProps.className === nextProps.className &&
+    prevProps.iconClassName === nextProps.iconClassName &&
+    prevProps.valueClassName === nextProps.valueClassName &&
+    JSON.stringify(prevProps.sparklineData) === JSON.stringify(nextProps.sparklineData)
+  );
 };
 
 export default React.memo(DashboardCard, areEqual);

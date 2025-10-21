@@ -1,4 +1,4 @@
-import React, { memo, useMemo } from 'react';
+import React, { memo } from 'react';
 import { FixedSizeList } from 'react-window';
 import AutoSizer from 'react-virtualized-auto-sizer';
 import ErrorBoundary from './ErrorBoundary';
@@ -10,42 +10,32 @@ const VirtualizedList = memo(({
   minItems = 10,
   className = "" 
 }) => {
-  // Memoize the items array to prevent unnecessary re-renders
-  const memoizedItems = useMemo(() => items, [JSON.stringify(items)]);
-  
   // For small lists, render normally
-  if (memoizedItems.length <= minItems) {
+  if (items.length <= minItems) {
     return (
       <div className={className}>
-        {memoizedItems.map((item, index) => renderItem({ item, index }))}
+        {items.map((item, index) => renderItem({ item, index }))}
       </div>
     );
   }
 
-  // Memoize the Row component
-  const Row = memo(({ index, style }) => (
+  const Row = ({ index, style }) => (
     <div style={style}>
-      {renderItem({ item: memoizedItems[index], index })}
+      {renderItem({ item: items[index], index })}
     </div>
-  ));
-
-  // Calculate dynamic height based on container
-  const containerHeight = useMemo(() => {
-    return Math.min(memoizedItems.length * itemHeight, 320);
-  }, [memoizedItems.length, itemHeight]);
+  );
 
   return (
     <ErrorBoundary>
-      <div className={className} style={{ height: containerHeight }}>
+      <div className={className} style={{ height: Math.min(items.length * itemHeight, 320) }}>
         <AutoSizer>
           {({ height, width }) => (
             <FixedSizeList
               height={height}
               width={width}
-              itemCount={memoizedItems.length}
+              itemCount={items.length}
               itemSize={itemHeight}
-              overscanCount={10} // Increased overscan for smoother scrolling
-              useIsScrolling // Enable isScrolling optimization
+              overscanCount={5}
             >
               {Row}
             </FixedSizeList>
@@ -53,15 +43,6 @@ const VirtualizedList = memo(({
         </AutoSizer>
       </div>
     </ErrorBoundary>
-  );
-}, (prevProps, nextProps) => {
-  // Custom comparison function for better memoization
-  return (
-    prevProps.itemHeight === nextProps.itemHeight &&
-    prevProps.minItems === nextProps.minItems &&
-    prevProps.className === nextProps.className &&
-    JSON.stringify(prevProps.items) === JSON.stringify(nextProps.items) &&
-    prevProps.renderItem === nextProps.renderItem
   );
 });
 
