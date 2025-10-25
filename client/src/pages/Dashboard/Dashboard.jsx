@@ -34,15 +34,56 @@ function DashboardContent() {
     todayTotal, dateRange, metrics, selectedPeriod
   } = dashboardData;
 
-  const sparklineData = useSparklineData({ tokens, expenseData: expenses, entries, exchanges });
+  const sparklineData = useSparklineData({ 
+    tokens: tokens || [], 
+    expenseData: expenses || [], 
+    entries: entries || [], 
+    exchanges: exchanges || [] 
+  });
 
   // Add data prefetching
   useEffect(() => {
     const prefetchData = async () => {
       // Prefetch next day's data
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      
+      try {
+        // Prefetch common dashboard data queries
+        await queryClient.prefetchQuery({
+          queryKey: ['tokens', { date: tomorrow.toISOString().split('T')[0] }],
+          queryFn: () => Promise.resolve([]), // In a real app, this would fetch actual data
+          staleTime: 5 * 60 * 1000, // 5 minutes
+        });
+        
+        await queryClient.prefetchQuery({
+          queryKey: ['expenses', { date: tomorrow.toISOString().split('T')[0] }],
+          queryFn: () => Promise.resolve([]),
+          staleTime: 5 * 60 * 1000,
+        });
+      } catch (error) {
+        console.warn('Prefetching failed:', error);
+      }
     };
-    prefetchData();
+    
+    // Use requestIdleCallback if available for non-blocking prefetching
+    if ('requestIdleCallback' in window) {
+      const timeoutId = requestIdleCallback(prefetchData, { timeout: 1000 });
+      return () => cancelIdleCallback(timeoutId);
+    } else {
+      // Fallback for browsers that don't support requestIdleCallback
+      const timeoutId = setTimeout(prefetchData, 100);
+      return () => clearTimeout(timeoutId);
+    }
   }, [dateRange]);
+
+  // Check for undefined data and provide defaults
+  const safeTokens = tokens || [];
+  const safeExpenses = expenses || [];
+  const safeEntries = entries || [];
+  const safeExchanges = exchanges || [];
+  const safeCashAdjustments = cashAdjustments || [];
+  const safeRecentActivities = recentActivities || [];
 
   if (loading) {
     return <LoadingSpinner />;
@@ -63,7 +104,7 @@ function DashboardContent() {
         <Suspense fallback={<LoadingSpinner />}>
           <DashboardHeader 
             todayTotal={todayTotal} 
-            dateRange={dateRange} 
+            dateRange={dateRange}
             onDateRangeChange={(range) => dashboardData.dispatch({ 
               type: actionTypes.SET_DATE_RANGE, 
               payload: range 
@@ -74,11 +115,11 @@ function DashboardContent() {
         <Suspense fallback={<LoadingSpinner />}>
           <MetricsGrid 
             metrics={metrics} 
-            tokens={tokens} 
-            expenses={expenses} 
-            entries={entries} 
-            exchanges={exchanges}
-            cashAdjustments={cashAdjustments || []}
+            tokens={safeTokens} 
+            expenses={safeExpenses} 
+            entries={safeEntries} 
+            exchanges={safeExchanges}
+            cashAdjustments={safeCashAdjustments}
             sparklineData={sparklineData} 
             selectedPeriod={selectedPeriod}
           />
@@ -87,20 +128,20 @@ function DashboardContent() {
         <ErrorBoundary>
           <Suspense fallback={<LoadingSpinner />}>
             <DashboardCharts 
-              tokens={tokens} 
-              expenses={expenses} 
-              entries={entries} 
-              exchanges={exchanges} 
+              tokens={safeTokens} 
+              expenses={safeExpenses} 
+              entries={safeEntries} 
+              exchanges={safeExchanges} 
             />
           </Suspense>
         </ErrorBoundary>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <Suspense fallback={<LoadingSpinner />}>
-            <RecentActivity activities={recentActivities} loading={loading} />
+            <RecentActivity activities={safeRecentActivities} loading={loading} />
           </Suspense>
           <Suspense fallback={<LoadingSpinner />}>
-            <UnpaidCustomers tokens={tokens} loading={loading} />
+            <UnpaidCustomers tokens={safeTokens} loading={loading} />
           </Suspense>
         </div>
       </motion.div>

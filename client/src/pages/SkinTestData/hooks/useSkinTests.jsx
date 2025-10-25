@@ -24,7 +24,7 @@ const useSkinTests = () => {
     error: queryError,
     refetch
   } = useQuery({
-    queryKey: ['skinTests'],
+    queryKey: ['skinTests'], // Already correct
     queryFn: fetchSkinTests,
     staleTime: 5 * 60 * 1000, // 5 minutes
     refetchOnWindowFocus: true,

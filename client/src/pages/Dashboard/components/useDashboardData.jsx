@@ -89,35 +89,35 @@ function useDashboardData() {
   const queries = useQueries({
     queries: [
       {
-        queryKey: ['tokens', currentPage],
+        queryKey: ['dashboard', 'tokens', currentPage], // Fixed: Array format for React Query v4
         queryFn: queryFns.tokens,
         staleTime: STALE_TIME,
         cacheTime: CACHE_TIME,
         keepPreviousData: true
       },
       {
-        queryKey: ['expenses', currentPage],
+        queryKey: ['dashboard', 'expenses', currentPage], // Fixed: Array format for React Query v4
         queryFn: queryFns.expenses,
         staleTime: STALE_TIME,
         cacheTime: CACHE_TIME,
         keepPreviousData: true
       },
       {
-        queryKey: ['cashAdjustments', currentPage],
+        queryKey: ['dashboard', 'cashAdjustments', currentPage], // Fixed: Array format for React Query v4
         queryFn: queryFns.cashAdjustments,
         staleTime: STALE_TIME,
         cacheTime: CACHE_TIME,
         keepPreviousData: true
       },
       {
-        queryKey: ['entries', currentPage],
+        queryKey: ['dashboard', 'entries', currentPage], // Fixed: Array format for React Query v4
         queryFn: queryFns.entries,
         staleTime: STALE_TIME,
         cacheTime: CACHE_TIME,
         keepPreviousData: true
       },
       {
-        queryKey: ['exchanges', currentPage],
+        queryKey: ['dashboard', 'exchanges', currentPage], // Fixed: Array format for React Query v4
         queryFn: queryFns.exchanges,
         staleTime: STALE_TIME,
         cacheTime: CACHE_TIME,
@@ -381,10 +381,10 @@ function useDashboardData() {
     () => debounce((newData) => {
       // Update state with new data
       Object.entries(newData).forEach(([key, value]) => {
-        queryClient.setQueryData([key, currentPage], value);
+        queryClient.setQueryData(['dashboard', key, currentPage], value); // Fixed: Array format for React Query v4
       });
     }, 300),
-    [currentPage]
+    [currentPage, queryClient]
   );
 
   const fetchDashboardData = async () => {
@@ -569,14 +569,29 @@ function useDashboardData() {
   // Pre-fetch next page
   useEffect(() => {
     const prefetchNextPage = async () => {
-      await queryClient.prefetchQuery(['tokens', currentPage + 1], queryFns.tokens);
-      await queryClient.prefetchQuery(['expenses', currentPage + 1], queryFns.expenses);
-      await queryClient.prefetchQuery(['cashAdjustments', currentPage + 1], queryFns.cashAdjustments);
-      await queryClient.prefetchQuery(['entries', currentPage + 1], queryFns.entries);
-      await queryClient.prefetchQuery(['exchanges', currentPage + 1], queryFns.exchanges);
+      await queryClient.prefetchQuery({
+        queryKey: ['dashboard', 'tokens', currentPage + 1], // Fixed: Array format for React Query v4
+        queryFn: queryFns.tokens
+      });
+      await queryClient.prefetchQuery({
+        queryKey: ['dashboard', 'expenses', currentPage + 1], // Fixed: Array format for React Query v4
+        queryFn: queryFns.expenses
+      });
+      await queryClient.prefetchQuery({
+        queryKey: ['dashboard', 'cashAdjustments', currentPage + 1], // Fixed: Array format for React Query v4
+        queryFn: queryFns.cashAdjustments
+      });
+      await queryClient.prefetchQuery({
+        queryKey: ['dashboard', 'entries', currentPage + 1], // Fixed: Array format for React Query v4
+        queryFn: queryFns.entries
+      });
+      await queryClient.prefetchQuery({
+        queryKey: ['dashboard', 'exchanges', currentPage + 1], // Fixed: Array format for React Query v4
+        queryFn: queryFns.exchanges
+      });
     };
     prefetchNextPage();
-  }, [currentPage]);
+  }, [currentPage, queryClient, queryFns]);
 
   return {
     tokens,

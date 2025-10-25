@@ -6,7 +6,7 @@ const useCustomerAPI = (dispatch, ActionTypes) => {
 
   // Query for fetching customers
   const { data: customers, isLoading, error } = useQuery({
-    queryKey: ['customers'],
+    queryKey: ['customers'], // Already correct
     queryFn: async () => {
       try {
         return await entryService.getEntries();
@@ -33,7 +33,7 @@ const useCustomerAPI = (dispatch, ActionTypes) => {
     },
     onSuccess: (data) => {
       dispatch({ type: ActionTypes.SET_SUCCESS, payload: 'Customer added successfully!' });
-      queryClient.invalidateQueries({ queryKey: ['customers'] });
+      queryClient.invalidateQueries({ queryKey: ['customers'] }); // Already correct
     },
     onError: (err) => {
       dispatch({ type: ActionTypes.SET_ERROR, payload: err.message });
@@ -51,7 +51,7 @@ const useCustomerAPI = (dispatch, ActionTypes) => {
     },
     onSuccess: (data) => {
       dispatch({ type: ActionTypes.SET_SUCCESS, payload: 'Customer updated successfully!' });
-      queryClient.invalidateQueries({ queryKey: ['customers'] });
+      queryClient.invalidateQueries({ queryKey: ['customers'] }); // Already correct
     },
     onError: (err) => {
       dispatch({ type: ActionTypes.SET_ERROR, payload: err.message });
@@ -69,7 +69,7 @@ const useCustomerAPI = (dispatch, ActionTypes) => {
     },
     onSuccess: (data) => {
       dispatch({ type: ActionTypes.SET_SUCCESS, payload: 'Customer deleted successfully!' });
-      queryClient.invalidateQueries({ queryKey: ['customers'] });
+      queryClient.invalidateQueries({ queryKey: ['customers'] }); // Already correct
     },
     onError: (err) => {
       dispatch({ type: ActionTypes.SET_ERROR, payload: err.message });

@@ -39,8 +39,13 @@ const useSparklineData = ({ tokens, expenseData, entries, exchanges }) => {
     // Add event listener
     worker.addEventListener('message', handleWorkerMessage);
     
-    // Send data to worker for processing
-    worker.postMessage({ tokens, expenseData, entries, exchanges });
+    // Send data to worker for processing (with defaults for undefined data)
+    worker.postMessage({ 
+      tokens: tokens || [], 
+      expenseData: expenseData || [], 
+      entries: entries || [], 
+      exchanges: exchanges || [] 
+    });
     
     // Clean up worker when component unmounts
     return () => {

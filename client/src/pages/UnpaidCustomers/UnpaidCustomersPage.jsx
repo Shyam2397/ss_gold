@@ -91,7 +91,7 @@ const UnpaidCustomersPage = () => {
   const { isExporting, expandedCustomers, searchTerm } = state;
 
   const { data: customers = [], isLoading, error, refetch } = useQuery({
-    queryKey: ['unpaid-customers'],
+    queryKey: ['unpaid-customers'], // Already correct
     queryFn: getUnpaidCustomers,
     staleTime: 0,              // Always consider data stale to trigger immediate refetch on mount
     gcTime: 5 * 60 * 1000,    // 5 minutes before unused data is removed from cache

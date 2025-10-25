@@ -2,17 +2,23 @@
 
 // Cache for date operations
 const dateCache = new Map();
+const MAX_CACHE_SIZE = 100;
 
 // Helper function to parse dates with caching
 const parseDate = (dateStr) => {
   if (!dateCache.has(dateStr)) {
+    // Implement cache size limit
+    if (dateCache.size >= MAX_CACHE_SIZE) {
+      const firstKey = dateCache.keys().next().value;
+      dateCache.delete(firstKey);
+    }
     dateCache.set(dateStr, new Date(dateStr.split('-').reverse().join('-')));
   }
   return dateCache.get(dateStr);
 };
 
 // Process sparkline data for dashboard metrics
-const processSparklineData = ({ tokens, expenseData, entries, exchanges }) => {
+const processSparklineData = ({ tokens = [], expenseData = [], entries = [], exchanges = [] }) => {
   try {
     const today = new Date();
     const days = Array.from({ length: 7 }, (_, i) => {
@@ -52,7 +58,7 @@ const processSparklineData = ({ tokens, expenseData, entries, exchanges }) => {
 
     // Customers sparkline data
     const customers = days.map(day => {
-      const value = entries.filter(entry => {
+      const value = (entries || []).filter(entry => {
         const entryDate = new Date(entry.createdAt);
         return entryDate.toDateString() === day.toDateString();
       }).length;
@@ -65,7 +71,7 @@ const processSparklineData = ({ tokens, expenseData, entries, exchanges }) => {
 
     // Skin tests sparkline data
     const skinTests = days.map(day => {
-      const value = tokens.filter(token => {
+      const value = (tokens || []).filter(token => {
         const tokenDate = parseDate(token.date);
         return tokenDate.toDateString() === day.toDateString() && token.testType === 'skin';
       }).length;
@@ -78,7 +84,7 @@ const processSparklineData = ({ tokens, expenseData, entries, exchanges }) => {
 
     // Weights sparkline data
     const weights = days.map(day => {
-      const value = exchanges
+      const value = (exchanges || [])
         .filter(exchange => {
           const exchangeDate = parseDate(exchange.date);
           return exchangeDate.toDateString() === day.toDateString();

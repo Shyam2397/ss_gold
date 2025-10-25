@@ -43,7 +43,7 @@ const useTokenQuery = () => {
     isLoading: loading,
     refetch: refetchTokens
   } = useQuery({
-    queryKey: ['tokens'],
+    queryKey: ['tokens'], // Already correct
     queryFn: async () => {
       try {
         const data = await tokenService.getTokens();
@@ -106,7 +106,7 @@ const useTokenQuery = () => {
       toast.success('Token saved successfully!');
       
       // Use setQueryData instead of invalidateQueries for better performance
-      queryClient.setQueryData(['tokens'], (oldTokens = []) => {
+      queryClient.setQueryData(['tokens'], (oldTokens = []) => { // Already correct
         if (variables.editId) {
           // Update existing token
           return oldTokens.map(token => 
@@ -139,7 +139,7 @@ const useTokenQuery = () => {
       setSuccess('Token deleted successfully!');
       
       // Use setQueryData instead of invalidateQueries for better performance
-      queryClient.setQueryData(['tokens'], (oldTokens = []) => 
+      queryClient.setQueryData(['tokens'], (oldTokens = []) => // Already correct
         oldTokens.filter(token => token.id !== data.tokenId)
       );
     },
@@ -164,7 +164,7 @@ const useTokenQuery = () => {
       setSuccess('Payment status updated successfully!');
       
       // Use setQueryData instead of invalidateQueries for better performance
-      queryClient.setQueryData(['tokens'], (oldTokens = []) => 
+      queryClient.setQueryData(['tokens'], (oldTokens = []) => // Already correct
         oldTokens.map(token => 
           token.id === data.tokenId 
             ? { ...token, isPaid: data.isPaid } 
@@ -182,7 +182,7 @@ const useTokenQuery = () => {
   const fetchNameByCode = useCallback(async (code) => {
     try {
       // Add caching for name lookups
-      const cacheKey = ['name', code];
+      const cacheKey = ['name', code]; // Already correct
       const cachedData = queryClient.getQueryData(cacheKey);
       
       if (cachedData) {
@@ -193,7 +193,7 @@ const useTokenQuery = () => {
       const name = data?.data?.name || 'Not Found';
       
       // Cache the result for 5 minutes
-      queryClient.setQueryData(cacheKey, name, {
+      queryClient.setQueryData(cacheKey, name, { // Already correct
         staleTime: 5 * 60 * 1000
       });
       

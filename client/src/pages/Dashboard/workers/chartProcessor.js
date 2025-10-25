@@ -1,16 +1,30 @@
 /* eslint-disable no-restricted-globals */
 
-// Cache for date operations
+// Cache for date operations with size limit
+const MAX_CACHE_SIZE = 500;
 const dateCache = new Map();
+
+// Accumulate data chunks
+const dataChunks = {
+  tokens: [],
+  expenses: [],
+  entries: [],
+  exchanges: []
+};
 
 const parseDate = (dateStr) => {
   if (!dateCache.has(dateStr)) {
+    // Implement cache size limit to prevent memory leaks
+    if (dateCache.size >= MAX_CACHE_SIZE) {
+      const firstKey = dateCache.keys().next().value;
+      dateCache.delete(firstKey);
+    }
     dateCache.set(dateStr, new Date(dateStr.split('-').reverse().join('-')));
   }
   return dateCache.get(dateStr);
 };
 
-const processChartData = ({ tokens, expenses, entries, exchanges }) => {
+const processChartData = () => {
   try {
     const processedData = {
       revenue: new Map(),
@@ -21,7 +35,7 @@ const processChartData = ({ tokens, expenses, entries, exchanges }) => {
     };
 
     // Process tokens
-    tokens.forEach(token => {
+    (dataChunks.tokens || []).forEach(token => {
       const date = parseDate(token.date);
       const dateKey = date.toISOString().split('T')[0];
       
@@ -35,7 +49,7 @@ const processChartData = ({ tokens, expenses, entries, exchanges }) => {
     });
 
     // Process expenses
-    expenses.forEach(expense => {
+    (dataChunks.expenses || []).forEach(expense => {
       const date = new Date(expense.date);
       const dateKey = date.toISOString().split('T')[0];
       
@@ -59,7 +73,7 @@ const processChartData = ({ tokens, expenses, entries, exchanges }) => {
 
     // Sort all arrays by date
     Object.keys(result).forEach(key => {
-      result[key].sort((a, b) => new Date(a.date) - new Date(b.date));
+      (result[key] || []).sort((a, b) => new Date(a.date) - new Date(b.date));
     });
 
     return result;
@@ -69,6 +83,21 @@ const processChartData = ({ tokens, expenses, entries, exchanges }) => {
 };
 
 self.addEventListener('message', (event) => {
-  const result = processChartData(event.data);
-  self.postMessage(result);
+  const { type, dataType, data, isLastChunk } = event.data;
+  
+  if (type === 'chunk') {
+    // Accumulate chunked data
+    if (dataChunks[dataType]) {
+      dataChunks[dataType].push(...(data || []));
+    }
+  } else if (type === 'process') {
+    // Process accumulated data
+    const result = processChartData();
+    self.postMessage(result);
+    
+    // Clear accumulated data
+    Object.keys(dataChunks).forEach(key => {
+      dataChunks[key] = [];
+    });
+  }
 });

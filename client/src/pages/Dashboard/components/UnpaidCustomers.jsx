@@ -1,13 +1,43 @@
-import React, { useState, useMemo, useEffect, useRef, Suspense } from 'react';
+import React, { useState, useMemo, useEffect, useRef, Suspense, useCallback } from 'react';
 import { CurrencyRupeeIcon, ExclamationCircleIcon, MagnifyingGlassIcon } from '@heroicons/react/24/solid';
 import { debounce } from 'lodash';
 import { CustomerSkeleton } from './LoadingSkeleton';
 import SimpleList from './SimpleList';
 
+// Throttle function for resize events
+const throttle = (func, limit) => {
+  let inThrottle;
+  return function() {
+    const args = arguments;
+    const context = this;
+    if (!inThrottle) {
+      func.apply(context, args);
+      inThrottle = true;
+      setTimeout(() => inThrottle = false, limit);
+    }
+  }
+}
+
 // Lazy load react-window
 const FixedSizeList = React.lazy(() => import('react-window').then(mod => ({ 
   default: mod.FixedSizeList 
 })));
+
+// Cache for parsed dates to avoid repeated creation
+const dateCache = new Map();
+const MAX_DATE_CACHE_SIZE = 100;
+
+const parseDate = (dateString) => {
+  if (!dateCache.has(dateString)) {
+    // Implement cache size limit
+    if (dateCache.size >= MAX_DATE_CACHE_SIZE) {
+      const firstKey = dateCache.keys().next().value;
+      dateCache.delete(firstKey);
+    }
+    dateCache.set(dateString, new Date(dateString));
+  }
+  return dateCache.get(dateString);
+};
 
 const CustomerRow = ({ data, index, style }) => {
   const customer = data[index];
@@ -38,7 +68,7 @@ const CustomerRow = ({ data, index, style }) => {
           <div className="flex justify-between items-center mt-1">
             <span className="text-xs text-gray-500">{customer.test}</span>
             <span className="text-xs text-gray-400">
-              {customer.date.toLocaleDateString('en-IN', {
+              {customer.parsedDate.toLocaleDateString('en-IN', {
                 day: 'numeric',
                 month: 'short'
               })}
@@ -60,44 +90,87 @@ const UnpaidCustomers = ({ tokens = [], loading = false }) => {
     []
   );
 
-  const unpaidCustomers = useMemo(() => tokens
-    .filter(token => !token.isPaid)
-    .map(token => ({
-      id: token._id,
-      name: token.name,
-      amount: parseFloat(token.amount) || 0,
-      date: new Date(token.date),
-      test: token.test || 'Token',
-      code: token.code || '-',
-      tokenNo: token.tokenNo || '-'
-    }))
-    .sort((a, b) => b.date.getTime() - a.date.getTime()));
+  const unpaidCustomers = useMemo(() => {
+    return tokens
+      .filter(token => !token.isPaid)
+      .map(token => ({
+        id: token._id,
+        name: token.name,
+        amount: parseFloat(token.amount) || 0,
+        date: token.date, // Keep original date string
+        parsedDate: parseDate(token.date), // Parse once and cache
+        test: token.test || 'Token',
+        code: token.code || '-',
+        tokenNo: token.tokenNo || '-'
+      }))
+      .sort((a, b) => b.parsedDate.getTime() - a.parsedDate.getTime());
+  }, [tokens]);
+
+  // Create search index for more efficient searching
+  const searchIndex = useMemo(() => {
+    const index = new Map();
+    unpaidCustomers.forEach((customer, idx) => {
+      // Index by name (lowercase for case-insensitive search)
+      const nameKey = customer.name.toLowerCase();
+      if (!index.has(nameKey)) {
+        index.set(nameKey, []);
+      }
+      index.get(nameKey).push(idx);
+      
+      // Index by code
+      const codeKey = customer.code.toLowerCase();
+      if (!index.has(codeKey)) {
+        index.set(codeKey, []);
+      }
+      index.get(codeKey).push(idx);
+    });
+    return index;
+  }, [unpaidCustomers]);
 
   const filteredCustomers = useMemo(() => {
     if (!searchQuery) return unpaidCustomers;
-    const query = searchQuery.toLowerCase();
+    const query = searchQuery.toLowerCase().trim();
+    
+    if (!query) return unpaidCustomers;
+    
+    // Use search index for better performance
+    const nameMatches = searchIndex.get(query) || [];
+    const codeMatches = searchIndex.get(query) || [];
+    
+    // Combine and deduplicate results
+    const matchedIndices = [...new Set([...nameMatches, ...codeMatches])];
+    
+    // If we have matches from index, use them; otherwise fall back to filter
+    if (matchedIndices.length > 0) {
+      return matchedIndices.map(idx => unpaidCustomers[idx]);
+    }
+    
+    // Fallback to traditional filtering for partial matches
     return unpaidCustomers.filter(customer =>
       customer.name.toLowerCase().includes(query) ||
       customer.code.toLowerCase().includes(query)
     );
-  }, [unpaidCustomers, searchQuery]);
+  }, [unpaidCustomers, searchQuery, searchIndex]);
 
-  const totalUnpaid = filteredCustomers.reduce((sum, customer) => sum + customer.amount, 0);
+  const totalUnpaid = useMemo(() => {
+    return filteredCustomers.reduce((sum, customer) => sum + customer.amount, 0);
+  }, [filteredCustomers]);
+
+  // Throttled resize handler
+  const updateHeight = useCallback(throttle(() => {
+    if (containerRef.current) {
+      const windowHeight = window.innerHeight;
+      const containerTop = containerRef.current.getBoundingClientRect().top;
+      const newHeight = Math.max(350, windowHeight - containerTop - 100);
+      setListHeight(newHeight);
+    }
+  }, 100), []);
 
   useEffect(() => {
-    const updateHeight = () => {
-      if (containerRef.current) {
-        const windowHeight = window.innerHeight;
-        const containerTop = containerRef.current.getBoundingClientRect().top;
-        const newHeight = Math.max(350, windowHeight - containerTop - 100);
-        setListHeight(newHeight);
-      }
-    };
-
     updateHeight();
     window.addEventListener('resize', updateHeight);
     return () => window.removeEventListener('resize', updateHeight);
-  }, []);
+  }, [updateHeight]);
 
   if (loading) {
     return (

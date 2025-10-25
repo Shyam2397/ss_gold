@@ -26,11 +26,18 @@ const CHART_SERIES = [
   ['exchangeExWeight', 'Pure Weight', CHART_COLORS.exchangeExWeight, 'right']
 ];
 
-// Create a date cache for better performance
+// Create a date cache with size limit for better performance and memory management
+const MAX_CACHE_SIZE = 1000;
 const dateCache = new Map();
 const getDateKey = (date, format) => {
   const key = `${date}-${format}`;
   if (!dateCache.has(key)) {
+    // Implement cache size limit
+    if (dateCache.size >= MAX_CACHE_SIZE) {
+      const firstKey = dateCache.keys().next().value;
+      dateCache.delete(firstKey);
+    }
+    
     const d = new Date(date);
     // Adjust to local timezone by subtracting the offset
     d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
@@ -57,8 +64,9 @@ const getDateKey = (date, format) => {
 
 const THROTTLE_THRESHOLD = 1000; // Maximum points to display at once
 const VIEWPORT_SIZE = 50; // Number of points to show in viewport
+const CHUNK_SIZE = 100; // Process data in chunks of 100 items
 
-const DashboardCharts = ({ tokens, expenses, entries, exchanges }) => {
+const DashboardCharts = ({ tokens = [], expenses = [], entries = [], exchanges = [] }) => {
   const [period, setPeriod] = useState('daily');
   const [workerData, setWorkerData] = useState(null);
   const [viewportStart, setViewportStart] = useState(0);
@@ -88,13 +96,37 @@ const DashboardCharts = ({ tokens, expenses, entries, exchanges }) => {
 
     worker.addEventListener('message', handleWorkerMessage);
     
-    // Send initial data to worker with chunking
+    // Send initial data to worker with improved chunking
     const sendChunkedData = async () => {
-      const chunks = chunkData({ tokens, expenses, entries, exchanges });
-      for (const chunk of chunks) {
-        await new Promise(resolve => setTimeout(resolve, 0)); // Yield to main thread
-        worker.postMessage(chunk);
+      // Process data in smaller chunks to avoid blocking
+      const dataToProcess = { 
+        tokens: tokens || [], 
+        expenses: expenses || [], 
+        entries: entries || [], 
+        exchanges: exchanges || [] 
+      };
+      
+      // Send data in chunks
+      for (const [key, items] of Object.entries(dataToProcess)) {
+        if (!Array.isArray(items)) continue;
+        
+        // Process in chunks
+        for (let i = 0; i < items.length; i += CHUNK_SIZE) {
+          const chunk = items.slice(i, i + CHUNK_SIZE);
+          worker.postMessage({ 
+            type: 'chunk',
+            dataType: key,
+            data: chunk,
+            isLastChunk: i + CHUNK_SIZE >= items.length
+          });
+          
+          // Yield to main thread
+          await new Promise(resolve => setTimeout(resolve, 0));
+        }
       }
+      
+      // Signal completion
+      worker.postMessage({ type: 'process' });
     };
 
     sendChunkedData();
@@ -173,7 +205,7 @@ const DashboardCharts = ({ tokens, expenses, entries, exchanges }) => {
       };
 
       // Process tokens with improved weekly handling
-      tokens.forEach(token => {
+      (tokens || []).forEach(token => {
         const date = new Date(token.date);
         const key = period === 'weekly' ? 
           getWeekKey(date) : 
@@ -195,7 +227,7 @@ const DashboardCharts = ({ tokens, expenses, entries, exchanges }) => {
       });
 
       // Process expenses with improved weekly handling
-      expenses.forEach(expense => {
+      (expenses || []).forEach(expense => {
         const date = new Date(expense.date);
         const key = period === 'weekly' ? 
           getWeekKey(date) : 
@@ -208,7 +240,7 @@ const DashboardCharts = ({ tokens, expenses, entries, exchanges }) => {
       });
 
       // Process exchanges with improved weekly handling
-      exchanges.forEach(exchange => {
+      (exchanges || []).forEach(exchange => {
         if (!exchange.date) return;
         try {
           const [day, month, year] = exchange.date.split('/');
@@ -268,7 +300,7 @@ const DashboardCharts = ({ tokens, expenses, entries, exchanges }) => {
     const throttledData = throttleDataPoints(chartData);
     const end = Math.min(viewportStart + VIEWPORT_SIZE, throttledData.length);
     return throttledData.slice(viewportStart, end);
-  }, [chartData, viewportStart]);
+  }, [chartData, viewportStart, throttleDataPoints]);
 
   // Handle viewport scrolling
   const handleScroll = useCallback((direction) => {
@@ -433,10 +465,8 @@ const DashboardCharts = ({ tokens, expenses, entries, exchanges }) => {
 const MemoizedDashboardCharts = React.memo(DashboardCharts, (prevProps, nextProps) => {
   // Deep compare only the necessary props
   return ['tokens', 'expenses', 'entries', 'exchanges'].every(key => 
-    JSON.stringify(prevProps[key]) === JSON.stringify(nextProps[key])
+    JSON.stringify(prevProps[key] || []) === JSON.stringify(nextProps[key] || [])
   );
 });
 
 export default MemoizedDashboardCharts;
-
-

@@ -10,15 +10,22 @@ import usePerformanceMonitor from '../hooks/usePerformanceMonitor';
 const MetricsGrid = ({ metrics, tokens, expenses, entries, exchanges, cashAdjustments, sparklineData, selectedPeriod }) => {
   usePerformanceMonitor('MetricsGrid');
 
-  const calculations = useMemo(() => {
-    // Calculate base revenue and expenses
-    const totalRevenue = tokens.reduce((sum, token) => sum + (parseFloat(token.totalAmount) || 0), 0);
-    const totalExpenses = expenses.reduce((sum, expense) => {
+  // Calculate total revenue separately
+  const totalRevenue = useMemo(() => {
+    return (tokens || []).reduce((sum, token) => sum + (parseFloat(token.totalAmount) || 0), 0);
+  }, [tokens]);
+
+  // Calculate total expenses separately
+  const totalExpenses = useMemo(() => {
+    return (expenses || []).reduce((sum, expense) => {
       const amount = parseFloat(expense.amount) || 0;
       return sum + amount;
     }, 0);
-    
-    const adjustments = (cashAdjustments || []).reduce((result, adj) => {
+  }, [expenses]);
+
+  // Calculate cash adjustments separately
+  const adjustments = useMemo(() => {
+    return (cashAdjustments || []).reduce((result, adj) => {
       const amount = parseFloat(adj?.amount) || 0;
       const adjustmentType = adj?.adjustment_type?.toLowerCase(); // 'addition' or 'deduction'
       
@@ -32,34 +39,62 @@ const MetricsGrid = ({ metrics, tokens, expenses, entries, exchanges, cashAdjust
       }
       return result;
     }, { credit: 0, debit: 0 });
-    
-    // Calculate adjusted totals
-    // Credits increase revenue, debits increase expenses
-    const adjustedRevenue = totalRevenue + adjustments.credit;
-    const adjustedExpenses = totalExpenses + adjustments.debit;
-    
-    const netProfit = adjustedRevenue - adjustedExpenses;
-    const profitMargin = adjustedRevenue > 0 ? ((netProfit / adjustedRevenue) * 100).toFixed(2) : 0;
+  }, [cashAdjustments]);
 
+  // Calculate adjusted totals
+  const adjustedRevenue = useMemo(() => {
+    return totalRevenue + adjustments.credit;
+  }, [totalRevenue, adjustments.credit]);
+
+  const adjustedExpenses = useMemo(() => {
+    return totalExpenses + adjustments.debit;
+  }, [totalExpenses, adjustments.debit]);
+
+  // Calculate final financial metrics
+  const netProfit = useMemo(() => {
+    return adjustedRevenue - adjustedExpenses;
+  }, [adjustedRevenue, adjustedExpenses]);
+
+  const profitMargin = useMemo(() => {
+    return adjustedRevenue > 0 ? ((netProfit / adjustedRevenue) * 100).toFixed(2) : 0;
+  }, [adjustedRevenue, netProfit]);
+
+  const calculations = useMemo(() => {
     return {
       totalRevenue: adjustedRevenue,
       totalExpenses: adjustedExpenses,
       netProfit,
       profitMargin
     };
-  }, [tokens, expenses, cashAdjustments]);
+  }, [adjustedRevenue, adjustedExpenses, netProfit, profitMargin]);
 
-  const trends = useTrends({ tokens, expenses, entries, exchanges });
+  const trends = useTrends({ 
+    tokens: tokens || [], 
+    expenses: expenses || [], 
+    entries: entries || [], 
+    exchanges: exchanges || [] 
+  });
+
+  // Provide default metrics if none provided
+  const safeMetrics = metrics || {
+    totalCustomers: 0,
+    totalTokens: 0,
+    skinTestCount: 0,
+    photoTestCount: 0,
+    totalExchanges: 0,
+    totalWeight: 0,
+    totalExWeight: 0
+  };
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       <DashboardCard 
         title="Total Revenue" 
         value={`₹${calculations.totalRevenue.toLocaleString()}`}
-        trend={trends.revenueGrowth}
+        trend={trends.revenueGrowth || 0}
         icon={CurrencyRupeeIcon}
         description="Total revenue from tokens"
-        sparklineData={sparklineData.revenue}
+        sparklineData={sparklineData?.revenue}
         className="bg-white"
         iconClassName="text-yellow-600"
         valueClassName="text-yellow-900"
@@ -67,10 +102,10 @@ const MetricsGrid = ({ metrics, tokens, expenses, entries, exchanges, cashAdjust
       <DashboardCard 
         title="Total Expenses" 
         value={`₹${calculations.totalExpenses.toLocaleString()}`}
-        trend={trends.expensesGrowth}
+        trend={trends.expensesGrowth || 0}
         icon={ScaleIcon}
         description="Total expenses this month"
-        sparklineData={sparklineData.expenses}
+        sparklineData={sparklineData?.expenses}
         className="bg-white"
         iconClassName="text-yellow-600"
         valueClassName="text-yellow-900"
@@ -78,10 +113,10 @@ const MetricsGrid = ({ metrics, tokens, expenses, entries, exchanges, cashAdjust
       <DashboardCard 
         title="Net Profit" 
         value={`₹${calculations.netProfit.toLocaleString()}`}
-        trend={trends.profitGrowth}
+        trend={trends.profitGrowth || 0}
         icon={ReceiptPercentIcon}
         description="Net profit this month"
-        sparklineData={sparklineData.profit}
+        sparklineData={sparklineData?.profit}
         className="bg-white"
         iconClassName="text-yellow-600"
         valueClassName="text-yellow-900"
@@ -89,7 +124,7 @@ const MetricsGrid = ({ metrics, tokens, expenses, entries, exchanges, cashAdjust
       <DashboardCard 
         title="Profit Margin" 
         value={`${calculations.profitMargin}%`}
-        trend={trends.marginGrowth}
+        trend={trends.marginGrowth || 0}
         icon={UserGroupIcon}
         description="Current profit margin"
         className="bg-white"
@@ -98,11 +133,11 @@ const MetricsGrid = ({ metrics, tokens, expenses, entries, exchanges, cashAdjust
       />
       <DashboardCard 
         title="Customers" 
-        value={metrics.totalCustomers.toString()}
-        trend={trends.customersTrend}
+        value={safeMetrics.totalCustomers.toString()}
+        trend={trends.customersTrend || 0}
         icon={UserGroupIcon}
         description="Total number of customers"
-        sparklineData={sparklineData.customers}
+        sparklineData={sparklineData?.customers}
         className="bg-white"
         iconClassName="text-yellow-600"
         valueClassName="text-yellow-900"
@@ -111,34 +146,34 @@ const MetricsGrid = ({ metrics, tokens, expenses, entries, exchanges, cashAdjust
         title="Token" 
         value={
           <div className="flex flex-col space-y-1">
-            <div className="font-bold text-yellow-900">{metrics.totalTokens}</div>
+            <div className="font-bold text-yellow-900">{safeMetrics.totalTokens}</div>
             <div className="flex flex-row items-center text-sm">
               <div className="flex items-center">
                 <div className="h-2 w-2 rounded-full bg-yellow-400 mr-1"></div>
-                <span className="ml-1 font-semibold">{metrics.skinTestCount}</span>
+                <span className="ml-1 font-semibold">{safeMetrics.skinTestCount}</span>
               </div>
               <div className="flex items-center ml-5">
                 <div className="h-2 w-2 rounded-full bg-yellow-400 mr-1"></div>
-                <span className="ml-1 font-semibold">{metrics.photoTestCount}</span>
+                <span className="ml-1 font-semibold">{safeMetrics.photoTestCount}</span>
               </div>
             </div>
           </div>
         }
-        trend={trends.tokensTrend}
+        trend={trends.tokensTrend || 0}
         icon={BeakerIcon}
         description="Test-wise token breakdown"
-        sparklineData={sparklineData.skinTests}
+        sparklineData={sparklineData?.skinTests}
         className="bg-white"
         iconClassName="text-yellow-600"
         valueClassName="text-yellow-900"
       />
       <DashboardCard 
         title="Total Exchange" 
-        value={metrics.totalExchanges.toString()}
-        trend={trends.exchangesTrend}
+        value={safeMetrics.totalExchanges.toString()}
+        trend={trends.exchangesTrend || 0}
         icon={ScaleIcon}
         description="Total number of exchanges"
-        sparklineData={sparklineData.weights}
+        sparklineData={sparklineData?.weights}
         className="bg-white"
         iconClassName="text-yellow-600"
         valueClassName="text-yellow-900"
@@ -150,21 +185,21 @@ const MetricsGrid = ({ metrics, tokens, expenses, entries, exchanges, cashAdjust
             <div className="flex justify-between items-center">
               
               <span className="text-lg font-bold">
-                {Number(metrics.totalWeight || 0).toFixed(3)} g
+                {Number(safeMetrics.totalWeight || 0).toFixed(3)} g
               </span>
             </div>
             <div className="flex justify-between items-center">
             
               <span className="text-lg font-bold">
-                {Number(metrics.totalExWeight || 0).toFixed(3)} g
+                {Number(safeMetrics.totalExWeight || 0).toFixed(3)} g
               </span>
             </div>
           </div>
         }
-        trend={trends.weightTrend}
+        trend={trends.weightTrend || 0}
         icon={ArrowsRightLeftIcon}
-        description={`${selectedPeriod} exchange weights`}
-        sparklineData={sparklineData.weights}
+        description={`${selectedPeriod || 'Monthly'} exchange weights`}
+        sparklineData={sparklineData?.weights}
         className="bg-white"
         iconClassName="text-yellow-600"
         valueClassName="text-yellow-900"

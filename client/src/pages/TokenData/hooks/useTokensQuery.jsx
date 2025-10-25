@@ -15,7 +15,7 @@ const useTokensQuery = () => {
     isLoading: loading,
     refetch: fetchTokens
   } = useQuery({
-    queryKey: ['tokens'],
+    queryKey: ['tokens'], // Already correct
     queryFn: async () => {
       try {
         const tokens = await tokenService.getTokens();
@@ -40,7 +40,7 @@ const useTokensQuery = () => {
       return await tokenService.deleteToken(tokenId);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tokens'] });
+      queryClient.invalidateQueries({ queryKey: ['tokens'] }); // Already correct
       setError('');
     },
     onError: (error) => {
