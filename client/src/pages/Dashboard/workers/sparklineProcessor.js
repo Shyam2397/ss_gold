@@ -4,15 +4,58 @@
 const dateCache = new Map();
 const MAX_CACHE_SIZE = 100;
 
-// Helper function to parse dates with caching
+// Helper function to parse dates with caching and multiple format support
 const parseDate = (dateStr) => {
+  if (!dateStr) return new Date(); // Return current date if dateStr is falsy
+  
   if (!dateCache.has(dateStr)) {
     // Implement cache size limit
     if (dateCache.size >= MAX_CACHE_SIZE) {
       const firstKey = dateCache.keys().next().value;
       dateCache.delete(firstKey);
     }
-    dateCache.set(dateStr, new Date(dateStr.split('-').reverse().join('-')));
+    
+    let parsedDate;
+    
+    // Try parsing as ISO date first
+    parsedDate = new Date(dateStr);
+    
+    // If invalid, try DD/MM/YYYY format
+    if (isNaN(parsedDate.getTime())) {
+      const slashParts = dateStr.split('/');
+      if (slashParts.length === 3) {
+        // DD/MM/YYYY format
+        const [day, month, year] = slashParts;
+        parsedDate = new Date(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T00:00:00`);
+      }
+    }
+    
+    // If still invalid, try DD-MM-YYYY format
+    if (isNaN(parsedDate.getTime())) {
+      const dashParts = dateStr.split('-');
+      if (dashParts.length === 3) {
+        // Try DD-MM-YYYY format
+        const [day, month, year] = dashParts;
+        parsedDate = new Date(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T00:00:00`);
+      }
+    }
+    
+    // If still invalid, try MM/DD/YYYY format
+    if (isNaN(parsedDate.getTime())) {
+      const slashParts = dateStr.split('/');
+      if (slashParts.length === 3) {
+        // MM/DD/YYYY format
+        const [month, day, year] = slashParts;
+        parsedDate = new Date(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T00:00:00`);
+      }
+    }
+    
+    // If still invalid, use current date as fallback
+    if (isNaN(parsedDate.getTime())) {
+      parsedDate = new Date();
+    }
+    
+    dateCache.set(dateStr, parsedDate);
   }
   return dateCache.get(dateStr);
 };
@@ -21,9 +64,9 @@ const parseDate = (dateStr) => {
 const processSparklineData = ({ tokens = [], expenseData = [], entries = [], exchanges = [] }) => {
   try {
     const today = new Date();
-    const days = Array.from({ length: 7 }, (_, i) => {
+    const days = Array.from({ length: 30 }, (_, i) => {
       const date = new Date(today);
-      date.setDate(today.getDate() - (6 - i));
+      date.setDate(today.getDate() - (29 - i));
       return date;
     });
 
@@ -56,24 +99,11 @@ const processSparklineData = ({ tokens = [], expenseData = [], entries = [], exc
       value: revenue[index].value - expenses[index].value
     }));
 
-    // Customers sparkline data
-    const customers = days.map(day => {
-      const value = (entries || []).filter(entry => {
-        const entryDate = new Date(entry.createdAt);
-        return entryDate.toDateString() === day.toDateString();
-      }).length;
-      
-      return {
-        date: day.toISOString(),
-        value
-      };
-    });
-
-    // Skin tests sparkline data
-    const skinTests = days.map(day => {
+    // Tokens sparkline data (daily total tokens)
+    const dailyTokens = days.map(day => {
       const value = (tokens || []).filter(token => {
         const tokenDate = parseDate(token.date);
-        return tokenDate.toDateString() === day.toDateString() && token.testType === 'skin';
+        return tokenDate.toDateString() === day.toDateString();
       }).length;
       
       return {
@@ -82,7 +112,20 @@ const processSparklineData = ({ tokens = [], expenseData = [], entries = [], exc
       };
     });
 
-    // Weights sparkline data
+    // Exchanges sparkline data (daily count of exchanges)
+    const dailyExchanges = days.map(day => {
+      const value = (exchanges || []).filter(exchange => {
+        const exchangeDate = parseDate(exchange.date);
+        return exchangeDate.toDateString() === day.toDateString();
+      }).length;
+      
+      return {
+        date: day.toISOString(),
+        value
+      };
+    });
+
+    // Weights sparkline data (for Pure Exchange metric)
     const weights = days.map(day => {
       const value = (exchanges || [])
         .filter(exchange => {
@@ -101,8 +144,8 @@ const processSparklineData = ({ tokens = [], expenseData = [], entries = [], exc
       revenue,
       expenses,
       profit,
-      customers,
-      skinTests,
+      tokens: dailyTokens,
+      exchanges: dailyExchanges,
       weights
     };
   } catch (error) {

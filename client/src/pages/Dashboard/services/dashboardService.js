@@ -52,7 +52,6 @@ export const fetchTokens = async () => {
     setCache(cacheKey, result);
     return result;
   } catch (error) {
-    console.error('Error fetching tokens:', error);
     return []; // Return empty array instead of throwing
   }
 };
@@ -71,7 +70,6 @@ export const fetchExpenses = async () => {
     setCache(cacheKey, result);
     return result;
   } catch (error) {
-    console.error('Error fetching expenses:', error);
     return []; // Return empty array instead of throwing
   }
 };
@@ -90,7 +88,6 @@ export const fetchEntries = async () => {
     setCache(cacheKey, result);
     return result;
   } catch (error) {
-    console.error('Error fetching entries:', error);
     return []; // Return empty array instead of throwing
   }
 };
@@ -109,7 +106,6 @@ export const fetchExchanges = async () => {
     setCache(cacheKey, result);
     return result;
   } catch (error) {
-    console.error('Error fetching exchanges:', error);
     return []; // Return empty array instead of throwing
   }
 };
@@ -127,7 +123,6 @@ export const fetchCashAdjustments = async (filters = {}) => {
     setCache(cacheKey, finalResult);
     return finalResult;
   } catch (error) {
-    console.error('Error fetching cash adjustments:', error);
     return [];
   }
 };

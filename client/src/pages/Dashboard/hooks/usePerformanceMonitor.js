@@ -22,13 +22,13 @@ const usePerformanceMonitor = (componentName) => {
       const avgRenderTime = renderTimes.current.reduce((a, b) => a + b, 0) / renderTimes.current.length;
       
       // Log performance metrics
-      console.log(`${componentName} render time:`, duration.toFixed(2), 'ms');
-      console.log(`${componentName} average render time:`, avgRenderTime.toFixed(2), 'ms');
-      console.log(`${componentName} render count:`, renderCount.current);
+      //console.log(`${componentName} render time:`, duration.toFixed(2), 'ms');
+      //console.log(`${componentName} average render time:`, avgRenderTime.toFixed(2), 'ms');
+      //console.log(`${componentName} render count:`, renderCount.current);
       
       // Report to monitoring service if duration exceeds threshold
       if (duration > 200) {
-        console.warn(`${componentName} took longer than expected to render:`, duration.toFixed(2), 'ms');
+        //console.warn(`${componentName} took longer than expected to render:`, duration.toFixed(2), 'ms');
       }
       
       // Store performance data for analysis
@@ -50,7 +50,7 @@ const usePerformanceMonitor = (componentName) => {
   // Component mount time tracking
   useEffect(() => {
     const mountDuration = performance.now() - mountTime.current;
-    console.log(`${componentName} mounted in:`, mountDuration.toFixed(2), 'ms');
+    //console.log(`${componentName} mounted in:`, mountDuration.toFixed(2), 'ms');
   }, [componentName]);
 };
 

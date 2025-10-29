@@ -1,27 +1,78 @@
 import React, { useState } from 'react';
-import { LineChart, Line, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, ResponsiveContainer, Area } from 'recharts';
 import { motion } from 'framer-motion';
 import { ArrowUpIcon, ArrowDownIcon } from '@heroicons/react/24/solid';
 
-// Trend Sparkline Component
-const TrendSparkline = ({ data, color }) => (
-  <div className="h-6 w-20">
-    <ResponsiveContainer width="100%" height="100%">
-      <LineChart data={data} margin={{ top: 5, right: 0, left: 0, bottom: 5 }}>
-        <Line 
-          type="monotone" 
-          dataKey="value" 
-          stroke={color} 
-          strokeWidth={2} 
-          dot={false}
-          strokeLinecap="round"
-          animationDuration={500}
-          isAnimationActive={true}
-        />
-      </LineChart>
-    </ResponsiveContainer>
-  </div>
-);
+// Trend Sparkline Component with error handling and debugging
+const TrendSparkline = ({ data, color }) => {
+  // Data validation
+  React.useEffect(() => {
+    // Data validation logic can go here without console logs
+  }, [data]);
+
+  // Handle empty or invalid data
+  if (!data || !Array.isArray(data) || data.length === 0) {
+    return (
+      <div className="h-6 w-20 flex items-center justify-center">
+        <span className="text-xs text-gray-400">No data</span>
+      </div>
+    );
+  }
+
+  // Ensure all data points have a value
+  const validData = data.map(item => ({
+    ...item,
+    value: typeof item.value === 'number' ? item.value : 0
+  }));
+
+  // Calculate min and max for scaling
+  const values = validData.map(d => d.value);
+  const minValue = Math.min(...values);
+  const maxValue = Math.max(...values);
+  
+  // If all values are the same, add a small range for visibility
+  if (minValue === maxValue) {
+    validData.forEach((item, i) => {
+      item.value = i % 2 === 0 ? item.value + 0.1 : item.value - 0.1;
+    });
+  }
+
+  return (
+    <div className="h-6 w-20">
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart 
+          data={validData} 
+          margin={{ top: 2, right: 0, left: 0, bottom: 2 }}
+        >
+          <defs>
+            <linearGradient id="sparklineGradient" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor={color} stopOpacity={0.2} />
+              <stop offset="100%" stopColor={color} stopOpacity={0.8} />
+            </linearGradient>
+          </defs>
+          <Line 
+            type="monotone" 
+            dataKey="value" 
+            stroke={color}
+            strokeWidth={2}
+            dot={false}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            animationDuration={500}
+            isAnimationActive={true}
+            activeDot={{ r: 3, fill: color }}
+          />
+          <Area 
+            type="monotone" 
+            dataKey="value" 
+            fill="url(#sparklineGradient)" 
+            stroke="none"
+          />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  );
+};
 
 const DashboardCard = ({ title, value, trend, icon: Icon, description, sparklineData, className, iconClassName, valueClassName }) => {
   const [isHovered, setIsHovered] = useState(false);
