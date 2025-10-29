@@ -17,35 +17,28 @@ const parseDate = (dateStr) => {
     
     let parsedDate;
     
-    // Try parsing as ISO date first
-    parsedDate = new Date(dateStr);
-    
-    // If invalid, try DD/MM/YYYY format
-    if (isNaN(parsedDate.getTime())) {
-      const slashParts = dateStr.split('/');
-      if (slashParts.length === 3) {
-        // DD/MM/YYYY format
-        const [day, month, year] = slashParts;
-        parsedDate = new Date(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T00:00:00`);
+    // Try parsing as DD/MM/YYYY format first (most common in the data)
+    const slashParts = dateStr.split('/');
+    if (slashParts.length === 3) {
+      const [day, month, year] = slashParts;
+      // Create date in YYYY-MM-DD format (local time)
+      parsedDate = new Date(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T00:00:00`);
+      // If the date is invalid, try MM/DD/YYYY format
+      if (isNaN(parsedDate.getTime())) {
+        parsedDate = new Date(`${month.padStart(2, '0')}/${day.padStart(2, '0')}/${year}`);
       }
+    }
+    
+    // If still invalid, try ISO format
+    if (!parsedDate || isNaN(parsedDate.getTime())) {
+      parsedDate = new Date(dateStr);
     }
     
     // If still invalid, try DD-MM-YYYY format
     if (isNaN(parsedDate.getTime())) {
       const dashParts = dateStr.split('-');
       if (dashParts.length === 3) {
-        // Try DD-MM-YYYY format
         const [day, month, year] = dashParts;
-        parsedDate = new Date(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T00:00:00`);
-      }
-    }
-    
-    // If still invalid, try MM/DD/YYYY format
-    if (isNaN(parsedDate.getTime())) {
-      const slashParts = dateStr.split('/');
-      if (slashParts.length === 3) {
-        // MM/DD/YYYY format
-        const [month, day, year] = slashParts;
         parsedDate = new Date(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T00:00:00`);
       }
     }
@@ -93,11 +86,19 @@ const processSparklineData = ({ tokens = [], expenseData = [], entries = [], exc
     // Expenses sparkline data
     const expenses = getDailyTotal(expenseData, 'date', 'amount');
 
-    // Profit sparkline data
-    const profit = days.map((day, index) => ({
-      date: day.toISOString(),
-      value: revenue[index].value - expenses[index].value
-    }));
+    // Profit sparkline data with minimum height for visibility
+    const profit = days.map((day, index) => {
+      const profitValue = revenue[index].value - expenses[index].value;
+      // Ensure profit is at least 10% of revenue (but not more than the actual profit)
+      // This makes sure the line is visible even when profit is very small
+      const minVisibleValue = revenue[index].value * 0.1;
+      const displayValue = profitValue > 0 && profitValue < minVisibleValue ? minVisibleValue : profitValue;
+      
+      return {
+        date: day.toISOString(),
+        value: displayValue
+      };
+    });
 
     // Tokens sparkline data (daily total tokens)
     const dailyTokens = days.map(day => {
@@ -125,20 +126,35 @@ const processSparklineData = ({ tokens = [], expenseData = [], entries = [], exc
       };
     });
 
+
     // Weights sparkline data (for Pure Exchange metric)
     const weights = days.map(day => {
-      const value = (exchanges || [])
-        .filter(exchange => {
+      const dayStr = day.toISOString().split('T')[0];
+      
+      const dayExchanges = (exchanges || []).filter(exchange => {
+        if (!exchange || !exchange.date) return false;
+        try {
           const exchangeDate = parseDate(exchange.date);
-          return exchangeDate.toDateString() === day.toDateString();
-        })
-        .reduce((sum, exchange) => sum + parseFloat(exchange.weight || '0'), 0);
+          const exchangeDateStr = exchangeDate.toISOString().split('T')[0];
+          return exchangeDateStr === dayStr;
+        } catch (e) {
+          // Error parsing date
+          return false;
+        }
+      });
+
+      const value = dayExchanges.reduce((sum, exchange) => {
+        const weight = parseFloat(exchange.weight || '0');
+        return isNaN(weight) ? sum : sum + weight;
+      }, 0);
+
       
       return {
         date: day.toISOString(),
-        value
+        value: value || 0 // Ensure we always return a number
       };
     });
+
 
     return {
       revenue,

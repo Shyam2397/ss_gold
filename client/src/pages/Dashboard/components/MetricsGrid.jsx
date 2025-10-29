@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import DashboardCard from './DashboardCard';
 import { 
-  CurrencyRupeeIcon, ScaleIcon, ReceiptPercentIcon, 
+  CurrencyRupeeIcon, ScaleIcon, BanknotesIcon, 
   UserGroupIcon, BeakerIcon, ArrowsRightLeftIcon,
 } from '@heroicons/react/24/solid';
 import useTrends from '../hooks/useTrends';
@@ -95,9 +95,11 @@ const MetricsGrid = ({ metrics, tokens, expenses, entries, exchanges, cashAdjust
         icon={CurrencyRupeeIcon}
         description="Total revenue from tokens"
         sparklineData={sparklineData?.revenue}
+        sparklineColor="#10B981" // Green color for revenue
         className="bg-white"
-        iconClassName="text-yellow-600"
-        valueClassName="text-yellow-900"
+        iconClassName="text-blue-500"
+        valueClassName="text-blue-600 font-bold"
+        titleClassName="text-blue-700"
       />
       <DashboardCard 
         title="Total Expenses" 
@@ -106,21 +108,25 @@ const MetricsGrid = ({ metrics, tokens, expenses, entries, exchanges, cashAdjust
         icon={ScaleIcon}
         description="Total expenses this month"
         sparklineData={sparklineData?.expenses}
+        sparklineColor="#EF4444" // Red color for expenses
         className="bg-white"
-        iconClassName="text-yellow-600"
-        valueClassName="text-yellow-900"
+        iconClassName="text-red-500"
+        valueClassName="text-red-600 font-bold"
+        titleClassName="text-red-700"
       />
       <DashboardCard 
         title="Net Profit" 
         value={`₹${calculations.netProfit.toLocaleString()}`}
         trend={trends.profitGrowth || 0}
-        icon={ReceiptPercentIcon}
-        description="Net profit this month"
+        icon={BanknotesIcon}
+        description="Net profit after expenses"
         sparklineData={sparklineData?.profit}
+        sparklineColor="#10B981" // Green color for profit
         className="bg-white"
-        iconClassName="text-yellow-600"
-        valueClassName="text-yellow-900"
-      />
+        iconClassName="text-green-500"
+        valueClassName="text-green-600 font-bold"
+        titleClassName="text-green-700"
+      />  
       <DashboardCard 
         title="Profit Margin" 
         value={`${calculations.profitMargin}%`}
@@ -128,18 +134,20 @@ const MetricsGrid = ({ metrics, tokens, expenses, entries, exchanges, cashAdjust
         icon={UserGroupIcon}
         description="Current profit margin"
         className="bg-white"
-        iconClassName="text-yellow-600"
-        valueClassName="text-yellow-900"
+        iconClassName="text-purple-500"
+        valueClassName="text-purple-600 font-bold"
+        titleClassName="text-purple-700"
       />
-      <DashboardCard 
+      <DashboardCard  
         title="Customers" 
         value={safeMetrics.totalCustomers.toString()}
         trend={trends.customersTrend || 0}
         icon={UserGroupIcon}
         description="Total number of customers"
         className="bg-white"
-        iconClassName="text-yellow-600"
-        valueClassName="text-yellow-900"
+        iconClassName="text-indigo-500"
+        valueClassName="text-indigo-600 font-bold"
+        titleClassName="text-indigo-700"
       />
       <DashboardCard 
         title="Token" 
@@ -162,9 +170,11 @@ const MetricsGrid = ({ metrics, tokens, expenses, entries, exchanges, cashAdjust
         icon={BeakerIcon}
         description="Test-wise token breakdown"
         sparklineData={sparklineData?.tokens}
+        sparklineColor="#10B981" // Green color for tokens
         className="bg-white"
-        iconClassName="text-yellow-600"
-        valueClassName="text-yellow-900"
+        iconClassName="text-amber-500"
+        valueClassName="text-amber-600 font-bold"
+        titleClassName="text-amber-700"
       />
       <DashboardCard 
         title="Total Exchange" 
@@ -173,9 +183,11 @@ const MetricsGrid = ({ metrics, tokens, expenses, entries, exchanges, cashAdjust
         icon={ScaleIcon}
         description="Total number of exchanges"
         sparklineData={sparklineData?.exchanges}
+        sparklineColor="#10B981" // Green color for exchanges
         className="bg-white"
-        iconClassName="text-yellow-600"
-        valueClassName="text-yellow-900"
+        iconClassName="text-pink-500"
+        valueClassName="text-pink-600 font-bold"
+        titleClassName="text-pink-700"
       />
       <DashboardCard 
         title="Pure Exchange" 
@@ -200,8 +212,10 @@ const MetricsGrid = ({ metrics, tokens, expenses, entries, exchanges, cashAdjust
         description={`${selectedPeriod || 'Monthly'} exchange weights`}
         sparklineData={sparklineData?.weights}
         className="bg-white"
-        iconClassName="text-yellow-600"
-        valueClassName="text-yellow-900"
+        sparklineColor="#10B981" // Green color for weights
+        iconClassName="text-emerald-500"
+        valueClassName="text-emerald-600 font-bold"
+        titleClassName="text-emerald-700"
       />
     </div>
   );

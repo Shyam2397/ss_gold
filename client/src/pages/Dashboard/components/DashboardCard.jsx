@@ -74,7 +74,7 @@ const TrendSparkline = ({ data, color }) => {
   );
 };
 
-const DashboardCard = ({ title, value, trend, icon: Icon, description, sparklineData, className, iconClassName, valueClassName }) => {
+const DashboardCard = ({ title, value, trend, icon: Icon, description, sparklineData, sparklineColor, className, iconClassName, valueClassName, titleClassName = 'text-gray-900' }) => {
   const [isHovered, setIsHovered] = useState(false);
   const isPositive = trend > 0;
   const trendColor = isPositive ? '#10B981' : '#EF4444';
@@ -99,7 +99,7 @@ const DashboardCard = ({ title, value, trend, icon: Icon, description, sparkline
                 <Icon className={`w-5 h-5 ${iconClassName}`} />
               </div>
             )}
-            <h3 className="text-gray-600 text-base sm:text-xl font-medium truncate">{title}</h3>
+            <h3 className={`text-base sm:text-xl font-medium truncate ${titleClassName}`}>{title}</h3>
           </div>
           
           {/* Trend Indicator */}
@@ -118,7 +118,7 @@ const DashboardCard = ({ title, value, trend, icon: Icon, description, sparkline
         <div className="space-y-1 sm:space-y-2">
           <div className="flex items-center justify-between w-full">
             <div className={`text-xl sm:text-2xl font-bold ${valueClassName}`}>{value}</div>
-            {sparklineData && <TrendSparkline data={sparklineData} color={trendColor} />}
+            {sparklineData && <TrendSparkline data={sparklineData} color={sparklineColor || trendColor} />}
           </div>
           <p className="text-xs sm:text-sm text-gray-500 truncate">{description}</p>
         </div>
