@@ -1,7 +1,3 @@
-/* eslint-disable no-restricted-globals */
-
-// Cache for date operations
-const dateCache = new Map();
 const MAX_CACHE_SIZE = 100;
 
 // Helper function to parse dates with caching and multiple format support

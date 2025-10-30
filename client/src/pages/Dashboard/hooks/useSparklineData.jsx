@@ -3,9 +3,9 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 // Fallback function to calculate sparkline data on the main thread if Web Worker fails
 const calculateSparklineDataFallback = ({ tokens = [], expenseData = [], entries = [], exchanges = [] }) => {
   const today = new Date();
-  const days = Array.from({ length: 7 }, (_, i) => {
+  const days = Array.from({ length: 30 }, (_, i) => {
     const date = new Date(today);
-    date.setDate(today.getDate() - (6 - i));
+    date.setDate(today.getDate() - (29 - i));
     return date;
   });
 
@@ -54,6 +54,20 @@ const calculateSparklineDataFallback = ({ tokens = [], expenseData = [], entries
       };
     });
 
+    // Tokens sparkline data (daily total tokens)
+    const dailyTokens = days.map(day => {
+      const value = (tokens || []).filter(token => {
+        if (!token) return false;
+        const tokenDate = new Date(token.date);
+        return tokenDate.toDateString() === day.toDateString();
+      }).length;
+      
+      return {
+        date: day.toISOString(),
+        value
+      };
+    });
+
     // Skin tests sparkline data
     const skinTests = days.map(day => {
       const value = tokens.filter(token => {
@@ -89,6 +103,7 @@ const calculateSparklineDataFallback = ({ tokens = [], expenseData = [], entries
       expenses,
       profit,
       customers,
+      tokens: dailyTokens,
       skinTests,
       weights
     };
@@ -99,6 +114,7 @@ const calculateSparklineDataFallback = ({ tokens = [], expenseData = [], entries
       expenses: [],
       profit: [],
       customers: [],
+      tokens: [],
       skinTests: [],
       weights: []
     };
@@ -111,6 +127,7 @@ const useSparklineData = ({ tokens = [], expenseData = [], entries = [], exchang
     expenses: [],
     profit: [],
     customers: [],
+    tokens: [],
     skinTests: [],
     weights: []
   });
