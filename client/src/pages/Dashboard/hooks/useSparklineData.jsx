@@ -1,5 +1,30 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 
+// Date cache for performance
+const dateCache = new Map();
+const MAX_CACHE_SIZE = 100;
+
+// Helper function to parse dates with caching
+const parseDate = (dateStr) => {
+  if (!dateStr) return new Date();
+  if (dateCache.has(dateStr)) return dateCache.get(dateStr);
+
+  if (dateCache.size >= MAX_CACHE_SIZE) {
+    const firstKey = dateCache.keys().next().value;
+    dateCache.delete(firstKey);
+  }
+
+  let date = new Date(dateStr);
+  if (isNaN(date.getTime())) {
+    // Try parsing different date formats
+    const [d, m, y] = dateStr.split(/[\/\s-]/);
+    date = new Date(y, m - 1, d);
+  }
+
+  dateCache.set(dateStr, date);
+  return date;
+};
+
 // Fallback function to calculate sparkline data on the main thread if Web Worker fails
 const calculateSparklineDataFallback = ({ tokens = [], expenseData = [], entries = [], exchanges = [] }) => {
   const today = new Date();
@@ -68,20 +93,6 @@ const calculateSparklineDataFallback = ({ tokens = [], expenseData = [], entries
       };
     });
 
-    // Skin tests sparkline data
-    const skinTests = days.map(day => {
-      const value = tokens.filter(token => {
-        if (!token) return false;
-        const tokenDate = new Date(token.date);
-        return tokenDate.toDateString() === day.toDateString() && token.testType === 'skin';
-      }).length;
-      
-      return {
-        date: day.toISOString(),
-        value
-      };
-    });
-
     // Weights sparkline data
     const weights = days.map(day => {
       const value = exchanges
@@ -104,7 +115,6 @@ const calculateSparklineDataFallback = ({ tokens = [], expenseData = [], entries
       profit,
       customers,
       tokens: dailyTokens,
-      skinTests,
       weights
     };
   } catch (error) {
@@ -115,7 +125,6 @@ const calculateSparklineDataFallback = ({ tokens = [], expenseData = [], entries
       profit: [],
       customers: [],
       tokens: [],
-      skinTests: [],
       weights: []
     };
   }
@@ -128,25 +137,20 @@ const useSparklineData = ({ tokens = [], expenseData = [], entries = [], exchang
     profit: [],
     customers: [],
     tokens: [],
-    skinTests: [],
     weights: []
   });
-  const [error, setError] = useState(null);
-  const [usingFallback, setUsingFallback] = useState(false);
 
   // Create a memoized worker instance
   const worker = useMemo(() => {
+    if (typeof window === 'undefined') return null;
+    
     try {
-      // Create worker in a way that works with webpack/vite
-      const newWorker = new Worker(
+      return new Worker(
         new URL('../workers/sparklineProcessor.js', import.meta.url),
         { type: 'module' }
       );
-      
-      setUsingFallback(false);
-      return newWorker;
     } catch (err) {
-      setUsingFallback(true);
+      console.warn('Web Worker initialization failed, using fallback', err);
       return null;
     }
   }, []);
@@ -204,18 +208,15 @@ const useSparklineData = ({ tokens = [], expenseData = [], entries = [], exchang
     const processData = async () => {
       try {
         const data = { tokens, expenseData, entries, exchanges };
-        
         const result = await processWithWorker(data);
         
         if (isMounted) {
           setSparklineData(result);
-          setError(null);
         }
       } catch (err) {
+        console.warn('Error processing with worker, using fallback:', err);
         if (isMounted) {
-          setError(err.message);
-          // Try fallback on error
-          setSparklineData(calculateSparklineDataFallback({ tokens, expenseData, entries, exchanges }));
+          setSparklineData(calculateSparklineDataFallback(data));
         }
       }
     };
@@ -225,14 +226,7 @@ const useSparklineData = ({ tokens = [], expenseData = [], entries = [], exchang
     return () => {
       isMounted = false;
     };
-  }, [tokens, expenseData, entries, exchanges, usingFallback, processWithWorker]);
-
-  // Log any errors
-  useEffect(() => {
-    if (error) {
-      console.error('Sparkline data error:', error);
-    }
-  }, [error]);
+  }, [tokens, expenseData, entries, exchanges, processWithWorker]);
 
   return sparklineData;
 };

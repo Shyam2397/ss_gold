@@ -3,7 +3,7 @@ import { getApi } from '../../../services/api';
 import { fetchCashAdjustments } from '../services/dashboardService';
 import toast from 'react-hot-toast';
 import { useQueries, useQueryClient } from '@tanstack/react-query';
-import { debounce } from 'lodash';
+
 
 // Constants for pagination and caching
 const PAGE_SIZE = 50;
@@ -15,6 +15,7 @@ function useDashboardData() {
   const [entries, setEntries] = useState([]);
   const [expenses, setExpenses] = useState([]);
   const [exchanges, setExchanges] = useState([]);
+  const [expenseCategories, setExpenseCategories] = useState([]);
   const [cashAdjustments, setCashAdjustments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -31,10 +32,7 @@ function useDashboardData() {
     totalCustomers: 0, skinTestCount: 0, photoTestCount: 0, totalTokens: 0,
     totalExchanges: 0, totalWeight: 0, totalExWeight: 0
   });
-  const [sparklineData, setSparklineData] = useState({
-    revenue: [], expenses: [], profit: [], customers: [],
-    skinTests: [], photoTests: [], weights: []
-  });
+  const [selectedPeriod, setSelectedPeriod] = useState('daily');
 
   const queryClient = useQueryClient();
   const abortControllersRef = useRef(new Map());
@@ -89,35 +87,35 @@ function useDashboardData() {
   const queries = useQueries({
     queries: [
       {
-        queryKey: ['dashboard', 'tokens', currentPage], // Fixed: Array format for React Query v4
+        queryKey: ['dashboard', 'tokens', currentPage], 
         queryFn: queryFns.tokens,
         staleTime: STALE_TIME,
         cacheTime: CACHE_TIME,
         keepPreviousData: true
       },
       {
-        queryKey: ['dashboard', 'expenses', currentPage], // Fixed: Array format for React Query v4
+        queryKey: ['dashboard', 'expenses', currentPage], 
         queryFn: queryFns.expenses,
         staleTime: STALE_TIME,
         cacheTime: CACHE_TIME,
         keepPreviousData: true
       },
       {
-        queryKey: ['dashboard', 'cashAdjustments', currentPage], // Fixed: Array format for React Query v4
+        queryKey: ['dashboard', 'cashAdjustments', currentPage], 
         queryFn: queryFns.cashAdjustments,
         staleTime: STALE_TIME,
         cacheTime: CACHE_TIME,
         keepPreviousData: true
       },
       {
-        queryKey: ['dashboard', 'entries', currentPage], // Fixed: Array format for React Query v4
+        queryKey: ['dashboard', 'entries', currentPage], 
         queryFn: queryFns.entries,
         staleTime: STALE_TIME,
         cacheTime: CACHE_TIME,
         keepPreviousData: true
       },
       {
-        queryKey: ['dashboard', 'exchanges', currentPage], // Fixed: Array format for React Query v4
+        queryKey: ['dashboard', 'exchanges', currentPage], 
         queryFn: queryFns.exchanges,
         staleTime: STALE_TIME,
         cacheTime: CACHE_TIME,
@@ -126,7 +124,7 @@ function useDashboardData() {
     ]
   });
 
-  const getFilteredExchanges = (exchanges, period = 'daily') => {
+  const getFilteredExchanges = useCallback((exchanges, period = 'daily') => {
     if (!exchanges || exchanges.length === 0) return [];
     
     const today = new Date();
@@ -162,9 +160,7 @@ function useDashboardData() {
     });
 
     return filtered;
-  };
-
-  const [selectedPeriod, setSelectedPeriod] = useState('daily');
+  });
 
   useEffect(() => {
     if (exchanges.length > 0) {
@@ -219,12 +215,12 @@ function useDashboardData() {
       
       return date;
     } catch (err) {
-      console.error('Date parsing error:', err);
       return new Date(NaN);
     }
   };
 
-  const processRecentActivities = (tokens, expenses, exchanges, entries, cashAdjustments) => {
+  const processRecentActivities = (tokens, expenses, exchanges, entries, cashAdjustments, expenseCategories) => {
+    const expenseCategoryMap = new Map(expenseCategories.map(cat => [cat.id, cat.expense_name]));
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -266,7 +262,7 @@ function useDashboardData() {
             action: expense.description || 'Expense added',
             amount: -parseFloat(expense.amount || 0),
             time: time,
-            details: `Category: ${expense.expense_type || 'Uncategorized'}`,
+            details: `Category: ${expenseCategoryMap.get(parseInt(expense.expense_type, 10)) || 'Uncategorized'}`,
             _sortTime: time.getTime()
           };
         }),
@@ -326,7 +322,6 @@ function useDashboardData() {
     const validActivities = activities.filter(activity => 
       activity.time instanceof Date && !isNaN(activity.time.getTime())
     );
-
     // Sort by the pre-calculated timestamp (most recent first)
     const sortedActivities = [...validActivities].sort((a, b) => {
       // Use _sortTime if available, otherwise fall back to time.getTime()
@@ -352,41 +347,6 @@ function useDashboardData() {
     });
   };
 
-  const processTokenData = useCallback((tokens) => {
-    return tokens.map(token => ({
-      ...token,
-      totalAmount: parseFloat(token.amount || '0'),
-      weight: parseFloat(token.weight || '0')
-    }));
-  }, []);
-
-  const processExchangeData = useCallback((exchanges) => {
-    return exchanges.map(exchange => {
-      try {
-        const isoDate = new Date(exchange.date);
-        return {
-          ...exchange,
-          date: `${isoDate.getDate().toString().padStart(2, '0')}/${(isoDate.getMonth() + 1).toString().padStart(2, '0')}/${isoDate.getFullYear()}`,
-          weight: parseFloat(exchange.weight || '0'),
-          exweight: parseFloat(exchange.exweight || '0')
-        };
-      } catch (err) {
-        console.error('Error processing exchange:', err);
-        return null;
-      }
-    }).filter(Boolean);
-  }, []);
-
-  const debouncedDataUpdate = useMemo(
-    () => debounce((newData) => {
-      // Update state with new data
-      Object.entries(newData).forEach(([key, value]) => {
-        queryClient.setQueryData(['dashboard', key, currentPage], value); // Fixed: Array format for React Query v4
-      });
-    }, 300),
-    [currentPage, queryClient]
-  );
-
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
@@ -400,12 +360,14 @@ function useDashboardData() {
         tokensResult,
         expensesResult,
         entriesResult,
-        exchangesResult
+        exchangesResult,
+        expenseCategoriesResult
       ] = await Promise.all([
         api.get('/tokens'),
         api.get('/api/expenses'),
         api.get('/entries'),
-        api.get('/pure-exchange')
+        api.get('/pure-exchange'),
+        api.get('/api/expense-master') // Correct endpoint for expense categories
       ]);
 
       // Fetch cash adjustments using the service
@@ -414,6 +376,8 @@ function useDashboardData() {
       const tokenData = tokensResult?.data || [];
       const entriesData = entriesResult?.data || [];
       const exchangesData = exchangesResult?.data?.data || [];
+      const expenseCategoriesData = expenseCategoriesResult?.data || [];
+      setExpenseCategories(expenseCategoriesData);
       
       // Process exchange data to handle ISO date format
       const processedExchanges = exchangesData.map(exchange => {
@@ -427,7 +391,6 @@ function useDashboardData() {
             exweight: parseFloat(exchange.exweight || '0')
           };
         } catch (err) {
-          console.error('Error processing exchange:', err);
           return null;
         }
       }).filter(Boolean); // Remove any null values
@@ -529,7 +492,8 @@ function useDashboardData() {
         expensesResult.data,
         processedExchanges,
         entriesData,
-        cashAdjustmentsData
+        cashAdjustmentsData,
+        expenseCategoriesData
       );
       setRecentActivities(recentActivities);
 
@@ -570,23 +534,23 @@ function useDashboardData() {
   useEffect(() => {
     const prefetchNextPage = async () => {
       await queryClient.prefetchQuery({
-        queryKey: ['dashboard', 'tokens', currentPage + 1], // Fixed: Array format for React Query v4
+        queryKey: ['dashboard', 'tokens', currentPage + 1], 
         queryFn: queryFns.tokens
       });
       await queryClient.prefetchQuery({
-        queryKey: ['dashboard', 'expenses', currentPage + 1], // Fixed: Array format for React Query v4
+        queryKey: ['dashboard', 'expenses', currentPage + 1], 
         queryFn: queryFns.expenses
       });
       await queryClient.prefetchQuery({
-        queryKey: ['dashboard', 'cashAdjustments', currentPage + 1], // Fixed: Array format for React Query v4
+        queryKey: ['dashboard', 'cashAdjustments', currentPage + 1], 
         queryFn: queryFns.cashAdjustments
       });
       await queryClient.prefetchQuery({
-        queryKey: ['dashboard', 'entries', currentPage + 1], // Fixed: Array format for React Query v4
+        queryKey: ['dashboard', 'entries', currentPage + 1], 
         queryFn: queryFns.entries
       });
       await queryClient.prefetchQuery({
-        queryKey: ['dashboard', 'exchanges', currentPage + 1], // Fixed: Array format for React Query v4
+        queryKey: ['dashboard', 'exchanges', currentPage + 1], 
         queryFn: queryFns.exchanges
       });
     };
@@ -606,13 +570,12 @@ function useDashboardData() {
     dateRange,
     setDateRange,
     metrics,
-    sparklineData,
     selectedPeriod,
     setSelectedPeriod,
     currentPage,
     handlePageChange,
-    hasNextPage: queries[0].hasNextPage,
-    isFetchingNextPage: queries[0].isFetchingNextPage
+    hasNextPage: queries[0]?.hasNextPage || false,
+    isFetchingNextPage: queries[0]?.isFetchingNextPage || false
   };
 }
 

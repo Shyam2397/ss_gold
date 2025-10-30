@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useEffect } from 'react';
+import React, { Suspense, lazy, useEffect, useCallback, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Toaster } from 'react-hot-toast';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -17,22 +17,35 @@ const DashboardCharts = lazy(() => import('./components/DashboardCharts'));
 const RecentActivity = lazy(() => import('./components/RecentActivity'));
 const UnpaidCustomers = lazy(() => import('./components/UnpaidCustomers'));
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: 1,
-      refetchOnWindowFocus: false,
+// Create a single QueryClient instance
+const createQueryClient = () => {
+  return new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: 1,
+        refetchOnWindowFocus: false,
+        staleTime: 5 * 60 * 1000, // 5 minutes
+        cacheTime: 10 * 60 * 1000, // 10 minutes
+      },
     },
-  },
-});
+  });
+};
 
-function DashboardContent() {
+function DashboardContent({ queryClient }) {
   usePerformanceMonitor('Dashboard');
   const dashboardData = useDashboardData();
   const {
     tokens, entries, expenses, exchanges, cashAdjustments, loading, error, recentActivities,
     todayTotal, dateRange, metrics, selectedPeriod
   } = dashboardData;
+
+  // Memoize the date range change handler at the top level
+  const handleDateRangeChange = useCallback((range) => {
+    dashboardData.dispatch({ 
+      type: actionTypes.SET_DATE_RANGE, 
+      payload: range 
+    });
+  }, [dashboardData]);
 
   const sparklineData = useSparklineData({ 
     tokens: tokens || [], 
@@ -41,41 +54,79 @@ function DashboardContent() {
     exchanges: exchanges || [] 
   });
 
-  // Add data prefetching
-  useEffect(() => {
-    const prefetchData = async () => {
-      // Prefetch next day's data
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
+  // Optimized data prefetching with useCallback
+  const prefetchData = useCallback(async () => {
+    if (!queryClient) return;
+    
+    try {
+      const today = new Date();
+      const tomorrow = new Date(today);
+      tomorrow.setDate(today.getDate() + 1);
+      const dateKey = tomorrow.toISOString().split('T')[0];
       
-      try {
-        // Prefetch common dashboard data queries
-        await queryClient.prefetchQuery({
-          queryKey: ['tokens', { date: tomorrow.toISOString().split('T')[0] }],
-          queryFn: () => Promise.resolve([]), // In a real app, this would fetch actual data
-          staleTime: 5 * 60 * 1000, // 5 minutes
-        });
-        
-        await queryClient.prefetchQuery({
-          queryKey: ['expenses', { date: tomorrow.toISOString().split('T')[0] }],
-          queryFn: () => Promise.resolve([]),
-          staleTime: 5 * 60 * 1000,
-        });
-      } catch (error) {
-        console.warn('Prefetching failed:', error);
+      // Check cache in parallel
+      const [tokensCache, expensesCache] = await Promise.all([
+        queryClient.getQueryData(['tokens', { date: dateKey }]),
+        queryClient.getQueryData(['expenses', { date: dateKey }])
+      ]);
+      
+      const prefetchPromises = [];
+      
+      if (!tokensCache) {
+        prefetchPromises.push(
+          queryClient.prefetchQuery({
+            queryKey: ['tokens', { date: dateKey }],
+            queryFn: () => Promise.resolve([]),
+            staleTime: 5 * 60 * 1000,
+          })
+        );
       }
+      
+      if (!expensesCache) {
+        prefetchPromises.push(
+          queryClient.prefetchQuery({
+            queryKey: ['expenses', { date: dateKey }],
+            queryFn: () => Promise.resolve([]),
+            staleTime: 5 * 60 * 1000,
+          })
+        );
+      }
+      
+      if (prefetchPromises.length > 0) {
+        await Promise.allSettled(prefetchPromises);
+      }
+    } catch (error) {
+      console.warn('Prefetching failed:', error);
+    }
+  }, [queryClient]);
+
+  // Setup prefetching with cleanup
+  useEffect(() => {
+    if (!queryClient) return;
+    
+    const schedulePrefetch = () => {
+      if (window.requestIdleCallback) {
+        return requestIdleCallback(prefetchData, { timeout: 1000 });
+      }
+      return setTimeout(prefetchData, 1000);
     };
     
-    // Use requestIdleCallback if available for non-blocking prefetching
-    if ('requestIdleCallback' in window) {
-      const timeoutId = requestIdleCallback(prefetchData, { timeout: 1000 });
-      return () => cancelIdleCallback(timeoutId);
-    } else {
-      // Fallback for browsers that don't support requestIdleCallback
-      const timeoutId = setTimeout(prefetchData, 100);
-      return () => clearTimeout(timeoutId);
-    }
-  }, [dateRange]);
+    // Initial prefetch
+    const timeoutId = schedulePrefetch();
+    
+    // Set up periodic prefetch (every 5 minutes)
+    const intervalId = setInterval(schedulePrefetch, 5 * 60 * 1000);
+    
+    // Cleanup function
+    return () => {
+      if (window.cancelIdleCallback) {
+        cancelIdleCallback(timeoutId);
+      } else {
+        clearTimeout(timeoutId);
+      }
+      clearInterval(intervalId);
+    };
+  }, [prefetchData, queryClient]);
 
   // Check for undefined data and provide defaults
   const safeTokens = tokens || [];
@@ -97,62 +148,57 @@ function DashboardContent() {
     );
   }
 
+  // Single Suspense boundary for better performance
   return (
     <ErrorBoundary>
       <motion.div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-6">
         <Toaster />
         <Suspense fallback={<LoadingSpinner />}>
-          <DashboardHeader 
-            todayTotal={todayTotal} 
-            dateRange={dateRange}
-            onDateRangeChange={(range) => dashboardData.dispatch({ 
-              type: actionTypes.SET_DATE_RANGE, 
-              payload: range 
-            })} 
-          />
-        </Suspense>
-        
-        <Suspense fallback={<LoadingSpinner />}>
-          <MetricsGrid 
-            metrics={metrics} 
-            tokens={safeTokens} 
-            expenses={safeExpenses} 
-            entries={safeEntries} 
-            exchanges={safeExchanges}
-            cashAdjustments={safeCashAdjustments}
-            sparklineData={sparklineData} 
-            selectedPeriod={selectedPeriod}
-          />
-        </Suspense>
-
-        <ErrorBoundary>
-          <Suspense fallback={<LoadingSpinner />}>
-            <DashboardCharts 
+          <>
+            <DashboardHeader 
+              todayTotal={todayTotal} 
+              dateRange={dateRange}
+              onDateRangeChange={handleDateRangeChange} 
+            />
+            
+            <MetricsGrid 
+              metrics={metrics} 
               tokens={safeTokens} 
               expenses={safeExpenses} 
               entries={safeEntries} 
-              exchanges={safeExchanges} 
+              exchanges={safeExchanges}
+              cashAdjustments={safeCashAdjustments}
+              sparklineData={sparklineData} 
+              selectedPeriod={selectedPeriod}
             />
-          </Suspense>
-        </ErrorBoundary>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <Suspense fallback={<LoadingSpinner />}>
-            <RecentActivity activities={safeRecentActivities} loading={loading} />
-          </Suspense>
-          <Suspense fallback={<LoadingSpinner />}>
-            <UnpaidCustomers tokens={safeTokens} loading={loading} />
-          </Suspense>
-        </div>
+            <ErrorBoundary>
+              <DashboardCharts 
+                tokens={safeTokens} 
+                expenses={safeExpenses} 
+                entries={safeEntries} 
+                exchanges={safeExchanges} 
+              />
+            </ErrorBoundary>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <RecentActivity activities={safeRecentActivities} loading={loading} />
+              <UnpaidCustomers tokens={safeTokens} loading={loading} />
+            </div>
+          </>
+        </Suspense>
       </motion.div>
     </ErrorBoundary>
   );
 }
 
 function Dashboard() {
+  // Initialize queryClient inside the component
+  const queryClient = useMemo(() => createQueryClient(), []);
+  
   return (
     <QueryClientProvider client={queryClient}>
-      <DashboardContent />
+      <DashboardContent queryClient={queryClient} />
       <ReactQueryDevtools initialIsOpen={false} />
     </QueryClientProvider>
   );

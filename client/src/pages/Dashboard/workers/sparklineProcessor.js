@@ -1,56 +1,53 @@
 const MAX_CACHE_SIZE = 100;
+const dateCache = new Map();
 
-// Helper function to parse dates with caching and multiple format support
+// Optimized date parser with caching
 const parseDate = (dateStr) => {
-  if (!dateStr) return new Date(); // Return current date if dateStr is falsy
+  if (!dateStr) return new Date();
   
-  if (!dateCache.has(dateStr)) {
-    // Implement cache size limit
-    if (dateCache.size >= MAX_CACHE_SIZE) {
-      const firstKey = dateCache.keys().next().value;
-      dateCache.delete(firstKey);
-    }
-    
-    let parsedDate;
-    
-    // Try parsing as DD/MM/YYYY format first (most common in the data)
-    const slashParts = dateStr.split('/');
-    if (slashParts.length === 3) {
-      const [day, month, year] = slashParts;
-      // Create date in YYYY-MM-DD format (local time)
-      parsedDate = new Date(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T00:00:00`);
-      // If the date is invalid, try MM/DD/YYYY format
-      if (isNaN(parsedDate.getTime())) {
-        parsedDate = new Date(`${month.padStart(2, '0')}/${day.padStart(2, '0')}/${year}`);
-      }
-    }
-    
-    // If still invalid, try ISO format
-    if (!parsedDate || isNaN(parsedDate.getTime())) {
-      parsedDate = new Date(dateStr);
-    }
-    
-    // If still invalid, try DD-MM-YYYY format
-    if (isNaN(parsedDate.getTime())) {
-      const dashParts = dateStr.split('-');
-      if (dashParts.length === 3) {
-        const [day, month, year] = dashParts;
-        parsedDate = new Date(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T00:00:00`);
-      }
-    }
-    
-    // If still invalid, use current date as fallback
-    if (isNaN(parsedDate.getTime())) {
-      parsedDate = new Date();
-    }
-    
-    dateCache.set(dateStr, parsedDate);
+  if (dateCache.has(dateStr)) {
+    return dateCache.get(dateStr);
   }
-  return dateCache.get(dateStr);
+
+  // Clean cache if needed
+  if (dateCache.size >= MAX_CACHE_SIZE) {
+    const firstKey = dateCache.keys().next().value;
+    dateCache.delete(firstKey);
+  }
+  
+  let date;
+  
+  // Try different date formats
+  if (dateStr.includes('/')) {
+    const [d, m, y] = dateStr.split('/');
+    date = new Date(y, m - 1, d);
+  } else if (dateStr.includes('-')) {
+    const parts = dateStr.split('-');
+    if (parts[0].length === 4) { // ISO format
+      date = new Date(dateStr);
+    } else { // DD-MM-YYYY format
+      const [d, m, y] = parts;
+      date = new Date(y, m - 1, d);
+    }
+  } else {
+    date = new Date(dateStr);
+  }
+  
+  // Fallback to current date if invalid
+  if (isNaN(date.getTime())) {
+    date = new Date();
+  }
+  
+  dateCache.set(dateStr, date);
+  return date;
 };
 
 // Process sparkline data for dashboard metrics
 const processSparklineData = ({ tokens = [], expenseData = [], entries = [], exchanges = [] }) => {
+  // Clear cache if it's getting too big
+  if (dateCache.size > MAX_CACHE_SIZE * 2) {
+    dateCache.clear();
+  }
   try {
     const today = new Date();
     const days = Array.from({ length: 30 }, (_, i) => {
@@ -59,21 +56,37 @@ const processSparklineData = ({ tokens = [], expenseData = [], entries = [], exc
       return date;
     });
 
-    // Helper function to get daily total
+    // Optimized helper function to get daily total
     const getDailyTotal = (items, dateField, valueField = 'totalAmount') => {
-      return days.map(day => {
-        const dayValue = items
-          .filter(item => {
-            const itemDate = parseDate(item[dateField]);
-            return itemDate.toDateString() === day.toDateString();
-          })
-          .reduce((sum, item) => sum + (parseFloat(item[valueField]) || 0), 0);
-          
-        return {
-          date: day.toISOString(),
-          value: dayValue
-        };
+      const dayMap = new Map();
+      
+      // Initialize day map with all days set to 0
+      days.forEach(day => {
+        dayMap.set(day.toDateString(), 0);
       });
+      
+      // Process items once
+      items.forEach(item => {
+        if (!item || !item[dateField]) return;
+        
+        try {
+          const itemDate = parseDate(item[dateField]);
+          const dayKey = itemDate.toDateString();
+          
+          if (dayMap.has(dayKey)) {
+            const value = parseFloat(item[valueField]) || 0;
+            dayMap.set(dayKey, dayMap.get(dayKey) + value);
+          }
+        } catch (e) {
+          console.warn('Error processing item:', e);
+        }
+      });
+      
+      // Convert to array of objects
+      return days.map(day => ({
+        date: day.toISOString(),
+        value: dayMap.get(day.toDateString()) || 0
+      }));
     };
 
     // Revenue sparkline data
