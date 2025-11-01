@@ -58,23 +58,11 @@ const ActivityRow = React.memo(({ data, index, style }) => {
 });
 
 const RecentActivity = ({ activities = [], loading = false }) => {
-  const [listHeight, setListHeight] = useState(350);
+  // Fixed height at 350px for all screens
+  const listHeight = 350;
   const containerRef = useRef(null);
 
-  useEffect(() => {
-    const updateHeight = () => {
-      if (containerRef.current) {
-        const windowHeight = window.innerHeight;
-        const containerTop = containerRef.current.getBoundingClientRect().top;
-        const newHeight = Math.max(350, windowHeight - containerTop - 100);
-        setListHeight(newHeight);
-      }
-    };
-
-    updateHeight();
-    window.addEventListener('resize', updateHeight);
-    return () => window.removeEventListener('resize', updateHeight);
-  }, []);
+  // Removed the useEffect for dynamic height calculation
 
   if (loading) {
     return (

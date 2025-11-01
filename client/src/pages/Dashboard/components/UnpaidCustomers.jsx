@@ -82,7 +82,8 @@ const CustomerRow = ({ data, index, style }) => {
 
 const UnpaidCustomers = ({ tokens = [], loading = false }) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [listHeight, setListHeight] = useState(350);
+  // Fixed height at 350px for all screens
+  const listHeight = 350;
   const containerRef = useRef(null);
 
   const debouncedSearch = useMemo(
@@ -156,21 +157,7 @@ const UnpaidCustomers = ({ tokens = [], loading = false }) => {
     return filteredCustomers.reduce((sum, customer) => sum + customer.amount, 0);
   }, [filteredCustomers]);
 
-  // Throttled resize handler
-  const updateHeight = useCallback(throttle(() => {
-    if (containerRef.current) {
-      const windowHeight = window.innerHeight;
-      const containerTop = containerRef.current.getBoundingClientRect().top;
-      const newHeight = Math.max(350, windowHeight - containerTop - 100);
-      setListHeight(newHeight);
-    }
-  }, 100), []);
-
-  useEffect(() => {
-    updateHeight();
-    window.addEventListener('resize', updateHeight);
-    return () => window.removeEventListener('resize', updateHeight);
-  }, [updateHeight]);
+  // Removed the useEffect for dynamic height calculation
 
   if (loading) {
     return (
