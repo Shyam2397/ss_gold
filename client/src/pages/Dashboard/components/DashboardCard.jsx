@@ -93,25 +93,27 @@ const DashboardCard = ({ title, value, trend, icon: Icon, description, sparkline
         {/* Card Header */}
         <div className="flex items-center justify-between mb-3">
           {/* Title and Icon */}
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-2 min-w-0">
             {Icon && (
-              <div className="p-1.5 rounded-lg bg-yellow-50">
+              <div className="p-1.5 rounded-lg bg-yellow-50 flex-shrink-0">
                 <Icon className={`w-5 h-5 ${iconClassName}`} />
               </div>
             )}
-            <h3 className={`text-base sm:text-xl font-medium truncate ${titleClassName}`}>{title}</h3>
+            <h3 className={`text-base sm:text-xl font-medium truncate ${titleClassName}`} title={title}>{title}</h3>
           </div>
           
-          {/* Trend Indicator */}
-          <div className={`flex items-center px-2 py-0.5 rounded-full ${trendBgColor}`}>
-            {isPositive ? 
-              <ArrowUpIcon className={`w-3 h-3 ${trendTextColor}`} /> : 
-              <ArrowDownIcon className={`w-3 h-3 ${trendTextColor}`} />
-            }
-            <span className={`ml-1 text-xs ${trendTextColor}`}>
-              {Math.abs(trend)}%
-            </span>
-          </div>
+          {/* Trend Indicator - only show if trend is provided */}
+          {trend !== undefined && trend !== null && (
+            <div className={`flex items-center px-2 py-0.5 rounded-full ${trendBgColor} flex-shrink-0`}>
+              {isPositive ? 
+                <ArrowUpIcon className={`w-3 h-3 ${trendTextColor}`} /> : 
+                <ArrowDownIcon className={`w-3 h-3 ${trendTextColor}`} />
+              }
+              <span className={`ml-1 text-xs ${trendTextColor}`}>
+                {Math.abs(trend)}%
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Card Content */}
@@ -120,7 +122,7 @@ const DashboardCard = ({ title, value, trend, icon: Icon, description, sparkline
             <div className={`text-xl sm:text-2xl font-bold ${valueClassName}`}>{value}</div>
             {sparklineData && <TrendSparkline data={sparklineData} color={sparklineColor || trendColor} />}
           </div>
-          <p className="text-xs sm:text-sm text-gray-500 truncate">{description}</p>
+          <p className="text-xs sm:text-sm text-gray-500 truncate" title={description}>{description}</p>
         </div>
       </div>
     </motion.div>

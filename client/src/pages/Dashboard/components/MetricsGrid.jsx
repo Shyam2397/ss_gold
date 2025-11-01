@@ -141,7 +141,6 @@ const MetricsGrid = ({ metrics, tokens, expenses, entries, exchanges, cashAdjust
       <DashboardCard  
         title="Customers" 
         value={safeMetrics.totalCustomers.toString()}
-        trend={trends.customersTrend || 0}
         icon={UserGroupIcon}
         description="Total number of customers"
         className="bg-white"
