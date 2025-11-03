@@ -63,13 +63,10 @@ const getDateKey = (date, format) => {
 };
 
 const THROTTLE_THRESHOLD = 1000; // Maximum points to display at once
-const VIEWPORT_SIZE = 50; // Number of points to show in viewport
-const CHUNK_SIZE = 100; // Process data in chunks of 100 items
 
 const DashboardCharts = ({ tokens = [], expenses = [], entries = [], exchanges = [] }) => {
   const [period, setPeriod] = useState('daily');
   const [workerData, setWorkerData] = useState(null);
-  const [viewportStart, setViewportStart] = useState(0);
   const chartRef = useRef(null);
   
   // Initialize worker with cleanup
@@ -111,13 +108,13 @@ const DashboardCharts = ({ tokens = [], expenses = [], entries = [], exchanges =
         if (!Array.isArray(items)) continue;
         
         // Process in chunks
-        for (let i = 0; i < items.length; i += CHUNK_SIZE) {
-          const chunk = items.slice(i, i + CHUNK_SIZE);
+        for (let i = 0; i < items.length; i += 100) {
+          const chunk = items.slice(i, i + 100);
           worker.postMessage({ 
             type: 'chunk',
             dataType: key,
             data: chunk,
-            isLastChunk: i + CHUNK_SIZE >= items.length
+            isLastChunk: i + 100 >= items.length
           });
           
           // Yield to main thread
@@ -136,30 +133,6 @@ const DashboardCharts = ({ tokens = [], expenses = [], entries = [], exchanges =
       worker.terminate();
     };
   }, [worker, tokens, expenses, entries, exchanges]);
-
-  // Improved data chunking with memory management
-  const chunkData = useCallback((data, size = 50) => {
-    const chunks = [];
-    let currentChunk = {};
-    
-    Object.keys(data).forEach(key => {
-      if (!Array.isArray(data[key])) return;
-      
-      const items = data[key];
-      for (let i = 0; i < items.length; i += size) {
-        const chunk = items.slice(i, i + size);
-        if (!currentChunk[key]) currentChunk[key] = [];
-        currentChunk[key].push(...chunk);
-        
-        if (Object.keys(currentChunk).length === Object.keys(data).length) {
-          chunks.push({ ...currentChunk });
-          currentChunk = {};
-        }
-      }
-    });
-    
-    return chunks;
-  }, []);
 
   // Throttle data points for better performance
   const throttleDataPoints = useCallback((data) => {
@@ -293,23 +266,6 @@ const DashboardCharts = ({ tokens = [], expenses = [], entries = [], exchanges =
     }
   }, [tokens, expenses, exchanges, period]);
 
-  // Calculate visible data based on viewport
-  const visibleData = useMemo(() => {
-    if (!chartData || !chartData.length) return [];
-    
-    const throttledData = throttleDataPoints(chartData);
-    const end = Math.min(viewportStart + VIEWPORT_SIZE, throttledData.length);
-    return throttledData.slice(viewportStart, end);
-  }, [chartData, viewportStart, throttleDataPoints]);
-
-  // Handle viewport scrolling
-  const handleScroll = useCallback((direction) => {
-    setViewportStart(prev => {
-      const next = direction === 'forward' ? prev + VIEWPORT_SIZE / 2 : prev - VIEWPORT_SIZE / 2;
-      return Math.max(0, Math.min(next, (chartData?.length || 0) - VIEWPORT_SIZE));
-    });
-  }, [chartData]);
-
   const formatDate = useCallback((date) => {
     try {
       const d = new Date(date);
@@ -340,28 +296,12 @@ const DashboardCharts = ({ tokens = [], expenses = [], entries = [], exchanges =
           <h3 className="text-lg font-semibold text-yellow-900 px-5">Statistics</h3>
           <div className="flex items-center space-x-4">
             <TimeSelector period={period} setPeriod={setPeriod} />
-            <div className="flex space-x-2">
-              <button
-                onClick={() => handleScroll('backward')}
-                disabled={viewportStart === 0}
-                className="p-1 rounded bg-yellow-100 disabled:opacity-50"
-              >
-                ←
-              </button>
-              <button
-                onClick={() => handleScroll('forward')}
-                disabled={viewportStart + VIEWPORT_SIZE >= (chartData?.length || 0)}
-                className="p-1 rounded bg-yellow-100 disabled:opacity-50"
-              >
-                →
-              </button>
-            </div>
           </div>
         </div>
         <div className="h-[400px]" ref={chartRef}>
           <ResponsiveContainer>
             <AreaChart 
-              data={visibleData} 
+              data={chartData} 
               margin={{ top: 20, right: 30, left: 10, bottom: 0 }}
               baseValue="dataMin"
             >
@@ -398,6 +338,7 @@ const DashboardCharts = ({ tokens = [], expenses = [], entries = [], exchanges =
                 tickFormatter={value => value.toLocaleString()}
                 tick={{ fill: '#6B7280', fontSize: 12 }}
                 dx={10}
+                
               />
               <Tooltip
                 contentStyle={{
