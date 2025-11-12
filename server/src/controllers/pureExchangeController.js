@@ -1,7 +1,20 @@
 const { pool } = require('../config/database');
 
 const getAllPureExchanges = async (req, res) => {
-  const sql = 'SELECT * FROM pure_exchange';
+  const sql = `SELECT 
+    token_no,
+    TO_CHAR(date, 'YYYY-MM-DD') as date,
+    time,
+    weight,
+    highest,
+    hWeight,
+    average,
+    aWeight,
+    goldFineness,
+    gWeight,
+    exGold,
+    exWeight
+  FROM pure_exchange`;
   try {
     const result = await pool.query(sql);
     res.json({ data: result.rows });

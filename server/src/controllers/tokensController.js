@@ -42,7 +42,7 @@ const getAllTokens = async (req, res) => {
       SELECT 
         id,
         token_no,
-        date,
+        TO_CHAR(date, 'YYYY-MM-DD') as date,
         time,
         code,
         name,

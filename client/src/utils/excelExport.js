@@ -64,9 +64,32 @@ const formatValue = (value, header) => {
   // Handle date format - return actual date object for Excel
   if (headerLower.includes('date') && value) {
     try {
-      const date = new Date(value);
-      if (!isNaN(date)) {
-        return date;
+      // Handle date strings properly to avoid timezone issues
+      if (typeof value === 'string') {
+        // Check if it's already in YYYY-MM-DD format
+        const isoDateRegex = /^\d{4}-\d{2}-\d{2}$/;
+        if (isoDateRegex.test(value)) {
+          // For YYYY-MM-DD format, create date directly to avoid timezone conversion
+          const [year, month, day] = value.split('-').map(Number);
+          const date = new Date(year, month - 1, day); // month is 0-indexed
+          // Set time to noon to avoid any timezone conversion issues
+          date.setHours(12, 0, 0, 0);
+          if (!isNaN(date)) {
+            return date;
+          }
+        } else {
+          // For other formats, try parsing with different strategies
+          const date = new Date(value);
+          if (!isNaN(date)) {
+            return date;
+          }
+        }
+      } else {
+        // For non-string values, use as is
+        const date = new Date(value);
+        if (!isNaN(date)) {
+          return date;
+        }
       }
     } catch (e) {
       console.warn('Error formatting date:', e);
