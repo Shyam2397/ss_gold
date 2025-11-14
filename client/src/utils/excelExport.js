@@ -51,8 +51,8 @@ const formatValue = (value, header) => {
       const [hours, minutes] = value.split(':').map(Number);
       if (!isNaN(hours) && !isNaN(minutes)) {
         // Create a time object that Excel can recognize
-        const date = new Date();
-        date.setHours(hours, minutes, 0, 0);
+        // Use a fixed date (epoch) to avoid timezone issues
+        const date = new Date(Date.UTC(1970, 0, 1, hours, minutes, 0, 0));
         return date;
       }
     } catch (e) {
@@ -193,7 +193,8 @@ export const exportToExcel = async (data, sheetName, fileName) => {
         }
         // Handle time formatting
         else if (headerLower.includes('time') && cell.value instanceof Date) {
-          cell.numFmt = 'HH:MM AM/PM';
+          // Format as HH:MM without AM/PM to match the original format
+          cell.numFmt = 'HH:MM';
         }
         
         // Set alignment
