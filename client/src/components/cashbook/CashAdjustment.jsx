@@ -155,7 +155,7 @@ const CashAdjustment = ({ isOpen, onClose, onSave, isLoading, initialData }) => 
           </button>
         </div>
         
-        <div className="flex-1 overflow-auto p-3">
+        <div className="flex-1 overflow-auto p-3 text-amber-900">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-3">
               <div className="flex rounded-md border">
@@ -184,7 +184,7 @@ const CashAdjustment = ({ isOpen, onClose, onSave, isLoading, initialData }) => 
                     name="date"
                     value={formData.date}
                     onChange={handleChange}
-                    className="w-full text-sm rounded border-gray-300 p-1.5"
+                    className="w-full text-sm rounded-md border border-amber-200 bg-white focus:ring-amber-500 focus:border-amber-500 focus:outline-none focus:ring-1 p-1.5"
                     disabled={isSubmitting || isLoading}
                     required
                   />
@@ -195,7 +195,7 @@ const CashAdjustment = ({ isOpen, onClose, onSave, isLoading, initialData }) => 
                     name="time"
                     value={formData.time}
                     onChange={handleChange}
-                    className="w-full text-sm rounded border-gray-300 p-1.5"
+                    className="w-full text-sm rounded-md border border-amber-200 bg-white focus:ring-amber-500 focus:border-amber-500 focus:outline-none focus:ring-1 p-1.5"
                     disabled={isSubmitting || isLoading}
                     required
                   />
@@ -204,14 +204,14 @@ const CashAdjustment = ({ isOpen, onClose, onSave, isLoading, initialData }) => 
               
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none">
-                  <span className="text-gray-500 text-sm">₹</span>
+                  <span className="text-amber-500 text-sm">₹</span>
                 </div>
                 <input
                   type="number"
                   name="amount"
                   value={formData.amount}
                   onChange={handleChange}
-                  className="w-full text-sm rounded border-gray-300 pl-6 pr-2 py-1.5"
+                  className="w-full text-sm rounded-md border border-amber-200 bg-white focus:ring-amber-500 focus:border-amber-500 focus:outline-none focus:ring-1 p-1.5 pl-6"
                   placeholder="0.00"
                   min="0.01"
                   step="0.01"
@@ -226,7 +226,7 @@ const CashAdjustment = ({ isOpen, onClose, onSave, isLoading, initialData }) => 
                   name="reason"
                   value={formData.reason}
                   onChange={handleChange}
-                  className="w-full text-sm rounded border-gray-300 p-1.5"
+                  className="w-full text-sm rounded-md border border-amber-200 bg-white focus:ring-amber-500 focus:border-amber-500 focus:outline-none focus:ring-1 p-1.5"
                   placeholder="Reason *"
                   disabled={isSubmitting || isLoading}
                   required
@@ -239,7 +239,7 @@ const CashAdjustment = ({ isOpen, onClose, onSave, isLoading, initialData }) => 
                   name="reference_number"
                   value={formData.reference_number}
                   onChange={handleChange}
-                  className="w-full text-sm rounded border-gray-300 p-1.5"
+                  className="w-full text-sm rounded-md border border-amber-200 bg-white focus:ring-amber-500 focus:border-amber-500 focus:outline-none focus:ring-1 p-1.5"
                   placeholder="Reference # (optional)"
                   disabled={isSubmitting || isLoading}
                 />
@@ -250,7 +250,7 @@ const CashAdjustment = ({ isOpen, onClose, onSave, isLoading, initialData }) => 
                   name="remarks"
                   value={formData.remarks}
                   onChange={handleChange}
-                  className="w-full text-sm rounded border-gray-300 p-1.5"
+                  className="w-full text-sm rounded-md border border-amber-200 bg-white focus:ring-amber-500 focus:border-amber-500 focus:outline-none focus:ring-1 p-1.5"
                   placeholder="Remarks (optional)"
                   rows="2"
                   disabled={isSubmitting || isLoading}
