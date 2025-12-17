@@ -22,9 +22,19 @@ const createExpense = async (req, res) => {
 // Get all expenses
 const getAllExpenses = async (req, res) => {
   const sql = `
-    SELECT id, date, expense_type, amount, paid_to, pay_mode, remarks, created_at
-    FROM expenses
-    ORDER BY date DESC
+    SELECT 
+      e.id, 
+      e.date, 
+      e.expense_type, 
+      em.expense_name, 
+      e.amount, 
+      e.paid_to, 
+      e.pay_mode, 
+      e.remarks, 
+      e.created_at
+    FROM expenses e
+    LEFT JOIN expense_master em ON CASE WHEN e.expense_type ~ '^[0-9]+$' THEN e.expense_type::integer ELSE NULL END = em.id
+    ORDER BY e.date DESC
   `;
 
   try {

@@ -48,28 +48,7 @@ const ExpensesTable = ({ expenses = [], expenseTypes = [], onEdit, onDelete }) =
       label: 'Expense Type',
       key: 'expenseType',
       width: columnWidth,
-      render: (row) => {
-        // Handle different possible structures of expense type data
-        if (typeof row.expenseType === 'object' && row.expenseType !== null) {
-          return row.expenseType.expense_name || 'N/A';
-        } else if (row.expenseType) {
-          // If expenseType is an ID, look up the name
-          if (typeof row.expenseType === 'string') {
-            return expenseTypeMap[row.expenseType] || row.expenseType;
-          }
-          return row.expenseType;
-        } else if (row.expense_type) {
-          // If expense_type is an ID, look up the name
-          if (typeof row.expense_type === 'string') {
-            return expenseTypeMap[row.expense_type] || row.expense_type;
-          }
-          return row.expense_type;
-        } else if (row.expenseTypeId) {
-          // If we have an ID but no populated object, look up the name
-          return expenseTypeMap[row.expenseTypeId] || 'Loading...';
-        }
-        return 'N/A';
-      }
+      render: (row) => row.expense_name || 'N/A'
     },
     {
       label: 'Paid To',
@@ -138,10 +117,10 @@ const ExpensesTable = ({ expenses = [], expenseTypes = [], onEdit, onDelete }) =
     columns.reduce((sum, col) => sum + col.width, 0) + (columns.length - 1) * 1 // Add 1px for each border
   , [columns]);
 
-  // Track horizontal scroll position
+  // Track horizontal scroll position for header sync
   const [scrollLeft, setScrollLeft] = React.useState(0);
 
-  // Handle scroll event
+  // Handle scroll event for header sync
   const handleScroll = (e) => {
     setScrollLeft(e.target.scrollLeft);
   };
@@ -223,26 +202,33 @@ const ExpensesTable = ({ expenses = [], expenseTypes = [], onEdit, onDelete }) =
   return (
     <div className="rounded-xl border border-amber-100 border-solid overflow-hidden flex flex-col" style={{ height: '350px' }}>
       {renderHeader()}
-      <div 
-        className="flex-1 overflow-auto"
-        onScroll={handleScroll}
-        style={{
-          scrollbarWidth: 'thin',
-          scrollbarColor: '#F59E0B transparent'
-        }}
-      >
-        <div style={{ width: totalWidth }}>
-          <List
-            height={350 - HEADER_HEIGHT - 2} // Subtract 2px for borders
-            itemCount={expenses.length}
-            itemSize={ROW_HEIGHT}
-            width={totalWidth}
-            style={{ overflow: 'visible' }}
-            overscanCount={5}
-          >
-            {Row}
-          </List>
-        </div>
+      <div className="flex-1">
+        <List
+          height={350 - HEADER_HEIGHT}
+          itemCount={expenses.length}
+          itemSize={ROW_HEIGHT}
+          width="100%"
+          style={{
+            overflowX: 'auto',
+            scrollbarWidth: 'thin',
+            scrollbarColor: '#F59E0B transparent'
+          }}
+          outerElementType={React.forwardRef((props, ref) => (
+            <div
+              ref={ref}
+              onScroll={(e) => {
+                handleScroll(e);
+                // Forward the scroll event to the List's default scroll handler
+                if (props.onScroll) {
+                  props.onScroll(e);
+                }
+              }}
+              {...props}
+            />
+          ))}
+        >
+          {Row}
+        </List>
       </div>
     </div>
   );
