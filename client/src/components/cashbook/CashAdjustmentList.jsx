@@ -26,16 +26,10 @@ const CashAdjustmentList = () => {
   const fetchAdjustments = useCallback(async () => {
     try {
       setLoading(true);
-      const params = new URLSearchParams();
-      
-      if (filters.fromDate) params.append('from_date', filters.fromDate);
-      if (filters.toDate) params.append('to_date', filters.toDate);
-      if (filters.type !== 'all') params.append('type', filters.type);
-      
       // Get adjustments with filters
       const adjustments = await cashAdjustmentService.getAdjustments({
-        from_date: filters.fromDate,
-        to_date: filters.toDate,
+        startDate: filters.fromDate,
+        endDate: filters.toDate,
         type: filters.type !== 'all' ? filters.type : undefined
       });
       
