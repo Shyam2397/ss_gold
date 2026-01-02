@@ -36,9 +36,11 @@ const initializeTable = async () => {
 })();
 
 const getAllTokens = async (req, res) => {
+  const { from_date, to_date } = req.query;
   const client = await pool.connect();
+  
   try {
-    const result = await client.query(`
+    let query = `
       SELECT 
         id,
         token_no,
@@ -51,10 +53,30 @@ const getAllTokens = async (req, res) => {
         sample,
         amount,
         is_paid
-      FROM tokens 
-      ORDER BY id DESC
-    `);
-    // Transform to camelCase for frontend
+      FROM tokens
+    `;
+
+    const params = [];
+    let paramIndex = 1;
+    const conditions = [];
+
+    if (from_date) {
+      conditions.push(`date >= $${paramIndex++}`);
+      params.push(from_date);
+    }
+    if (to_date) {
+      conditions.push(`date <= $${paramIndex++}`);
+      params.push(to_date);
+    }
+
+    if (conditions.length > 0) {
+      query += ' WHERE ' + conditions.join(' AND ');
+    }
+
+    query += ' ORDER BY id DESC';
+
+    const result = await client.query(query, params);
+
     const transformedRows = result.rows.map(row => ({
       id: row.id,
       tokenNo: row.token_no,
@@ -68,6 +90,7 @@ const getAllTokens = async (req, res) => {
       amount: row.amount,
       isPaid: row.is_paid
     }));
+
     res.json(transformedRows);
   } catch (err) {
     console.error('Error in getAllTokens:', err);

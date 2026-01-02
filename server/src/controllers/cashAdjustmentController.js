@@ -39,7 +39,7 @@ const createCashAdjustment = async (req, res) => {
 
 // Get all cash adjustments with optional date range filtering and limit
 const getCashAdjustments = async (req, res) => {
-  const { startDate, endDate, limit, type } = req.query;
+  const { from_date, to_date, limit, type } = req.query;
   
   try {
     let query = 'SELECT * FROM cash_adjustments';
@@ -47,10 +47,18 @@ const getCashAdjustments = async (req, res) => {
     let paramCount = 0;
     
     // Add date range filter if provided
-    if (startDate && endDate) {
+    if (from_date && to_date) {
       paramCount += 2;
       query += ` WHERE date BETWEEN $${paramCount - 1} AND $${paramCount}`;
-      queryParams.push(startDate, endDate);
+      queryParams.push(from_date, to_date);
+    } else if (from_date) {
+      paramCount += 1;
+      query += ` WHERE date >= $${paramCount}`;
+      queryParams.push(from_date);
+    } else if (to_date) {
+      paramCount += 1;
+      query += ` WHERE date <= $${paramCount}`;
+      queryParams.push(to_date);
     }
     
     // Add type filter if provided

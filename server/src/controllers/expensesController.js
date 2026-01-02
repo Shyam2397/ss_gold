@@ -21,7 +21,9 @@ const createExpense = async (req, res) => {
 
 // Get all expenses
 const getAllExpenses = async (req, res) => {
-  const sql = `
+  const { from_date, to_date } = req.query;
+
+  let sql = `
     SELECT 
       e.id, 
       e.date, 
@@ -34,11 +36,26 @@ const getAllExpenses = async (req, res) => {
       e.created_at
     FROM expenses e
     LEFT JOIN expense_master em ON CASE WHEN e.expense_type ~ '^[0-9]+$' THEN e.expense_type::integer ELSE NULL END = em.id
-    ORDER BY e.date DESC
   `;
 
+  const params = [];
+  let paramIndex = 1;
+
+  if (from_date && to_date) {
+    sql += ` WHERE e.date BETWEEN $${paramIndex++} AND $${paramIndex++}`;
+    params.push(from_date, to_date);
+  } else if (from_date) {
+    sql += ` WHERE e.date >= $${paramIndex++}`;
+    params.push(from_date);
+  } else if (to_date) {
+    sql += ` WHERE e.date <= $${paramIndex++}`;
+    params.push(to_date);
+  }
+
+  sql += ' ORDER BY e.date DESC';
+
   try {
-    const result = await pool.query(sql);
+    const result = await pool.query(sql, params);
     res.json(result.rows);
   } catch (err) {
     console.error('Error fetching expenses:', err);

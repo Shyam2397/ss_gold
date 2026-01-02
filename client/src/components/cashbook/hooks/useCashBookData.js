@@ -36,8 +36,14 @@ export const useCashBookData = () => {
       const lastDayOfMonth = new Date(currentYear, currentMonth + 1, 0);
       const firstDayOfPreviousMonth = new Date(currentYear, currentMonth - 1, 1);
       const lastDayOfPreviousMonth = new Date(currentYear, currentMonth, 0);
+      lastDayOfPreviousMonth.setHours(23, 59, 59, 999); // Set to end of day
       
-      const formatDate = (date) => date.toISOString().split('T')[0];
+      const formatDate = (date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      };
       
       const firstDayFormatted = formatDate(firstDayOfMonth);
       const lastDayFormatted = formatDate(lastDayOfMonth);
@@ -101,9 +107,17 @@ export const useCashBookData = () => {
         return sum;
       }, 0);
 
-      // Final opening balance calculation
+      // Final opening balance calculation & Diagnostic Logging
       const openingBalance = previousIncome + previousAdjustmentTotal - previousExpenses;
       const openingPending = previousPending;
+
+      console.log('--- Opening Balance Calculation ---');
+      console.log('Last Day of Previous Month:', lastDayOfPreviousMonth.toString());
+      console.log('Previous Income (Tokens):', previousIncome);
+      console.log('Previous Expenses:', previousExpenses);
+      console.log('Previous Adjustments Total:', previousAdjustmentTotal);
+      console.log('Calculated Opening Balance:', openingBalance);
+      console.log('--- End of Calculation ---');
 
       setCashInfo(prev => ({
         ...prev,
@@ -270,10 +284,13 @@ export const useCashBookData = () => {
 
     // Calculate running balance
     let runningBalance = cashInfo.openingBalance || 0;
-    const transactionsWithBalance = currentMonthTransactions.map(transaction => ({
-      ...transaction,
-      runningBalance: calculateBalance([transaction], runningBalance)
-    }));
+    const transactionsWithBalance = currentMonthTransactions.map(transaction => {
+      runningBalance = calculateBalance([transaction], runningBalance);
+      return {
+        ...transaction,
+        runningBalance,
+      };
+    });
 
     // Process analytics data
     const { categories, monthly } = processTransactions(transactions, cashInfo);
