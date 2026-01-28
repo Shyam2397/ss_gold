@@ -4,8 +4,10 @@ import {
     FiRotateCcw,
     FiAlertCircle,
     FiPlus,
+    FiDatabase
 } from 'react-icons/fi';
 import { GiGoldBar } from 'react-icons/gi';
+import { useNavigate } from 'react-router-dom';
 import { usePureExchange } from './hooks/usePureExchange';
 import skinTestService from '../../services/skinTestService';
 import MemoizedFormInput from './components/MemoizedFormInput';
@@ -96,6 +98,7 @@ const PureExchange = () => {
     const [state, dispatch] = useReducer(pureExchangeReducer, initialState);
     const { tokenNo, point, tableData, error, loading } = state;
     const { checkExists, createPureExchange: createExchange, isCreating } = usePureExchange();
+    const navigate = useNavigate();
     
     // Combine local loading state with API creating state for UI feedback
     const isLoading = loading || isCreating;
@@ -264,6 +267,10 @@ const PureExchange = () => {
         dispatch({ type: ACTIONS.RESET_FORM });
     };
 
+    const handleNavigateToExchangeData = () => {
+        navigate('/exchange-data');
+    };
+
     return (
         <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-8">
             
@@ -386,6 +393,13 @@ const PureExchange = () => {
                         </div>
                     ) : (
                         <>
+                            <button
+                                onClick={handleNavigateToExchangeData}
+                                className="px-2 py-1 border border-amber-300 border-solid text-amber-700 text-sm rounded hover:bg-amber-50 transition-colors flex items-center space-x-1 h-[30px] rounded-xl"
+                            >
+                                <FiDatabase className="w-3.5 h-3.5" />
+                                <span>Exchange Data</span>
+                            </button>
                             <button
                                 onClick={handleReset}
                                 className="px-2 py-1 border border-amber-300 border-solid text-amber-700 text-sm rounded hover:bg-amber-50 transition-colors flex items-center space-x-1 h-[30px] rounded-xl"

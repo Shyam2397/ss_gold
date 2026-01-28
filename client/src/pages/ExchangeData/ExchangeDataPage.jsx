@@ -1,5 +1,6 @@
 import React from 'react';
-import { FiAlertCircle, FiX } from 'react-icons/fi';
+import { FiAlertCircle, FiX, FiDatabase } from 'react-icons/fi';
+import { useNavigate } from 'react-router-dom';
 
 import useExchanges from './hooks/useExchanges';
 import DateInput from './components/DateInput';
@@ -20,6 +21,12 @@ const ExchangeDataPage = () => {
     deleteExchange,
     updateExchange
   } = useExchanges();
+  
+  const navigate = useNavigate();
+  
+  const handleNavigateToPureExchange = () => {
+    navigate('/pure-exchange');
+  };
 
   return (
     <div className="p-6 sm:p-8 bg-white shadow-lg rounded-xl max-w-full h-full text-[#391145] m-4">
@@ -40,7 +47,16 @@ const ExchangeDataPage = () => {
           <span>{successMessage}</span>
         </div>
       )}
-        <ExportButton data={filteredExchanges} />
+        <div className="flex gap-3">
+          <button
+            onClick={handleNavigateToPureExchange}
+            className="flex items-center gap-2 bg-gradient-to-r from-[#D3B04D] to-[#DD845A] text-white px-6 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300"
+          >
+            <FiDatabase className="h-5 w-5" />
+            Pure Exchange
+          </button>
+          <ExportButton data={filteredExchanges} />
+        </div>
       </div>
 
     
