@@ -162,12 +162,36 @@ export const captureMemoryBufferImage = (containerSelector, arrowsData = []) => 
         
         // Get container dimensions for transform calculation
         const containerRect = container.getBoundingClientRect();
-        const scaleX = nativeWidth / containerRect.width;
-        const scaleY = nativeHeight / containerRect.height;
         
-        console.log('Scale factors for coordinate conversion:', { scaleX, scaleY });
+        // Calculate actual visible image bounds (accounting for backgroundSize: 'contain')
+        const containerAspect = containerRect.width / containerRect.height;
+        const imageAspect = nativeWidth / nativeHeight;
+        
+        let visibleImageWidth, visibleImageHeight, offsetX, offsetY;
+        
+        if (imageAspect > containerAspect) {
+          // Image is wider - constrained by container width
+          visibleImageWidth = containerRect.width;
+          visibleImageHeight = containerRect.width / imageAspect;
+          offsetX = 0;
+          offsetY = (containerRect.height - visibleImageHeight) / 2;
+        } else {
+          // Image is taller - constrained by container height
+          visibleImageHeight = containerRect.height;
+          visibleImageWidth = containerRect.height * imageAspect;
+          offsetX = (containerRect.width - visibleImageWidth) / 2;
+          offsetY = 0;
+        }
+        
+        // Scale factors based on VISIBLE image area, not container
+        const scaleX = nativeWidth / visibleImageWidth;
+        const scaleY = nativeHeight / visibleImageHeight;
+        
         console.log('Container rect:', { width: containerRect.width, height: containerRect.height });
+        console.log('Visible image area:', { width: visibleImageWidth, height: visibleImageHeight });
+        console.log('Image offset (centering):', { offsetX, offsetY });
         console.log('Native dimensions:', { width: nativeWidth, height: nativeHeight });
+        console.log('Scale factors:', { scaleX, scaleY });
         
         // Apply transforms in memory buffer space
         const transform = window.getComputedStyle(transformedImg).transform;
@@ -177,6 +201,8 @@ export const captureMemoryBufferImage = (containerSelector, arrowsData = []) => 
         
         if (transform && transform !== 'none') {
           const matrix = transform.match(/^matrix\((.+)\)$/)[1].split(',').map(Number);
+          // Transform values are in container pixel units, convert to native image units
+          // Scale the translation values based on visible image area
           bufferCtx.transform(
             matrix[0], matrix[1],
             matrix[2], matrix[3],
@@ -195,12 +221,12 @@ export const captureMemoryBufferImage = (containerSelector, arrowsData = []) => 
         
         bufferCtx.restore();
         
-        // Draw arrows in memory buffer space with reset transform matrix
+        // Draw arrows in memory buffer space
+        // NOTE: We do NOT apply the transform matrix here because arrow coordinates
+        // are already being converted from container space to canvas space directly
         if (arrowsData && arrowsData.length > 0) {
           console.log('Drawing arrows in memory buffer with scale factors:', { scaleX, scaleY });
-          // CRITICAL: Reset transform matrix before drawing arrows to ensure consistent coordinate system
-          bufferCtx.setTransform(1, 0, 0, 1, 0, 0);
-          drawMemoryBufferArrows(bufferCtx, arrowsData, nativeWidth, nativeHeight, scaleX, scaleY);
+          drawMemoryBufferArrows(bufferCtx, arrowsData, nativeWidth, nativeHeight, scaleX, scaleY, containerRect, offsetX, offsetY, visibleImageWidth, visibleImageHeight);
         }
         
         // Extract raw memory buffer
@@ -259,31 +285,46 @@ export const captureMemoryBufferImage = (containerSelector, arrowsData = []) => 
 /**
  * Memory buffer arrow drawing - bypasses all browser optimizations
  */
-const drawMemoryBufferArrows = (ctx, arrowsData, canvasWidth, canvasHeight, scaleX, scaleY) => {
+const drawMemoryBufferArrows = (ctx, arrowsData, canvasWidth, canvasHeight, scaleX, scaleY, containerRect, offsetX, offsetY, visibleImageWidth, visibleImageHeight) => {
   if (!arrowsData || arrowsData.length === 0) return;
 
   console.log('Drawing memory buffer arrows at native resolution');
   console.log('Canvas dimensions:', { canvasWidth, canvasHeight });
   console.log('Scale factors:', { scaleX, scaleY });
+  console.log('Container rect:', containerRect);
+  console.log('Image offset:', { offsetX, offsetY });
+  console.log('Visible image area:', { visibleImageWidth, visibleImageHeight });
 
   arrowsData.forEach((arrow, index) => {
     try {
-      // Calculate exact memory buffer coordinates from UI coordinates
-      const arrowX = arrow.x * scaleX;
-      const arrowY = arrow.y * scaleY;
+      // Convert UI container coordinates to canvas coordinates
+      // UI coordinates are relative to the CONTAINER (0,0 at top-left)
+      
+      // Step 1: Convert container coords to visible image coords (account for offset)
+      // Clamp to visible image bounds to handle edge cases
+      const visibleImageX = Math.max(0, Math.min(arrow.x - offsetX, visibleImageWidth));
+      const visibleImageY = Math.max(0, Math.min(arrow.y - offsetY, visibleImageHeight));
+      
+      // Step 2: Convert visible image coords to canvas absolute coords
+      // The image is drawn centered on the canvas at (nativeWidth/2, nativeHeight/2)
+      const arrowCanvasX = (visibleImageX - visibleImageWidth / 2) * scaleX + canvasWidth / 2;
+      const arrowCanvasY = (visibleImageY - visibleImageHeight / 2) * scaleY + canvasHeight / 2;
       const rotation = arrow.angle * (Math.PI / 180);
       
       console.log(`Arrow ${index + 1}:`);
-      console.log(`  UI coordinates: (${arrow.x}, ${arrow.y})`);
-      console.log(`  Scaled coordinates: (${arrowX}, ${arrowY})`);
+      console.log(`  UI container coords: (${arrow.x.toFixed(2)}, ${arrow.y.toFixed(2)})`);
+      console.log(`  Visible image coords: (${visibleImageX.toFixed(2)}, ${visibleImageY.toFixed(2)})`);
+      console.log(`  Canvas coords: (${arrowCanvasX.toFixed(2)}, ${arrowCanvasY.toFixed(2)})`);
       console.log(`  Angle: ${arrow.angle}°`);
       
-      // Scale-aware dimensions for memory buffer - adjusted to match UI more closely
-      const arrowLength = 35 * Math.min(scaleX, scaleY); // Use minimum scale to maintain proportion
-      const arrowWidth = Math.max(0.8, 1.5 * Math.min(scaleX, scaleY) * 0.7); // Reduced thickness scaling
-      const arrowHeadSize = Math.max(2, 5 * Math.min(scaleX, scaleY) * 0.8); // Reduced head size scaling
+      // Use consistent scaling - match UI arrow proportions exactly
+      const baseScale = Math.min(scaleX, scaleY);
+      const arrowLength = 35 * baseScale;
+      const arrowWidth = 1.5 * baseScale;
+      const arrowHeadWidth = 8 * baseScale;
+      const arrowHeadHeight = 5 * baseScale;
       
-      console.log(`  Scaled dimensions: length=${arrowLength}, width=${arrowWidth}, headSize=${arrowHeadSize}`);
+      console.log(`  Scaled dimensions: length=${arrowLength.toFixed(2)}, width=${arrowWidth.toFixed(2)}, head=${arrowHeadWidth.toFixed(2)}x${arrowHeadHeight.toFixed(2)}`);
       
       ctx.save();
       
@@ -297,24 +338,26 @@ const drawMemoryBufferArrows = (ctx, arrowsData, canvasWidth, canvasHeight, scal
       ctx.lineCap = 'butt';
       ctx.lineJoin = 'miter';
       
-      ctx.translate(arrowX, arrowY);
+      // Position arrow at canvas coordinates
+      ctx.translate(arrowCanvasX, arrowCanvasY);
       ctx.rotate(rotation);
       
+      // Set styles
       ctx.strokeStyle = '#FF0000';
       ctx.fillStyle = '#FF0000';
       ctx.lineWidth = arrowWidth;
       
-      // Draw shaft in memory buffer
+      // Draw shaft
       ctx.beginPath();
       ctx.moveTo(0, 0);
       ctx.lineTo(arrowLength, 0);
       ctx.stroke();
       
-      // Draw head in memory buffer - adjusted proportions
+      // Draw arrow head - match UI proportions exactly
       ctx.beginPath();
       ctx.moveTo(arrowLength, 0);
-      ctx.lineTo(arrowLength - 8 * Math.min(scaleX, scaleY) * 0.8, -arrowHeadSize);
-      ctx.lineTo(arrowLength - 8 * Math.min(scaleX, scaleY) * 0.8, arrowHeadSize);
+      ctx.lineTo(arrowLength - arrowHeadWidth, -arrowHeadHeight);
+      ctx.lineTo(arrowLength - arrowHeadWidth, arrowHeadHeight);
       ctx.closePath();
       ctx.fill();
       

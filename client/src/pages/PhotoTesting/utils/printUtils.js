@@ -215,9 +215,8 @@ export const printPhotoData = (formData) => {
           .right-wrapper img {
             flex-grow: 1;
             max-width: 100%;
-            object-fit: cover;
-            /* Match UI: max-height should account for footer space */
             max-height: calc(100% - 20px);
+            object-fit: contain;
             background-color: white;
           }
           

@@ -60,13 +60,31 @@ const ImageEditor = ({
   onDrop,
   fileInputRef,
   onFileSelect,
-  onArrowsChange // New prop to pass arrows up
+  onArrowsChange, // New prop to pass arrows up
+  imageNaturalWidth,  // Native image dimensions for calculating visible area
+  imageNaturalHeight
 }) => {
   const [arrows, setArrows] = useState([
     { id: 1, x: 80, y: 80, angle: 0, isDragging: false },
     { id: 2, x: 180, y: 180, angle: 45, isDragging: false }
   ]);
   const [activeArrow, setActiveArrow] = useState(null);
+  const [visibleImageBounds, setVisibleImageBounds] = useState({ offsetX: 0, offsetY: 0, width: 300, height: 300 });
+  const [nativeImageSize, setNativeImageSize] = useState({ width: 0, height: 0 });
+
+  // Get native image dimensions when image is loaded
+  useEffect(() => {
+    if (!uploadedImage) {
+      setNativeImageSize({ width: 0, height: 0 });
+      return;
+    }
+    
+    const img = new Image();
+    img.onload = () => {
+      setNativeImageSize({ width: img.naturalWidth, height: img.naturalHeight });
+    };
+    img.src = uploadedImage;
+  }, [uploadedImage]);
 
   // Notify parent component when arrows change
   useEffect(() => {
@@ -75,30 +93,58 @@ const ImageEditor = ({
     }
   }, [arrows, onArrowsChange]);
 
+  // Calculate visible image bounds (accounting for backgroundSize: 'contain')
+  useEffect(() => {
+    const calculateVisibleBounds = () => {
+      const container = document.querySelector('.w-full.h-full.overflow-hidden.relative');
+      if (!container || !nativeImageSize.width || !nativeImageSize.height) return;
+      
+      const containerRect = container.getBoundingClientRect();
+      const containerAspect = containerRect.width / containerRect.height;
+      const imageAspect = nativeImageSize.width / nativeImageSize.height;
+      
+      let visibleWidth, visibleHeight, offsetX, offsetY;
+      
+      if (imageAspect > containerAspect) {
+        // Image is wider - constrained by container width
+        visibleWidth = containerRect.width;
+        visibleHeight = containerRect.width / imageAspect;
+        offsetX = 0;
+        offsetY = (containerRect.height - visibleHeight) / 2;
+      } else {
+        // Image is taller - constrained by container height
+        visibleHeight = containerRect.height;
+        visibleWidth = containerRect.height * imageAspect;
+        offsetX = (containerRect.width - visibleWidth) / 2;
+        offsetY = 0;
+      }
+      
+      setVisibleImageBounds({ offsetX, offsetY, width: visibleWidth, height: visibleHeight });
+    };
+    
+    calculateVisibleBounds();
+    window.addEventListener('resize', calculateVisibleBounds);
+    return () => window.removeEventListener('resize', calculateVisibleBounds);
+  }, [nativeImageSize.width, nativeImageSize.height]);
+
   const addArrow = useCallback(() => {
     const newId = Math.max(0, ...arrows.map(a => a.id)) + 1;
     
-    // Get container bounds to place new arrow in a reasonable position
-    const imageContainer = document.querySelector('.w-full.h-full.overflow-hidden.relative');
-    const fallbackContainer = document.querySelector('.relative.w-full.h-full.group');
-    const container = imageContainer || fallbackContainer;
-    let containerWidth = 300, containerHeight = 300; // defaults
-    
-    if (container) {
-      const rect = container.getBoundingClientRect();
-      containerWidth = rect.width;
-      containerHeight = rect.height;
-    }
+    // Place new arrow within visible image bounds
+    const minX = visibleImageBounds.offsetX + 10;
+    const maxX = visibleImageBounds.offsetX + visibleImageBounds.width - 53;
+    const minY = visibleImageBounds.offsetY + 10;
+    const maxY = visibleImageBounds.offsetY + visibleImageBounds.height - 20;
     
     const newArrow = {
       id: newId,
-      x: Math.min(50 + (newId * 30), containerWidth - 100), // Container-relative positioning
-      y: Math.min(50 + (newId * 30), containerHeight - 50),
+      x: Math.min(minX + (newId * 30), maxX),
+      y: Math.min(minY + (newId * 30), maxY),
       angle: 0,
       isDragging: false
     };
     setArrows([...arrows, newArrow]);
-  }, [arrows]);
+  }, [arrows, visibleImageBounds]);
 
   const removeArrow = useCallback(() => {
     if (arrows.length > 0) {
@@ -164,13 +210,16 @@ const ImageEditor = ({
           const newContainerX = e.clientX - containerRect.left;
           const newContainerY = e.clientY - containerRect.top;
           
-          // Constrain to container bounds with arrow dimensions
+          // Constrain to VISIBLE IMAGE bounds (not just container)
+          // Account for the offset (centering) of the image within the container
           const arrowWidth = 43; // 35px shaft + 8px head
-          const maxX = containerRect.width - arrowWidth;
-          const maxY = containerRect.height - 10; // account for arrow height
+          const minX = visibleImageBounds.offsetX;
+          const maxX = visibleImageBounds.offsetX + visibleImageBounds.width - arrowWidth;
+          const minY = visibleImageBounds.offsetY;
+          const maxY = visibleImageBounds.offsetY + visibleImageBounds.height - 10;
           
-          const finalX = Math.max(0, Math.min(newContainerX, maxX));
-          const finalY = Math.max(0, Math.min(newContainerY, maxY));
+          const finalX = Math.max(minX, Math.min(newContainerX, maxX));
+          const finalY = Math.max(minY, Math.min(newContainerY, maxY));
           
           return {
             ...arrow,
