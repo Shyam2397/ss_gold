@@ -1,4 +1,3 @@
-import React from 'react';
 import { FiPrinter } from 'react-icons/fi';
 
 const ThermalPrinter = ({ tableData }) => {
@@ -53,6 +52,9 @@ const ThermalPrinter = ({ tableData }) => {
             }
             .value {
               padding-right: 10px;
+            }
+            .tweight {
+              padding-left: 25px;
             }
             table {
               width: 100%;
@@ -128,7 +130,12 @@ const ThermalPrinter = ({ tableData }) => {
           </table>
           <div class="divider"></div>
           <div class="info-row">
-            <span>Total Pure</span>
+            <span>Weight</span>
+            <span class="tweight">${(tableData.reduce((total, row) => {
+              const weight = parseFloat(row.weight);
+              return total + weight;
+            }, 0).toFixed(3))}</span>
+            <span>Pure</span>
             <span class="value">${(tableData.reduce((total, row) => {
               const weight = parseFloat(row.weight);
               const exGold = parseFloat(row.exGold);
@@ -138,26 +145,26 @@ const ThermalPrinter = ({ tableData }) => {
           <div class="info-row">
             <span>Issued (Bar-Ft-999)</span>
             <span class="value">${(() => {
-              const total = tableData.reduce((sum, row) => {
+              // Get the total pure value from the Total Pure field
+              const totalPure = parseFloat(tableData.reduce((total, row) => {
                 const weight = parseFloat(row.weight);
                 const exGold = parseFloat(row.exGold);
-                return sum + ((weight) * exGold / 100);
-              }, 0);
-              
-              // Custom rounding logic
-              const rounded = Math.floor(total * 1000) / 1000; // Keep 3 decimal places
-              const thirdDecimal = Math.floor(rounded * 1000) % 10;
-              
+                return total + ((weight) * exGold / 100);
+              }, 0).toFixed(3));
+
+              // Get the third decimal place (handle negative numbers)
+              const thirdDecimal = Math.abs(Math.floor(totalPure * 1000) % 10);
+                          
               let result;
               if (thirdDecimal <= 6) {
-                // Round down to 2 decimal places
-                result = (Math.floor(rounded * 100) / 100).toFixed(2);
+                // Truncate to 2 decimal places
+                result = Math.trunc(totalPure * 100) / 100;
               } else {
                 // Round up to 2 decimal places
-                result = (Math.ceil(rounded * 100) / 100).toFixed(2);
+                result = Math.ceil(totalPure * 100) / 100;
               }
-              // Add '0' at the end to ensure 2 decimal places are always shown
-              return result + '0';
+              
+              return result.toFixed(2) + '0';
             })()}</span>
           </div>
           <div class="info-row">
