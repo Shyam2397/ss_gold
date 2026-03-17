@@ -196,10 +196,12 @@ export const useCashBookData = () => {
       const allTransactions = [...tokenTransactions, ...expenseTransactions, ...adjustmentTransactions]
         .sort((a, b) => new Date(a.date) - new Date(b.date));
 
-      // Filter current month transactions
+      // Filter current month transactions - using date string comparison to avoid timezone issues
       const currentMonthTransactions = allTransactions.filter(transaction => {
-        const transactionDate = new Date(transaction.date);
-        return transactionDate >= firstDayOfMonth && transactionDate <= lastDayOfMonth;
+        if (!transaction?.date) return false;
+        // Compare dates as strings (YYYY-MM-DD) to avoid timezone issues
+        const transactionDateStr = transaction.date.slice(0, 10);
+        return transactionDateStr >= firstDayFormatted && transactionDateStr <= lastDayFormatted;
       });
 
       // Add pending balance to current month transactions
@@ -240,16 +242,27 @@ export const useCashBookData = () => {
   const processedData = useMemo(() => {
     if (!transactions.length) return { filteredTransactions: [], categorySummary: [], monthlySummary: [] };
     
+    // Helper function to format dates consistently
+    const formatDate = (date) => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+    
     const today = new Date();
     const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
     const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    const firstDayFormatted = formatDate(firstDayOfMonth);
+    const lastDayFormatted = formatDate(lastDayOfMonth);
     
-    // Filter and sort current month transactions
+    // Filter and sort current month transactions - using date string comparison to avoid timezone issues
     const currentMonthTransactions = transactions
       .filter(transaction => {
         if (!transaction?.date) return false;
-        const transactionDate = new Date(transaction.date);
-        return transactionDate >= firstDayOfMonth && transactionDate <= lastDayOfMonth;
+        // Compare dates as strings (YYYY-MM-DD) to avoid timezone issues
+        const transactionDateStr = transaction.date.slice(0, 10);
+        return transactionDateStr >= firstDayFormatted && transactionDateStr <= lastDayFormatted;
       })
       .sort((a, b) => {
         if (!a?.date || !b?.date) return 0;
