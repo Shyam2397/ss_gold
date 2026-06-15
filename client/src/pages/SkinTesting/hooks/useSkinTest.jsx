@@ -50,9 +50,9 @@ const skinTestReducer = (state, action) => {
       const { name, value } = action.payload;
       let newFormData = { ...state.formData, [name]: value };
       
-      // Auto-calculate karat if gold_fineness is updated
-      if (name === 'gold_fineness') {
-        newFormData.karat = calculateKarat(value);
+      // Auto-calculate karat if gold_fineness or silver is updated
+      if (name === 'gold_fineness' || name === 'silver') {
+        newFormData.karat = calculateKarat(newFormData.gold_fineness, newFormData.silver);
       }
       
       // Calculate sum whenever form data changes

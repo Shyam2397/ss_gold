@@ -7,6 +7,7 @@ import { formatDateForDisplay, formatTimeForDisplay } from '../utils/validation'
 import { toast } from 'react-toastify';
 import entryService from '../../../services/entryService';
 import { isEqual } from 'lodash';
+import { calculateKarat } from '../utils/calculations';
 
 const TableRow = React.memo(({ 
   skinTests, 
@@ -29,15 +30,20 @@ const TableRow = React.memo(({
     try {
       let resultMessage;
       
+      // Calculate karat based on silver if gold is zero
+      const goldFineness = parseFloat(rowData.gold_fineness) || 0;
+      const silverValue = parseFloat(rowData.silver) || 0;
+      const calculatedKarat = calculateKarat(goldFineness, silverValue);
+      
       // Check for melting defect in remarks
       if (rowData.remarks && rowData.remarks.toLowerCase().includes('melting defect')) {
         resultMessage = '✨ *RESULT:* *Melting Defect*\n👉 *Please collect the sample, remelt it, and return it.*';
-      } else if (parseFloat(rowData.gold_fineness) === 0 && parseFloat(rowData.silver || 0) === 0) {
+      } else if (goldFineness === 0 && silverValue === 0) {
         resultMessage = '✨ *RESULT:* Analysis indicates the sample contains no detectable gold or silver content.';
-      } else if (parseFloat(rowData.gold_fineness) === 0 && rowData.silver) {
-        resultMessage = `✨ *SILVER RESULT:* *${parseFloat(rowData.silver).toFixed(2)}* %`;
+      } else if (goldFineness === 0 && silverValue > 0) {
+        resultMessage = `✨ *SILVER FINENESS:* *${silverValue.toFixed(2)}* %`;
       } else {
-        resultMessage = `✨ *RESULT:* *${parseFloat(rowData.gold_fineness).toFixed(2)}* %`;
+        resultMessage = `✨ *GOLD FINENESS:* *${goldFineness.toFixed(2)}* %`;
       }
 
       const messageLines = [
@@ -51,7 +57,7 @@ const TableRow = React.memo(({
         '',
         resultMessage,
         '',
-        `  *Karat: ${parseFloat(rowData.karat).toFixed(2)} K*`,
+        `  *Karat: ${calculatedKarat ? calculatedKarat : '-'} K*`,
         
       ];
 

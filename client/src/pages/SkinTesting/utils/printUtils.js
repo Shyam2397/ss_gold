@@ -5,6 +5,20 @@ export const printData = (data) => {
   // Create a new window with larger dimensions
   const printWindow = window.open('', '_blank', 'width=900,height=600,left=100,top=100');
   
+  // Check if we need to use silver fineness instead of gold
+  const goldFineness = parseFloat(data.gold_fineness) || 0;
+  const silverValue = parseFloat(data.silver) || 0;
+  const useSilver = goldFineness === 0 && silverValue > 0;
+  
+  // Calculate karat based on whether we're using silver or gold
+  const finenessValue = useSilver ? silverValue : goldFineness;
+  const karatValue = finenessValue > 0 ? (finenessValue / 4.1667).toFixed(2) : '';
+  
+  // Determine fineness label and value
+  const finenessLabel = useSilver ? 'SILVER FINENESS %' : 'GOLD FINENESS %';
+  const finenessDisplay = finenessValue > 0 ? finenessValue.toFixed(2) + ' %' : '-';
+  const karatDisplay = karatValue ? karatValue + ' K' : '-';
+  
   // Create the content
   const content = `
     <html>
@@ -168,6 +182,9 @@ export const printData = (data) => {
         .gold-info-bar .bar-value {
           font-size: 14pt;
         }
+        .gold-info-bar.silver-mode {
+          padding: 8px 40px;
+        }
         /* ELEMENTS TABLE */
         .elements-table {
           display: grid;
@@ -292,16 +309,16 @@ export const printData = (data) => {
           </div>
         </section>
 
-        <section class="gold-info-bar" aria-label="Gold fineness and karat details">
-          <span>GOLD FINENESS %</span>
-          <span class="bar-value">${data.gold_fineness ? parseFloat(data.gold_fineness.replace('%', '')).toFixed(2) + ' %' : '-'}</span>
+        <section class="gold-info-bar${useSilver ? ' silver-mode' : ''}" aria-label="Gold fineness and karat details">
+          <span>${finenessLabel}</span>
+          <span class="bar-value">${finenessDisplay}</span>
           <span>KARAT Ct</span>
-          <span class="bar-value">${data.karat ? parseFloat(data.karat.replace(' K', '')).toFixed(2) + ' K' : '-'}</span>
+          <span class="bar-value">${karatDisplay}</span>
         </section>
 
         <section class="elements-table" aria-label="Elemental composition values">
           <!-- Row 1 -->
-          <div class="label">Silver</div><div class="colon">:</div><div class="value">${data.silver && parseFloat(data.silver) !== 0 ? parseFloat(data.silver).toFixed(2) : '-'}</div><div></div>
+          <div class="label">${useSilver ? 'Gold' : 'Silver'}</div><div class="colon">:</div><div class="value">${useSilver ? (data.gold_fineness && parseFloat(data.gold_fineness) !== 0 ? parseFloat(data.gold_fineness).toFixed(2) : '-') : (data.silver && parseFloat(data.silver) !== 0 ? parseFloat(data.silver).toFixed(2) : '-')}</div><div></div>
           <div class="label">Nickel</div><div class="colon">:</div><div class="value">${data.nickel && parseFloat(data.nickel) !== 0 ? parseFloat(data.nickel).toFixed(2) : '-'}</div><div></div>
           <div class="label">Osmium</div><div class="colon">:</div><div class="value">${data.osmium && parseFloat(data.osmium) !== 0 ? parseFloat(data.osmium).toFixed(2) : '-'}</div><div></div>
           <div class="label">Titanium</div><div class="colon">:</div><div class="value">${data.titanium && parseFloat(data.titanium) !== 0 ? parseFloat(data.titanium).toFixed(2) : '-'}</div><div></div>
