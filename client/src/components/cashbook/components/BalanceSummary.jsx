@@ -33,7 +33,7 @@ const BalanceSummary = ({ cashInfo }) => {
     },
     {
       label: 'Current Pending',
-      value: cashInfo.totalPending - cashInfo.openingPending,
+      value: cashInfo.totalPending,
       type: 'pending',
       className: 'text-[11px]',
       isSmall: true

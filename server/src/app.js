@@ -13,6 +13,7 @@ const expenseMasterRoutes = require('./routes/expenseMaster');
 const expensesRoutes = require('./routes/expensesRoutes');
 const pureExchangeRoutes = require('./routes/pureExchangeRoutes');
 const cashAdjustmentRoutes = require('./routes/cashAdjustmentRoutes');
+const cashbookRoutes = require('./routes/cashbookRoutes');
 
 const app = express();
 const port = process.env.PORT;
@@ -65,6 +66,7 @@ const startServer = async () => {
     app.use('/api/expenses', expensesRoutes);
     app.use('/pure-exchange', pureExchangeRoutes);
     app.use('/api/cash-adjustments', cashAdjustmentRoutes);
+    app.use('/api/cashbook', cashbookRoutes);
 
     const server = app.listen(port, () => {
       if (process.env.NODE_ENV === 'development') {

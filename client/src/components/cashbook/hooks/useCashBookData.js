@@ -2,7 +2,8 @@ import { useState, useCallback, useMemo } from 'react';
 import { debounce } from 'lodash';
 import apiService from '../../../services/api';
 import cashAdjustmentService from '../../../services/cashAdjustmentService';
-import { calculateBalance, processTransactions, processTransactionTotals } from '../utils/transactionUtils';
+import { processTransactionTotals } from '../utils/transactionUtils';
+
 
 export const useCashBookData = () => {
   const [transactions, setTransactions] = useState([]);
@@ -11,9 +12,12 @@ export const useCashBookData = () => {
   const [cashInfo, setCashInfo] = useState({
     openingBalance: 0,
     openingPending: 0,
+    previousPendingTokenIds: [],
     totalIncome: 0,
     totalExpense: 0,
     totalPending: 0,
+    totalOutstandingPending: 0,
+    paidPendingIncome: 0,
     netChange: 0,
     closingBalance: 0
   });
@@ -34,9 +38,6 @@ export const useCashBookData = () => {
       const currentYear = today.getFullYear();
       const firstDayOfMonth = new Date(currentYear, currentMonth, 1);
       const lastDayOfMonth = new Date(currentYear, currentMonth + 1, 0);
-      const firstDayOfPreviousMonth = new Date(currentYear, currentMonth - 1, 1);
-      const lastDayOfPreviousMonth = new Date(currentYear, currentMonth, 0);
-      lastDayOfPreviousMonth.setHours(23, 59, 59, 999); // Set to end of day
       
       const formatDate = (date) => {
         const year = date.getFullYear();
@@ -47,86 +48,16 @@ export const useCashBookData = () => {
       
       const firstDayFormatted = formatDate(firstDayOfMonth);
       const lastDayFormatted = formatDate(lastDayOfMonth);
-      const firstDayOfAllTime = formatDate(new Date(2000, 0, 1));
-      const lastDayOfPreviousMonthFormatted = formatDate(lastDayOfPreviousMonth);
       
       const api = await apiService.getApi();
-      
-      // Fetch all previous transactions and adjustments
-      const [previousTokensResponse, previousExpensesResponse, previousAdjustments] = await Promise.all([
-        api.get('/tokens', {
+
+      // Fetch opening balance (all data before current month) and current month transactions in parallel
+      const [openingBalanceResponse, tokensResponse, expensesResponse, adjustments] = await Promise.all([
+        api.get('/api/cashbook/opening-balance', {
           params: {
-            from_date: firstDayOfAllTime,
-            to_date: lastDayOfPreviousMonthFormatted
+            before_date: firstDayFormatted
           }
         }),
-        api.get('/api/expenses', {
-          params: {
-            from_date: firstDayOfAllTime,
-            to_date: lastDayOfPreviousMonthFormatted
-          }
-        }),
-        cashAdjustmentService.getAdjustments({
-          from_date: firstDayOfAllTime,
-          to_date: lastDayOfPreviousMonthFormatted
-        })
-      ]);
-
-      // Calculate previous month totals
-      const previousIncome = previousTokensResponse.data.reduce((sum, token) => {
-        const transactionDate = new Date(token.date);
-        if (transactionDate <= lastDayOfPreviousMonth) {
-          return token.isPaid ? sum + parseFloat(token.amount || 0) : sum;
-        }
-        return sum;
-      }, 0);
-
-      const previousExpenses = previousExpensesResponse.data.reduce((sum, expense) => {
-        const transactionDate = new Date(expense.date);
-        if (transactionDate <= lastDayOfPreviousMonth) {
-          return sum + parseFloat(expense.amount || 0);
-        }
-        return sum;
-      }, 0);
-
-      const previousAdjustmentTotal = previousAdjustments.reduce((sum, adj) => {
-        const transactionDate = new Date(adj.date);
-        if (transactionDate <= lastDayOfPreviousMonth) {
-          const amount = parseFloat(adj.amount || 0);
-          return adj.adjustment_type === 'addition' ? sum + amount : sum - amount;
-        }
-        return sum;
-      }, 0);
-
-      // Calculate pending amount separately
-      const previousPending = previousTokensResponse.data.reduce((sum, token) => {
-        const transactionDate = new Date(token.date);
-        if (transactionDate <= lastDayOfPreviousMonth) {
-          return !token.isPaid ? sum + parseFloat(token.amount || 0) : sum;
-        }
-        return sum;
-      }, 0);
-
-      // Final opening balance calculation & Diagnostic Logging
-      const openingBalance = previousIncome + previousAdjustmentTotal - previousExpenses;
-      const openingPending = previousPending;
-
-      console.log('--- Opening Balance Calculation ---');
-      console.log('Last Day of Previous Month:', lastDayOfPreviousMonth.toString());
-      console.log('Previous Income (Tokens):', previousIncome);
-      console.log('Previous Expenses:', previousExpenses);
-      console.log('Previous Adjustments Total:', previousAdjustmentTotal);
-      console.log('Calculated Opening Balance:', openingBalance);
-      console.log('--- End of Calculation ---');
-
-      setCashInfo(prev => ({
-        ...prev,
-        openingBalance,
-        openingPending
-      }));
-
-      // Fetch current month transactions
-      const [tokensResponse, expensesResponse, adjustments] = await Promise.all([
         api.get('/tokens', {
           params: {
             from_date: firstDayFormatted,
@@ -144,6 +75,10 @@ export const useCashBookData = () => {
           to_date: lastDayFormatted
         })
       ]);
+
+      // Extract opening balance data from backend
+      const openingData = openingBalanceResponse.data.data;
+      const { openingBalance, openingPending, previousPendingTokenIds } = openingData;
 
       // Process token transactions
       const tokenTransactions = tokensResponse.data.map(token => {
@@ -173,7 +108,7 @@ export const useCashBookData = () => {
       const expenseTransactions = expensesResponse.data.map(expense => ({
         id: `expense-${expense.id}`,
         date: expense.date,
-        particulars: `${expense.expense_type} - ${expense.paid_to || 'N/A'}`,
+        particulars: `${expense.expense_name || expense.expense_type} - ${expense.paid_to || 'N/A'}`,
         type: 'Expense',
         debit: parseFloat(expense.amount) || 0,
         credit: 0
@@ -204,21 +139,29 @@ export const useCashBookData = () => {
         return transactionDateStr >= firstDayFormatted && transactionDateStr <= lastDayFormatted;
       });
 
-      // Add pending balance to current month transactions
-      const currentMonthTransactionsWithBalance = currentMonthTransactions.map((transaction) => ({
-        ...transaction,
-        pendingBalance: transaction.type === 'Pending' ? transaction.debit : 0
-      }));
+      setTransactions(currentMonthTransactions);
 
-      // Filter previous transactions
-      const previousTransactions = allTransactions.filter(transaction => {
-        const transactionDate = new Date(transaction.date);
-        return transactionDate < firstDayOfMonth;
+      // Process current month transaction totals
+      const totals = processTransactionTotals(currentMonthTransactions, { previousPendingTokenIds });
+
+      // Net Change = totalIncome - totalExpense
+      // Pending is informational only - does not affect the balance
+      const netChange = totals.totalIncome - totals.totalExpense;
+      const closingBalance = openingBalance + netChange;
+
+      // Update cash info with opening balance and current month totals
+      setCashInfo({
+        openingBalance,
+        openingPending,
+        previousPendingTokenIds,
+        totalIncome: totals.totalIncome,
+        totalExpense: totals.totalExpense,
+        totalPending: totals.totalPending,
+        totalOutstandingPending: openingPending + totals.totalPending,
+        paidPendingIncome: totals.paidPendingIncome,
+        netChange,
+        closingBalance
       });
-
-      // Combine all transactions with balance
-      const transactionsWithBalance = [...previousTransactions, ...currentMonthTransactionsWithBalance];
-      setTransactions(transactionsWithBalance);
 
     } catch (err) {
       setError('Failed to fetch transactions. Please try again.');
@@ -242,92 +185,13 @@ export const useCashBookData = () => {
   const processedData = useMemo(() => {
     if (!transactions.length) return { filteredTransactions: [], categorySummary: [], monthlySummary: [] };
     
-    // Helper function to format dates consistently
-    const formatDate = (date) => {
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
-      return `${year}-${month}-${day}`;
-    };
-    
-    const today = new Date();
-    const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-    const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-    const firstDayFormatted = formatDate(firstDayOfMonth);
-    const lastDayFormatted = formatDate(lastDayOfMonth);
-    
-    // Filter and sort current month transactions - using date string comparison to avoid timezone issues
-    const currentMonthTransactions = transactions
-      .filter(transaction => {
-        if (!transaction?.date) return false;
-        // Compare dates as strings (YYYY-MM-DD) to avoid timezone issues
-        const transactionDateStr = transaction.date.slice(0, 10);
-        return transactionDateStr >= firstDayFormatted && transactionDateStr <= lastDayFormatted;
-      })
-      .sort((a, b) => {
-        if (!a?.date || !b?.date) return 0;
-        
-        // Sort by date
-        const dateA = new Date(a.date).toISOString().split('T')[0];
-        const dateB = new Date(b.date).toISOString().split('T')[0];
-        
-        if (dateA !== dateB) {
-          return new Date(dateA) - new Date(dateB);
-        }
-        
-        // If same date, compare times if available
-        const timeA = a.time || '00:00:00';
-        const timeB = b.time || '00:00:00';
-        
-        if (timeA !== timeB) {
-          return new Date(`${dateA}T${timeA}`) - new Date(`${dateB}T${timeB}`);
-        }
-        
-        // If same time, sort by transaction type
-        const typeOrder = { 'Income': 1, 'Expense': 2, 'Pending': 3 };
-        if (a.type !== b.type) {
-          return (typeOrder[a.type] || 0) - (typeOrder[b.type] || 0);
-        }
-        
-        // If same type, sort by ID
-        const idA = parseInt((a.id || '').replace(/\D/g, '') || '0');
-        const idB = parseInt((b.id || '').replace(/\D/g, '') || '0');
-        return idA - idB;
-      });
-
-    // Calculate running balance
-    let runningBalance = cashInfo.openingBalance || 0;
-    const transactionsWithBalance = currentMonthTransactions.map(transaction => {
-      runningBalance = calculateBalance([transaction], runningBalance);
-      return {
-        ...transaction,
-        runningBalance,
-      };
-    });
-
-    // Process analytics data
-    const { categories, monthly } = processTransactions(transactions, cashInfo);
-    const totals = processTransactionTotals(transactionsWithBalance, cashInfo);
-
-    // Update cash info with calculated totals
-    const netChange = totals.totalIncome - totals.totalExpense;
-    const closingBalance = (cashInfo.openingBalance || 0) + netChange;
-    const totalPending = (cashInfo.openingPending || 0) + (totals.totalPending || 0);
-
-    setCashInfo(prev => ({
-      ...prev,
-      ...totals,
-      netChange,
-      closingBalance,
-      totalPending
-    }));
-
+    // Return transactions without any calculations
     return {
-      filteredTransactions: transactionsWithBalance,
-      categorySummary: categories,
-      monthlySummary: monthly
+      filteredTransactions: transactions,
+      categorySummary: [],
+      monthlySummary: []
     };
-  }, [transactions, cashInfo.openingBalance, cashInfo.openingPending]);
+  }, [transactions]);
 
   return {
     transactions: processedData.filteredTransactions,

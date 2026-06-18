@@ -153,17 +153,11 @@ const TransactionTable = ({ filteredTransactions, cashInfo, rowGetter, totals })
         ) : rowData.type === 'closing' ? (
           <div>
             <div className="font-medium text-amber-700">
-              ₹ {(filteredTransactions.reduce((total, t) => {
-                // For closing balance, include all credits and exclude pending debits
-                if (t.type === 'Income') return total + (t.credit || 0);
-                if (t.type === 'Expense') return total - (t.debit || 0);
-                // Don't subtract pending amounts from closing balance
-                return total;
-              }, cashInfo?.openingBalance || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+              ₹ {(cashInfo?.closingBalance || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
             </div>
-            {(totals?.totalPending || 0) > 0 && (
+            {(totals?.totalOutstandingPending || 0) > 0 && (
               <div className="text-[10px] text-yellow-600 mt-0.5">
-                Pending: ₹ {(totals?.totalPending || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                Pending: ₹ {(totals?.totalOutstandingPending || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
               </div>
             )}
           </div>
@@ -176,7 +170,6 @@ const TransactionTable = ({ filteredTransactions, cashInfo, rowGetter, totals })
                 .reduce((total, t) => {
                   if (t.type === 'Income') return total + (t.credit || 0);
                   if (t.type === 'Expense') return total - (t.debit || 0);
-                  // Don't subtract pending amounts from running balance
                   return total;
                 }, cashInfo?.openingBalance || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
             </span>
@@ -203,20 +196,11 @@ const TransactionTable = ({ filteredTransactions, cashInfo, rowGetter, totals })
       }
 
       if (transaction.type === 'closing') {
-        const finalBalance = filteredTransactions.reduce((total, t) => {
-          if (t.type === 'Income' || t.type === 'Pending') {
-            return total + (t.credit || 0) - (t.debit || 0);
-          } else if (t.type === 'Expense') {
-            return total - (t.debit || 0);
-          }
-          return total;
-        }, cashInfo?.openingBalance || 0);
-
         switch (columnIndex) {
           case 0: return <span className="text-gray-600">Closing Balance</span>;
           case 1: return '';
           case 2: return '';
-          case 3: return <span className="font-medium text-gray-900">{formatCurrency(finalBalance)}</span>;
+          case 3: return <span className="font-medium text-gray-900">{formatCurrency(cashInfo?.closingBalance || 0)}</span>;
           default: return '';
         }
       }
@@ -245,11 +229,8 @@ const TransactionTable = ({ filteredTransactions, cashInfo, rowGetter, totals })
           const runningBalance = filteredTransactions
             .slice(0, currentIndex + 1)
             .reduce((total, t) => {
-              if (t.type === 'Income' || t.type === 'Pending') {
-                return total + (t.credit || 0) - (t.debit || 0);
-              } else if (t.type === 'Expense') {
-                return total - (t.debit || 0);
-              }
+              if (t.type === 'Income') return total + (t.credit || 0);
+              if (t.type === 'Expense') return total - (t.debit || 0);
               return total;
             }, cashInfo?.openingBalance || 0);
           return formatCurrency(runningBalance);
@@ -311,19 +292,6 @@ const TransactionTable = ({ filteredTransactions, cashInfo, rowGetter, totals })
   );
 
   const ClosingBalanceRow = () => {
-    const finalBalance = filteredTransactions.reduce(
-      (total, t) => {
-        if (t.type === 'Income') return total + (t.credit || 0);
-        if (t.type === 'Expense') return total - (t.debit || 0);
-        // Add adjustment handling
-        if (t.isAdjustment) {
-          return t.credit ? total + t.credit : total - t.debit;
-        }
-        return total;
-      },
-      cashInfo?.openingBalance || 0
-    );
-    
     return (
       <div className="bg-amber-50 sticky bottom-0 z-20 flex w-full border-t border-amber-100">
         <div className="flex-1 flex overflow-hidden">
@@ -336,7 +304,7 @@ const TransactionTable = ({ filteredTransactions, cashInfo, rowGetter, totals })
           <div className="w-[110px] min-w-[100px] flex items-center justify-end text-xs xs:text-sm text-amber-700 py-2.5 px-3">-</div>
           <div className="w-[120px] min-w-[110px] flex items-center overflow-hidden">
             <div className="text-sm xs:text-sm py-2.5 px-3 font-medium text-amber-700 whitespace-nowrap">
-              ₹ {finalBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+              ₹ {(cashInfo?.closingBalance || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
             </div>
           </div>
         </div>
@@ -458,11 +426,13 @@ TransactionTable.propTypes = {
   })).isRequired,
   cashInfo: PropTypes.shape({
     openingBalance: PropTypes.number,
-    openingPending: PropTypes.number
+    openingPending: PropTypes.number,
+    closingBalance: PropTypes.number
   }).isRequired,
   rowGetter: PropTypes.func.isRequired,
   totals: PropTypes.shape({
     totalPending: PropTypes.number,
+    totalOutstandingPending: PropTypes.number,
     totalIncome: PropTypes.number,
     totalExpense: PropTypes.number
   })

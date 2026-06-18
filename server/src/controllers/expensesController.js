@@ -26,7 +26,7 @@ const getAllExpenses = async (req, res) => {
   let sql = `
     SELECT 
       e.id, 
-      e.date, 
+      TO_CHAR(e.date, 'YYYY-MM-DD') as date, 
       e.expense_type, 
       em.expense_name, 
       e.amount, 

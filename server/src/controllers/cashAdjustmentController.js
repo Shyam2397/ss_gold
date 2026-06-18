@@ -42,7 +42,7 @@ const getCashAdjustments = async (req, res) => {
   const { from_date, to_date, limit, type } = req.query;
   
   try {
-    let query = 'SELECT * FROM cash_adjustments';
+    let query = `SELECT id, TO_CHAR(date, 'YYYY-MM-DD') as date, time, amount, adjustment_type, reason, reference_number, entered_by, remarks, created_at, updated_at FROM cash_adjustments`;
     const queryParams = [];
     let paramCount = 0;
     

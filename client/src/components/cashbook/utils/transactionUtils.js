@@ -73,6 +73,7 @@ export const processTransactions = (transactions, cashInfo) => {
 };
 
 export const processTransactionTotals = (transactions, cashInfo) => {
+  const previousPendingTokenIds = cashInfo.previousPendingTokenIds || [];
   const totals = {
     totalIncome: 0,
     totalExpense: 0,
@@ -98,6 +99,7 @@ export const processTransactionTotals = (transactions, cashInfo) => {
     const isPaid = transaction.isPaid;
     const type = transaction.type;
     const source = transaction.source || 'token';
+    const wasPending = previousPendingTokenIds.includes(transaction.id);
     
     if (type === 'Income' || type === 'Pending') {
       if (amount > 0) {
@@ -117,13 +119,18 @@ export const processTransactionTotals = (transactions, cashInfo) => {
           transaction.credit = amount;
           transaction.debit = 0;
           totals.totalIncome += amount;
+
+          // Track income from previously pending tokens (to avoid double-counting in netChange)
+          if (wasPending) {
+            totals.paidPendingIncome += amount;
+          }
           
           if (source === 'token') {
             totals.tokenIncome += amount;
           }
           
           totals.incomeSources.push({
-            type: isPaid ? 'Paid Pending' : 'Income',
+            type: wasPending ? 'Paid Pending' : 'Income',
             source,
             amount,
             id: transaction.id,
