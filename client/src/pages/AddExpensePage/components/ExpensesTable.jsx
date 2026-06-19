@@ -48,7 +48,7 @@ const ExpensesTable = ({ expenses = [], expenseTypes = [], onEdit, onDelete }) =
       label: 'Expense Type',
       key: 'expenseType',
       width: columnWidth,
-      render: (row) => row.expense_name || 'N/A'
+      render: (row) => row.expense_name || row.expense_type || 'N/A'
     },
     {
       label: 'Paid To',
