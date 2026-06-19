@@ -1,5 +1,7 @@
 const { pool } = require('../config/database');
 
+const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
 /**
  * GET /api/cashbook/opening-balance?before_date=YYYY-MM-DD
  * 
@@ -101,6 +103,123 @@ const getOpeningBalance = async (req, res) => {
   }
 };
 
+/**
+ * GET /api/cashbook/monthly-summary
+ * 
+ * Returns aggregated monthly data (income, expense, pending) for the last 4 months
+ * including the current month. Uses server-side date calculations to avoid timezone issues.
+ */
+const getMonthlySummary = async (req, res) => {
+  try {
+    // Calculate the start date: 1st day of 3 months ago (covers current + 3 previous = 4 months)
+    const now = new Date();
+    const startMonth = new Date(now.getFullYear(), now.getMonth() - 3, 1);
+    const startDate = `${startMonth.getFullYear()}-${String(startMonth.getMonth() + 1).padStart(2, '0')}-01`;
+
+    // Run 3 queries in parallel
+    const [incomeResult, expenseResult, pendingResult] = await Promise.all([
+      // Monthly income: paid tokens + cash adjustment additions
+      pool.query(
+        `SELECT 
+           EXTRACT(YEAR FROM date)::int AS year,
+           EXTRACT(MONTH FROM date)::int AS month,
+           SUM(amount) as total
+         FROM tokens
+         WHERE date >= $1 AND is_paid = 1
+         GROUP BY year, month
+         UNION ALL
+         SELECT 
+           EXTRACT(YEAR FROM date)::int AS year,
+           EXTRACT(MONTH FROM date)::int AS month,
+           SUM(amount) as total
+         FROM cash_adjustments
+         WHERE date >= $1 AND adjustment_type = 'addition'
+         GROUP BY year, month`,
+        [startDate]
+      ),
+      // Monthly expenses: all expenses + cash adjustment deductions
+      pool.query(
+        `SELECT 
+           EXTRACT(YEAR FROM date)::int AS year,
+           EXTRACT(MONTH FROM date)::int AS month,
+           SUM(amount) as total
+         FROM expenses
+         WHERE date >= $1
+         GROUP BY year, month
+         UNION ALL
+         SELECT 
+           EXTRACT(YEAR FROM date)::int AS year,
+           EXTRACT(MONTH FROM date)::int AS month,
+           SUM(amount) as total
+         FROM cash_adjustments
+         WHERE date >= $1 AND adjustment_type = 'deduction'
+         GROUP BY year, month`,
+        [startDate]
+      ),
+      // Monthly pending: unpaid tokens
+      pool.query(
+        `SELECT 
+           EXTRACT(YEAR FROM date)::int AS year,
+           EXTRACT(MONTH FROM date)::int AS month,
+           SUM(amount) as total
+         FROM tokens
+         WHERE date >= $1 AND is_paid = 0
+         GROUP BY year, month`,
+        [startDate]
+      )
+    ]);
+
+    // Merge results into a single map keyed by "YYYY-M"
+    const monthlyMap = new Map();
+
+    const ensureMonth = (year, month) => {
+      const key = `${year}-${month}`;
+      if (!monthlyMap.has(key)) {
+        monthlyMap.set(key, {
+          month: `${MONTH_NAMES[month - 1]} ${year}`,
+          timestamp: new Date(year, month - 1, 1).getTime(),
+          income: 0,
+          expense: 0,
+          pending: 0
+        });
+      }
+      return monthlyMap.get(key);
+    };
+
+    incomeResult.rows.forEach(row => {
+      const data = ensureMonth(row.year, row.month);
+      data.income += parseFloat(row.total) || 0;
+    });
+
+    expenseResult.rows.forEach(row => {
+      const data = ensureMonth(row.year, row.month);
+      data.expense += parseFloat(row.total) || 0;
+    });
+
+    pendingResult.rows.forEach(row => {
+      const data = ensureMonth(row.year, row.month);
+      data.pending += parseFloat(row.total) || 0;
+    });
+
+    // Sort by timestamp descending (most recent first)
+    const monthlyData = Array.from(monthlyMap.values())
+      .sort((a, b) => b.timestamp - a.timestamp);
+
+    res.json({
+      success: true,
+      data: monthlyData
+    });
+  } catch (error) {
+    console.error('Error fetching monthly summary:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching monthly summary',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
-  getOpeningBalance
+  getOpeningBalance,
+  getMonthlySummary
 };

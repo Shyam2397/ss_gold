@@ -1,113 +1,150 @@
 import React, { useMemo } from 'react';
-import { FixedSizeList as List } from 'react-window';
 import PropTypes from 'prop-types';
+import { TrendingUp, TrendingDown, PieChart, BarChart3 } from 'lucide-react';
 
-const AnalyticsPanel = ({ 
-  activeTab, 
-  setActiveTab, 
-  categorySummary, 
-  monthlySummary 
+const formatCurrency = (amount) =>
+  Math.abs(amount).toLocaleString('en-IN', { minimumFractionDigits: 0 });
+
+const EmptyState = ({ icon, message }) => (
+  <div className="flex flex-col items-center justify-center py-8 px-4 text-gray-400">
+    {icon}
+    <p className="text-xs mt-2 text-center">{message}</p>
+  </div>
+);
+
+const AnalyticsPanel = ({
+  activeTab,
+  setActiveTab,
+  categorySummary,
+  monthlySummary
 }) => {
-  // Memoize category content
-  const CategoryContent = useMemo(() => (
-    <List
-      height={250}
-      width="100%"
-      itemCount={categorySummary.length}
-      itemSize={60}
-    >
-      {({ index, style }) => {
-        const [category, amount] = categorySummary[index];
-        return (
-          <div style={style} className="p-3 hover:bg-amber-50/30">
-            <div className="flex justify-between items-center mb-1">
-              <span className="text-xs text-gray-600">{category}</span>
-              <span className="text-xs font-medium text-red-600">
-                ₹ {amount.toLocaleString('en-IN')}
-              </span>
-            </div>
-            <div className="h-1 bg-gray-100 rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-red-400 rounded-full transition-all duration-500"
-                style={{ 
-                  width: `${(amount / categorySummary[0][1]) * 100}%`,
-                  opacity: 1 - (index * 0.15)
-                }}
-              />
-            </div>
-          </div>
-        );
-      }}
-    </List>
-  ), [categorySummary]);
+  const maxCategoryAmount = useMemo(
+    () => (categorySummary.length > 0 ? categorySummary[0][1] : 1),
+    [categorySummary]
+  );
+
+  const tabs = useMemo(() => [
+    { key: 'categorywise', label: 'Top Expenses', icon: <PieChart className="w-3.5 h-3.5" /> },
+    { key: 'monthwise', label: 'Monthly Overview', icon: <BarChart3 className="w-3.5 h-3.5" /> }
+  ], []);
 
   return (
     <div className="bg-white border rounded-xl overflow-hidden">
-      <div className="flex border-b">
-        <button 
-          onClick={() => setActiveTab('categorywise')}
-          className={`flex-1 px-4 py-1 text-xs font-medium transition-colors relative
-            ${activeTab === 'categorywise' ? 'text-amber-800' : 'text-gray-600'}`}
-        >
-          Top Expenses
-          {activeTab === 'categorywise' && (
-            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-500"/>
-          )}
-        </button>
-        <button 
-          onClick={() => setActiveTab('monthwise')}
-          className={`flex-1 px-4 py-1 text-xs font-medium transition-colors relative
-            ${activeTab === 'monthwise' ? 'text-amber-800' : 'text-gray-600'}`}
-        >
-          Monthly Overview
-          {activeTab === 'monthwise' && (
-            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-500"/>
-          )}
-        </button>
+      {/* Tab Bar */}
+      <div className="flex border-b bg-gray-50/50">
+        {tabs.map(({ key, label, icon }) => (
+          <button
+            key={key}
+            onClick={() => setActiveTab(key)}
+            className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 text-xs font-medium transition-all relative
+              ${activeTab === key
+                ? 'text-amber-800 bg-white'
+                : 'text-gray-500 hover:text-gray-700'
+              }`}
+          >
+            {icon}
+            {label}
+            {activeTab === key && (
+              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-500" />
+            )}
+          </button>
+        ))}
       </div>
 
-      <div className="max-h-[250px] md:max-h-[250px] overflow-y-auto scrollbar-thin scrollbar-thumb-amber-200 scrollbar-track-gray-50">
+      {/* Content */}
+      <div className="max-h-[230px] overflow-y-auto scrollbar-thin scrollbar-thumb-amber-200 scrollbar-track-gray-50">
         {activeTab === 'categorywise' ? (
-          <div className="divide-y">
-            {CategoryContent}
-          </div>
-        ) : (
-          <div className="divide-y">
-            {monthlySummary.map((data) => (
-              <div key={data.month} className="p-3 hover:bg-amber-50/30">
-                <div className="flex justify-between items-center mb-1">
-                  <span className="text-xs font-medium text-gray-700">{data.month}</span>
-                  <span className={`text-xs font-medium ${
-                    data.total >= 0 ? 'text-green-600' : 'text-red-600'
-                  }`}>
-                    {data.total >= 0 ? '+' : ''}
-                    ₹ {Math.abs(data.total).toLocaleString('en-IN')}
-                  </span>
-                </div>
-                <div className="flex gap-3 text-[10px]">
-                  <span className="text-green-600">+₹ {data.income.toLocaleString('en-IN')}</span>
-                  <span className="text-red-600">-₹ {data.expense.toLocaleString('en-IN')}</span>
-                  {data.pending > 0 && (
-                    <span className="text-yellow-600">
-                      ₹ {data.pending.toLocaleString('en-IN')} pending
+          categorySummary.length > 0 ? (
+            <div className="divide-y divide-gray-50">
+              {categorySummary.map(([category, amount], index) => (
+                <div key={category} className="p-3 hover:bg-amber-50/30 transition-colors">
+                  <div className="flex justify-between items-center mb-1.5">
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="w-2 h-2 rounded-full bg-red-400"
+                        style={{ opacity: 1 - index * 0.15 }}
+                      />
+                      <span className="text-xs text-gray-700 font-medium">{category}</span>
+                    </div>
+                    <span className="text-xs font-semibold text-red-600 tabular-nums">
+                      ₹ {formatCurrency(amount)}
                     </span>
-                  )}
+                  </div>
+                  <div className="h-1 bg-gray-100 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-red-400 to-red-300 rounded-full transition-all duration-500"
+                      style={{
+                        width: `${(amount / maxCategoryAmount) * 100}%`
+                      }}
+                    />
+                  </div>
                 </div>
-                <div className="mt-1.5 flex gap-0.5 h-1">
-                  <div className="bg-green-400 rounded-l" 
-                    style={{ 
-                      width: `${(data.income / Math.max(data.income + data.expense, 1)) * 100}%` 
-                    }} 
-                  />
-                  <div className="bg-red-400 rounded-r" 
-                    style={{ 
-                      width: `${(data.expense / Math.max(data.income + data.expense, 1)) * 100}%` 
-                    }} 
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <EmptyState
+              icon={<PieChart className="w-8 h-8 text-gray-300" />}
+              message="No expenses found for the current month"
+            />
+          )
+        ) : (
+          monthlySummary.length > 0 ? (
+            <div className="divide-y divide-gray-50">
+              {monthlySummary.map((data) => {
+                const total = data.income + data.expense;
+                const incomeWidth = total > 0 ? (data.income / total) * 100 : 50;
+                const expenseWidth = total > 0 ? (data.expense / total) * 100 : 50;
+                const net = data.income - data.expense;
+
+                return (
+                  <div key={data.month} className="p-3 hover:bg-amber-50/30 transition-colors">
+                    <div className="flex justify-between items-center mb-1.5">
+                      <span className="text-xs font-medium text-gray-700">{data.month}</span>
+                      <span className={`text-xs font-semibold tabular-nums flex items-center gap-1 ${
+                        net >= 0 ? 'text-green-600' : 'text-red-600'
+                      }`}>
+                        {net >= 0
+                          ? <TrendingUp className="w-3 h-3" />
+                          : <TrendingDown className="w-3 h-3" />
+                        }
+                        {net >= 0 ? '+' : '-'}₹ {formatCurrency(net)}
+                      </span>
+                    </div>
+                    <div className="flex gap-3 text-[10px] mb-1.5">
+                      <span className="text-green-600 flex items-center gap-0.5">
+                        <TrendingUp className="w-2.5 h-2.5" />
+                        +₹ {formatCurrency(data.income)}
+                      </span>
+                      <span className="text-red-600 flex items-center gap-0.5">
+                        <TrendingDown className="w-2.5 h-2.5" />
+                        -₹ {formatCurrency(data.expense)}
+                      </span>
+                      {data.pending > 0 && (
+                        <span className="text-yellow-600">
+                          ₹ {formatCurrency(data.pending)} pending
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex gap-0.5 h-1.5 rounded-full overflow-hidden">
+                      <div
+                        className="bg-gradient-to-r from-green-400 to-green-300 rounded-l transition-all duration-500"
+                        style={{ width: `${incomeWidth}%` }}
+                      />
+                      <div
+                        className="bg-gradient-to-r from-red-300 to-red-400 rounded-r transition-all duration-500"
+                        style={{ width: `${expenseWidth}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <EmptyState
+              icon={<BarChart3 className="w-8 h-8 text-gray-300" />}
+              message="No monthly data available"
+            />
+          )
         )}
       </div>
     </div>

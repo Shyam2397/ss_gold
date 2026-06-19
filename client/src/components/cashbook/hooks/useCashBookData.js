@@ -2,13 +2,14 @@ import { useState, useCallback, useMemo } from 'react';
 import { debounce } from 'lodash';
 import apiService from '../../../services/api';
 import cashAdjustmentService from '../../../services/cashAdjustmentService';
-import { processTransactionTotals } from '../utils/transactionUtils';
+import { processTransactionTotals, processTransactions } from '../utils/transactionUtils';
 
 
 export const useCashBookData = () => {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [monthlySummary, setMonthlySummary] = useState([]);
   const [cashInfo, setCashInfo] = useState({
     openingBalance: 0,
     openingPending: 0,
@@ -51,8 +52,8 @@ export const useCashBookData = () => {
       
       const api = await apiService.getApi();
 
-      // Fetch opening balance (all data before current month) and current month transactions in parallel
-      const [openingBalanceResponse, tokensResponse, expensesResponse, adjustments] = await Promise.all([
+      // Fetch opening balance, current month transactions, and monthly summary in parallel
+      const [openingBalanceResponse, tokensResponse, expensesResponse, adjustments, monthlySummaryResponse] = await Promise.all([
         api.get('/api/cashbook/opening-balance', {
           params: {
             before_date: firstDayFormatted
@@ -73,7 +74,8 @@ export const useCashBookData = () => {
         cashAdjustmentService.getAdjustments({
           from_date: firstDayFormatted,
           to_date: lastDayFormatted
-        })
+        }),
+        api.get('/api/cashbook/monthly-summary')
       ]);
 
       // Extract opening balance data from backend
@@ -163,6 +165,9 @@ export const useCashBookData = () => {
         closingBalance
       });
 
+      // Store monthly summary from backend (last 4 months)
+      setMonthlySummary(monthlySummaryResponse.data?.data || []);
+
     } catch (err) {
       setError('Failed to fetch transactions. Please try again.');
       console.error('Error fetching transactions:', err);
@@ -181,22 +186,22 @@ export const useCashBookData = () => {
     [fetchTransactions]
   );
 
-  // Process transactions for display
+  // Process transactions for category analytics (monthly summary comes from backend)
   const processedData = useMemo(() => {
-    if (!transactions.length) return { filteredTransactions: [], categorySummary: [], monthlySummary: [] };
+    if (!transactions.length) return { filteredTransactions: [], categorySummary: [] };
     
-    // Return transactions without any calculations
+    const { categories } = processTransactions(transactions);
+    
     return {
       filteredTransactions: transactions,
-      categorySummary: [],
-      monthlySummary: []
+      categorySummary: categories
     };
   }, [transactions]);
 
   return {
     transactions: processedData.filteredTransactions,
     categorySummary: processedData.categorySummary,
-    monthlySummary: processedData.monthlySummary,
+    monthlySummary,
     cashInfo,
     loading: isInitialLoading || loading,
     error,

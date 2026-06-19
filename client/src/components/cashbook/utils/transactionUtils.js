@@ -6,70 +6,29 @@ export const calculateBalance = (transactions, openingBalance = 0) => {
   }, parseFloat(openingBalance));
 };
 
-export const processTransactions = (transactions, cashInfo) => {
-  if (!transactions.length) return { categories: [], monthly: [] };
+export const processTransactions = (transactions) => {
+  if (!transactions.length) return { categories: [] };
   
   const expenseMap = new Map();
-  const monthlyMap = new Map();
-  let totalAdditions = 0;
-  let totalDeductions = 0;
 
   transactions.forEach(transaction => {
-    if (transaction.isAdjustment) {
-      if (transaction.type === 'Income') {
-        totalAdditions += parseFloat(transaction.credit || 0);
-      } else if (transaction.type === 'Expense') {
-        totalDeductions += parseFloat(transaction.debit || 0);
-      }
-    } else if (transaction?.type === 'Expense' && transaction?.particulars) {
+    // Skip adjustments from category summary — they're not regular expenses
+    if (transaction.isAdjustment) return;
+
+    // Category summary — only regular expenses
+    if (transaction?.type === 'Expense' && transaction?.particulars) {
       const category = typeof transaction.particulars === 'string' 
         ? transaction.particulars.split(' - ')[0]
         : 'Other';
-      expenseMap.set(category, (expenseMap.get(category) || 0) + (transaction.debit || 0));
-    }
-
-    if (transaction?.date) {
-      const date = new Date(transaction.date);
-      const monthKey = date.toLocaleDateString('en-IN', { 
-        month: 'short', 
-        year: 'numeric' 
-      });
-      
-      const monthData = monthlyMap.get(monthKey) || { 
-        month: monthKey,
-        timestamp: date.getTime(),
-        income: 0, 
-        expense: 0, 
-        pending: 0,
-        total: 0
-      };
-
-      if (transaction.type === 'Income') {
-        monthData.income += transaction.credit || 0;
-        monthData.total += transaction.credit || 0;
-      } else if (transaction.type === 'Expense') {
-        monthData.expense += transaction.debit || 0;
-        monthData.total -= transaction.debit || 0;
-      } else if (transaction.type === 'Pending') {
-        monthData.pending += transaction.debit || 0;
-      }
-
-      monthlyMap.set(monthKey, monthData);
+      expenseMap.set(category, (expenseMap.get(category) || 0) + (parseFloat(transaction.debit) || 0));
     }
   });
 
-  if (totalDeductions > 0) {
-    expenseMap.set('Cash Adjustments', (expenseMap.get('Cash Adjustments') || 0) + totalDeductions);
-  }
-
-  const sortedCategories = Array.from(expenseMap.entries())
+  const categories = Array.from(expenseMap.entries())
     .sort((a, b) => b[1] - a[1])
     .slice(0, 5);
 
-  const monthlyData = Array.from(monthlyMap.values())
-    .sort((a, b) => b.timestamp - a.timestamp);
-
-  return { categories: sortedCategories, monthly: monthlyData };
+  return { categories };
 };
 
 export const processTransactionTotals = (transactions, cashInfo) => {
