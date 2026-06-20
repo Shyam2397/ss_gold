@@ -9,6 +9,9 @@ const FormField = ({
   readOnly = false,
   required = false,
   step,
+  name,
+  placeholder,
+  size: _size, // destructured to prevent leaking to DOM
 }) => (
   <div className="relative rounded-md shadow-sm">
     <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
@@ -16,11 +19,13 @@ const FormField = ({
     </div>
     <input
       type={type}
+      name={name}
       value={value}
       onChange={onChange}
       readOnly={readOnly}
       required={required}
       step={step}
+      placeholder={placeholder}
       className={`
         w-full
         rounded-md
@@ -50,5 +55,6 @@ const FormField = ({
 
 export default React.memo(FormField, (prevProps, nextProps) => {
   return prevProps.value === nextProps.value && 
-         prevProps.readOnly === nextProps.readOnly;
+         prevProps.readOnly === nextProps.readOnly &&
+         prevProps.onChange === nextProps.onChange;
 });

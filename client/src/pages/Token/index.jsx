@@ -46,6 +46,9 @@ const useRenderCounter = () => {
 const TokenPage = () => {
   const [state, dispatch] = useReducer(tokenReducer, initialState);
   const searchCacheRef = useRef(new Map());
+  const clockIntervalRef = useRef(null);
+  const editModeRef = useRef(state.editMode);
+  editModeRef.current = state.editMode;
   const renderCount = useRenderCounter();
   const MESSAGE_TIMEOUT = 5000; // 5 seconds
   
@@ -88,6 +91,38 @@ const TokenPage = () => {
       if (localErrorTimer) clearTimeout(localErrorTimer);
     };
   }, [state.error, error]);
+
+  // Live clock - updates time field every minute (aligned to actual minute boundaries)
+  // Skips updates when in edit mode to preserve the token's original time
+  useEffect(() => {
+    const updateClock = () => {
+      if (editModeRef.current) return; // Don't overwrite edited token's time
+      const now = new Date();
+      const hours = now.getHours().toString().padStart(2, '0');
+      const minutes = now.getMinutes().toString().padStart(2, '0');
+      dispatch({ type: 'SET_FIELD', field: 'time', value: `${hours}:${minutes}` });
+    };
+
+    // Update immediately
+    updateClock();
+
+    // Align to the next minute boundary, then tick every 60s
+    const now = new Date();
+    const msUntilNextMinute = Math.max((60 - now.getSeconds()) * 1000 - now.getMilliseconds(), 0);
+
+    const timeout = setTimeout(() => {
+      updateClock();
+      clockIntervalRef.current = setInterval(updateClock, 60000);
+    }, msUntilNextMinute);
+
+    return () => {
+      clearTimeout(timeout);
+      if (clockIntervalRef.current) {
+        clearInterval(clockIntervalRef.current);
+        clockIntervalRef.current = null;
+      }
+    };
+  }, []);
 
   // Optimize initial data fetching
   useEffect(() => {
