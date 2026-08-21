@@ -20,7 +20,7 @@ const Row = ({ index, style, data }) => {
   return (
     <div 
       style={style}
-      className="border-b border-amber-100 hover:bg-amber-50/70 transition-colors duration-150 text-amber-900 flex items-center"
+      className="border-b border-amber-100 hover:bg-amber-200 transition-colors duration-150 text-amber-900 flex items-center"
     >
       <div className="flex-1 min-w-0 px-5 py-2.5 whitespace-nowrap font-medium text-sm">
         {entry.name}

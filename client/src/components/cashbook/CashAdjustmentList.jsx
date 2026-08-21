@@ -354,7 +354,7 @@ const CashAdjustmentList = () => {
                   return (
                     <tr 
                       key={adj.id}
-                      className="border-b border-amber-100 hover:bg-amber-50/70 transition-colors duration-150 text-amber-900"
+                      className="border-b border-amber-100 hover:bg-amber-200 transition-colors duration-150 text-amber-900"
                     >
                       <td className="px-5 py-2.5 whitespace-nowrap text-center font-medium">
                         <div className="text-sm">{formattedDate}</div>

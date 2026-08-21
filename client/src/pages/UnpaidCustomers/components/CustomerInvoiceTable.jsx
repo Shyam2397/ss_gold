@@ -81,7 +81,7 @@ const CustomerInvoiceTable = ({ customers: propCustomers = [], onPaymentStatusUp
       return (
         <div 
           style={style}
-          className="flex items-center py-3 px-4 bg-white border-b border-gray-100 hover:bg-gray-50 transition-colors duration-150"
+          className="flex items-center py-3 px-4 bg-white border-b border-gray-100 hover:bg-amber-200 transition-colors duration-150"
         >
           {/* Paid Checkbox */}
           <div className={`flex items-center justify-center ${columnWidths.paid} px-2`}>

@@ -97,14 +97,14 @@ const ActionsCell = memo(({ rowData, onEdit, onDelete, onPaymentStatusChange }) 
     </span>
     <button
       onClick={() => onEdit(rowData)}
-      className="text-amber-600 hover:text-amber-900 p-1 rounded hover:bg-amber-50"
+      className="text-amber-600 hover:text-amber-500 p-1 rounded-xl hover:bg-white"
       aria-label={`Edit token ${rowData.tokenNo}`}
     >
       <FiEdit2 className="w-3.5 h-3.5" />
     </button>
     <button
       onClick={() => onDelete(rowData.id)}
-      className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50"
+      className="text-red-600 hover:text-red-500 p-1 rounded-xl hover:bg-white"
       aria-label={`Delete token ${rowData.tokenNo}`}
     >
       <FiTrash2 className="w-3.5 h-3.5" />
@@ -185,7 +185,7 @@ const TokenTable = ({ tokens = [], onEdit, onDelete, onPaymentStatusChange }) =>
 
   const getRowClassName = useCallback(({ index }) => 
     `${index === -1 ? 'bg-amber-500' : index % 2 === 0 ? 'bg-white' : 'bg-amber-50/40'} 
-     ${index !== -1 ? 'hover:bg-amber-50/40' : ''} transition-colors`,
+     ${index !== -1 ? 'hover:bg-amber-200' : ''} transition-colors`,
     []
   );
 

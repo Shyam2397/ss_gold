@@ -250,7 +250,7 @@ const TableRow = React.memo(({
       <div className="flex items-center justify-center space-x-2">
         <button 
           onClick={() => onEdit(rowData)}
-          className="text-amber-600 hover:text-amber-900 p-1 rounded hover:bg-amber-50"
+          className="text-amber-600 hover:text-amber-500 p-1 rounded-xl hover:bg-white"
           title="Edit Test"
           disabled={isLoading}
         >
@@ -263,7 +263,7 @@ const TableRow = React.memo(({
               onDelete(tokenNo.toString());
             }
           }}
-          className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50"
+          className="text-red-600 hover:text-red-500 p-1 rounded-xl hover:bg-white"
           title="Delete Test"
           disabled={isLoading}
         >
@@ -271,7 +271,7 @@ const TableRow = React.memo(({
         </button>
         <button 
           onClick={() => handleWhatsAppShare(rowData)}
-          className="text-green-600 hover:text-green-700 p-1 rounded hover:bg-green-50"
+          className="text-green-600 hover:text-green-500 p-1 rounded-xl hover:bg-white"
           title={isLoading ? "Loading..." : "Share on WhatsApp"}
           disabled={isLoading}
         >
@@ -376,8 +376,8 @@ const TableRow = React.memo(({
                     index === -1 
                       ? 'bg-amber-500' 
                       : index % 2 === 0 
-                        ? 'bg-white hover:bg-amber-100/40' 
-                        : 'bg-amber-50/40 hover:bg-amber-100/40'
+                        ? 'bg-white hover:bg-amber-200' 
+                        : 'bg-amber-50/40 hover:bg-amber-200'
                   } transition-colors text-amber-900 text-xs font-medium rounded`
                 }
                 noRowsRenderer={() => (
@@ -393,7 +393,7 @@ const TableRow = React.memo(({
                   flexShrink={0}
                   cellRenderer={renderActions}
                   headerClassName="bg-amber-500 text-white text-xs font-medium uppercase tracking-wider whitespace-nowrap text-center pointer-events-none rounded-tl-lg"
-                  className="sticky left-0 z-10 bg-white rounded-bl-lg"
+                  className="sticky left-0 z-10"
                 />
                 {columns.map(key => (
                   <Column

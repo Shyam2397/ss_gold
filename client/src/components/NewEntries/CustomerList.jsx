@@ -49,14 +49,14 @@ const CustomerList = ({
         <div className="flex items-center justify-center space-x-2 px-2 min-w-[130px]">
           <button
             onClick={() => handleEdit(rowData)}
-            className="text-amber-600 hover:text-amber-900 p-1.5 rounded hover:bg-amber-50"
+            className="text-amber-600 hover:text-amber-500 p-1.5 rounded-xl hover:bg-white"
             title="Edit customer"
           >
             <FiEdit2 className="w-4 h-4" />
           </button>
           <button
             onClick={() => confirmDelete(rowData.id)}
-            className="text-red-600 hover:text-red-900 p-1.5 rounded hover:bg-red-50"
+            className="text-red-600 hover:text-red-500 p-1.5 rounded-xl hover:bg-white"
             title="Delete customer"
           >
             <FiTrash2 className="w-4 h-4" />
@@ -143,7 +143,7 @@ const CustomerList = ({
                     rowClassName={({ index }) => 
                       `${index === -1 ? 'bg-gradient-to-r from-amber-600 to-yellow-500' : 
                         index % 2 === 0 ? 'bg-white' : 'bg-amber-50/40'} 
-                       ${index !== -1 ? 'hover:bg-amber-100/40' : ''} transition-colors`
+                       ${index !== -1 ? 'hover:bg-amber-200' : ''} transition-colors`
                     }
                     overscanRowCount={5}
                   >

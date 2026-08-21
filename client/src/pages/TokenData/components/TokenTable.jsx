@@ -174,7 +174,7 @@ const TokenTable = ({ tokens, loading, onDelete }) => {
       <div
         key={key}
         style={style}
-        className="flex border-b border-amber-100 hover:bg-amber-50/70 transition-colors duration-150"
+        className="flex border-b border-amber-100 hover:bg-amber-200 transition-colors duration-150"
       >
         {columns.map(column => (
           <div

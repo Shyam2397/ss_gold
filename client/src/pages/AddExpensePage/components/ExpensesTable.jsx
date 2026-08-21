@@ -165,7 +165,7 @@ const ExpensesTable = ({ expenses = [], expenseTypes = [], onEdit, onDelete }) =
     
     return (
       <div 
-        className={`flex items-center ${isEven ? 'bg-white' : 'bg-amber-50/40'} hover:bg-amber-50/40 transition-colors`}
+        className={`flex items-center ${isEven ? 'bg-white' : 'bg-amber-50/40'} hover:bg-amber-200 transition-colors`}
         style={{
           ...style,
           width: '100%',

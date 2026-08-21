@@ -168,8 +168,8 @@ const SkinTestTable = ({ tests, loading }) => {
                 `${index === -1 
                   ? 'bg-amber-500 text-white' 
                   : index % 2 === 0 
-                    ? 'bg-white hover:bg-amber-100/40' 
-                    : 'bg-amber-50/40 hover:bg-amber-100/40'} 
+                    ? 'bg-white hover:bg-amber-200' 
+                    : 'bg-amber-50/40 hover:bg-amber-200'} 
                 transition-colors duration-150 text-sm text-amber-900`
               }
             >

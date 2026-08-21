@@ -25,7 +25,7 @@ const CustomerGroup = ({
   };
 
   return (
-    <li className="hover:bg-gray-50 transition-colors duration-200">
+    <li className="hover:bg-amber-100 transition-colors duration-200">
       <div 
         className="px-4 py-2.5 flex items-center justify-between cursor-pointer group h-14"
         onClick={onToggle}
