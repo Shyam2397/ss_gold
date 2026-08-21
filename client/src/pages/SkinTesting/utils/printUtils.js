@@ -1,7 +1,7 @@
 import { formatDateForDisplay, formatTimeForDisplay } from './validation';
 import logo from '../../../assets/logo.png';
 
-export const printData = (data) => {
+export const printData = (data, valuesOnly = false) => {
   // Create a new window with larger dimensions
   const printWindow = window.open('', '_blank', 'width=900,height=600,left=100,top=100');
   
@@ -18,6 +18,47 @@ export const printData = (data) => {
   const finenessLabel = useSilver ? 'SILVER FINENESS %' : 'GOLD FINENESS %';
   const finenessDisplay = finenessValue > 0 ? finenessValue.toFixed(2) + ' %' : '-';
   const karatDisplay = karatValue ? karatValue + ' K' : '-';
+
+  const vo = valuesOnly;
+
+  const hidden = 'visibility: hidden !important;';
+  const visible = 'visibility: visible !important;';
+
+  const headerBorderBottom = vo
+    ? 'border-bottom: none;'
+    : 'border-bottom: 2px solid #FFD700;';
+  const logoStyle = vo ? hidden : 'color: #c09823;';
+  const logoSpanStyle = vo
+    ? 'visibility: hidden; background: none; -webkit-text-fill-color: transparent; color: transparent;'
+    : 'background: linear-gradient(90deg,rgba(214, 164, 6, 1) 0%, rgba(255, 215, 0, 1) 50%, rgba(214, 164, 6, 1) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; color: transparent;';
+  const companyInfoStyle = vo ? hidden : '';
+  const companyInfoP1Color = vo ? hidden : 'color: #FF0000;';
+  const companyInfoP23Color = vo ? hidden : 'color: #32CD32;';
+  const goldInfoBarBg = vo
+    ? 'background-color: transparent; color: #000; border: none;'
+    : 'background-color: #32CD32; color: yellow; border-top: 3px solid #FFD700; border-bottom: 3px solid #FFD700;';
+  const goldInfoBarLabelStyle = vo ? hidden : '';
+  const goldInfoBarValueStyle = vo
+    ? `${visible} color: #D6A406 !important;`
+    : '';
+  const remarksColor = vo
+    ? `${visible} color: #ff0000 !important;`
+    : 'color: #ff0000;';
+  const remarksBorder = vo
+    ? 'border-bottom: none;'
+    : 'border-bottom: 2px solid #FFD700;';
+  const remarksLabelStyle = vo ? hidden : '';
+  const remarksAuthTextStyle = vo ? hidden : '';
+  const sepStyle = vo ? hidden : 'color: #333;';
+  const labelStyle = vo ? hidden : '';
+  const bodyColor = vo ? 'color: #000;' : 'color: #111;';
+  const elementsTableStyle = vo ? 'color: #000;' : 'color: #222;';
+  const elementsTableColonStyle = vo ? hidden : 'color: #333;';
+  const elementsTableLabelStyle = vo ? hidden : '';
+  const elementsTableValueStyle = vo ? visible : '';
+  const footerStyle = vo ? hidden : 'color: #222;';
+  const mainInfoValueStyle = vo ? visible : '';
+  const remarksValueStyle = vo ? visible : '';
   
   // Create the content
   const content = `
@@ -42,7 +83,7 @@ export const printData = (data) => {
           padding: 0;
           font-family: 'Poppins', sans-serif;
           font-size: 10pt;
-          color: #111;
+          ${bodyColor}
           box-sizing: border-box;
           width: 210mm;
           height: 99mm;
@@ -64,7 +105,7 @@ export const printData = (data) => {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          border-bottom: 2px solid #FFD700;
+          ${headerBorderBottom}
           padding: 0 41px;
         
         }
@@ -74,9 +115,12 @@ export const printData = (data) => {
           align-items: center;
           font-weight: bold;
           font-size: 40pt;
-          color: #c09823;
+          ${logoStyle}
           user-select: none;
           white-space: nowrap;
+        }
+        .logo img {
+          ${vo ? hidden : ''}
         }
         .logo span {
           margin-top: 6px;
@@ -87,10 +131,11 @@ export const printData = (data) => {
           font-size: 10pt;
           user-select: none;
           white-space: nowrap;
+          ${companyInfoStyle}
         }
         
         .company-info p:first-child {
-          color: #FF0000;
+          ${companyInfoP1Color}
           font-weight: 600;
           font-size: 16pt;
           margin-bottom: 0;
@@ -100,7 +145,7 @@ export const printData = (data) => {
         
         .company-info p:nth-child(2),
         .company-info p:nth-child(3) {
-          color: #32CD32;
+          ${companyInfoP23Color}
           font-weight: 600;
           font-size: 9pt;
           margin: 0;
@@ -138,6 +183,7 @@ export const printData = (data) => {
           font-weight: 600;
           user-select: text;
           white-space: nowrap;
+          ${labelStyle}
         }
         
         .main-info .value {
@@ -147,10 +193,11 @@ export const printData = (data) => {
           text-overflow: ellipsis;
           min-width: 0;
           margin-left: 6px;
+          ${mainInfoValueStyle}
         }
         
         .main-info .sep {
-          color: #333;
+          ${sepStyle}
           white-space: nowrap;
           font-weight: 600;
         }
@@ -163,13 +210,10 @@ export const printData = (data) => {
 
         /* GOLD INFO BAR */
         .gold-info-bar {
-          background-color: #32CD32;
-          color: yellow;
+          ${goldInfoBarBg}
           font-weight: 900;
           font-size: 13pt;
           border-radius: 3px;
-          border-top: 3px solid #FFD700;
-          border-bottom: 3px solid #FFD700;
           display: grid;
           grid-template-columns: repeat(4, 1fr);
           gap: 8px;
@@ -181,6 +225,11 @@ export const printData = (data) => {
         }
         .gold-info-bar .bar-value {
           font-size: 14pt;
+          ${goldInfoBarValueStyle}
+        }
+        .gold-info-bar > span:nth-child(1),
+        .gold-info-bar > span:nth-child(3) {
+          ${goldInfoBarLabelStyle}
         }
         .gold-info-bar.silver-mode {
           padding: 8px 40px;
@@ -192,7 +241,7 @@ export const printData = (data) => {
           gap: 6px 12px;
           font-size: 9.5pt;
           font-weight: 600;
-          color: #222;
+          ${elementsTableStyle}
           margin-bottom: 4px;
           user-select: text;
           padding: 0 53px;
@@ -201,17 +250,19 @@ export const printData = (data) => {
         .elements-table .label {
           justify-self: start;
           text-align: left;
+          ${elementsTableLabelStyle}
         }
 
         .elements-table .colon {
           justify-self: start;
-          color: #333;
+          ${elementsTableColonStyle}
         }
         
         .elements-table .value {
           justify-self: center;
           font-weight: 600;
           font-size: 10pt;
+          ${elementsTableValueStyle}
         }
 
         /* REMARKS AUTHORIZED */
@@ -224,12 +275,17 @@ export const printData = (data) => {
           font-size: 9pt;
           user-select: none;
           padding: 2px 53px;
-          border-bottom: 2px solid #FFD700;
+          ${remarksBorder}
         }
         
         .remarks-authorized div:nth-child(2) {
-          color: #ff0000;
+          ${remarksColor}
           text-transform: capitalize;
+        }
+        .remarks-authorized div:nth-child(1),
+        .remarks-authorized div:nth-child(3),
+        .remarks-authorized div:nth-child(4) {
+          ${remarksLabelStyle}
         }
 
         /* FOOTER MESSAGE */
@@ -240,7 +296,7 @@ export const printData = (data) => {
           text-align: center;
           margin-top: 2px;
           user-select: none;
-          color: #222;
+          ${footerStyle}
           
         }
       </style>
@@ -250,7 +306,7 @@ export const printData = (data) => {
         <header class="header">
           <div class="logo" aria-label="SS Gold Logo">
             <img src="${logo}" alt="SS GOLD Logo" style="height: 78px;" />
-            <span style="background: linear-gradient(90deg,rgba(214, 164, 6, 1) 0%, rgba(255, 215, 0, 1) 50%, rgba(214, 164, 6, 1) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; color: transparent;">SS GOLD</span>
+            <span style="${logoSpanStyle}">SS GOLD</span>
           </div>
           <div class="company-info" aria-label="Company details: Computer X-ray Testing, 59 Main Bazaar, Nilakottai 624208, Phone number 8903225544">
             <p>Computer X-ray Testing</p>

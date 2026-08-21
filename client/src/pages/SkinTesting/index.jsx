@@ -74,6 +74,23 @@ const SkinTesting = () => {
     isOpen: false,
     itemId: null
   });
+  const [printValuesOnly, setPrintValuesOnlyState] = useState(() => {
+    try {
+      const stored = window.localStorage.getItem('skinTest_printValuesOnly');
+      return stored === 'true';
+    } catch (e) {
+      return false;
+    }
+  });
+
+  const setPrintValuesOnly = useCallback((value) => {
+    setPrintValuesOnlyState(value);
+    try {
+      window.localStorage.setItem('skinTest_printValuesOnly', String(value));
+    } catch (e) {
+      /* ignore */
+    }
+  }, []);
 
   useEffect(() => {
     loadSkinTests();
@@ -120,8 +137,8 @@ const SkinTesting = () => {
     setSearchQuery('');
   }, []);
 
-  const handlePrint = (data) => {
-    printData(data);
+  const handlePrint = (data, valuesOnly) => {
+    printData(data, valuesOnly ?? printValuesOnly);
   };
   
   // Memoize the table row component to prevent unnecessary re-renders
@@ -188,6 +205,8 @@ const SkinTesting = () => {
         handleReset={handleReset}
         handlePrint={handlePrint}
         getFieldIcon={getFieldIcon}
+        printValuesOnly={printValuesOnly}
+        setPrintValuesOnly={setPrintValuesOnly}
       />
 
       {/* Test Results Table */}

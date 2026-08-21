@@ -35,6 +35,8 @@ const SkinTestForm = ({
   handleReset,
   handlePrint,
   getFieldIcon,
+  printValuesOnly,
+  setPrintValuesOnly,
 }) => (
   <div className="bg-white rounded-lg shadow-sm p-4 border border-amber-100">
     <div className="flex items-center justify-between mb-4">
@@ -133,6 +135,17 @@ const SkinTestForm = ({
             </div>
           </div>
         )}
+        <label className="inline-flex items-center px-3 py-2 border border-amber-200 rounded-2xl cursor-pointer hover:bg-amber-50 transition-all select-none">
+          <input
+            type="checkbox"
+            className="w-4 h-4 text-amber-600 border-amber-300 rounded focus:ring-amber-500 cursor-pointer"
+            checked={printValuesOnly}
+            onChange={(e) => setPrintValuesOnly(e.target.checked)}
+          />
+          <span className="ml-2 text-sm text-amber-700 font-medium whitespace-nowrap">
+            Values Only
+          </span>
+        </label>
         <button
           type="button"
           onClick={handleReset}
