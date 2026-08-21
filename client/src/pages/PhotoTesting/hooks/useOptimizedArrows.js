@@ -38,10 +38,11 @@ export const useOptimizedArrows = (onArrowsChange) => {
           containerHeight = rect.height;
         }
         
+        // Allow positioning across full container bounds
         const newArrow = {
           id: newId,
-          x: Math.min(50 + (newId * 30), containerWidth - 100),
-          y: Math.min(50 + (newId * 30), containerHeight - 50),
+          x: Math.min(10 + (newId * 30), containerWidth - 53),
+          y: Math.min(10 + (newId * 30), containerHeight - 20),
           angle: 0,
           isDragging: false
         };
@@ -123,6 +124,7 @@ export const useOptimizedArrows = (onArrowsChange) => {
               const newContainerX = e.clientX - containerRect.left;
               const newContainerY = e.clientY - containerRect.top;
               
+              // Constrain to FULL CONTAINER bounds (not just visible image)
               const arrowWidth = 43;
               const maxX = containerRect.width - arrowWidth;
               const maxY = containerRect.height - 10;

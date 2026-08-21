@@ -221,12 +221,11 @@ export const captureMemoryBufferImage = (containerSelector, arrowsData = []) => 
         
         bufferCtx.restore();
         
-        // Draw arrows in memory buffer space
-        // NOTE: We do NOT apply the transform matrix here because arrow coordinates
-        // are already being converted from container space to canvas space directly
+        // Draw arrows in SCREEN SPACE (container coordinates) on top of transformed image
+        // Arrows should NOT be affected by image transform - they float above the image
         if (arrowsData && arrowsData.length > 0) {
-          console.log('Drawing arrows in memory buffer with scale factors:', { scaleX, scaleY });
-          drawMemoryBufferArrows(bufferCtx, arrowsData, nativeWidth, nativeHeight, scaleX, scaleY, containerRect, offsetX, offsetY, visibleImageWidth, visibleImageHeight);
+          console.log('Drawing arrows in SCREEN SPACE (container coordinates) on top of image');
+          drawScreenSpaceArrows(bufferCtx, arrowsData, nativeWidth, nativeHeight, scaleX, scaleY, containerRect, offsetX, offsetY, visibleImageWidth, visibleImageHeight);
         }
         
         // Extract raw memory buffer
@@ -283,12 +282,13 @@ export const captureMemoryBufferImage = (containerSelector, arrowsData = []) => 
 };
 
 /**
- * Memory buffer arrow drawing - bypasses all browser optimizations
+ * Screen space arrow drawing - arrows float above transformed image
+ * This ensures arrows are always visible on top of the image regardless of image transforms
  */
-const drawMemoryBufferArrows = (ctx, arrowsData, canvasWidth, canvasHeight, scaleX, scaleY, containerRect, offsetX, offsetY, visibleImageWidth, visibleImageHeight) => {
+const drawScreenSpaceArrows = (ctx, arrowsData, canvasWidth, canvasHeight, scaleX, scaleY, containerRect, offsetX, offsetY, visibleImageWidth, visibleImageHeight) => {
   if (!arrowsData || arrowsData.length === 0) return;
 
-  console.log('Drawing memory buffer arrows at native resolution');
+  console.log('Drawing SCREEN SPACE arrows (floating above image)');
   console.log('Canvas dimensions:', { canvasWidth, canvasHeight });
   console.log('Scale factors:', { scaleX, scaleY });
   console.log('Container rect:', containerRect);
@@ -297,32 +297,46 @@ const drawMemoryBufferArrows = (ctx, arrowsData, canvasWidth, canvasHeight, scal
 
   arrowsData.forEach((arrow, index) => {
     try {
-      // Convert UI container coordinates to canvas coordinates
-      // UI coordinates are relative to the CONTAINER (0,0 at top-left)
+      // Convert UI container coordinates to SCREEN SPACE canvas coordinates
+      // Arrows are in container space (0,0 at top-left of container)
+      // The image is centered on canvas, and the visible image area is offset within the container
       
-      // Step 1: Convert container coords to visible image coords (account for offset)
-      // Clamp to visible image bounds to handle edge cases
-      const visibleImageX = Math.max(0, Math.min(arrow.x - offsetX, visibleImageWidth));
-      const visibleImageY = Math.max(0, Math.min(arrow.y - offsetY, visibleImageHeight));
+      // Step 1: Convert container coords to relative position from visible image center
+      // Container center is at (containerRect.width/2, containerRect.height/2)
+      // Visible image center is at (offsetX + visibleImageWidth/2, offsetY + visibleImageHeight/2)
+      const containerCenterX = containerRect.width / 2;
+      const containerCenterY = containerRect.height / 2;
+      const visibleImageCenterX = offsetX + visibleImageWidth / 2;
+      const visibleImageCenterY = offsetY + visibleImageHeight / 2;
       
-      // Step 2: Convert visible image coords to canvas absolute coords
-      // The image is drawn centered on the canvas at (nativeWidth/2, nativeHeight/2)
-      const arrowCanvasX = (visibleImageX - visibleImageWidth / 2) * scaleX + canvasWidth / 2;
-      const arrowCanvasY = (visibleImageY - visibleImageHeight / 2) * scaleY + canvasHeight / 2;
+      // Arrow position relative to visible image center (in container space)
+      const arrowRelativeX = arrow.x - visibleImageCenterX;
+      const arrowRelativeY = arrow.y - visibleImageCenterY;
+      
+      // Step 2: Scale to canvas space and add canvas center
+      // Canvas center is at (canvasWidth/2, canvasHeight/2) where the image is centered
+      const arrowCanvasX = arrowRelativeX * scaleX + canvasWidth / 2;
+      const arrowCanvasY = arrowRelativeY * scaleY + canvasHeight / 2;
       const rotation = arrow.angle * (Math.PI / 180);
       
       console.log(`Arrow ${index + 1}:`);
       console.log(`  UI container coords: (${arrow.x.toFixed(2)}, ${arrow.y.toFixed(2)})`);
-      console.log(`  Visible image coords: (${visibleImageX.toFixed(2)}, ${visibleImageY.toFixed(2)})`);
+      console.log(`  Container center: (${containerCenterX.toFixed(2)}, ${containerCenterY.toFixed(2)})`);
+      console.log(`  Visible image center: (${visibleImageCenterX.toFixed(2)}, ${visibleImageCenterY.toFixed(2)})`);
+      console.log(`  Relative to visible center: (${arrowRelativeX.toFixed(2)}, ${arrowRelativeY.toFixed(2)})`);
       console.log(`  Canvas coords: (${arrowCanvasX.toFixed(2)}, ${arrowCanvasY.toFixed(2)})`);
       console.log(`  Angle: ${arrow.angle}°`);
       
-      // Use consistent scaling - match UI arrow proportions exactly
-      const baseScale = Math.min(scaleX, scaleY);
-      const arrowLength = 35 * baseScale;
-      const arrowWidth = 1.5 * baseScale;
-      const arrowHeadWidth = 8 * baseScale;
-      const arrowHeadHeight = 5 * baseScale;
+      // Use direction-aware scaling to prevent compression
+      // For horizontal arrows, use scaleX for length; for vertical, use scaleY
+      const isHorizontal = Math.abs(arrow.angle % 180) < 45 || Math.abs(arrow.angle % 180) > 135;
+      const lengthScale = isHorizontal ? scaleX : scaleY;
+      const widthScale = Math.min(scaleX, scaleY);
+      
+      const arrowLength = 35 * lengthScale;
+      const arrowWidth = 1.5 * widthScale;
+      const arrowHeadWidth = 8 * widthScale;
+      const arrowHeadHeight = 5 * widthScale;
       
       console.log(`  Scaled dimensions: length=${arrowLength.toFixed(2)}, width=${arrowWidth.toFixed(2)}, head=${arrowHeadWidth.toFixed(2)}x${arrowHeadHeight.toFixed(2)}`);
       
@@ -363,10 +377,10 @@ const drawMemoryBufferArrows = (ctx, arrowsData, canvasWidth, canvasHeight, scal
       
       ctx.restore();
       
-      console.log(`Memory buffer arrow ${index + 1} processed successfully`);
+      console.log(`Screen space arrow ${index + 1} processed successfully`);
       
     } catch (error) {
-      console.warn(`Error drawing memory buffer arrow ${index + 1}:`, error);
+      console.warn(`Error drawing screen space arrow ${index + 1}:`, error);
     }
   });
 };

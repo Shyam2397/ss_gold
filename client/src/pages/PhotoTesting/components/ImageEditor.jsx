@@ -130,11 +130,19 @@ const ImageEditor = ({
   const addArrow = useCallback(() => {
     const newId = Math.max(0, ...arrows.map(a => a.id)) + 1;
     
-    // Place new arrow within visible image bounds
-    const minX = visibleImageBounds.offsetX + 10;
-    const maxX = visibleImageBounds.offsetX + visibleImageBounds.width - 53;
-    const minY = visibleImageBounds.offsetY + 10;
-    const maxY = visibleImageBounds.offsetY + visibleImageBounds.height - 20;
+    // Place new arrow within full container bounds (not just visible image)
+    const container = document.querySelector('.w-full.h-full.overflow-hidden.relative');
+    let containerWidth = 300, containerHeight = 300;
+    if (container) {
+      const rect = container.getBoundingClientRect();
+      containerWidth = rect.width;
+      containerHeight = rect.height;
+    }
+    
+    const minX = 10;
+    const maxX = containerWidth - 53;
+    const minY = 10;
+    const maxY = containerHeight - 20;
     
     const newArrow = {
       id: newId,
@@ -144,7 +152,7 @@ const ImageEditor = ({
       isDragging: false
     };
     setArrows([...arrows, newArrow]);
-  }, [arrows, visibleImageBounds]);
+  }, [arrows]);
 
   const removeArrow = useCallback(() => {
     if (arrows.length > 0) {
@@ -210,13 +218,13 @@ const ImageEditor = ({
           const newContainerX = e.clientX - containerRect.left;
           const newContainerY = e.clientY - containerRect.top;
           
-          // Constrain to VISIBLE IMAGE bounds (not just container)
-          // Account for the offset (centering) of the image within the container
+          // Constrain to FULL CONTAINER bounds (not just visible image)
+          // This allows arrows to be positioned anywhere in the editor area
           const arrowWidth = 43; // 35px shaft + 8px head
-          const minX = visibleImageBounds.offsetX;
-          const maxX = visibleImageBounds.offsetX + visibleImageBounds.width - arrowWidth;
-          const minY = visibleImageBounds.offsetY;
-          const maxY = visibleImageBounds.offsetY + visibleImageBounds.height - 10;
+          const minX = 0;
+          const maxX = containerRect.width - arrowWidth;
+          const minY = 0;
+          const maxY = containerRect.height - 10;
           
           const finalX = Math.max(minX, Math.min(newContainerX, maxX));
           const finalY = Math.max(minY, Math.min(newContainerY, maxY));
