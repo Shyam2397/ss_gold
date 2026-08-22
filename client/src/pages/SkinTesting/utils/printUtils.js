@@ -59,6 +59,9 @@ export const printData = (data, valuesOnly = false) => {
   const footerStyle = vo ? hidden : 'color: #222;';
   const mainInfoValueStyle = vo ? visible : '';
   const remarksValueStyle = vo ? visible : '';
+  const infoGridPaddingTop = vo ? 'padding-top: 1mm;' : '';
+  const goldInfoBarMarginTop = vo ? 'margin-top: 1mm;' : '';
+  const elementsTableMarginTop = vo ? 'margin-top: 1mm;' : '';
   
   // Create the content
   const content = `
@@ -164,6 +167,7 @@ export const printData = (data, valuesOnly = false) => {
           gap: 1px 16px;
           margin: 0 auto;
           width: 100%;
+          ${infoGridPaddingTop}
         }
         
         .grid-item {
@@ -222,6 +226,7 @@ export const printData = (data, valuesOnly = false) => {
           user-select: text;
           margin-bottom: 4px;
           padding: 8px 50px;
+          ${goldInfoBarMarginTop}
         }
         .gold-info-bar .bar-value {
           font-size: 14pt;
@@ -245,6 +250,7 @@ export const printData = (data, valuesOnly = false) => {
           margin-bottom: 4px;
           user-select: text;
           padding: 0 53px;
+          ${elementsTableMarginTop}
         }
         
         .elements-table .label {
