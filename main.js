@@ -2,6 +2,7 @@ const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 const { spawn, exec } = require('child_process');
 const os = require('os');
+const fs = require('fs');
 
 // Add logging utility
 const log = require('electron-log');
@@ -11,6 +12,85 @@ log.info(`app.isPackaged: ${app.isPackaged}`);
 
 // Add this with other global variables at the top of the file
 let isQuitting = false;
+
+// Default printer settings
+const DEFAULT_TOKEN_PRINTER_SETTINGS = {
+  printerName: '',
+  paperSource: '',
+  documentSize: '80mm',
+  orientation: 'portrait',
+  paperType: '',
+  quality: 'high',
+  color: 'monochrome',
+  copies: 1,
+  silentMode: true
+};
+
+const DEFAULT_SKINTEST_PRINTER_SETTINGS = {
+  printerName: '',
+  paperSource: '',
+  documentSize: 'A4',
+  orientation: 'portrait',
+  paperType: '',
+  quality: 'high',
+  color: 'color',
+  copies: 1,
+  silentMode: true
+};
+
+// Persistent settings file path
+const getSettingsFilePath = () => {
+  const userDataPath = app.getPath('userData');
+  return path.join(userDataPath, 'printer-settings.json');
+};
+
+// Load settings from file
+const loadSettingsFromFile = () => {
+  try {
+    const filePath = getSettingsFilePath();
+    if (fs.existsSync(filePath)) {
+      const rawData = fs.readFileSync(filePath, 'utf8');
+      return JSON.parse(rawData);
+    }
+  } catch (error) {
+    log.error('Error loading printer settings from file:', error);
+  }
+  return null;
+};
+
+// Save settings to file
+const saveSettingsToFile = (settings) => {
+  try {
+    const filePath = getSettingsFilePath();
+    const userDataPath = app.getPath('userData');
+    if (!fs.existsSync(userDataPath)) {
+      fs.mkdirSync(userDataPath, { recursive: true });
+    }
+    fs.writeFileSync(filePath, JSON.stringify(settings, null, 2), 'utf8');
+    return true;
+  } catch (error) {
+    log.error('Error saving printer settings to file:', error);
+    return false;
+  }
+};
+
+// Initialize printer settings
+const initPrinterSettings = () => {
+  const savedSettings = loadSettingsFromFile();
+  return {
+    tokenPrinter: {
+      ...DEFAULT_TOKEN_PRINTER_SETTINGS,
+      ...(savedSettings?.tokenPrinter || {})
+    },
+    skinTestPrinter: {
+      ...DEFAULT_SKINTEST_PRINTER_SETTINGS,
+      ...(savedSettings?.skinTestPrinter || {})
+    }
+  };
+};
+
+let printerSettings = initPrinterSettings();
+log.info('Printer settings initialized:', JSON.stringify(printerSettings, null, 2));
 
 // Simple in-memory store implementation
 const memoryStore = {
@@ -455,6 +535,474 @@ ipcMain.handle('get-system-memory', () => {
     free: os.freemem(),
   };
 });
+
+// ============================================================
+// PRINTER MANAGEMENT IPC HANDLERS
+// ============================================================
+
+ipcMain.handle('get-available-printers', async () => {
+  try {
+    if (!mainWindow) {
+      return [];
+    }
+    const printers = await mainWindow.webContents.getPrintersAsync();
+    log.info(`Found ${printers.length} available printers`);
+    return printers.map(p => ({
+      name: p.name,
+      displayName: p.displayName || p.name,
+      description: p.description || '',
+      isDefault: p.isDefault || false,
+      status: p.status || 0,
+      options: p.options || {}
+    }));
+  } catch (error) {
+    log.error('Error getting printers:', error);
+    return [];
+  }
+});
+
+ipcMain.handle('get-printer-settings', () => {
+  try {
+    return { ...printerSettings };
+  } catch (error) {
+    log.error('Error getting printer settings:', error);
+    return {
+      tokenPrinter: { ...DEFAULT_TOKEN_PRINTER_SETTINGS },
+      skinTestPrinter: { ...DEFAULT_SKINTEST_PRINTER_SETTINGS }
+    };
+  }
+});
+
+ipcMain.handle('save-printer-settings', async (event, settings) => {
+  try {
+    printerSettings = {
+      tokenPrinter: {
+        ...DEFAULT_TOKEN_PRINTER_SETTINGS,
+        ...(settings?.tokenPrinter || {})
+      },
+      skinTestPrinter: {
+        ...DEFAULT_SKINTEST_PRINTER_SETTINGS,
+        ...(settings?.skinTestPrinter || {})
+      }
+    };
+    
+    const saved = saveSettingsToFile(printerSettings);
+    log.info('Printer settings saved:', JSON.stringify(printerSettings, null, 2));
+    return { success: saved, settings: { ...printerSettings } };
+  } catch (error) {
+    log.error('Error saving printer settings:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// Helper: Map our settings to Electron print options
+const mapSettingsToPrintOptions = (settings, printerType) => {
+  const printOptions = {
+    silent: settings.silentMode !== false,
+    printBackground: true,
+    copies: parseInt(settings.copies) || 1,
+  };
+
+  if (settings.printerName) {
+    printOptions.deviceName = settings.printerName;
+  }
+
+  if (settings.orientation) {
+    printOptions.landscape = settings.orientation === 'landscape';
+  }
+
+  if (settings.color) {
+    printOptions.color = settings.color === 'color';
+  }
+
+  const isThermal = printerType === 'token';
+
+  if (isThermal) {
+    printOptions.marginsType = 1;
+    printOptions.margins = { top: 0, bottom: 0, left: 0, right: 0 };
+  }
+
+  if (settings.documentSize) {
+    const size = settings.documentSize.toLowerCase();
+    if (size === 'a4') {
+      printOptions.pageSize = { width: 210000, height: 297000 };
+    } else if (size === 'a5') {
+      printOptions.pageSize = { width: 148000, height: 210000 };
+    } else if (size.includes('80mm') || size.includes('thermal') || size === '80mm') {
+      printOptions.pageSize = { width: 80000, height: 150000 };
+    } else if (size.includes('58mm')) {
+      printOptions.pageSize = { width: 58000, height: 150000 };
+    } else if (size === 'letter') {
+      printOptions.pageSize = { width: 215900, height: 279400 };
+    } else if (size === 'legal') {
+      printOptions.pageSize = { width: 215900, height: 355600 };
+    }
+  }
+
+  if (settings.quality) {
+    const qualityMap = {
+      'draft': 0,
+      'low': 1,
+      'medium': 2,
+      'high': 3,
+    };
+    printOptions.quality = qualityMap[settings.quality] ?? 3;
+  }
+
+  if (settings.paperSource) {
+    printOptions.paperSource = settings.paperSource;
+  }
+
+  return printOptions;
+};
+
+ipcMain.handle('silent-print-token', async (event, htmlContent) => {
+  let printWindow = null;
+  try {
+    const settings = printerSettings.tokenPrinter;
+    log.info(`Starting token print to printer: ${settings.printerName || 'default'}`);
+    log.info(`Token print settings: copies=${settings.copies}, silent=${settings.silentMode}`);
+
+    const paperSize = (settings.documentSize || '80mm').toLowerCase();
+    const is58mm = paperSize.includes('58mm');
+    const contentWidth = is58mm ? 220 : 305;
+
+    printWindow = new BrowserWindow({
+      width: contentWidth,
+      height: 600,
+      useContentSize: true,
+      show: false,
+      resizable: false,
+      minimizable: false,
+      maximizable: false,
+      fullscreenable: false,
+      frame: false,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+        offscreen: false,
+      }
+    });
+
+    printWindow.webContents.setZoomLevel(0);
+
+    const printOptions = mapSettingsToPrintOptions(settings, 'token');
+    log.info('Mapped print options for token:', JSON.stringify(printOptions));
+
+    await printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`);
+
+    await new Promise((resolve, reject) => {
+      let stylesLoaded = false;
+      let loadTimeout;
+
+      // Wait for styles to be fully loaded
+      printWindow.webContents.executeJavaScript(`
+        new Promise((resolve) => {
+          if (document.readyState === 'complete') {
+            // Wait a bit more for fonts to render
+            setTimeout(resolve, 500);
+          } else {
+            window.addEventListener('load', () => {
+              setTimeout(resolve, 500);
+            });
+          }
+        });
+      `).then(() => {
+        stylesLoaded = true;
+        clearTimeout(loadTimeout);
+        
+        printWindow.webContents.print(printOptions, (success, failureReason) => {
+          if (success) {
+            log.info('Token print completed successfully');
+            resolve(true);
+          } else {
+            log.error(`Token print failed: ${failureReason}`);
+            reject(new Error(failureReason || 'Print failed'));
+          }
+        });
+      }).catch((err) => {
+        if (!stylesLoaded) {
+          reject(new Error(`Failed to wait for styles: ${err.message}`));
+        }
+      });
+
+      // Timeout fallback
+      loadTimeout = setTimeout(() => {
+        if (!stylesLoaded) {
+          log.warn('Style loading timeout, proceeding with print anyway');
+          printWindow.webContents.print(printOptions, (success, failureReason) => {
+            if (success) {
+              log.info('Token print completed successfully (after timeout)');
+              resolve(true);
+            } else {
+              log.error(`Token print failed: ${failureReason}`);
+              reject(new Error(failureReason || 'Print failed'));
+            }
+          });
+        }
+      }, 3000);
+
+      printWindow.webContents.once('did-fail-load', (e, ec, em) => {
+        clearTimeout(loadTimeout);
+        reject(new Error(`Page load failed: ${em} (${ec})`));
+      });
+    });
+
+    printWindow.destroy();
+    printWindow = null;
+    return { success: true };
+  } catch (error) {
+    log.error('Error during token silent print:', error);
+    if (printWindow && !printWindow.isDestroyed()) {
+      printWindow.destroy();
+    }
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('silent-print-skintest', async (event, htmlContent) => {
+  let printWindow = null;
+  try {
+    const settings = printerSettings.skinTestPrinter;
+    log.info(`Starting skin test print to printer: ${settings.printerName || 'default'}`);
+    log.info(`Skin test print settings: copies=${settings.copies}, silent=${settings.silentMode}`);
+
+    printWindow = new BrowserWindow({
+      width: 850,
+      height: 1200,
+      useContentSize: true,
+      show: false,
+      resizable: false,
+      minimizable: false,
+      maximizable: false,
+      fullscreenable: false,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+        offscreen: false,
+      }
+    });
+
+    printWindow.webContents.setZoomLevel(0);
+
+    const printOptions = mapSettingsToPrintOptions(settings, 'skinTest');
+    log.info('Mapped print options for skintest:', JSON.stringify(printOptions));
+
+    await printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`);
+
+    await new Promise((resolve, reject) => {
+      let stylesLoaded = false;
+      let loadTimeout;
+
+      // Wait for styles to be fully loaded
+      printWindow.webContents.executeJavaScript(`
+        new Promise((resolve) => {
+          if (document.readyState === 'complete') {
+            // Wait a bit more for fonts to render
+            setTimeout(resolve, 500);
+          } else {
+            window.addEventListener('load', () => {
+              setTimeout(resolve, 500);
+            });
+          }
+        });
+      `).then(() => {
+        stylesLoaded = true;
+        clearTimeout(loadTimeout);
+        
+        printWindow.webContents.print(printOptions, (success, failureReason) => {
+          if (success) {
+            log.info('Skin test print completed successfully');
+            resolve(true);
+          } else {
+            log.error(`Skin test print failed: ${failureReason}`);
+            reject(new Error(failureReason || 'Print failed'));
+          }
+        });
+      }).catch((err) => {
+        if (!stylesLoaded) {
+          reject(new Error(`Failed to wait for styles: ${err.message}`));
+        }
+      });
+
+      // Timeout fallback
+      loadTimeout = setTimeout(() => {
+        if (!stylesLoaded) {
+          log.warn('Style loading timeout, proceeding with print anyway');
+          printWindow.webContents.print(printOptions, (success, failureReason) => {
+            if (success) {
+              log.info('Skin test print completed successfully (after timeout)');
+              resolve(true);
+            } else {
+              log.error(`Skin test print failed: ${failureReason}`);
+              reject(new Error(failureReason || 'Print failed'));
+            }
+          });
+        }
+      }, 3000);
+
+      printWindow.webContents.once('did-fail-load', (e, ec, em) => {
+        clearTimeout(loadTimeout);
+        reject(new Error(`Page load failed: ${em} (${ec})`));
+      });
+    });
+
+    printWindow.destroy();
+    printWindow = null;
+    return { success: true };
+  } catch (error) {
+    log.error('Error during skin test silent print:', error);
+    if (printWindow && !printWindow.isDestroyed()) {
+      printWindow.destroy();
+    }
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('silent-print-pure-exchange', async (event, htmlContent) => {
+  let printWindow = null;
+  try {
+    const settings = printerSettings.tokenPrinter; // Use same thermal printer settings as token
+    log.info(`Starting pure exchange print to printer: ${settings.printerName || 'default'}`);
+    log.info(`Pure exchange print settings: copies=${settings.copies}, silent=${settings.silentMode}`);
+
+    const paperSize = (settings.documentSize || '80mm').toLowerCase();
+    const is58mm = paperSize.includes('58mm');
+    const contentWidth = is58mm ? 220 : 305;
+
+    printWindow = new BrowserWindow({
+      width: contentWidth,
+      height: 600,
+      useContentSize: true,
+      show: false,
+      resizable: false,
+      minimizable: false,
+      maximizable: false,
+      fullscreenable: false,
+      frame: false,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+        offscreen: false,
+      }
+    });
+
+    printWindow.webContents.setZoomLevel(0);
+
+    const printOptions = mapSettingsToPrintOptions(settings, 'token');
+    log.info('Mapped print options for pure exchange:', JSON.stringify(printOptions));
+
+    await printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`);
+
+    await new Promise((resolve, reject) => {
+      let stylesLoaded = false;
+      let loadTimeout;
+
+      // Wait for styles to be fully loaded
+      printWindow.webContents.executeJavaScript(`
+        new Promise((resolve) => {
+          if (document.readyState === 'complete') {
+            // Wait a bit more for fonts to render
+            setTimeout(resolve, 500);
+          } else {
+            window.addEventListener('load', () => {
+              setTimeout(resolve, 500);
+            });
+          }
+        });
+      `).then(() => {
+        stylesLoaded = true;
+        clearTimeout(loadTimeout);
+        
+        printWindow.webContents.print(printOptions, (success, failureReason) => {
+          if (success) {
+            log.info('Pure exchange print completed successfully');
+            resolve(true);
+          } else {
+            log.error(`Pure exchange print failed: ${failureReason}`);
+            reject(new Error(failureReason || 'Print failed'));
+          }
+        });
+      }).catch((err) => {
+        if (!stylesLoaded) {
+          reject(new Error(`Failed to wait for styles: ${err.message}`));
+        }
+      });
+
+      // Timeout fallback
+      loadTimeout = setTimeout(() => {
+        if (!stylesLoaded) {
+          log.warn('Style loading timeout, proceeding with print anyway');
+          printWindow.webContents.print(printOptions, (success, failureReason) => {
+            if (success) {
+              log.info('Pure exchange print completed successfully (after timeout)');
+              resolve(true);
+            } else {
+              log.error(`Pure exchange print failed: ${failureReason}`);
+              reject(new Error(failureReason || 'Print failed'));
+            }
+          });
+        }
+      }, 3000);
+
+      printWindow.webContents.once('did-fail-load', (e, ec, em) => {
+        clearTimeout(loadTimeout);
+        reject(new Error(`Page load failed: ${em} (${ec})`));
+      });
+    });
+
+    printWindow.destroy();
+    printWindow = null;
+    return { success: true };
+  } catch (error) {
+    log.error('Error during pure exchange silent print:', error);
+    if (printWindow && !printWindow.isDestroyed()) {
+      printWindow.destroy();
+    }
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('test-print', async (event, { printerType, htmlContent }) => {
+  let printWindow = null;
+  try {
+    const settings = printerType === 'token' 
+      ? printerSettings.tokenPrinter 
+      : printerSettings.skinTestPrinter;
+    
+    log.info(`Test print for ${printerType} to: ${settings.printerName || 'default'}`);
+
+    const paperSize = (settings.documentSize || (printerType === 'token' ? '80mm' : 'A4')).toLowerCase();
+    const is58mm = paperSize.includes('58mm');
+
+    printWindow = new BrowserWindow({
+      width: printerType === 'token' ? (is58mm ? 220 : 305) : 900,
+      height: printerType === 'token' ? 600 : 1100,
+      useContentSize: true,
+      show: true,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+      }
+    });
+
+    printWindow.webContents.setZoomLevel(0);
+
+    await printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`);
+
+    return { success: true, message: 'Preview window opened' };
+  } catch (error) {
+    log.error('Error during test print:', error);
+    if (printWindow && !printWindow.isDestroyed()) {
+      printWindow.destroy();
+    }
+    return { success: false, error: error.message };
+  }
+});
+
+// ============================================================
+// END PRINTER MANAGEMENT IPC HANDLERS
+// ============================================================
 
 function killPort(port) {
   return new Promise((resolve, reject) => {

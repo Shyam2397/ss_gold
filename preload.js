@@ -15,6 +15,35 @@ async function getMemoryInfo() {
   };
 }
 
+// Printer management
+async function getAvailablePrinters() {
+  return ipcRenderer.invoke('get-available-printers');
+}
+
+async function getPrinterSettings() {
+  return ipcRenderer.invoke('get-printer-settings');
+}
+
+async function savePrinterSettings(settings) {
+  return ipcRenderer.invoke('save-printer-settings', settings);
+}
+
+async function silentPrintToken(htmlContent) {
+  return ipcRenderer.invoke('silent-print-token', htmlContent);
+}
+
+async function silentPrintSkinTest(htmlContent) {
+  return ipcRenderer.invoke('silent-print-skintest', htmlContent);
+}
+
+async function silentPrintPureExchange(htmlContent) {
+  return ipcRenderer.invoke('silent-print-pure-exchange', htmlContent);
+}
+
+async function testPrint(printerType, htmlContent) {
+  return ipcRenderer.invoke('test-print', { printerType, htmlContent });
+}
+
 // Expose protected methods that allow the renderer process to use
 // the ipcRenderer without exposing the entire object
 contextBridge.exposeInMainWorld(
@@ -39,7 +68,17 @@ contextBridge.exposeInMainWorld(
     getWindowState: () => ipcRenderer.invoke('getWindowState'),
     setWindowState: (bounds) => ipcRenderer.send('setWindowState', bounds),
     // API configuration
-    getApiUrl: () => ipcRenderer.invoke('get-api-url')
+    getApiUrl: () => ipcRenderer.invoke('get-api-url'),
+    // Printer management
+    getAvailablePrinters: () => getAvailablePrinters(),
+    getPrinterSettings: () => getPrinterSettings(),
+    savePrinterSettings: (settings) => savePrinterSettings(settings),
+    silentPrintToken: (htmlContent) => silentPrintToken(htmlContent),
+    silentPrintSkinTest: (htmlContent) => silentPrintSkinTest(htmlContent),
+    silentPrintPureExchange: (htmlContent) => silentPrintPureExchange(htmlContent),
+    testPrint: (printerType, htmlContent) => testPrint(printerType, htmlContent),
+    // Check if we're running in Electron
+    isElectron: true
   }
 );
 

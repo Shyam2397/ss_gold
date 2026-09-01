@@ -52,7 +52,7 @@ export const generatePrintContent = (tokenData, logoBase64) => {
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Allura&display=swap');
           @page { 
             size: 80mm auto; 
-            margin: 0; 
+            margin: 0 8mm 0 0; 
           }
           body { 
             font-family: 'Poppins', Arial, sans-serif; 

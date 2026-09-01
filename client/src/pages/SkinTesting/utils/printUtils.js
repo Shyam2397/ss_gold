@@ -1,20 +1,54 @@
 import { formatDateForDisplay, formatTimeForDisplay } from './validation';
 import logo from '../../../assets/logo.png';
 
-export const printData = (data, valuesOnly = false) => {
-  // Create a new window with larger dimensions
-  const printWindow = window.open('', '_blank', 'width=900,height=600,left=100,top=100');
-  
-  // Check if we need to use silver fineness instead of gold
+const preloadImage = (imgSrc) =>
+  new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = imgSrc;
+  });
+
+const convertImageToBase64 = async (imgSrc) => {
+  try {
+    const img = await preloadImage(imgSrc);
+    const canvas = document.createElement('canvas');
+    canvas.width = img.naturalWidth || img.width;
+    canvas.height = img.naturalHeight || img.height;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+    return canvas.toDataURL('image/png');
+  } catch (error) {
+    console.warn('Failed to convert logo to base64, will fall back to raw URL:', error);
+    return imgSrc;
+  }
+};
+
+const base64LogoCache = { value: null, pending: null };
+const getBase64Logo = async (fallbackSrc) => {
+  if (base64LogoCache.value) return base64LogoCache.value;
+  if (base64LogoCache.pending) return base64LogoCache.pending;
+  base64LogoCache.pending = (async () => {
+    try {
+      const data = await convertImageToBase64(fallbackSrc);
+      base64LogoCache.value = data;
+      return data;
+    } finally {
+      base64LogoCache.pending = null;
+    }
+  })();
+  return base64LogoCache.pending;
+};
+
+export const generatePrintContent = (data, logoSrc = logo, valuesOnly = false) => {
   const goldFineness = parseFloat(data.gold_fineness) || 0;
   const silverValue = parseFloat(data.silver) || 0;
   const useSilver = goldFineness === 0 && silverValue > 0;
-  
-  // Calculate karat based on whether we're using silver or gold
+
   const finenessValue = useSilver ? silverValue : goldFineness;
   const karatValue = finenessValue > 0 ? (finenessValue / 4.1667).toFixed(2) : '';
-  
-  // Determine fineness label and value
+
   const finenessLabel = useSilver ? 'SILVER FINENESS %' : 'GOLD FINENESS %';
   const finenessDisplay = finenessValue > 0 ? finenessValue.toFixed(2) + ' %' : '-';
   const karatDisplay = karatValue ? karatValue + ' K' : '-';
@@ -62,9 +96,8 @@ export const printData = (data, valuesOnly = false) => {
   const infoGridPaddingTop = vo ? 'padding-top: 1mm;' : '';
   const goldInfoBarMarginTop = vo ? 'margin-top: 1mm;' : '';
   const elementsTableMarginTop = vo ? 'margin-top: 1mm;' : '';
-  
-  // Create the content
-  const content = `
+
+  return `
     <html>
     <head>
       <meta charset="UTF-8" />
@@ -77,7 +110,7 @@ export const printData = (data, valuesOnly = false) => {
         @page {
           size: A4 portrait;
           margin: 0;
-          size: 210mm 297mm; /* A4 dimensions in mm */
+          size: 210mm 297mm;
           padding: 0;
         }
         
@@ -103,7 +136,6 @@ export const printData = (data, valuesOnly = false) => {
           padding: 2mm 6mm;
         }
 
-        /* HEADER */
         .header {
           display: flex;
           justify-content: space-between;
@@ -144,8 +176,6 @@ export const printData = (data, valuesOnly = false) => {
           margin-bottom: 0;
         }
         
-        /*#4CBB17 - Kelly Green,#008000 - Green*/
-        
         .company-info p:nth-child(2),
         .company-info p:nth-child(3) {
           ${companyInfoP23Color}
@@ -155,7 +185,6 @@ export const printData = (data, valuesOnly = false) => {
           user-select: text;
         }
 
-        /* MAIN INFO ROW */
         .main-info {
           padding: 0 53px;
           font-size: 9.5pt;
@@ -210,9 +239,6 @@ export const printData = (data, valuesOnly = false) => {
           padding-left: 16px;
         }
 
-        /*#4CBB17 - Kelly Green,#008000 - Green*/
-
-        /* GOLD INFO BAR */
         .gold-info-bar {
           ${goldInfoBarBg}
           font-weight: 900;
@@ -239,7 +265,6 @@ export const printData = (data, valuesOnly = false) => {
         .gold-info-bar.silver-mode {
           padding: 8px 40px;
         }
-        /* ELEMENTS TABLE */
         .elements-table {
           display: grid;
           grid-template-columns: repeat(4, max-content 8px auto 16px);
@@ -271,7 +296,6 @@ export const printData = (data, valuesOnly = false) => {
           ${elementsTableValueStyle}
         }
 
-        /* REMARKS AUTHORIZED */
         .remarks-authorized {
           display: grid;
           grid-template-columns: repeat(4, 1fr);
@@ -294,7 +318,6 @@ export const printData = (data, valuesOnly = false) => {
           ${remarksLabelStyle}
         }
 
-        /* FOOTER MESSAGE */
         .footer-message {
           font-family: 'Allura', cursive;
           font-size: 14pt;
@@ -311,7 +334,7 @@ export const printData = (data, valuesOnly = false) => {
       <div class="container" role="document" aria-label="SS Gold certificate layout">
         <header class="header">
           <div class="logo" aria-label="SS Gold Logo">
-            <img src="${logo}" alt="SS GOLD Logo" style="height: 78px;" />
+            <img src="${logoSrc}" alt="SS GOLD Logo" style="height: 78px;" />
             <span style="${logoSpanStyle}">SS GOLD</span>
           </div>
           <div class="company-info" aria-label="Company details: Computer X-ray Testing, 59 Main Bazaar, Nilakottai 624208, Phone number 8903225544">
@@ -365,7 +388,6 @@ export const printData = (data, valuesOnly = false) => {
               </div>
               <span id="weight" class="value">${data.weight ? parseFloat(data.weight).toFixed(3) + ' g' : '-'}</span>
             </div>
-            <!-- Add two empty divs to complete the 3x4 grid -->
             <div class="grid-item"></div>
             <div class="grid-item"></div>
           </div>
@@ -379,25 +401,21 @@ export const printData = (data, valuesOnly = false) => {
         </section>
 
         <section class="elements-table" aria-label="Elemental composition values">
-          <!-- Row 1 -->
           <div class="label">${useSilver ? 'Gold' : 'Silver'}</div><div class="colon">:</div><div class="value">${useSilver ? (data.gold_fineness && parseFloat(data.gold_fineness) !== 0 ? parseFloat(data.gold_fineness).toFixed(2) : '-') : (data.silver && parseFloat(data.silver) !== 0 ? parseFloat(data.silver).toFixed(2) : '-')}</div><div></div>
           <div class="label">Nickel</div><div class="colon">:</div><div class="value">${data.nickel && parseFloat(data.nickel) !== 0 ? parseFloat(data.nickel).toFixed(2) : '-'}</div><div></div>
           <div class="label">Osmium</div><div class="colon">:</div><div class="value">${data.osmium && parseFloat(data.osmium) !== 0 ? parseFloat(data.osmium).toFixed(2) : '-'}</div><div></div>
           <div class="label">Titanium</div><div class="colon">:</div><div class="value">${data.titanium && parseFloat(data.titanium) !== 0 ? parseFloat(data.titanium).toFixed(2) : '-'}</div><div></div>
           
-          <!-- Row 2 -->
           <div class="label">Copper</div><div class="colon">:</div><div class="value">${data.copper && parseFloat(data.copper) !== 0 ? parseFloat(data.copper).toFixed(2) : '-'}</div><div></div>
           <div class="label">Tungsten</div><div class="colon">:</div><div class="value">${data.tungsten && parseFloat(data.tungsten) !== 0 ? parseFloat(data.tungsten).toFixed(2) : '-'}</div><div></div>
           <div class="label">Rhodium</div><div class="colon">:</div><div class="value">${data.rhodium && parseFloat(data.rhodium) !== 0 ? parseFloat(data.rhodium).toFixed(2) : '-'}</div><div></div>
           <div class="label">Palladium</div><div class="colon">:</div><div class="value">${data.palladium && parseFloat(data.palladium) !== 0 ? parseFloat(data.palladium).toFixed(2) : '-'}</div><div></div>
           
-          <!-- Row 3 -->
           <div class="label">Zinc</div><div class="colon">:</div><div class="value">${data.zinc && parseFloat(data.zinc) !== 0 ? parseFloat(data.zinc).toFixed(2) : '-'}</div><div></div>
           <div class="label">Iridium</div><div class="colon">:</div><div class="value">${data.iridium && parseFloat(data.iridium) !== 0 ? parseFloat(data.iridium).toFixed(2) : '-'}</div><div></div>
           <div class="label">Rhenium</div><div class="colon">:</div><div class="value">${data.rhenium && parseFloat(data.rhenium) !== 0 ? parseFloat(data.rhenium).toFixed(2) : '-'}</div><div></div>
           <div class="label">Platinum</div><div class="colon">:</div><div class="value">${data.platinum && parseFloat(data.platinum) !== 0 ? parseFloat(data.platinum).toFixed(2) : '-'}</div><div></div>
           
-          <!-- Row 4 -->
           <div class="label">Cadmium</div><div class="colon">:</div><div class="value">${data.cadmium && parseFloat(data.cadmium) !== 0 ? parseFloat(data.cadmium).toFixed(2) : '-'}</div><div></div>
           <div class="label">Ruthenium</div><div class="colon">:</div><div class="value">${data.ruthenium && parseFloat(data.ruthenium) !== 0 ? parseFloat(data.ruthenium).toFixed(2) : '-'}</div><div></div>
           <div class="label">Indium</div><div class="colon">:</div><div class="value">${data.indium && parseFloat(data.indium) !== 0 ? parseFloat(data.indium).toFixed(2) : '-'}</div><div></div>
@@ -418,12 +436,30 @@ export const printData = (data, valuesOnly = false) => {
     </body>
     </html>
   `;
+};
 
-  // Write the content to the window
+export const printData = async (data, valuesOnly = false) => {
+  const isElectronEnv = window.electron && window.electron.isElectron;
+  const logoSrc = isElectronEnv ? await getBase64Logo(logo) : logo;
+  const content = generatePrintContent(data, logoSrc, valuesOnly);
+
+  if (isElectronEnv) {
+    try {
+      const result = await window.electron.silentPrintSkinTest(content);
+      if (!result.success) {
+        throw new Error(result.error || 'Silent print failed');
+      }
+      return;
+    } catch (error) {
+      console.error('Electron silent print failed, falling back to window print:', error);
+    }
+  }
+
+  const printWindow = window.open('', '_blank', 'width=900,height=600,left=100,top=100');
+
   printWindow.document.write(content);
   printWindow.document.close();
 
-  // Print after everything is loaded
   printWindow.onload = () => {
     setTimeout(() => {
       printWindow.print();

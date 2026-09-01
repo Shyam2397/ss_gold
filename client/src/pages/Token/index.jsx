@@ -313,18 +313,33 @@ const TokenPage = () => {
       };
 
       const printContent = generatePrintContent(tokenData, base64Logo);
-      
-      const printWindow = window.open('', '', 'width=800,height=400');
-      printWindow.document.write(printContent);
-      printWindow.document.close();
-      
-      setTimeout(() => {
-        printWindow.print();
-        printWindow.close();
-      }, 250);
+
+      const isElectronEnv = window.electron && window.electron.isElectron;
+
+      if (isElectronEnv) {
+        dispatch({ type: 'SET_FIELD', field: 'success', value: 'Sending to printer...' });
+        const result = await window.electron.silentPrintToken(printContent);
+        if (result.success) {
+          dispatch({ type: 'SET_FIELD', field: 'success', value: 'Token printed successfully!' });
+          setTimeout(() => {
+            dispatch({ type: 'SET_FIELD', field: 'success', value: '' });
+          }, 3000);
+        } else {
+          throw new Error(result.error || 'Silent print failed');
+        }
+      } else {
+        const printWindow = window.open('', '', 'width=800,height=400');
+        printWindow.document.write(printContent);
+        printWindow.document.close();
+        
+        setTimeout(() => {
+          printWindow.print();
+          printWindow.close();
+        }, 250);
+      }
     } catch (error) {
       console.error('Print error:', error);
-      dispatch({ type: 'SET_FIELD', field: 'error', value: 'Failed to print token' });
+      dispatch({ type: 'SET_FIELD', field: 'error', value: 'Failed to print token: ' + (error.message || 'Unknown error') });
     }
   }, [state.tokenNo, state.date, state.time, state.name, state.test, state.weight, state.sample, state.amount]);
 

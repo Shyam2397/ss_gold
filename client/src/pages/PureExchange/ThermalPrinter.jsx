@@ -1,14 +1,12 @@
 import { FiPrinter } from 'react-icons/fi';
 
 const ThermalPrinter = ({ tableData }) => {
-  const printContent = () => {
-    const printWindow = window.open('', '', 'width=800,height=400');
-    
+  const printContent = async () => {
     // Format the current date and time
     const firstRow = tableData[0] || {};
     
-    // Set up the print window styles for 80mm thermal printer
-    printWindow.document.write(`
+    // Generate HTML content for 80mm thermal printer
+    const htmlContent = `
       <html>
         <head>
           <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Allura&display=swap" rel="stylesheet">
@@ -17,7 +15,7 @@ const ThermalPrinter = ({ tableData }) => {
             
             @page {
               size: 80mm auto;
-              margin: 0;
+              margin: 0 8mm 0 0;
             }
             body {
               font-family: 'Poppins', sans-serif;
@@ -177,16 +175,41 @@ const ThermalPrinter = ({ tableData }) => {
           </div>
         </body>
       </html>
-    `);
-    
-    printWindow.document.close();
-    printWindow.focus();
-    
-    // Print after a small delay to ensure styles are loaded
-    setTimeout(() => {
-      printWindow.print();
-      printWindow.close();
-    }, 250);
+    `;
+
+    // Check if running in Electron environment
+    const isElectronEnv = window.electron && window.electron.isElectron;
+
+    if (isElectronEnv) {
+      try {
+        // Use silent printing via Electron
+        const result = await window.electron.silentPrintPureExchange(htmlContent);
+        if (!result.success) {
+          throw new Error(result.error || 'Silent print failed');
+        }
+      } catch (error) {
+        console.error('Electron print error:', error);
+        // Fallback to window.open if Electron print fails
+        const printWindow = window.open('', '', 'width=800,height=400');
+        printWindow.document.write(htmlContent);
+        printWindow.document.close();
+        printWindow.focus();
+        setTimeout(() => {
+          printWindow.print();
+          printWindow.close();
+        }, 250);
+      }
+    } else {
+      // Fallback for non-Electron environment
+      const printWindow = window.open('', '', 'width=800,height=400');
+      printWindow.document.write(htmlContent);
+      printWindow.document.close();
+      printWindow.focus();
+      setTimeout(() => {
+        printWindow.print();
+        printWindow.close();
+      }, 250);
+    }
   };
 
   return (
