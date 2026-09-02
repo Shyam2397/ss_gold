@@ -35,84 +35,27 @@ const ORIENTATIONS = [
 ];
 
 const QUALITY_OPTIONS = [
-  { value: "Draft", label: "Draft" },
-  { value: "Draft Vivid", label: "Draft Vivid" },
-  { value: "Standard", label: "Standard" },
-  { value: "Standard Vivid", label: "Standard Vivid" },
-  { value: "High", label: "High" },
+  { value: "draft", label: "Draft" },
+  { value: "standard", label: "Standard" },
+  { value: "high", label: "High" },
 ];
 
-const normalizeQualityValue = (value = "") => {
-  return String(value)
-    .trim()
-    .toLowerCase()
-    .replace(/[_\-\s]+/g, " ")
-    .replace(/\s+/g, " ");
+// Older saved settings may contain values like "High", "Standard Vivid", "medium".
+const QUALITY_ALIASES = {
+  draft: "draft",
+  "draft vivid": "draft",
+  low: "draft",
+  standard: "standard",
+  "standard vivid": "standard",
+  normal: "standard",
+  medium: "standard",
+  high: "high",
+  best: "high",
 };
 
-const getQualityOptionsForPrinter = (printerName = "", printers = []) => {
-  const normalizedName = (printerName || "").toLowerCase();
-
-  const selectedPrinter = printers.find((printer) => {
-    const candidateNames = [printer?.name, printer?.displayName].filter(Boolean).map((value) => value.toLowerCase());
-    return candidateNames.includes(normalizedName) || candidateNames.some((value) => value.includes(normalizedName));
-  });
-
-  const supportedQualityValues = [];
-  const printerOptions = selectedPrinter?.options || {};
-  const qualityCandidates = [
-    printerOptions.quality,
-    printerOptions.printQuality,
-    printerOptions.printerQuality,
-    printerOptions.qualityMode,
-    printerOptions.qualityOptions,
-  ];
-
-  qualityCandidates.forEach((candidate) => {
-    if (Array.isArray(candidate)) {
-      candidate.forEach((value) => supportedQualityValues.push(String(value)));
-      return;
-    }
-
-    if (candidate && typeof candidate === "object") {
-      Object.values(candidate).forEach((value) => supportedQualityValues.push(String(value)));
-      return;
-    }
-
-    if (typeof candidate === "string") {
-      supportedQualityValues.push(candidate);
-    }
-  });
-
-  if (supportedQualityValues.length > 0) {
-    const filtered = QUALITY_OPTIONS.filter((option) =>
-      supportedQualityValues.some((value) => normalizeQualityValue(value) === normalizeQualityValue(option.value))
-    );
-
-    if (filtered.length > 0) {
-      return filtered;
-    }
-  }
-
-  if (normalizedName.includes("l3210")) {
-    return [
-      { value: "Draft", label: "Draft" },
-      { value: "Draft Vivid", label: "Draft Vivid" },
-      { value: "Standard", label: "Standard" },
-      { value: "Standard Vivid", label: "Standard Vivid" },
-      { value: "High", label: "High" },
-    ];
-  }
-
-  if (normalizedName.includes("l8050")) {
-    return [
-      { value: "Draft", label: "Draft" },
-      { value: "Standard", label: "Standard" },
-      { value: "High", label: "High" },
-    ];
-  }
-
-  return QUALITY_OPTIONS;
+const normalizeQualityValue = (value = "") => {
+  const key = String(value).trim().toLowerCase().replace(/[_\-\s]+/g, " ");
+  return QUALITY_ALIASES[key] || "high";
 };
 
 const COLOR_OPTIONS = [
@@ -236,6 +179,7 @@ const PrinterCard = ({
   settings,
   onChange,
   printers,
+  capabilities,
   paperSizes,
   loading,
   onRefreshPrinters,
@@ -248,10 +192,11 @@ const PrinterCard = ({
     onChange((prev) => ({ ...prev, [key]: value }));
   };
 
-  const qualityOptions = getQualityOptionsForPrinter(settings.printerName, printers);
-  const selectedQuality = qualityOptions.some((option) => option.value === settings.quality)
-    ? settings.quality
-    : qualityOptions[0]?.value || "standard";
+  const qualityOptions = capabilities?.qualityOptions?.length ? capabilities.qualityOptions : QUALITY_OPTIONS;
+  const normalizedQuality = normalizeQualityValue(settings.quality);
+  const selectedQuality = qualityOptions.some((option) => option.value === normalizedQuality)
+    ? normalizedQuality
+    : qualityOptions[qualityOptions.length - 1].value;
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-amber-100 overflow-hidden">
@@ -347,6 +292,11 @@ const PrinterCard = ({
             onChange={(v) => updateField("quality", v)}
             options={qualityOptions}
           />
+          {capabilities?.source === "driver" && (
+            <p className="text-xs text-amber-600 -mt-2 sm:col-span-2">
+              Quality levels read from the printer driver. Draft/Standard/High are applied to the driver before every print.
+            </p>
+          )}
           <SelectField
             label="Color Mode"
             icon={FiSettings}
@@ -379,7 +329,7 @@ const PrinterCard = ({
             className="flex items-center px-4 py-2 border border-amber-300 text-amber-700 rounded-lg hover:bg-amber-50 transition-all text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <FiEye className="w-4 h-4 mr-1.5" />
-            Test Preview
+            Test Print
           </button>
           <button
             onClick={onSave}
@@ -423,8 +373,31 @@ const Settings = () => {
   const [tokenSaveStatus, setTokenSaveStatus] = useState("idle");
   const [skinTestSaveStatus, setSkinTestSaveStatus] = useState("idle");
   const [globalMessage, setGlobalMessage] = useState(null);
+  const [tokenCapabilities, setTokenCapabilities] = useState(null);
+  const [skinTestCapabilities, setSkinTestCapabilities] = useState(null);
 
   const isElectronEnv = isElectron();
+
+  const loadCapabilities = useCallback(async (printerName, setter) => {
+    if (!isElectronEnv || !printerName || !window.electron.getPrinterCapabilities) {
+      setter(null);
+      return;
+    }
+    try {
+      setter(await window.electron.getPrinterCapabilities(printerName));
+    } catch (error) {
+      console.error("Failed to load printer capabilities:", error);
+      setter(null);
+    }
+  }, [isElectronEnv]);
+
+  useEffect(() => {
+    loadCapabilities(tokenSettings.printerName, setTokenCapabilities);
+  }, [tokenSettings.printerName, loadCapabilities]);
+
+  useEffect(() => {
+    loadCapabilities(skinTestSettings.printerName, setSkinTestCapabilities);
+  }, [skinTestSettings.printerName, loadCapabilities]);
 
   const loadPrinters = useCallback(async () => {
     if (!isElectronEnv) return;
@@ -534,10 +507,11 @@ const Settings = () => {
           <div class="row"><span>Amount</span><span>₹100</span></div>
           <div class="footer">--- Test Print Successful ---</div>
         </body></html>`;
-      await window.electron.testPrint("token", testHtml);
-      showMessage("success", "Token test preview opened!");
+      const result = await window.electron.testPrint("token", testHtml);
+      if (result && result.success === false) throw new Error(result.error);
+      showMessage("success", result?.message || "Token test print sent!");
     } catch (error) {
-      showMessage("error", "Test preview failed: " + error.message);
+      showMessage("error", "Test print failed: " + error.message);
     }
   };
 
@@ -572,10 +546,11 @@ const Settings = () => {
           </div>
           <div class="footer">--- Test Print Successful - Visit Again ---</div>
         </body></html>`;
-      await window.electron.testPrint("skinTest", testHtml);
-      showMessage("success", "Skin Test preview opened!");
+      const result = await window.electron.testPrint("skinTest", testHtml);
+      if (result && result.success === false) throw new Error(result.error);
+      showMessage("success", result?.message || "Skin Test test print sent!");
     } catch (error) {
-      showMessage("error", "Test preview failed: " + error.message);
+      showMessage("error", "Test print failed: " + error.message);
     }
   };
 
@@ -623,6 +598,7 @@ const Settings = () => {
           settings={tokenSettings}
           onChange={setTokenSettings}
           printers={printers}
+          capabilities={tokenCapabilities}
           paperSizes={PAPER_SIZES_TOKEN}
           loading={loading}
           onRefreshPrinters={loadPrinters}
@@ -640,6 +616,7 @@ const Settings = () => {
           settings={skinTestSettings}
           onChange={setSkinTestSettings}
           printers={printers}
+          capabilities={skinTestCapabilities}
           paperSizes={PAPER_SIZES_SKINTEST}
           loading={loading}
           onRefreshPrinters={loadPrinters}

@@ -20,6 +20,10 @@ async function getAvailablePrinters() {
   return ipcRenderer.invoke('get-available-printers');
 }
 
+async function getPrinterCapabilities(printerName) {
+  return ipcRenderer.invoke('get-printer-capabilities', printerName);
+}
+
 async function getPrinterSettings() {
   return ipcRenderer.invoke('get-printer-settings');
 }
@@ -71,6 +75,7 @@ contextBridge.exposeInMainWorld(
     getApiUrl: () => ipcRenderer.invoke('get-api-url'),
     // Printer management
     getAvailablePrinters: () => getAvailablePrinters(),
+    getPrinterCapabilities: (printerName) => getPrinterCapabilities(printerName),
     getPrinterSettings: () => getPrinterSettings(),
     savePrinterSettings: (settings) => savePrinterSettings(settings),
     silentPrintToken: (htmlContent) => silentPrintToken(htmlContent),

@@ -595,6 +595,19 @@ ipcMain.handle('save-printer-settings', async (event, settings) => {
   }
 });
 
+// ------------------------------------------------------------
+// Driver-level print options
+//
+// Electron's webContents.print() only understands a handful of options
+// (deviceName, copies, color, landscape, pageSize, margins...). Quality,
+// paper type and paper source are NOT part of that API and are silently
+// ignored, so they have to be pushed to the printer driver itself:
+//   - Windows: the printer queue's user PrintTicket (System.Printing) is
+//     updated via PowerShell before the job is sent, so the driver applies
+//     Draft/Normal/High, media type and input bin.
+//   - Linux/macOS: the page is rendered to PDF and sent with `lp -o ...`.
+// ------------------------------------------------------------
+
 const normalizePrinterQuality = (value = '') => {
   return String(value)
     .trim()
@@ -603,102 +616,268 @@ const normalizePrinterQuality = (value = '') => {
     .toLowerCase();
 };
 
-const getFallbackPrinterQualityOptions = (printerName = '') => {
-  const normalizedName = (printerName || '').toLowerCase();
-
-  if (normalizedName.includes('l3210')) {
-    return ['Draft', 'Draft Vivid', 'Standard', 'Standard Vivid', 'High'];
-  }
-
-  if (normalizedName.includes('l8050')) {
-    return ['Draft', 'Standard', 'High'];
-  }
-
-  return ['Draft', 'Standard', 'High'];
+// App quality value -> canonical level: 'draft' | 'standard' | 'high'
+const QUALITY_LEVEL_ALIASES = {
+  draft: 'draft',
+  'draft vivid': 'draft',
+  low: 'draft',
+  standard: 'standard',
+  'standard vivid': 'standard',
+  normal: 'standard',
+  medium: 'standard',
+  high: 'high',
+  best: 'high',
+  photo: 'high',
+  photographic: 'high',
 };
 
-const getPrinterSupportedQualityOptions = async (printerName = '') => {
-  const fallback = getFallbackPrinterQualityOptions(printerName);
+const resolveQualityLevel = (quality = '') => {
+  return QUALITY_LEVEL_ALIASES[normalizePrinterQuality(quality)] || 'high';
+};
 
-  if (!printerName || !mainWindow || mainWindow.isDestroyed()) {
+const WINDOWS_OUTPUT_QUALITY = { draft: 'Draft', standard: 'Normal', high: 'High' };
+const CUPS_PRINT_QUALITY = { draft: 3, standard: 4, high: 5 };
+
+const WINDOWS_MEDIA_TYPE = {
+  plain: 'Plain',
+  thin: 'Plain',
+  thick: 'CardStock',
+  cardstock: 'CardStock',
+  glossy: 'PhotographicGlossy',
+  transparency: 'Transparency',
+  labels: 'Label',
+  envelope: 'Envelope',
+  thermal: 'Plain',
+};
+
+const CUPS_MEDIA_TYPE = {
+  plain: 'stationery',
+  thin: 'stationery-lightweight',
+  thick: 'stationery-heavyweight',
+  cardstock: 'cardstock',
+  glossy: 'photographic-glossy',
+  transparency: 'transparency',
+  labels: 'labels',
+  envelope: 'envelope',
+  thermal: 'stationery',
+};
+
+const WINDOWS_INPUT_BIN = {
+  upper: 'Cassette',
+  lower: 'Cassette',
+  manual: 'Manual',
+  multi: 'AutoSelect',
+};
+
+const CUPS_INPUT_SLOT = {
+  upper: 'Upper',
+  lower: 'Lower',
+  manual: 'Manual',
+  multi: 'MultiPurpose',
+};
+
+const WINDOWS_MEDIA_SIZE = {
+  a4: 'ISOA4',
+  a5: 'ISOA5',
+  letter: 'NorthAmericaLetter',
+  legal: 'NorthAmericaLegal',
+};
+
+const CUPS_MEDIA_SIZE = {
+  a4: 'A4',
+  a5: 'A5',
+  letter: 'Letter',
+  legal: 'Legal',
+};
+
+const runPowerShell = (script, env = {}) => {
+  return new Promise((resolve, reject) => {
+    const child = spawn(
+      'powershell.exe',
+      ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', '-'],
+      { env: { ...process.env, ...env }, windowsHide: true }
+    );
+
+    let stdout = '';
+    let stderr = '';
+    child.stdout.on('data', (d) => { stdout += d.toString(); });
+    child.stderr.on('data', (d) => { stderr += d.toString(); });
+    child.on('error', reject);
+    child.on('close', (code) => {
+      if (code === 0) {
+        resolve(stdout.trim());
+      } else {
+        reject(new Error(stderr.trim() || `PowerShell exited with code ${code}`));
+      }
+    });
+
+    child.stdin.end(script);
+  });
+};
+
+// Everything the driver needs is passed through environment variables so
+// printer names / values are never interpolated into the script itself.
+const WINDOWS_APPLY_PREFERENCES_SCRIPT = `
+$ErrorActionPreference = 'Stop'
+Add-Type -AssemblyName System.Printing
+Add-Type -AssemblyName ReachFramework
+$server = New-Object System.Printing.LocalPrintServer
+$queue = $server.GetPrintQueue($env:SSG_PRINTER_NAME)
+$ticket = $queue.UserPrintTicket
+if (-not $ticket) { $ticket = New-Object System.Printing.PrintTicket }
+$caps = $queue.GetPrintCapabilities()
+
+function Set-IfSupported($capList, $enumType, $value, $apply) {
+  if (-not $value) { return $false }
+  $enumValue = [Enum]::Parse($enumType, $value)
+  if ($capList -and ($capList -notcontains $enumValue)) { return $false }
+  & $apply $enumValue
+  return $true
+}
+
+$applied = @{}
+$applied.quality = Set-IfSupported $caps.OutputQualityCapability ([System.Printing.OutputQuality]) $env:SSG_QUALITY { param($v) $ticket.OutputQuality = $v }
+$applied.mediaType = Set-IfSupported $caps.PageMediaTypeCapability ([System.Printing.PageMediaType]) $env:SSG_MEDIA_TYPE { param($v) $ticket.PageMediaType = $v }
+$applied.inputBin = Set-IfSupported $caps.InputBinCapability ([System.Printing.InputBin]) $env:SSG_INPUT_BIN { param($v) $ticket.InputBin = $v }
+$applied.color = Set-IfSupported $caps.OutputColorCapability ([System.Printing.OutputColor]) $env:SSG_COLOR { param($v) $ticket.OutputColor = $v }
+$applied.orientation = Set-IfSupported $caps.PageOrientationCapability ([System.Printing.PageOrientation]) $env:SSG_ORIENTATION { param($v) $ticket.PageOrientation = $v }
+
+if ($env:SSG_MEDIA_SIZE) {
+  $sizeName = [Enum]::Parse([System.Printing.PageMediaSizeName], $env:SSG_MEDIA_SIZE)
+  $match = $caps.PageMediaSizeCapability | Where-Object { $_.PageMediaSizeName -eq $sizeName } | Select-Object -First 1
+  if ($match) { $ticket.PageMediaSize = $match; $applied.mediaSize = $true } else { $applied.mediaSize = $false }
+}
+
+$queue.UserPrintTicket = $ticket
+$queue.Commit()
+$applied | ConvertTo-Json -Compress
+`;
+
+const WINDOWS_CAPABILITIES_SCRIPT = `
+$ErrorActionPreference = 'Stop'
+Add-Type -AssemblyName System.Printing
+Add-Type -AssemblyName ReachFramework
+$server = New-Object System.Printing.LocalPrintServer
+$queue = $server.GetPrintQueue($env:SSG_PRINTER_NAME)
+$caps = $queue.GetPrintCapabilities()
+$result = @{
+  qualities = @($caps.OutputQualityCapability | ForEach-Object { $_.ToString() })
+  mediaTypes = @($caps.PageMediaTypeCapability | ForEach-Object { $_.ToString() })
+  inputBins = @($caps.InputBinCapability | ForEach-Object { $_.ToString() })
+  colors = @($caps.OutputColorCapability | ForEach-Object { $_.ToString() })
+}
+$result | ConvertTo-Json -Compress
+`;
+
+const buildWindowsDriverEnv = (settings) => {
+  const level = resolveQualityLevel(settings.quality);
+  const size = String(settings.documentSize || '').toLowerCase();
+  return {
+    SSG_PRINTER_NAME: settings.printerName,
+    SSG_QUALITY: WINDOWS_OUTPUT_QUALITY[level],
+    SSG_MEDIA_TYPE: WINDOWS_MEDIA_TYPE[String(settings.paperType || '').toLowerCase()] || '',
+    SSG_INPUT_BIN: WINDOWS_INPUT_BIN[String(settings.paperSource || '').toLowerCase()] || '',
+    SSG_COLOR: settings.color ? (settings.color === 'color' ? 'Color' : 'Monochrome') : '',
+    SSG_ORIENTATION: settings.orientation ? (settings.orientation === 'landscape' ? 'Landscape' : 'Portrait') : '',
+    SSG_MEDIA_SIZE: WINDOWS_MEDIA_SIZE[size] || '',
+  };
+};
+
+// Pushes quality / media / tray to the Windows printer queue's user
+// preferences. Chromium reads those defaults when it builds the print job
+// for `deviceName`, so the subsequent webContents.print() honours them.
+const applyWindowsDriverPreferences = async (settings) => {
+  if (process.platform !== 'win32' || !settings.printerName) {
+    return null;
+  }
+  const env = buildWindowsDriverEnv(settings);
+  log.info(`Applying driver preferences to "${settings.printerName}": quality=${env.SSG_QUALITY} media=${env.SSG_MEDIA_TYPE || '-'} bin=${env.SSG_INPUT_BIN || '-'}`);
+  const output = await runPowerShell(WINDOWS_APPLY_PREFERENCES_SCRIPT, env);
+  const applied = output ? JSON.parse(output) : {};
+  log.info(`Driver preferences applied: ${JSON.stringify(applied)}`);
+  return applied;
+};
+
+const CANONICAL_QUALITY_LABELS = { draft: 'Draft', standard: 'Standard', high: 'High' };
+
+// Returns which of our quality levels the printer actually supports.
+const getPrinterCapabilities = async (printerName = '') => {
+  const allLevels = ['draft', 'standard', 'high'];
+  const fallback = { qualities: allLevels, mediaTypes: [], inputBins: [], colors: [], source: 'fallback' };
+
+  if (!printerName) {
     return fallback;
   }
 
-  try {
-    const printers = await mainWindow.webContents.getPrintersAsync();
-    const selectedPrinter = printers.find((printer) => {
-      const names = [printer?.name, printer?.displayName].filter(Boolean).map((value) => String(value).toLowerCase());
-      return names.includes(String(printerName).toLowerCase()) || names.some((value) => value.includes(String(printerName).toLowerCase()));
-    });
-
-    if (!selectedPrinter) {
+  if (process.platform === 'win32') {
+    try {
+      const output = await runPowerShell(WINDOWS_CAPABILITIES_SCRIPT, { SSG_PRINTER_NAME: printerName });
+      const caps = JSON.parse(output || '{}');
+      const driverQualities = (caps.qualities || []).map((q) => String(q).toLowerCase());
+      const qualities = allLevels.filter((level) =>
+        driverQualities.includes(WINDOWS_OUTPUT_QUALITY[level].toLowerCase())
+      );
+      return {
+        qualities: qualities.length > 0 ? qualities : allLevels,
+        mediaTypes: caps.mediaTypes || [],
+        inputBins: caps.inputBins || [],
+        colors: caps.colors || [],
+        source: 'driver',
+      };
+    } catch (error) {
+      log.warn(`Unable to read driver capabilities for "${printerName}": ${error.message}`);
       return fallback;
     }
-
-    const candidateValues = [];
-    const optionBag = selectedPrinter.options || {};
-    const qualitySources = [
-      optionBag.quality,
-      optionBag.printQuality,
-      optionBag.printerQuality,
-      optionBag.qualityMode,
-      optionBag.qualityOptions,
-      optionBag.printerOptions?.quality,
-      optionBag.printerOptions?.qualityMode,
-      optionBag.printerOptions?.printQuality,
-    ];
-
-    qualitySources.forEach((source) => {
-      if (Array.isArray(source)) {
-        source.forEach((value) => candidateValues.push(String(value)));
-        return;
-      }
-
-      if (source && typeof source === 'object') {
-        Object.values(source).forEach((value) => candidateValues.push(String(value)));
-        return;
-      }
-
-      if (typeof source === 'string' && source.trim()) {
-        candidateValues.push(source);
-      }
-    });
-
-    const uniqueValues = [...new Set(candidateValues.map((value) => value.trim()).filter(Boolean))];
-    const supported = uniqueValues.filter((value) => {
-      const normalized = normalizePrinterQuality(value);
-      return getFallbackPrinterQualityOptions(printerName).some((option) => normalizePrinterQuality(option) === normalized);
-    });
-
-    if (supported.length > 0) {
-      return supported;
-    }
-  } catch (error) {
-    log.warn(`Unable to read printer capability options for ${printerName}:`, error.message);
   }
 
-  return fallback;
+  // CUPS: print-quality 3/4/5 is a standard IPP attribute supported by
+  // essentially every queue, so all three levels are offered.
+  return { ...fallback, source: 'cups' };
 };
 
-const resolvePrinterQualityValue = async (printerName = '', selectedQuality = 'Standard') => {
-  const supported = await getPrinterSupportedQualityOptions(printerName);
-  const normalizedSelected = normalizePrinterQuality(selectedQuality || 'Standard');
+const buildCupsArgs = (settings, printerType) => {
+  const level = resolveQualityLevel(settings.quality);
+  const args = ['-d', settings.printerName, '-n', String(parseInt(settings.copies) || 1)];
+  const option = (value) => { args.push('-o', value); };
 
-  const exactMatch = supported.find((quality) => normalizePrinterQuality(quality) === normalizedSelected);
-  if (exactMatch) {
-    return exactMatch;
+  option(`print-quality=${CUPS_PRINT_QUALITY[level]}`);
+
+  const size = String(settings.documentSize || '').toLowerCase();
+  if (printerType === 'token') {
+    option(size.includes('58mm') ? 'media=Custom.58x150mm' : 'media=Custom.80x150mm');
+  } else if (CUPS_MEDIA_SIZE[size]) {
+    option(`media=${CUPS_MEDIA_SIZE[size]}`);
   }
 
-  const fallbackMatch = getFallbackPrinterQualityOptions(printerName).find((quality) => normalizePrinterQuality(quality) === normalizedSelected);
-  if (fallbackMatch) {
-    return fallbackMatch;
-  }
+  const mediaType = CUPS_MEDIA_TYPE[String(settings.paperType || '').toLowerCase()];
+  if (mediaType) option(`media-type=${mediaType}`);
 
-  return supported[0] || 'Standard';
+  const slot = CUPS_INPUT_SLOT[String(settings.paperSource || '').toLowerCase()];
+  if (slot) option(`InputSlot=${slot}`);
+
+  if (settings.orientation === 'landscape') option('landscape');
+  if (settings.color) option(settings.color === 'color' ? 'print-color-mode=color' : 'print-color-mode=monochrome');
+
+  return args;
+};
+
+const printPdfWithCups = (pdfPath, settings, printerType) => {
+  return new Promise((resolve, reject) => {
+    const args = [...buildCupsArgs(settings, printerType), pdfPath];
+    log.info(`lp ${args.join(' ')}`);
+    const child = spawn('lp', args);
+    let stderr = '';
+    child.stderr.on('data', (d) => { stderr += d.toString(); });
+    child.on('error', reject);
+    child.on('close', (code) => {
+      if (code === 0) resolve(true);
+      else reject(new Error(stderr.trim() || `lp exited with code ${code}`));
+    });
+  });
 };
 
 // Helper: Map our settings to Electron print options
-const mapSettingsToPrintOptions = async (settings, printerType) => {
+const mapSettingsToPrintOptions = (settings, printerType) => {
   const printOptions = {
     silent: settings.silentMode !== false,
     printBackground: true,
@@ -741,390 +920,204 @@ const mapSettingsToPrintOptions = async (settings, printerType) => {
     }
   }
 
-  if (settings.quality) {
-    const resolvedQuality = await resolvePrinterQualityValue(settings.printerName, settings.quality);
-    printOptions.quality = resolvedQuality;
-    log.info(`Mapped printer quality: ${settings.quality} -> ${printOptions.quality}`);
-  }
-
-  if (settings.paperSource) {
-    printOptions.paperSource = settings.paperSource;
-  }
-
   return printOptions;
 };
 
-ipcMain.handle('silent-print-token', async (event, htmlContent) => {
-  let printWindow = null;
-  try {
-    const settings = printerSettings.tokenPrinter;
-    log.info(`Starting token print to printer: ${settings.printerName || 'default'}`);
-    log.info(`Token print settings: copies=${settings.copies}, silent=${settings.silentMode}`);
+const mapSettingsToPdfOptions = (settings, printerType) => {
+  const printOptions = mapSettingsToPrintOptions(settings, printerType);
+  const pdfOptions = {
+    printBackground: true,
+    landscape: printOptions.landscape === true,
+    margins: { top: 0, bottom: 0, left: 0, right: 0 },
+  };
+  if (printOptions.pageSize) {
+    pdfOptions.pageSize = {
+      width: printOptions.pageSize.width / 25400,
+      height: printOptions.pageSize.height / 25400,
+    };
+  }
+  return pdfOptions;
+};
 
-    const paperSize = (settings.documentSize || '80mm').toLowerCase();
-    const is58mm = paperSize.includes('58mm');
-    const contentWidth = is58mm ? 220 : 305;
-
-    printWindow = new BrowserWindow({
-      width: contentWidth,
-      height: 600,
-      useContentSize: true,
-      show: false,
-      resizable: false,
-      minimizable: false,
-      maximizable: false,
-      fullscreenable: false,
-      frame: false,
-      webPreferences: {
-        nodeIntegration: false,
-        contextIsolation: true,
-        offscreen: false,
-      }
+const waitForRender = (webContents) => {
+  const ready = webContents.executeJavaScript(`
+    new Promise((resolve) => {
+      const done = () => setTimeout(resolve, 500);
+      if (document.readyState === 'complete') done();
+      else window.addEventListener('load', done);
     });
+  `);
+  const timeout = new Promise((resolve) => setTimeout(() => {
+    log.warn('Style loading timeout, proceeding with print anyway');
+    resolve();
+  }, 3000));
+  return Promise.race([ready, timeout]);
+};
 
+const electronPrint = (webContents, printOptions) => {
+  return new Promise((resolve, reject) => {
+    webContents.print(printOptions, (success, failureReason) => {
+      if (success) resolve(true);
+      else reject(new Error(failureReason || 'Print failed'));
+    });
+  });
+};
+
+// Renders HTML in a hidden window and prints it with the driver-level
+// options (quality, paper type, tray) applied. Returns the options used.
+const printHtmlWithDriverOptions = async (htmlContent, settings, printerType, windowOptions = {}) => {
+  const printOptions = mapSettingsToPrintOptions(settings, printerType);
+  log.info(`Mapped print options for ${printerType}: ${JSON.stringify(printOptions)}`);
+
+  const printWindow = new BrowserWindow({
+    useContentSize: true,
+    show: false,
+    resizable: false,
+    minimizable: false,
+    maximizable: false,
+    fullscreenable: false,
+    frame: false,
+    ...windowOptions,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      offscreen: false,
+    },
+  });
+
+  try {
     printWindow.webContents.setZoomLevel(0);
 
-    const printOptions = await mapSettingsToPrintOptions(settings, 'token');
-    log.info('Mapped print options for token:', JSON.stringify(printOptions));
-
-    await printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`);
-
-    await new Promise((resolve, reject) => {
-      let stylesLoaded = false;
-      let loadTimeout;
-
-      // Wait for styles to be fully loaded
-      printWindow.webContents.executeJavaScript(`
-        new Promise((resolve) => {
-          if (document.readyState === 'complete') {
-            // Wait a bit more for fonts to render
-            setTimeout(resolve, 500);
-          } else {
-            window.addEventListener('load', () => {
-              setTimeout(resolve, 500);
-            });
-          }
-        });
-      `).then(() => {
-        stylesLoaded = true;
-        clearTimeout(loadTimeout);
-        
-        printWindow.webContents.print(printOptions, (success, failureReason) => {
-          if (success) {
-            log.info('Token print completed successfully');
-            resolve(true);
-          } else {
-            log.error(`Token print failed: ${failureReason}`);
-            reject(new Error(failureReason || 'Print failed'));
-          }
-        });
-      }).catch((err) => {
-        if (!stylesLoaded) {
-          reject(new Error(`Failed to wait for styles: ${err.message}`));
-        }
-      });
-
-      // Timeout fallback
-      loadTimeout = setTimeout(() => {
-        if (!stylesLoaded) {
-          log.warn('Style loading timeout, proceeding with print anyway');
-          printWindow.webContents.print(printOptions, (success, failureReason) => {
-            if (success) {
-              log.info('Token print completed successfully (after timeout)');
-              resolve(true);
-            } else {
-              log.error(`Token print failed: ${failureReason}`);
-              reject(new Error(failureReason || 'Print failed'));
-            }
-          });
-        }
-      }, 3000);
-
+    const loadFailed = new Promise((_, reject) => {
       printWindow.webContents.once('did-fail-load', (e, ec, em) => {
-        clearTimeout(loadTimeout);
         reject(new Error(`Page load failed: ${em} (${ec})`));
       });
     });
+    await Promise.race([
+      printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`),
+      loadFailed,
+    ]);
+    await waitForRender(printWindow.webContents);
 
-    printWindow.destroy();
-    printWindow = null;
+    const useCups = process.platform !== 'win32' && !!settings.printerName;
+
+    if (useCups) {
+      const pdf = await printWindow.webContents.printToPDF(mapSettingsToPdfOptions(settings, printerType));
+      const pdfPath = path.join(os.tmpdir(), `ssgold-${printerType}-${Date.now()}.pdf`);
+      fs.writeFileSync(pdfPath, pdf);
+      try {
+        await printPdfWithCups(pdfPath, settings, printerType);
+      } finally {
+        fs.unlink(pdfPath, () => {});
+      }
+      return { ...printOptions, transport: 'cups', quality: resolveQualityLevel(settings.quality) };
+    }
+
+    let driver = null;
+    if (process.platform === 'win32' && settings.printerName) {
+      try {
+        driver = await applyWindowsDriverPreferences(settings);
+      } catch (error) {
+        log.warn(`Could not apply driver preferences, printing with driver defaults: ${error.message}`);
+      }
+    }
+
+    await electronPrint(printWindow.webContents, printOptions);
+    return { ...printOptions, transport: 'electron', quality: resolveQualityLevel(settings.quality), driver };
+  } finally {
+    if (!printWindow.isDestroyed()) {
+      printWindow.destroy();
+    }
+  }
+};
+
+ipcMain.handle('get-printer-capabilities', async (event, printerName) => {
+  try {
+    const caps = await getPrinterCapabilities(printerName);
+    return {
+      ...caps,
+      qualityOptions: caps.qualities.map((level) => ({ value: level, label: CANONICAL_QUALITY_LABELS[level] })),
+    };
+  } catch (error) {
+    log.error('Error getting printer capabilities:', error);
+    return { qualities: ['draft', 'standard', 'high'], qualityOptions: [], source: 'error', error: error.message };
+  }
+});
+
+ipcMain.handle('silent-print-token', async (event, htmlContent) => {
+  try {
+    const settings = printerSettings.tokenPrinter;
+    log.info(`Starting token print to printer: ${settings.printerName || 'default'}`);
+    log.info(`Token print settings: copies=${settings.copies}, silent=${settings.silentMode}, quality=${settings.quality}`);
+
+    const paperSize = (settings.documentSize || '80mm').toLowerCase();
+    const contentWidth = paperSize.includes('58mm') ? 220 : 305;
+
+    await printHtmlWithDriverOptions(htmlContent, settings, 'token', { width: contentWidth, height: 600 });
+    log.info('Token print completed successfully');
     return { success: true };
   } catch (error) {
     log.error('Error during token silent print:', error);
-    if (printWindow && !printWindow.isDestroyed()) {
-      printWindow.destroy();
-    }
     return { success: false, error: error.message };
   }
 });
 
 ipcMain.handle('silent-print-skintest', async (event, htmlContent) => {
-  let printWindow = null;
   try {
     const settings = printerSettings.skinTestPrinter;
     log.info(`Starting skin test print to printer: ${settings.printerName || 'default'}`);
-    log.info(`Skin test print settings: copies=${settings.copies}, silent=${settings.silentMode}`);
+    log.info(`Skin test print settings: copies=${settings.copies}, silent=${settings.silentMode}, quality=${settings.quality}, paperType=${settings.paperType}`);
 
-    printWindow = new BrowserWindow({
-      width: 850,
-      height: 1200,
-      useContentSize: true,
-      show: false,
-      resizable: false,
-      minimizable: false,
-      maximizable: false,
-      fullscreenable: false,
-      webPreferences: {
-        nodeIntegration: false,
-        contextIsolation: true,
-        offscreen: false,
-      }
-    });
-
-    printWindow.webContents.setZoomLevel(0);
-
-    const printOptions = await mapSettingsToPrintOptions(settings, 'skinTest');
-    log.info('Mapped print options for skintest:', JSON.stringify(printOptions));
-
-    await printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`);
-
-    await new Promise((resolve, reject) => {
-      let stylesLoaded = false;
-      let loadTimeout;
-
-      // Wait for styles to be fully loaded
-      printWindow.webContents.executeJavaScript(`
-        new Promise((resolve) => {
-          if (document.readyState === 'complete') {
-            // Wait a bit more for fonts to render
-            setTimeout(resolve, 500);
-          } else {
-            window.addEventListener('load', () => {
-              setTimeout(resolve, 500);
-            });
-          }
-        });
-      `).then(() => {
-        stylesLoaded = true;
-        clearTimeout(loadTimeout);
-        
-        printWindow.webContents.print(printOptions, (success, failureReason) => {
-          if (success) {
-            log.info('Skin test print completed successfully');
-            resolve(true);
-          } else {
-            log.error(`Skin test print failed: ${failureReason}`);
-            reject(new Error(failureReason || 'Print failed'));
-          }
-        });
-      }).catch((err) => {
-        if (!stylesLoaded) {
-          reject(new Error(`Failed to wait for styles: ${err.message}`));
-        }
-      });
-
-      // Timeout fallback
-      loadTimeout = setTimeout(() => {
-        if (!stylesLoaded) {
-          log.warn('Style loading timeout, proceeding with print anyway');
-          printWindow.webContents.print(printOptions, (success, failureReason) => {
-            if (success) {
-              log.info('Skin test print completed successfully (after timeout)');
-              resolve(true);
-            } else {
-              log.error(`Skin test print failed: ${failureReason}`);
-              reject(new Error(failureReason || 'Print failed'));
-            }
-          });
-        }
-      }, 3000);
-
-      printWindow.webContents.once('did-fail-load', (e, ec, em) => {
-        clearTimeout(loadTimeout);
-        reject(new Error(`Page load failed: ${em} (${ec})`));
-      });
-    });
-
-    printWindow.destroy();
-    printWindow = null;
+    await printHtmlWithDriverOptions(htmlContent, settings, 'skinTest', { width: 850, height: 1200 });
+    log.info('Skin test print completed successfully');
     return { success: true };
   } catch (error) {
     log.error('Error during skin test silent print:', error);
-    if (printWindow && !printWindow.isDestroyed()) {
-      printWindow.destroy();
-    }
     return { success: false, error: error.message };
   }
 });
 
 ipcMain.handle('silent-print-pure-exchange', async (event, htmlContent) => {
-  let printWindow = null;
   try {
     const settings = printerSettings.tokenPrinter; // Use same thermal printer settings as token
     log.info(`Starting pure exchange print to printer: ${settings.printerName || 'default'}`);
-    log.info(`Pure exchange print settings: copies=${settings.copies}, silent=${settings.silentMode}`);
 
     const paperSize = (settings.documentSize || '80mm').toLowerCase();
-    const is58mm = paperSize.includes('58mm');
-    const contentWidth = is58mm ? 220 : 305;
+    const contentWidth = paperSize.includes('58mm') ? 220 : 305;
 
-    printWindow = new BrowserWindow({
-      width: contentWidth,
-      height: 600,
-      useContentSize: true,
-      show: false,
-      resizable: false,
-      minimizable: false,
-      maximizable: false,
-      fullscreenable: false,
-      frame: false,
-      webPreferences: {
-        nodeIntegration: false,
-        contextIsolation: true,
-        offscreen: false,
-      }
-    });
-
-    printWindow.webContents.setZoomLevel(0);
-
-    const printOptions = await mapSettingsToPrintOptions(settings, 'token');
-    log.info('Mapped print options for pure exchange:', JSON.stringify(printOptions));
-
-    await printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`);
-
-    await new Promise((resolve, reject) => {
-      let stylesLoaded = false;
-      let loadTimeout;
-
-      // Wait for styles to be fully loaded
-      printWindow.webContents.executeJavaScript(`
-        new Promise((resolve) => {
-          if (document.readyState === 'complete') {
-            // Wait a bit more for fonts to render
-            setTimeout(resolve, 500);
-          } else {
-            window.addEventListener('load', () => {
-              setTimeout(resolve, 500);
-            });
-          }
-        });
-      `).then(() => {
-        stylesLoaded = true;
-        clearTimeout(loadTimeout);
-        
-        printWindow.webContents.print(printOptions, (success, failureReason) => {
-          if (success) {
-            log.info('Pure exchange print completed successfully');
-            resolve(true);
-          } else {
-            log.error(`Pure exchange print failed: ${failureReason}`);
-            reject(new Error(failureReason || 'Print failed'));
-          }
-        });
-      }).catch((err) => {
-        if (!stylesLoaded) {
-          reject(new Error(`Failed to wait for styles: ${err.message}`));
-        }
-      });
-
-      // Timeout fallback
-      loadTimeout = setTimeout(() => {
-        if (!stylesLoaded) {
-          log.warn('Style loading timeout, proceeding with print anyway');
-          printWindow.webContents.print(printOptions, (success, failureReason) => {
-            if (success) {
-              log.info('Pure exchange print completed successfully (after timeout)');
-              resolve(true);
-            } else {
-              log.error(`Pure exchange print failed: ${failureReason}`);
-              reject(new Error(failureReason || 'Print failed'));
-            }
-          });
-        }
-      }, 3000);
-
-      printWindow.webContents.once('did-fail-load', (e, ec, em) => {
-        clearTimeout(loadTimeout);
-        reject(new Error(`Page load failed: ${em} (${ec})`));
-      });
-    });
-
-    printWindow.destroy();
-    printWindow = null;
+    await printHtmlWithDriverOptions(htmlContent, settings, 'token', { width: contentWidth, height: 600 });
+    log.info('Pure exchange print completed successfully');
     return { success: true };
   } catch (error) {
     log.error('Error during pure exchange silent print:', error);
-    if (printWindow && !printWindow.isDestroyed()) {
-      printWindow.destroy();
-    }
     return { success: false, error: error.message };
   }
 });
 
+// Test print goes through exactly the same pipeline as a real print so the
+// output reflects the saved quality / paper settings.
 ipcMain.handle('test-print', async (event, { printerType, htmlContent }) => {
-  let printWindow = null;
   try {
     const settings = printerType === 'token'
       ? printerSettings.tokenPrinter
       : printerSettings.skinTestPrinter;
 
-    log.info(`Test print for ${printerType} to: ${settings.printerName || 'default'}`);
-    const printOptions = await mapSettingsToPrintOptions(settings, printerType);
-    log.info(`Test print mapped options for ${printerType}: ${JSON.stringify(printOptions)}`);
+    log.info(`Test print for ${printerType} to: ${settings.printerName || 'default'} (quality=${settings.quality})`);
 
     const paperSize = (settings.documentSize || (printerType === 'token' ? '80mm' : 'A4')).toLowerCase();
-    const is58mm = paperSize.includes('58mm');
+    const windowOptions = printerType === 'token'
+      ? { width: paperSize.includes('58mm') ? 220 : 305, height: 600 }
+      : { width: 850, height: 1200 };
 
-    printWindow = new BrowserWindow({
-      width: printerType === 'token' ? (is58mm ? 220 : 305) : 900,
-      height: printerType === 'token' ? 600 : 1100,
-      useContentSize: true,
-      show: true,
-      webPreferences: {
-        nodeIntegration: false,
-        contextIsolation: true,
-      }
-    });
-
-    printWindow.webContents.setZoomLevel(0);
-    await printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`);
-
-    await new Promise((resolve, reject) => {
-      printWindow.webContents.once('did-finish-load', () => {
-        printWindow.webContents.print(printOptions, (success, failureReason) => {
-          if (success) {
-            log.info(`Test print completed for ${printerType}`);
-            resolve(true);
-          } else {
-            log.error(`Test print failed for ${printerType}: ${failureReason}`);
-            reject(new Error(failureReason || 'Test print failed'));
-          }
-        });
-      });
-
-      setTimeout(() => {
-        if (!printWindow || printWindow.isDestroyed()) {
-          resolve(false);
-          return;
-        }
-        printWindow.webContents.print(printOptions, (success, failureReason) => {
-          if (success) {
-            log.info(`Test print completed for ${printerType} after fallback timeout`);
-            resolve(true);
-          } else {
-            log.error(`Test print failed for ${printerType}: ${failureReason}`);
-            reject(new Error(failureReason || 'Test print failed'));
-          }
-        });
-      }, 2000);
-    });
-
-    return { success: true, message: 'Preview print sent to printer' };
+    const used = await printHtmlWithDriverOptions(htmlContent, settings, printerType, windowOptions);
+    log.info(`Test print completed for ${printerType}: ${JSON.stringify(used)}`);
+    return {
+      success: true,
+      message: `Test print sent (${CANONICAL_QUALITY_LABELS[used.quality]} quality via ${used.transport})`,
+      applied: used,
+    };
   } catch (error) {
     log.error('Error during test print:', error);
-    if (printWindow && !printWindow.isDestroyed()) {
-      printWindow.destroy();
-    }
     return { success: false, error: error.message };
   }
 });
