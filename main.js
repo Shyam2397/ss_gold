@@ -595,8 +595,110 @@ ipcMain.handle('save-printer-settings', async (event, settings) => {
   }
 });
 
+const normalizePrinterQuality = (value = '') => {
+  return String(value)
+    .trim()
+    .replace(/[_\-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .toLowerCase();
+};
+
+const getFallbackPrinterQualityOptions = (printerName = '') => {
+  const normalizedName = (printerName || '').toLowerCase();
+
+  if (normalizedName.includes('l3210')) {
+    return ['Draft', 'Draft Vivid', 'Standard', 'Standard Vivid', 'High'];
+  }
+
+  if (normalizedName.includes('l8050')) {
+    return ['Draft', 'Standard', 'High'];
+  }
+
+  return ['Draft', 'Standard', 'High'];
+};
+
+const getPrinterSupportedQualityOptions = async (printerName = '') => {
+  const fallback = getFallbackPrinterQualityOptions(printerName);
+
+  if (!printerName || !mainWindow || mainWindow.isDestroyed()) {
+    return fallback;
+  }
+
+  try {
+    const printers = await mainWindow.webContents.getPrintersAsync();
+    const selectedPrinter = printers.find((printer) => {
+      const names = [printer?.name, printer?.displayName].filter(Boolean).map((value) => String(value).toLowerCase());
+      return names.includes(String(printerName).toLowerCase()) || names.some((value) => value.includes(String(printerName).toLowerCase()));
+    });
+
+    if (!selectedPrinter) {
+      return fallback;
+    }
+
+    const candidateValues = [];
+    const optionBag = selectedPrinter.options || {};
+    const qualitySources = [
+      optionBag.quality,
+      optionBag.printQuality,
+      optionBag.printerQuality,
+      optionBag.qualityMode,
+      optionBag.qualityOptions,
+      optionBag.printerOptions?.quality,
+      optionBag.printerOptions?.qualityMode,
+      optionBag.printerOptions?.printQuality,
+    ];
+
+    qualitySources.forEach((source) => {
+      if (Array.isArray(source)) {
+        source.forEach((value) => candidateValues.push(String(value)));
+        return;
+      }
+
+      if (source && typeof source === 'object') {
+        Object.values(source).forEach((value) => candidateValues.push(String(value)));
+        return;
+      }
+
+      if (typeof source === 'string' && source.trim()) {
+        candidateValues.push(source);
+      }
+    });
+
+    const uniqueValues = [...new Set(candidateValues.map((value) => value.trim()).filter(Boolean))];
+    const supported = uniqueValues.filter((value) => {
+      const normalized = normalizePrinterQuality(value);
+      return getFallbackPrinterQualityOptions(printerName).some((option) => normalizePrinterQuality(option) === normalized);
+    });
+
+    if (supported.length > 0) {
+      return supported;
+    }
+  } catch (error) {
+    log.warn(`Unable to read printer capability options for ${printerName}:`, error.message);
+  }
+
+  return fallback;
+};
+
+const resolvePrinterQualityValue = async (printerName = '', selectedQuality = 'Standard') => {
+  const supported = await getPrinterSupportedQualityOptions(printerName);
+  const normalizedSelected = normalizePrinterQuality(selectedQuality || 'Standard');
+
+  const exactMatch = supported.find((quality) => normalizePrinterQuality(quality) === normalizedSelected);
+  if (exactMatch) {
+    return exactMatch;
+  }
+
+  const fallbackMatch = getFallbackPrinterQualityOptions(printerName).find((quality) => normalizePrinterQuality(quality) === normalizedSelected);
+  if (fallbackMatch) {
+    return fallbackMatch;
+  }
+
+  return supported[0] || 'Standard';
+};
+
 // Helper: Map our settings to Electron print options
-const mapSettingsToPrintOptions = (settings, printerType) => {
+const mapSettingsToPrintOptions = async (settings, printerType) => {
   const printOptions = {
     silent: settings.silentMode !== false,
     printBackground: true,
@@ -640,13 +742,9 @@ const mapSettingsToPrintOptions = (settings, printerType) => {
   }
 
   if (settings.quality) {
-    const qualityMap = {
-      'draft': 0,
-      'low': 1,
-      'medium': 2,
-      'high': 3,
-    };
-    printOptions.quality = qualityMap[settings.quality] ?? 3;
+    const resolvedQuality = await resolvePrinterQualityValue(settings.printerName, settings.quality);
+    printOptions.quality = resolvedQuality;
+    log.info(`Mapped printer quality: ${settings.quality} -> ${printOptions.quality}`);
   }
 
   if (settings.paperSource) {
@@ -686,7 +784,7 @@ ipcMain.handle('silent-print-token', async (event, htmlContent) => {
 
     printWindow.webContents.setZoomLevel(0);
 
-    const printOptions = mapSettingsToPrintOptions(settings, 'token');
+    const printOptions = await mapSettingsToPrintOptions(settings, 'token');
     log.info('Mapped print options for token:', JSON.stringify(printOptions));
 
     await printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`);
@@ -785,7 +883,7 @@ ipcMain.handle('silent-print-skintest', async (event, htmlContent) => {
 
     printWindow.webContents.setZoomLevel(0);
 
-    const printOptions = mapSettingsToPrintOptions(settings, 'skinTest');
+    const printOptions = await mapSettingsToPrintOptions(settings, 'skinTest');
     log.info('Mapped print options for skintest:', JSON.stringify(printOptions));
 
     await printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`);
@@ -889,7 +987,7 @@ ipcMain.handle('silent-print-pure-exchange', async (event, htmlContent) => {
 
     printWindow.webContents.setZoomLevel(0);
 
-    const printOptions = mapSettingsToPrintOptions(settings, 'token');
+    const printOptions = await mapSettingsToPrintOptions(settings, 'token');
     log.info('Mapped print options for pure exchange:', JSON.stringify(printOptions));
 
     await printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`);
@@ -966,11 +1064,13 @@ ipcMain.handle('silent-print-pure-exchange', async (event, htmlContent) => {
 ipcMain.handle('test-print', async (event, { printerType, htmlContent }) => {
   let printWindow = null;
   try {
-    const settings = printerType === 'token' 
-      ? printerSettings.tokenPrinter 
+    const settings = printerType === 'token'
+      ? printerSettings.tokenPrinter
       : printerSettings.skinTestPrinter;
-    
+
     log.info(`Test print for ${printerType} to: ${settings.printerName || 'default'}`);
+    const printOptions = await mapSettingsToPrintOptions(settings, printerType);
+    log.info(`Test print mapped options for ${printerType}: ${JSON.stringify(printOptions)}`);
 
     const paperSize = (settings.documentSize || (printerType === 'token' ? '80mm' : 'A4')).toLowerCase();
     const is58mm = paperSize.includes('58mm');
@@ -987,10 +1087,39 @@ ipcMain.handle('test-print', async (event, { printerType, htmlContent }) => {
     });
 
     printWindow.webContents.setZoomLevel(0);
-
     await printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`);
 
-    return { success: true, message: 'Preview window opened' };
+    await new Promise((resolve, reject) => {
+      printWindow.webContents.once('did-finish-load', () => {
+        printWindow.webContents.print(printOptions, (success, failureReason) => {
+          if (success) {
+            log.info(`Test print completed for ${printerType}`);
+            resolve(true);
+          } else {
+            log.error(`Test print failed for ${printerType}: ${failureReason}`);
+            reject(new Error(failureReason || 'Test print failed'));
+          }
+        });
+      });
+
+      setTimeout(() => {
+        if (!printWindow || printWindow.isDestroyed()) {
+          resolve(false);
+          return;
+        }
+        printWindow.webContents.print(printOptions, (success, failureReason) => {
+          if (success) {
+            log.info(`Test print completed for ${printerType} after fallback timeout`);
+            resolve(true);
+          } else {
+            log.error(`Test print failed for ${printerType}: ${failureReason}`);
+            reject(new Error(failureReason || 'Test print failed'));
+          }
+        });
+      }, 2000);
+    });
+
+    return { success: true, message: 'Preview print sent to printer' };
   } catch (error) {
     log.error('Error during test print:', error);
     if (printWindow && !printWindow.isDestroyed()) {

@@ -35,11 +35,85 @@ const ORIENTATIONS = [
 ];
 
 const QUALITY_OPTIONS = [
-  { value: "draft", label: "Draft" },
-  { value: "low", label: "Low" },
-  { value: "medium", label: "Medium" },
-  { value: "high", label: "High" },
+  { value: "Draft", label: "Draft" },
+  { value: "Draft Vivid", label: "Draft Vivid" },
+  { value: "Standard", label: "Standard" },
+  { value: "Standard Vivid", label: "Standard Vivid" },
+  { value: "High", label: "High" },
 ];
+
+const normalizeQualityValue = (value = "") => {
+  return String(value)
+    .trim()
+    .toLowerCase()
+    .replace(/[_\-\s]+/g, " ")
+    .replace(/\s+/g, " ");
+};
+
+const getQualityOptionsForPrinter = (printerName = "", printers = []) => {
+  const normalizedName = (printerName || "").toLowerCase();
+
+  const selectedPrinter = printers.find((printer) => {
+    const candidateNames = [printer?.name, printer?.displayName].filter(Boolean).map((value) => value.toLowerCase());
+    return candidateNames.includes(normalizedName) || candidateNames.some((value) => value.includes(normalizedName));
+  });
+
+  const supportedQualityValues = [];
+  const printerOptions = selectedPrinter?.options || {};
+  const qualityCandidates = [
+    printerOptions.quality,
+    printerOptions.printQuality,
+    printerOptions.printerQuality,
+    printerOptions.qualityMode,
+    printerOptions.qualityOptions,
+  ];
+
+  qualityCandidates.forEach((candidate) => {
+    if (Array.isArray(candidate)) {
+      candidate.forEach((value) => supportedQualityValues.push(String(value)));
+      return;
+    }
+
+    if (candidate && typeof candidate === "object") {
+      Object.values(candidate).forEach((value) => supportedQualityValues.push(String(value)));
+      return;
+    }
+
+    if (typeof candidate === "string") {
+      supportedQualityValues.push(candidate);
+    }
+  });
+
+  if (supportedQualityValues.length > 0) {
+    const filtered = QUALITY_OPTIONS.filter((option) =>
+      supportedQualityValues.some((value) => normalizeQualityValue(value) === normalizeQualityValue(option.value))
+    );
+
+    if (filtered.length > 0) {
+      return filtered;
+    }
+  }
+
+  if (normalizedName.includes("l3210")) {
+    return [
+      { value: "Draft", label: "Draft" },
+      { value: "Draft Vivid", label: "Draft Vivid" },
+      { value: "Standard", label: "Standard" },
+      { value: "Standard Vivid", label: "Standard Vivid" },
+      { value: "High", label: "High" },
+    ];
+  }
+
+  if (normalizedName.includes("l8050")) {
+    return [
+      { value: "Draft", label: "Draft" },
+      { value: "Standard", label: "Standard" },
+      { value: "High", label: "High" },
+    ];
+  }
+
+  return QUALITY_OPTIONS;
+};
 
 const COLOR_OPTIONS = [
   { value: "monochrome", label: "Monochrome (Black & White)" },
@@ -171,8 +245,13 @@ const PrinterCard = ({
   isElectronEnv,
 }) => {
   const updateField = (key, value) => {
-    onChange({ ...settings, [key]: value });
+    onChange((prev) => ({ ...prev, [key]: value }));
   };
+
+  const qualityOptions = getQualityOptionsForPrinter(settings.printerName, printers);
+  const selectedQuality = qualityOptions.some((option) => option.value === settings.quality)
+    ? settings.quality
+    : qualityOptions[0]?.value || "standard";
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-amber-100 overflow-hidden">
@@ -264,9 +343,9 @@ const PrinterCard = ({
           <SelectField
             label="Print Quality"
             icon={FiSettings}
-            value={settings.quality}
+            value={selectedQuality}
             onChange={(v) => updateField("quality", v)}
-            options={QUALITY_OPTIONS}
+            options={qualityOptions}
           />
           <SelectField
             label="Color Mode"
