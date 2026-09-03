@@ -34,12 +34,36 @@ const ORIENTATIONS = [
   { value: "landscape", label: "Landscape" },
 ];
 
-const QUALITY_OPTIONS = [
-  { value: "draft", label: "Draft" },
-  { value: "low", label: "Low" },
-  { value: "medium", label: "Medium" },
-  { value: "high", label: "High" },
+// Generic quality options (fallback when no specific printer is selected)
+const QUALITY_OPTIONS_GENERIC = [
+  { value: "draft",    label: "Draft" },
+  { value: "standard", label: "Standard" },
+  { value: "high",     label: "High" },
 ];
+
+// Epson L3210 quality options (EcoTank inkjet – 5 levels)
+const QUALITY_OPTIONS_L3210 = [
+  { value: "draft",          label: "Draft" },
+  { value: "draft-vivid",    label: "Draft Vivid" },
+  { value: "standard",       label: "Standard" },
+  { value: "standard-vivid", label: "Standard Vivid" },
+  { value: "high",           label: "High" },
+];
+
+// Epson L8050 quality options (photo EcoTank – 3 levels)
+const QUALITY_OPTIONS_L8050 = [
+  { value: "draft",    label: "Draft" },
+  { value: "standard", label: "Standard" },
+  { value: "high",     label: "High" },
+];
+
+// Resolve which quality list to show based on the selected printer name
+const getQualityOptions = (printerName = "") => {
+  const name = printerName.toLowerCase();
+  if (name.includes("l3210") || name.includes("l-3210")) return QUALITY_OPTIONS_L3210;
+  if (name.includes("l8050") || name.includes("l-8050")) return QUALITY_OPTIONS_L8050;
+  return QUALITY_OPTIONS_GENERIC;
+};
 
 const COLOR_OPTIONS = [
   { value: "monochrome", label: "Monochrome (Black & White)" },
@@ -171,8 +195,19 @@ const PrinterCard = ({
   isElectronEnv,
 }) => {
   const updateField = (key, value) => {
-    onChange({ ...settings, [key]: value });
+    const updated = { ...settings, [key]: value };
+    // When the printer changes, reset quality to 'high' if the current value
+    // no longer exists in the new printer's quality list.
+    if (key === "printerName") {
+      const validValues = getQualityOptions(value).map((o) => o.value);
+      if (!validValues.includes(updated.quality)) {
+        updated.quality = "high";
+      }
+    }
+    onChange(updated);
   };
+
+  const qualityOptions = getQualityOptions(settings.printerName);
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-amber-100 overflow-hidden">
@@ -266,8 +301,14 @@ const PrinterCard = ({
             icon={FiSettings}
             value={settings.quality}
             onChange={(v) => updateField("quality", v)}
-            options={QUALITY_OPTIONS}
+            options={qualityOptions}
           />
+          {/* Show a hint about which quality profile is active */}
+          {settings.printerName && (
+            <p className="text-xs text-amber-500 -mt-2 col-span-full">
+              Quality options shown for: <strong>{settings.printerName}</strong>
+            </p>
+          )}
           <SelectField
             label="Color Mode"
             icon={FiSettings}
@@ -300,7 +341,7 @@ const PrinterCard = ({
             className="flex items-center px-4 py-2 border border-amber-300 text-amber-700 rounded-lg hover:bg-amber-50 transition-all text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <FiEye className="w-4 h-4 mr-1.5" />
-            Test Preview
+            Test Print
           </button>
           <button
             onClick={onSave}
@@ -456,7 +497,7 @@ const Settings = () => {
           <div class="footer">--- Test Print Successful ---</div>
         </body></html>`;
       await window.electron.testPrint("token", testHtml);
-      showMessage("success", "Token test preview opened!");
+      showMessage("success", "Token test print sent! Check your printer for the result.");
     } catch (error) {
       showMessage("error", "Test preview failed: " + error.message);
     }
@@ -494,7 +535,7 @@ const Settings = () => {
           <div class="footer">--- Test Print Successful - Visit Again ---</div>
         </body></html>`;
       await window.electron.testPrint("skinTest", testHtml);
-      showMessage("success", "Skin Test preview opened!");
+      showMessage("success", "Skin Test print sent! Check your printer for the result.");
     } catch (error) {
       showMessage("error", "Test preview failed: " + error.message);
     }
@@ -591,7 +632,7 @@ const Settings = () => {
           </li>
           <li className="flex items-start">
             <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-500 mt-2 mr-2 flex-shrink-0"></span>
-            Use "Test Preview" to verify your configuration before saving.
+            Use "Test Print" to send a real test job to the printer with the current quality and color settings, so you can verify the output before printing actual certificates.
           </li>
           <li className="flex items-start">
             <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-500 mt-2 mr-2 flex-shrink-0"></span>

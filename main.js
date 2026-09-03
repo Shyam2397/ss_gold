@@ -640,13 +640,19 @@ const mapSettingsToPrintOptions = (settings, printerType) => {
   }
 
   if (settings.quality) {
+    // Electron's webContents.print() accepts only these string values for quality:
+    // 'draft', 'normal' (maps to standard), 'best' (maps to high)
+    // Numeric values are silently ignored by the printer driver.
     const qualityMap = {
-      'draft': 0,
-      'low': 1,
-      'medium': 2,
-      'high': 3,
+      'draft':          'draft',
+      'draft-vivid':    'draft',   // L3210 vivid draft -> still draft tier
+      'standard':       'normal',
+      'standard-vivid': 'normal',  // L3210 vivid standard -> still normal tier
+      'low':            'draft',
+      'medium':         'normal',
+      'high':           'best',
     };
-    printOptions.quality = qualityMap[settings.quality] ?? 3;
+    printOptions.quality = qualityMap[settings.quality] ?? 'best';
   }
 
   if (settings.paperSource) {
@@ -966,11 +972,12 @@ ipcMain.handle('silent-print-pure-exchange', async (event, htmlContent) => {
 ipcMain.handle('test-print', async (event, { printerType, htmlContent }) => {
   let printWindow = null;
   try {
-    const settings = printerType === 'token' 
-      ? printerSettings.tokenPrinter 
+    const settings = printerType === 'token'
+      ? printerSettings.tokenPrinter
       : printerSettings.skinTestPrinter;
-    
+
     log.info(`Test print for ${printerType} to: ${settings.printerName || 'default'}`);
+    log.info(`Test print settings: quality=${settings.quality}, color=${settings.color}, copies=${settings.copies}`);
 
     const paperSize = (settings.documentSize || (printerType === 'token' ? '80mm' : 'A4')).toLowerCase();
     const is58mm = paperSize.includes('58mm');
@@ -979,18 +986,85 @@ ipcMain.handle('test-print', async (event, { printerType, htmlContent }) => {
       width: printerType === 'token' ? (is58mm ? 220 : 305) : 900,
       height: printerType === 'token' ? 600 : 1100,
       useContentSize: true,
-      show: true,
+      show: false,
+      resizable: false,
+      minimizable: false,
+      maximizable: false,
+      fullscreenable: false,
+      frame: printerType !== 'token',
       webPreferences: {
         nodeIntegration: false,
         contextIsolation: true,
+        offscreen: false,
       }
     });
 
     printWindow.webContents.setZoomLevel(0);
 
+    // Build print options from the saved settings so quality/color are applied
+    const printOptions = mapSettingsToPrintOptions(settings, printerType === 'token' ? 'token' : 'skinTest');
+    // For test prints always use silent=false so the system dialog confirms the job
+    printOptions.silent = false;
+    log.info('Test print options:', JSON.stringify(printOptions));
+
     await printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`);
 
-    return { success: true, message: 'Preview window opened' };
+    await new Promise((resolve, reject) => {
+      let printed = false;
+      let loadTimeout;
+
+      printWindow.webContents.executeJavaScript(`
+        new Promise((resolve) => {
+          if (document.readyState === 'complete') {
+            setTimeout(resolve, 500);
+          } else {
+            window.addEventListener('load', () => setTimeout(resolve, 500));
+          }
+        });
+      `).then(() => {
+        printed = true;
+        clearTimeout(loadTimeout);
+
+        printWindow.webContents.print(printOptions, (success, failureReason) => {
+          if (success) {
+            log.info('Test print sent successfully');
+            resolve(true);
+          } else {
+            // User cancelled the dialog – treat as non-fatal
+            if (failureReason === 'cancelled') {
+              log.info('Test print cancelled by user');
+              resolve(false);
+            } else {
+              log.error(`Test print failed: ${failureReason}`);
+              reject(new Error(failureReason || 'Print failed'));
+            }
+          }
+        });
+      }).catch((err) => {
+        if (!printed) reject(new Error(`Failed to prepare test page: ${err.message}`));
+      });
+
+      loadTimeout = setTimeout(() => {
+        if (!printed) {
+          log.warn('Test print load timeout, proceeding anyway');
+          printWindow.webContents.print(printOptions, (success, failureReason) => {
+            if (success || failureReason === 'cancelled') resolve(success);
+            else reject(new Error(failureReason || 'Print failed'));
+          });
+        }
+      }, 3000);
+
+      printWindow.webContents.once('did-fail-load', (e, ec, em) => {
+        clearTimeout(loadTimeout);
+        reject(new Error(`Page load failed: ${em} (${ec})`));
+      });
+    });
+
+    if (printWindow && !printWindow.isDestroyed()) {
+      printWindow.destroy();
+      printWindow = null;
+    }
+    return { success: true, message: 'Test print sent to printer' };
   } catch (error) {
     log.error('Error during test print:', error);
     if (printWindow && !printWindow.isDestroyed()) {
