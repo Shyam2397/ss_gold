@@ -12,6 +12,7 @@ import {
   FiAlertCircle,
   FiDownload
 } from "react-icons/fi";
+import PreviewModal from "../components/common/PreviewModal";
 
 const isElectron = () => {
   return window.electron && window.electron.isElectron;
@@ -341,7 +342,7 @@ const PrinterCard = ({
             className="flex items-center px-4 py-2 border border-amber-300 text-amber-700 rounded-lg hover:bg-amber-50 transition-all text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <FiEye className="w-4 h-4 mr-1.5" />
-            Test Print
+            Test Preview
           </button>
           <button
             onClick={onSave}
@@ -385,6 +386,7 @@ const Settings = () => {
   const [tokenSaveStatus, setTokenSaveStatus] = useState("idle");
   const [skinTestSaveStatus, setSkinTestSaveStatus] = useState("idle");
   const [globalMessage, setGlobalMessage] = useState(null);
+  const [previewModal, setPreviewModal] = useState({ isOpen: false, htmlContent: "", title: "" });
 
   const isElectronEnv = isElectron();
 
@@ -475,10 +477,8 @@ const Settings = () => {
     }
   };
 
-  const testTokenPrint = async () => {
-    if (!isElectronEnv) return;
-    try {
-      const testHtml = `
+  const testTokenPrint = () => {
+    const testHtml = `
         <html><head><style>
           @page { size: 80mm auto; margin: 0; }
           body { font-family: Arial, sans-serif; max-width: 300px; margin: 0 auto; padding: 8px; font-size: 12px; }
@@ -496,17 +496,11 @@ const Settings = () => {
           <div class="row"><span>Amount</span><span>₹100</span></div>
           <div class="footer">--- Test Print Successful ---</div>
         </body></html>`;
-      await window.electron.testPrint("token", testHtml);
-      showMessage("success", "Token test print sent! Check your printer for the result.");
-    } catch (error) {
-      showMessage("error", "Test preview failed: " + error.message);
-    }
+    setPreviewModal({ isOpen: true, htmlContent: testHtml, title: "Token Receipt Preview" });
   };
 
-  const testSkinTestPrint = async () => {
-    if (!isElectronEnv) return;
-    try {
-      const testHtml = `
+  const testSkinTestPrint = () => {
+    const testHtml = `
         <html><head><style>
           @page { size: A4 portrait; margin: 0; }
           body { font-family: Arial, sans-serif; width: 210mm; margin: 0; padding: 10mm; box-sizing: border-box; }
@@ -534,11 +528,7 @@ const Settings = () => {
           </div>
           <div class="footer">--- Test Print Successful - Visit Again ---</div>
         </body></html>`;
-      await window.electron.testPrint("skinTest", testHtml);
-      showMessage("success", "Skin Test print sent! Check your printer for the result.");
-    } catch (error) {
-      showMessage("error", "Test preview failed: " + error.message);
-    }
+    setPreviewModal({ isOpen: true, htmlContent: testHtml, title: "Skin Test Certificate Preview" });
   };
 
   return (
@@ -632,7 +622,7 @@ const Settings = () => {
           </li>
           <li className="flex items-start">
             <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-500 mt-2 mr-2 flex-shrink-0"></span>
-            Use "Test Print" to send a real test job to the printer with the current quality and color settings, so you can verify the output before printing actual certificates.
+            Use "Test Preview" to see how the document will appear with the current quality and color settings before printing actual certificates.
           </li>
           <li className="flex items-start">
             <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-500 mt-2 mr-2 flex-shrink-0"></span>
@@ -640,6 +630,13 @@ const Settings = () => {
           </li>
         </ul>
       </div>
+
+      <PreviewModal
+        isOpen={previewModal.isOpen}
+        onClose={() => setPreviewModal({ isOpen: false, htmlContent: "", title: "" })}
+        htmlContent={previewModal.htmlContent}
+        title={previewModal.title}
+      />
     </div>
   );
 };

@@ -73,7 +73,7 @@ export const generatePrintContent = (data, logoSrc = logo, valuesOnly = false) =
     : 'background-color: #32CD32; color: yellow; border-top: 3px solid #FFD700; border-bottom: 3px solid #FFD700;';
   const goldInfoBarLabelStyle = vo ? hidden : '';
   const goldInfoBarValueStyle = vo
-    ? `${visible} color: #D6A406 !important;`
+    ? `${visible} color: #FF0000 !important;`
     : '';
   const remarksColor = vo
     ? `${visible} color: #ff0000 !important;`
