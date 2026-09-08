@@ -63,8 +63,8 @@ export const generatePrintContent = (data, logoSrc = logo, valuesOnly = false) =
     : 'border-bottom: 2px solid #FFD700;';
   const logoStyle = vo ? hidden : 'color: #c09823;';
   const logoSpanStyle = vo
-    ? 'visibility: hidden; background: none; -webkit-text-fill-color: transparent; color: transparent;'
-    : 'background: linear-gradient(90deg,rgba(214, 164, 6, 1) 0%, rgba(255, 215, 0, 1) 50%, rgba(214, 164, 6, 1) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; color: transparent;';
+    ? 'visibility: hidden; color: transparent;'
+    : 'color: #FFD700;';
   const companyInfoStyle = vo ? hidden : '';
   const companyInfoP1Color = vo ? hidden : 'color: #FF0000;';
   const companyInfoP23Color = vo ? hidden : 'color: #32CD32;';
@@ -159,6 +159,7 @@ export const generatePrintContent = (data, logoSrc = logo, valuesOnly = false) =
         }
         .logo span {
           margin-top: 6px;
+          color: #c09823;
         }
         .company-info {
           text-align: left;
@@ -438,12 +439,71 @@ export const generatePrintContent = (data, logoSrc = logo, valuesOnly = false) =
   `;
 };
 
+/**
+ * printData()
+ * Entry point called by the SkinTesting page whenever the user clicks Print.
+ *
+ * Routing logic:
+ *   • Electron environment → silentPrintSkinTest()
+ *       Sends the HTML to the main process which:
+ *         1. Renders it to a high-quality A4 PDF via webContents.printToPDF()
+ *            (printBackground: true, A4, no extra margins)
+ *         2. Saves the PDF to a temp file
+ *         3. Forwards it directly to the selected printer via pdf-to-printer
+ *            (silent – no system dialog, 600 DPI+, colour)
+ *         4. Cleans up the temp file automatically
+ *   • Browser / web environment → legacy popup + window.print() fallback
+ *
+ * @param {object}  data        - Skin-test record data object
+ * @param {boolean} valuesOnly  - When true, hides labels and shows only values
+ */
 export const printData = async (data, valuesOnly = false) => {
-  const isElectronEnv = window.electron && window.electron.isElectron;
+  const isElectronEnv =
+    typeof window !== 'undefined' &&
+    window.electron &&
+    window.electron.isElectron;
+
+  // Always resolve the logo to base64 in Electron so the hidden render window
+  // can display it without cross-origin restrictions.
   const logoSrc = isElectronEnv ? await getBase64Logo(logo) : logo;
+
+  // Build the full HTML certificate string (unchanged core logic)
   const content = generatePrintContent(data, logoSrc, valuesOnly);
 
+  // ── Electron path: silent PDF-based print ──────────────────────────────────
+  if (isElectronEnv && typeof window.electron.silentPrintSkinTest === 'function') {
+    try {
+      // Delegate to main process: generatePDF → printSilent pipeline.
+      // printerName and copies are omitted here so the main process reads them
+      // from saved printer settings (Settings page).
+      const result = await window.electron.silentPrintSkinTest(content);
+
+      if (result && result.success) {
+        console.log('[SkinTest-Print] Silent print completed successfully.');
+      } else {
+        // Log the failure but do NOT fall back to a dialog – a failed silent
+        // print should surface as a console error, not an unexpected popup.
+        console.error(
+          '[SkinTest-Print] Silent print failed:',
+          result?.error || 'Unknown error'
+        );
+      }
+    } catch (err) {
+      console.error('[SkinTest-Print] Unexpected error during silent print:', err);
+    }
+    // Always return after attempting Electron path – never open a popup window
+    return;
+  }
+
+  // ── Browser / web fallback: legacy popup + window.print() ─────────────────
+  // This path is only reached when running outside of Electron (e.g. during
+  // development in a regular browser). Core behaviour is unchanged.
   const printWindow = window.open('', '_blank', 'width=900,height=600,left=100,top=100');
+
+  if (!printWindow) {
+    console.error('[SkinTest-Print] Failed to open print window (popup blocked?).');
+    return;
+  }
 
   printWindow.document.write(content);
   printWindow.document.close();

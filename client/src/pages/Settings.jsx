@@ -22,6 +22,13 @@ const PAPER_SIZES_TOKEN = [
   { value: "58mm", label: "58mm Thermal (Receipt)" },
 ];
 
+const PAPER_SIZES_A4 = [
+  { value: "A4", label: "A4 (210 × 297 mm)" },
+  { value: "A5", label: "A5 (148 × 210 mm)" },
+  { value: "Letter", label: "Letter (8.5 × 11 in)" },
+  { value: "Legal", label: "Legal (8.5 × 14 in)" },
+];
+
 const ORIENTATIONS = [
   { value: "portrait", label: "Portrait" },
   { value: "landscape", label: "Landscape" },
@@ -52,6 +59,17 @@ const DEFAULT_TOKEN_SETTINGS = {
   paperType: "thermal",
   quality: "high",
   color: "monochrome",
+  copies: 1,
+  silentMode: true,
+};
+
+const DEFAULT_SKIN_TEST_SETTINGS = {
+  printerName: "",
+  documentSize: "A4",
+  orientation: "portrait",
+  paperType: "plain",
+  quality: "high",
+  color: "color",
   copies: 1,
   silentMode: true,
 };
@@ -292,7 +310,9 @@ const Settings = () => {
   const [printers, setPrinters] = useState([]);
   const [loading, setLoading] = useState(false);
   const [tokenSettings, setTokenSettings] = useState(DEFAULT_TOKEN_SETTINGS);
+  const [skinTestSettings, setSkinTestSettings] = useState(DEFAULT_SKIN_TEST_SETTINGS);
   const [tokenSaveStatus, setTokenSaveStatus] = useState("idle");
+  const [skinTestSaveStatus, setSkinTestSaveStatus] = useState("idle");
   const [globalMessage, setGlobalMessage] = useState(null);
   const [previewModal, setPreviewModal] = useState({ isOpen: false, htmlContent: "", title: "" });
 
@@ -318,6 +338,7 @@ const Settings = () => {
       const saved = await window.electron.getPrinterSettings();
       if (saved) {
         setTokenSettings({ ...DEFAULT_TOKEN_SETTINGS, ...(saved.tokenPrinter || {}) });
+        setSkinTestSettings({ ...DEFAULT_SKIN_TEST_SETTINGS, ...(saved.skinTestPrinter || {}) });
       }
     } catch (error) {
       console.error("Failed to load printer settings:", error);
@@ -340,6 +361,7 @@ const Settings = () => {
     if (!isElectronEnv) return;
     setTokenSaveStatus("saving");
     try {
+      // Read current settings so the skin-test printer is preserved when saving token settings
       const currentSettings = await window.electron.getPrinterSettings();
       const toSave = {
         ...currentSettings,
@@ -357,6 +379,31 @@ const Settings = () => {
     } catch (error) {
       setTokenSaveStatus("idle");
       showMessage("error", "Failed to save Token settings: " + error.message);
+    }
+  };
+
+  const saveSkinTestSettings = async () => {
+    if (!isElectronEnv) return;
+    setSkinTestSaveStatus("saving");
+    try {
+      // Read current settings so the token printer is preserved when saving skin-test settings
+      const currentSettings = await window.electron.getPrinterSettings();
+      const toSave = {
+        ...currentSettings,
+        skinTestPrinter: { ...skinTestSettings },
+      };
+      const result = await window.electron.savePrinterSettings(toSave);
+      if (result.success) {
+        setSkinTestSettings({ ...DEFAULT_SKIN_TEST_SETTINGS, ...(result.settings.skinTestPrinter || {}) });
+        setSkinTestSaveStatus("saved");
+        showMessage("success", "Skin Test printer settings saved successfully!");
+        setTimeout(() => setSkinTestSaveStatus("idle"), 2000);
+      } else {
+        throw new Error(result.error || "Save failed");
+      }
+    } catch (error) {
+      setSkinTestSaveStatus("idle");
+      showMessage("error", "Failed to save Skin Test settings: " + error.message);
     }
   };
 
@@ -380,6 +427,41 @@ const Settings = () => {
           <div class="footer">--- Test Print Successful ---</div>
         </body></html>`;
     setPreviewModal({ isOpen: true, htmlContent: testHtml, title: "Token Receipt Preview" });
+  };
+
+  const testSkinTestPrint = () => {
+    const testHtml = `
+      <html><head><style>
+        @page { size: A4 portrait; margin: 0; }
+        body { font-family: Arial, sans-serif; width: 210mm; padding: 10mm; box-sizing: border-box; font-size: 11pt; color: #111; }
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #FFD700; padding-bottom: 6px; margin-bottom: 8px; }
+        .logo { font-size: 28pt; font-weight: bold; color: #c09823; }
+        .company { text-align: right; font-size: 9pt; color: #333; }
+        .bar { background: #32CD32; color: yellow; font-size: 13pt; font-weight: bold; display: flex; justify-content: space-around; padding: 6px 0; border-radius: 3px; margin: 8px 0; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 16px; font-size: 9.5pt; margin-bottom: 8px; }
+        .footer { text-align: center; font-style: italic; margin-top: 8px; border-top: 2px solid #FFD700; padding-top: 4px; color: #555; }
+      </style></head><body>
+        <div class="header">
+          <div class="logo">SS GOLD</div>
+          <div class="company"><strong style="color:#e00;font-size:13pt">Computer X-ray Testing</strong><br/>59, Main Bazaar, Nilakottai - 624 208<br/>Ph.No : 8903225544</div>
+        </div>
+        <div class="grid">
+          <div><b>Token No</b> : T001</div><div><b>Date</b> : 01/01/2025</div>
+          <div><b>Name</b> : Test Customer</div><div><b>Time</b> : 10:00 AM</div>
+          <div><b>Sample</b> : Ring</div><div><b>Weight</b> : 10.000 g</div>
+        </div>
+        <div class="bar">
+          <span>GOLD FINENESS %</span><span>91.60 %</span>
+          <span>KARAT Ct</span><span>21.98 K</span>
+        </div>
+        <div class="grid">
+          <div>Gold : -</div><div>Nickel : -</div>
+          <div>Copper : 5.20</div><div>Silver : 2.80</div>
+          <div>Zinc : 0.40</div><div>Others : -</div>
+        </div>
+        <div class="footer">Thank You .... Visit Again....</div>
+      </body></html>`;
+    setPreviewModal({ isOpen: true, htmlContent: testHtml, title: "Skin Test Certificate Preview (A4)" });
   };
 
   return (
@@ -414,7 +496,7 @@ const Settings = () => {
         </div>
       </div>
 
-      <div className="max-w-xl">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 max-w-5xl">
         <PrinterCard
           title="Token / Receipt Printer"
           subtitle="Thermal 80mm / 58mm printer"
@@ -431,9 +513,26 @@ const Settings = () => {
           saveStatus={tokenSaveStatus}
           isElectronEnv={isElectronEnv}
         />
+
+        <PrinterCard
+          title="Skin Test Certificate Printer"
+          subtitle="A4 colour printer for skin-test certificates"
+          icon={FiPrinter}
+          iconColor="from-yellow-600 to-amber-400"
+          settings={skinTestSettings}
+          onChange={setSkinTestSettings}
+          printers={printers}
+          paperSizes={PAPER_SIZES_A4}
+          loading={loading}
+          onRefreshPrinters={loadPrinters}
+          onSave={saveSkinTestSettings}
+          onTestPrint={testSkinTestPrint}
+          saveStatus={skinTestSaveStatus}
+          isElectronEnv={isElectronEnv}
+        />
       </div>
 
-      <div className="mt-6 max-w-xl bg-white rounded-xl shadow-sm border border-amber-100 p-5">
+      <div className="mt-6 max-w-5xl bg-white rounded-xl shadow-sm border border-amber-100 p-5">
         <h3 className="text-base font-bold text-amber-900 mb-3 flex items-center">
           <FiAlertCircle className="w-5 h-5 mr-2 text-amber-600" />
           Notes & Information
@@ -454,6 +553,10 @@ const Settings = () => {
           <li className="flex items-start">
             <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-500 mt-2 mr-2 flex-shrink-0"></span>
             Use "Test Preview" to see how the receipt will appear before printing.
+          </li>
+          <li className="flex items-start">
+            <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-500 mt-2 mr-2 flex-shrink-0"></span>
+            The Skin Test Certificate printer is used for A4 colour prints from the Skin Testing page. It is saved independently from the Token printer.
           </li>
         </ul>
       </div>

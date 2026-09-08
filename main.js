@@ -3,6 +3,8 @@ const path = require('path');
 const { spawn, exec } = require('child_process');
 const os = require('os');
 const fs = require('fs');
+// pdf-to-printer: sends a PDF file directly to a Windows printer with no dialog
+const pdfToPrinter = require('pdf-to-printer');
 
 // Add logging utility
 const log = require('electron-log');
@@ -13,7 +15,7 @@ log.info(`app.isPackaged: ${app.isPackaged}`);
 // Add this with other global variables at the top of the file
 let isQuitting = false;
 
-// Default printer settings
+// Default printer settings – thermal token/receipt printer
 const DEFAULT_TOKEN_PRINTER_SETTINGS = {
   printerName: '',
   paperSource: '',
@@ -22,6 +24,19 @@ const DEFAULT_TOKEN_PRINTER_SETTINGS = {
   paperType: '',
   quality: 'high',
   color: 'monochrome',
+  copies: 1,
+  silentMode: true
+};
+
+// Default printer settings – skin-test certificate (A4 colour printer)
+const DEFAULT_SKIN_TEST_PRINTER_SETTINGS = {
+  printerName: '',
+  paperSource: '',
+  documentSize: 'A4',
+  orientation: 'portrait',
+  paperType: 'plain',
+  quality: 'high',
+  color: 'color',
   copies: 1,
   silentMode: true
 };
@@ -62,13 +77,18 @@ const saveSettingsToFile = (settings) => {
   }
 };
 
-// Initialize printer settings
+// Initialize printer settings – merges persisted file values over defaults for each printer key
 const initPrinterSettings = () => {
   const savedSettings = loadSettingsFromFile();
   return {
     tokenPrinter: {
       ...DEFAULT_TOKEN_PRINTER_SETTINGS,
       ...(savedSettings?.tokenPrinter || {})
+    },
+    // Skin-test A4 printer settings, persisted independently from the token printer
+    skinTestPrinter: {
+      ...DEFAULT_SKIN_TEST_PRINTER_SETTINGS,
+      ...(savedSettings?.skinTestPrinter || {})
     }
   };
 };
@@ -551,7 +571,8 @@ ipcMain.handle('get-printer-settings', () => {
   } catch (error) {
     log.error('Error getting printer settings:', error);
     return {
-      tokenPrinter: { ...DEFAULT_TOKEN_PRINTER_SETTINGS }
+      tokenPrinter: { ...DEFAULT_TOKEN_PRINTER_SETTINGS },
+      skinTestPrinter: { ...DEFAULT_SKIN_TEST_PRINTER_SETTINGS }
     };
   }
 });
@@ -562,6 +583,11 @@ ipcMain.handle('save-printer-settings', async (event, settings) => {
       tokenPrinter: {
         ...DEFAULT_TOKEN_PRINTER_SETTINGS,
         ...(settings?.tokenPrinter || {})
+      },
+      // Persist skin-test printer settings alongside token printer settings
+      skinTestPrinter: {
+        ...DEFAULT_SKIN_TEST_PRINTER_SETTINGS,
+        ...(settings?.skinTestPrinter || {})
       }
     };
     
@@ -832,6 +858,219 @@ ipcMain.handle('silent-print-pure-exchange', async (event, htmlContent) => {
     return { success: false, error: error.message };
   }
 });
+
+// ============================================================
+// SKIN TEST SILENT PRINT  –  PDF-based, high-quality workflow
+// ============================================================
+
+/**
+ * generatePDF()
+ * Renders the supplied HTML in a hidden BrowserWindow and exports it as a
+ * high-resolution PDF using Electron's webContents.printToPDF().
+ *
+ * @param {string} htmlContent - Full HTML string to render
+ * @param {string} printerName - Target printer name (used for settings lookup)
+ * @returns {string} Absolute path to the saved temporary PDF file
+ */
+async function generatePDF(htmlContent, printerName) {
+  let offscreenWindow = null;
+  try {
+    log.info('[SkinTest-Print] generatePDF() – creating offscreen render window');
+
+    // Create a hidden window sized to A4 at 96 dpi (794 × 1123 px)
+    offscreenWindow = new BrowserWindow({
+      width: 794,
+      height: 1123,
+      show: false,
+      frame: false,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+        offscreen: false, // must be false so printToPDF captures colours
+      },
+    });
+
+    // Load the HTML content; data: URI keeps everything self-contained
+    await offscreenWindow.loadURL(
+      `data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`
+    );
+
+    // Wait for the page (fonts, images) to fully settle
+    await offscreenWindow.webContents.executeJavaScript(`
+      new Promise((resolve) => {
+        if (document.readyState === 'complete') {
+          setTimeout(resolve, 600);   // extra 600 ms for web-font rendering
+        } else {
+          window.addEventListener('load', () => setTimeout(resolve, 600));
+        }
+      });
+    `);
+
+    log.info('[SkinTest-Print] generatePDF() – page settled, calling printToPDF()');
+
+    // printToPDF options
+    //   • printBackground : true  – preserves all background colours & images
+    //   • pageSize        : A4
+    //   • scaleFactor     : 100  – no zoom; 1 pt == 1 pt
+    //   Electron maps the rendered output to the printer DPI later;
+    //   the PDF itself is resolution-independent (vector).
+    const pdfData = await offscreenWindow.webContents.printToPDF({
+      printBackground: true,
+      pageSize: 'A4',
+      landscape: false,
+      scaleFactor: 100,
+      margins: { marginType: 'none' },  // no extra white margin
+    });
+
+    // Save to a temp file in the app's userData directory so we always
+    // have write access regardless of where the app is installed.
+    const tmpDir = app.getPath('userData');
+    const tmpPath = path.join(tmpDir, `skin-test-print-${Date.now()}.pdf`);
+    fs.writeFileSync(tmpPath, pdfData);
+
+    log.info(`[SkinTest-Print] generatePDF() – PDF saved to: ${tmpPath}`);
+
+    offscreenWindow.destroy();
+    offscreenWindow = null;
+
+    return tmpPath;
+  } catch (err) {
+    // Clean up window on error so it doesn't linger
+    if (offscreenWindow && !offscreenWindow.isDestroyed()) {
+      offscreenWindow.destroy();
+    }
+    log.error('[SkinTest-Print] generatePDF() error:', err);
+    throw err;
+  }
+}
+
+/**
+ * printSilent()
+ * Sends a PDF file directly to the target printer using pdf-to-printer.
+ * No system print dialog is shown (fully silent).
+ *
+ * pdf-to-printer options on Windows:
+ *   • printer  : target printer name (omit to use default)
+ *   • scale    : 'fit'   – scale page to fit paper
+ *   • paperSize: 'A4'
+ *   • copies   : number of copies
+ *
+ * @param {string} pdfPath    - Path to the temporary PDF file
+ * @param {string} printerName - Printer name (empty string = system default)
+ * @param {number} copies      - Number of copies to print
+ */
+async function printSilent(pdfPath, printerName, copies) {
+  try {
+    log.info(`[SkinTest-Print] printSilent() – sending "${pdfPath}" to printer: "${printerName || 'default'}", copies: ${copies}`);
+
+    // Build options object; only include printer key if one is specified so
+    // pdf-to-printer falls back to the OS default when the field is blank.
+    const options = {
+      scale: 'fit',          // fit A4 content to the loaded paper
+      paperSize: 'A4',
+      copies: copies || 1,
+    };
+
+    if (printerName && printerName.trim()) {
+      options.printer = printerName.trim();
+    }
+
+    // pdf-to-printer.print() returns a Promise; await it so we can log result
+    await pdfToPrinter.print(pdfPath, options);
+
+    log.info('[SkinTest-Print] printSilent() – job submitted successfully');
+  } catch (err) {
+    log.error('[SkinTest-Print] printSilent() error:', err);
+    throw err;
+  } finally {
+    // Always remove the temp PDF regardless of success or failure to avoid
+    // accumulating files in userData over time.
+    try {
+      if (fs.existsSync(pdfPath)) {
+        fs.unlinkSync(pdfPath);
+        log.info(`[SkinTest-Print] printSilent() – temp PDF removed: ${pdfPath}`);
+      }
+    } catch (cleanupErr) {
+      log.warn('[SkinTest-Print] printSilent() – failed to remove temp PDF:', cleanupErr);
+    }
+  }
+}
+
+/**
+ * printPage()
+ * Orchestrates the full print workflow:
+ *   1. generatePDF() – render HTML → PDF (high quality, A4, colour)
+ *   2. printSilent() – send PDF to printer silently via pdf-to-printer
+ *
+ * @param {string} htmlContent - Full HTML of the skin-test certificate
+ * @param {string} printerName - Target printer name
+ * @param {number} copies      - Copies to print
+ * @returns {{ success: boolean, error?: string }}
+ */
+async function printPage(htmlContent, printerName, copies) {
+  let pdfPath = null;
+  try {
+    log.info('[SkinTest-Print] printPage() – starting skin-test silent print workflow');
+
+    // Step 1: Render HTML to a high-quality PDF
+    pdfPath = await generatePDF(htmlContent, printerName);
+
+    // Step 2: Silently send the PDF to the printer
+    await printSilent(pdfPath, printerName, copies);
+
+    log.info('[SkinTest-Print] printPage() – workflow completed successfully');
+    return { success: true };
+  } catch (err) {
+    log.error('[SkinTest-Print] printPage() – workflow failed:', err);
+
+    // Attempt cleanup if printSilent() threw before it could clean up
+    if (pdfPath) {
+      try {
+        if (fs.existsSync(pdfPath)) fs.unlinkSync(pdfPath);
+      } catch (_) { /* ignore secondary cleanup error */ }
+    }
+
+    return { success: false, error: err.message };
+  }
+}
+
+/**
+ * IPC handler: 'silent-print-skin-test'
+ * Invoked by the renderer (SkinTesting page) with the HTML certificate content.
+ * Reads the saved printer settings so the caller doesn't need to pass them.
+ *
+ * Payload: { htmlContent: string, printerName?: string, copies?: number }
+ * Returns: { success: boolean, error?: string }
+ */
+ipcMain.handle('silent-print-skin-test', async (event, { htmlContent, printerName, copies }) => {
+  try {
+    // Resolve printer name: prefer explicit argument, then saved A4 setting,
+    // then fall back to system default (empty string).
+    const resolvedPrinter =
+      printerName ||
+      printerSettings?.skinTestPrinter?.printerName ||
+      printerSettings?.tokenPrinter?.printerName ||
+      '';
+
+    const resolvedCopies =
+      copies ||
+      printerSettings?.skinTestPrinter?.copies ||
+      1;
+
+    log.info(`[SkinTest-Print] IPC handler – printer: "${resolvedPrinter}", copies: ${resolvedCopies}`);
+
+    // Delegate to the full orchestration function
+    const result = await printPage(htmlContent, resolvedPrinter, resolvedCopies);
+    return result;
+  } catch (err) {
+    log.error('[SkinTest-Print] IPC handler – unexpected error:', err);
+    return { success: false, error: err.message };
+  }
+});
+
+// ============================================================
+// END SKIN TEST SILENT PRINT
+// ============================================================
 
 ipcMain.handle('test-print', async (event, { printerType, htmlContent }) => {
   let printWindow = null;

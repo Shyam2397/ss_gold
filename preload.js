@@ -37,6 +37,26 @@ async function silentPrintPureExchange(htmlContent) {
   return ipcRenderer.invoke('silent-print-pure-exchange', htmlContent);
 }
 
+/**
+ * silentPrintSkinTest()
+ * Sends the skin-test certificate HTML to the main process, which:
+ *   1. Renders it to a high-quality A4 PDF via webContents.printToPDF()
+ *   2. Forwards the PDF to the selected printer silently via pdf-to-printer
+ *
+ * @param {string}  htmlContent  - Full HTML string of the certificate
+ * @param {string}  [printerName] - Printer name override (optional; falls back
+ *                                  to saved settings or system default)
+ * @param {number}  [copies]      - Number of copies (optional; default 1)
+ * @returns {Promise<{ success: boolean, error?: string }>}
+ */
+async function silentPrintSkinTest(htmlContent, printerName, copies) {
+  return ipcRenderer.invoke('silent-print-skin-test', {
+    htmlContent,
+    printerName,
+    copies,
+  });
+}
+
 async function testPrint(printerType, htmlContent) {
   return ipcRenderer.invoke('test-print', { printerType, htmlContent });
 }
@@ -72,6 +92,9 @@ contextBridge.exposeInMainWorld(
     savePrinterSettings: (settings) => savePrinterSettings(settings),
     silentPrintToken: (htmlContent) => silentPrintToken(htmlContent),
     silentPrintPureExchange: (htmlContent) => silentPrintPureExchange(htmlContent),
+    // Skin-test silent print: PDF workflow via pdf-to-printer (A4, high-quality, no dialog)
+    silentPrintSkinTest: (htmlContent, printerName, copies) =>
+      silentPrintSkinTest(htmlContent, printerName, copies),
     testPrint: (printerType, htmlContent) => testPrint(printerType, htmlContent),
     // Check if we're running in Electron
     isElectron: true
