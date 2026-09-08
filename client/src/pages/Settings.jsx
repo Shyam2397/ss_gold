@@ -10,7 +10,6 @@ import {
   FiEye,
   FiCheckCircle,
   FiAlertCircle,
-  FiDownload
 } from "react-icons/fi";
 import PreviewModal from "../components/common/PreviewModal";
 
@@ -35,48 +34,9 @@ const ORIENTATIONS = [
   { value: "landscape", label: "Landscape" },
 ];
 
-// Generic quality options (fallback when no specific printer is selected)
-const QUALITY_OPTIONS_GENERIC = [
-  { value: "draft",    label: "Draft" },
-  { value: "standard", label: "Standard" },
-  { value: "high",     label: "High" },
-];
-
-// Epson L3210 quality options (EcoTank inkjet – 5 levels)
-const QUALITY_OPTIONS_L3210 = [
-  { value: "draft",          label: "Draft" },
-  { value: "draft-vivid",    label: "Draft Vivid" },
-  { value: "standard",       label: "Standard" },
-  { value: "standard-vivid", label: "Standard Vivid" },
-  { value: "high",           label: "High" },
-];
-
-// Epson L8050 quality options (photo EcoTank – 3 levels)
-const QUALITY_OPTIONS_L8050 = [
-  { value: "draft",    label: "Draft" },
-  { value: "standard", label: "Standard" },
-  { value: "high",     label: "High" },
-];
-
-// Resolve which quality list to show based on the selected printer name
-const getQualityOptions = (printerName = "") => {
-  const name = printerName.toLowerCase();
-  if (name.includes("l3210") || name.includes("l-3210")) return QUALITY_OPTIONS_L3210;
-  if (name.includes("l8050") || name.includes("l-8050")) return QUALITY_OPTIONS_L8050;
-  return QUALITY_OPTIONS_GENERIC;
-};
-
 const COLOR_OPTIONS = [
   { value: "monochrome", label: "Monochrome (Black & White)" },
   { value: "color", label: "Color" },
-];
-
-const PAPER_SOURCES = [
-  { value: "", label: "Auto / Default" },
-  { value: "upper", label: "Upper Tray" },
-  { value: "lower", label: "Lower Tray" },
-  { value: "manual", label: "Manual Feed" },
-  { value: "multi", label: "Multi-Purpose Tray" },
 ];
 
 const PAPER_TYPES = [
@@ -94,7 +54,6 @@ const PAPER_TYPES = [
 
 const DEFAULT_TOKEN_SETTINGS = {
   printerName: "",
-  paperSource: "",
   documentSize: "80mm",
   orientation: "portrait",
   paperType: "thermal",
@@ -106,7 +65,6 @@ const DEFAULT_TOKEN_SETTINGS = {
 
 const DEFAULT_SKINTEST_SETTINGS = {
   printerName: "",
-  paperSource: "",
   documentSize: "A4",
   orientation: "portrait",
   paperType: "plain",
@@ -197,18 +155,8 @@ const PrinterCard = ({
 }) => {
   const updateField = (key, value) => {
     const updated = { ...settings, [key]: value };
-    // When the printer changes, reset quality to 'high' if the current value
-    // no longer exists in the new printer's quality list.
-    if (key === "printerName") {
-      const validValues = getQualityOptions(value).map((o) => o.value);
-      if (!validValues.includes(updated.quality)) {
-        updated.quality = "high";
-      }
-    }
     onChange(updated);
   };
-
-  const qualityOptions = getQualityOptions(settings.printerName);
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-amber-100 overflow-hidden">
@@ -284,32 +232,12 @@ const PrinterCard = ({
             options={ORIENTATIONS}
           />
           <SelectField
-            label="Paper Source"
-            icon={FiDownload}
-            value={settings.paperSource}
-            onChange={(v) => updateField("paperSource", v)}
-            options={PAPER_SOURCES}
-          />
-          <SelectField
             label="Paper Type"
             icon={FiFileText}
             value={settings.paperType}
             onChange={(v) => updateField("paperType", v)}
             options={PAPER_TYPES}
           />
-          <SelectField
-            label="Print Quality"
-            icon={FiSettings}
-            value={settings.quality}
-            onChange={(v) => updateField("quality", v)}
-            options={qualityOptions}
-          />
-          {/* Show a hint about which quality profile is active */}
-          {settings.printerName && (
-            <p className="text-xs text-amber-500 -mt-2 col-span-full">
-              Quality options shown for: <strong>{settings.printerName}</strong>
-            </p>
-          )}
           <SelectField
             label="Color Mode"
             icon={FiSettings}
@@ -622,11 +550,7 @@ const Settings = () => {
           </li>
           <li className="flex items-start">
             <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-500 mt-2 mr-2 flex-shrink-0"></span>
-            Use "Test Preview" to see how the document will appear with the current quality and color settings before printing actual certificates.
-          </li>
-          <li className="flex items-start">
-            <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-500 mt-2 mr-2 flex-shrink-0"></span>
-            Paper Source and Paper Type availability depend on your specific printer model.
+            Use "Test Preview" to see how the document will appear before printing actual certificates.
           </li>
         </ul>
       </div>

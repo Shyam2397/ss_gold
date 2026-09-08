@@ -639,25 +639,8 @@ const mapSettingsToPrintOptions = (settings, printerType) => {
     }
   }
 
-  if (settings.quality) {
-    // Electron's webContents.print() accepts only these string values for quality:
-    // 'draft', 'normal' (maps to standard), 'best' (maps to high)
-    // Numeric values are silently ignored by the printer driver.
-    const qualityMap = {
-      'draft':          'draft',
-      'draft-vivid':    'draft',   // L3210 vivid draft -> still draft tier
-      'standard':       'normal',
-      'standard-vivid': 'normal',  // L3210 vivid standard -> still normal tier
-      'low':            'draft',
-      'medium':         'normal',
-      'high':           'best',
-    };
-    printOptions.quality = qualityMap[settings.quality] ?? 'best';
-  }
-
-  if (settings.paperSource) {
-    printOptions.paperSource = settings.paperSource;
-  }
+  // Always print at highest quality
+  printOptions.quality = 'best';
 
   return printOptions;
 };
