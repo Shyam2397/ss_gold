@@ -22,13 +22,6 @@ const PAPER_SIZES_TOKEN = [
   { value: "58mm", label: "58mm Thermal (Receipt)" },
 ];
 
-const PAPER_SIZES_SKINTEST = [
-  { value: "A4", label: "A4 (210 x 297 mm)" },
-  { value: "A5", label: "A5 (148 x 210 mm)" },
-  { value: "Letter", label: "Letter (8.5 x 11 in)" },
-  { value: "Legal", label: "Legal (8.5 x 14 in)" },
-];
-
 const ORIENTATIONS = [
   { value: "portrait", label: "Portrait" },
   { value: "landscape", label: "Landscape" },
@@ -59,17 +52,6 @@ const DEFAULT_TOKEN_SETTINGS = {
   paperType: "thermal",
   quality: "high",
   color: "monochrome",
-  copies: 1,
-  silentMode: true,
-};
-
-const DEFAULT_SKINTEST_SETTINGS = {
-  printerName: "",
-  documentSize: "A4",
-  orientation: "portrait",
-  paperType: "plain",
-  quality: "high",
-  color: "color",
   copies: 1,
   silentMode: true,
 };
@@ -310,9 +292,7 @@ const Settings = () => {
   const [printers, setPrinters] = useState([]);
   const [loading, setLoading] = useState(false);
   const [tokenSettings, setTokenSettings] = useState(DEFAULT_TOKEN_SETTINGS);
-  const [skinTestSettings, setSkinTestSettings] = useState(DEFAULT_SKINTEST_SETTINGS);
   const [tokenSaveStatus, setTokenSaveStatus] = useState("idle");
-  const [skinTestSaveStatus, setSkinTestSaveStatus] = useState("idle");
   const [globalMessage, setGlobalMessage] = useState(null);
   const [previewModal, setPreviewModal] = useState({ isOpen: false, htmlContent: "", title: "" });
 
@@ -338,7 +318,6 @@ const Settings = () => {
       const saved = await window.electron.getPrinterSettings();
       if (saved) {
         setTokenSettings({ ...DEFAULT_TOKEN_SETTINGS, ...(saved.tokenPrinter || {}) });
-        setSkinTestSettings({ ...DEFAULT_SKINTEST_SETTINGS, ...(saved.skinTestPrinter || {}) });
       }
     } catch (error) {
       console.error("Failed to load printer settings:", error);
@@ -381,30 +360,6 @@ const Settings = () => {
     }
   };
 
-  const saveSkinTestSettings = async () => {
-    if (!isElectronEnv) return;
-    setSkinTestSaveStatus("saving");
-    try {
-      const currentSettings = await window.electron.getPrinterSettings();
-      const toSave = {
-        ...currentSettings,
-        skinTestPrinter: { ...skinTestSettings },
-      };
-      const result = await window.electron.savePrinterSettings(toSave);
-      if (result.success) {
-        setSkinTestSettings({ ...DEFAULT_SKINTEST_SETTINGS, ...(result.settings.skinTestPrinter || {}) });
-        setSkinTestSaveStatus("saved");
-        showMessage("success", "Skin Test printer settings saved successfully!");
-        setTimeout(() => setSkinTestSaveStatus("idle"), 2000);
-      } else {
-        throw new Error(result.error || "Save failed");
-      }
-    } catch (error) {
-      setSkinTestSaveStatus("idle");
-      showMessage("error", "Failed to save Skin Test settings: " + error.message);
-    }
-  };
-
   const testTokenPrint = () => {
     const testHtml = `
         <html><head><style>
@@ -427,38 +382,6 @@ const Settings = () => {
     setPreviewModal({ isOpen: true, htmlContent: testHtml, title: "Token Receipt Preview" });
   };
 
-  const testSkinTestPrint = () => {
-    const testHtml = `
-        <html><head><style>
-          @page { size: A4 portrait; margin: 0; }
-          body { font-family: Arial, sans-serif; width: 210mm; margin: 0; padding: 10mm; box-sizing: border-box; }
-          .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid gold; padding-bottom: 8px; }
-          .header h1 { color: #D6A406; font-size: 24pt; margin: 0; }
-          .info { padding: 10px 0; }
-          .bar { background: #32CD32; color: yellow; padding: 8px; text-align: center; font-weight: bold; margin: 10px 0; }
-          .row { display: flex; margin: 4px 0; }
-          .row span:first-child { font-weight: bold; width: 160px; }
-          .footer { text-align: center; margin-top: 15px; font-style: italic; font-size: 14pt; }
-        </style></head><body>
-          <div class="header">
-            <h1>SS GOLD</h1>
-            <div><p style="color:red;margin:0;font-weight:bold;">Computer X-ray Testing</p><p style="margin:0;">59, Main Bazaar, Nilakottai</p></div>
-          </div>
-          <div class="info">
-            <div class="row"><span>Token No</span><span>: T001</span></div>
-            <div class="row"><span>Name</span><span>: Test Customer</span></div>
-            <div class="row"><span>Sample</span><span>: Ring</span></div>
-            <div class="row"><span>Weight</span><span>: 10.000 g</span></div>
-          </div>
-          <div class="bar">GOLD FINENESS % : 91.60 % &nbsp;&nbsp;|&nbsp;&nbsp; KARAT Ct : 22.00 K</div>
-          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:10px 0;">
-            <div>Silver : 8.00</div><div>Nickel : 0.20</div><div>Copper : 0.10</div><div>Zinc : 0.10</div>
-          </div>
-          <div class="footer">--- Test Print Successful - Visit Again ---</div>
-        </body></html>`;
-    setPreviewModal({ isOpen: true, htmlContent: testHtml, title: "Skin Test Certificate Preview" });
-  };
-
   return (
     <div className="container mx-auto px-4 py-6">
       <div className="mb-6">
@@ -466,35 +389,32 @@ const Settings = () => {
           <div>
             <div className="flex items-center">
               <FiSettings className="w-8 h-8 text-amber-600 mr-3" />
-            <h1 className="text-2xl font-bold text-amber-900">Printer Settings</h1>
+              <h1 className="text-2xl font-bold text-amber-900">Printer Settings</h1>
             </div>
             <p className="text-amber-600 text-sm">
-              Configure separate printer profiles for Token receipts (thermal) and Skin Test certificates (A4).
+              Configure the Token / Receipt thermal printer profile.
             </p>
           </div>
           {globalMessage && (
-        <div
-          className={`p-3 rounded-xl flex items-center ${
-            globalMessage.type === "success"
-              ? "bg-green-50 border border-green-200 text-green-800"
-              : "bg-red-50 border border-red-200 text-red-800"
-          }`}
-        >
-          {globalMessage.type === "success" ? (
-            <FiCheckCircle className="w-5 h-5 mr-2 flex-shrink-0" />
-          ) : (
-            <FiAlertCircle className="w-5 h-5 mr-2 flex-shrink-0" />
+            <div
+              className={`p-3 rounded-xl flex items-center ${
+                globalMessage.type === "success"
+                  ? "bg-green-50 border border-green-200 text-green-800"
+                  : "bg-red-50 border border-red-200 text-red-800"
+              }`}
+            >
+              {globalMessage.type === "success" ? (
+                <FiCheckCircle className="w-5 h-5 mr-2 flex-shrink-0" />
+              ) : (
+                <FiAlertCircle className="w-5 h-5 mr-2 flex-shrink-0" />
+              )}
+              <p className="text-sm">{globalMessage.text}</p>
+            </div>
           )}
-          <p className="text-sm">{globalMessage.text}</p>
-        </div>
-      )}
-
         </div>
       </div>
 
-      
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="max-w-xl">
         <PrinterCard
           title="Token / Receipt Printer"
           subtitle="Thermal 80mm / 58mm printer"
@@ -511,26 +431,9 @@ const Settings = () => {
           saveStatus={tokenSaveStatus}
           isElectronEnv={isElectronEnv}
         />
-
-        <PrinterCard
-          title="Skin Test Certificate Printer"
-          subtitle="A4 normal printer"
-          icon={FiFileText}
-          iconColor="from-green-600 to-emerald-500"
-          settings={skinTestSettings}
-          onChange={setSkinTestSettings}
-          printers={printers}
-          paperSizes={PAPER_SIZES_SKINTEST}
-          loading={loading}
-          onRefreshPrinters={loadPrinters}
-          onSave={saveSkinTestSettings}
-          onTestPrint={testSkinTestPrint}
-          saveStatus={skinTestSaveStatus}
-          isElectronEnv={isElectronEnv}
-        />
       </div>
 
-      <div className="mt-6 bg-white rounded-xl shadow-sm border border-amber-100 p-5">
+      <div className="mt-6 max-w-xl bg-white rounded-xl shadow-sm border border-amber-100 p-5">
         <h3 className="text-base font-bold text-amber-900 mb-3 flex items-center">
           <FiAlertCircle className="w-5 h-5 mr-2 text-amber-600" />
           Notes & Information
@@ -550,7 +453,7 @@ const Settings = () => {
           </li>
           <li className="flex items-start">
             <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-500 mt-2 mr-2 flex-shrink-0"></span>
-            Use "Test Preview" to see how the document will appear before printing actual certificates.
+            Use "Test Preview" to see how the receipt will appear before printing.
           </li>
         </ul>
       </div>

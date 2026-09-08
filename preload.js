@@ -32,9 +32,6 @@ async function silentPrintToken(htmlContent) {
   return ipcRenderer.invoke('silent-print-token', htmlContent);
 }
 
-async function silentPrintSkinTest(htmlContent) {
-  return ipcRenderer.invoke('silent-print-skintest', htmlContent);
-}
 
 async function silentPrintPureExchange(htmlContent) {
   return ipcRenderer.invoke('silent-print-pure-exchange', htmlContent);
@@ -74,7 +71,6 @@ contextBridge.exposeInMainWorld(
     getPrinterSettings: () => getPrinterSettings(),
     savePrinterSettings: (settings) => savePrinterSettings(settings),
     silentPrintToken: (htmlContent) => silentPrintToken(htmlContent),
-    silentPrintSkinTest: (htmlContent) => silentPrintSkinTest(htmlContent),
     silentPrintPureExchange: (htmlContent) => silentPrintPureExchange(htmlContent),
     testPrint: (printerType, htmlContent) => testPrint(printerType, htmlContent),
     // Check if we're running in Electron

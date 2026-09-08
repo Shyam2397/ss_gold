@@ -26,18 +26,6 @@ const DEFAULT_TOKEN_PRINTER_SETTINGS = {
   silentMode: true
 };
 
-const DEFAULT_SKINTEST_PRINTER_SETTINGS = {
-  printerName: '',
-  paperSource: '',
-  documentSize: 'A4',
-  orientation: 'portrait',
-  paperType: '',
-  quality: 'high',
-  color: 'color',
-  copies: 1,
-  silentMode: true
-};
-
 // Persistent settings file path
 const getSettingsFilePath = () => {
   const userDataPath = app.getPath('userData');
@@ -81,10 +69,6 @@ const initPrinterSettings = () => {
     tokenPrinter: {
       ...DEFAULT_TOKEN_PRINTER_SETTINGS,
       ...(savedSettings?.tokenPrinter || {})
-    },
-    skinTestPrinter: {
-      ...DEFAULT_SKINTEST_PRINTER_SETTINGS,
-      ...(savedSettings?.skinTestPrinter || {})
     }
   };
 };
@@ -567,8 +551,7 @@ ipcMain.handle('get-printer-settings', () => {
   } catch (error) {
     log.error('Error getting printer settings:', error);
     return {
-      tokenPrinter: { ...DEFAULT_TOKEN_PRINTER_SETTINGS },
-      skinTestPrinter: { ...DEFAULT_SKINTEST_PRINTER_SETTINGS }
+      tokenPrinter: { ...DEFAULT_TOKEN_PRINTER_SETTINGS }
     };
   }
 });
@@ -579,10 +562,6 @@ ipcMain.handle('save-printer-settings', async (event, settings) => {
       tokenPrinter: {
         ...DEFAULT_TOKEN_PRINTER_SETTINGS,
         ...(settings?.tokenPrinter || {})
-      },
-      skinTestPrinter: {
-        ...DEFAULT_SKINTEST_PRINTER_SETTINGS,
-        ...(settings?.skinTestPrinter || {})
       }
     };
     
@@ -749,104 +728,6 @@ ipcMain.handle('silent-print-token', async (event, htmlContent) => {
   }
 });
 
-ipcMain.handle('silent-print-skintest', async (event, htmlContent) => {
-  let printWindow = null;
-  try {
-    const settings = printerSettings.skinTestPrinter;
-    log.info(`Starting skin test print to printer: ${settings.printerName || 'default'}`);
-    log.info(`Skin test print settings: copies=${settings.copies}, silent=${settings.silentMode}`);
-
-    printWindow = new BrowserWindow({
-      width: 850,
-      height: 1200,
-      useContentSize: true,
-      show: false,
-      resizable: false,
-      minimizable: false,
-      maximizable: false,
-      fullscreenable: false,
-      webPreferences: {
-        nodeIntegration: false,
-        contextIsolation: true,
-        offscreen: false,
-      }
-    });
-
-    printWindow.webContents.setZoomLevel(0);
-
-    const printOptions = mapSettingsToPrintOptions(settings, 'skinTest');
-    log.info('Mapped print options for skintest:', JSON.stringify(printOptions));
-
-    await printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`);
-
-    await new Promise((resolve, reject) => {
-      let stylesLoaded = false;
-      let loadTimeout;
-
-      // Wait for styles to be fully loaded
-      printWindow.webContents.executeJavaScript(`
-        new Promise((resolve) => {
-          if (document.readyState === 'complete') {
-            // Wait a bit more for fonts to render
-            setTimeout(resolve, 500);
-          } else {
-            window.addEventListener('load', () => {
-              setTimeout(resolve, 500);
-            });
-          }
-        });
-      `).then(() => {
-        stylesLoaded = true;
-        clearTimeout(loadTimeout);
-        
-        printWindow.webContents.print(printOptions, (success, failureReason) => {
-          if (success) {
-            log.info('Skin test print completed successfully');
-            resolve(true);
-          } else {
-            log.error(`Skin test print failed: ${failureReason}`);
-            reject(new Error(failureReason || 'Print failed'));
-          }
-        });
-      }).catch((err) => {
-        if (!stylesLoaded) {
-          reject(new Error(`Failed to wait for styles: ${err.message}`));
-        }
-      });
-
-      // Timeout fallback
-      loadTimeout = setTimeout(() => {
-        if (!stylesLoaded) {
-          log.warn('Style loading timeout, proceeding with print anyway');
-          printWindow.webContents.print(printOptions, (success, failureReason) => {
-            if (success) {
-              log.info('Skin test print completed successfully (after timeout)');
-              resolve(true);
-            } else {
-              log.error(`Skin test print failed: ${failureReason}`);
-              reject(new Error(failureReason || 'Print failed'));
-            }
-          });
-        }
-      }, 3000);
-
-      printWindow.webContents.once('did-fail-load', (e, ec, em) => {
-        clearTimeout(loadTimeout);
-        reject(new Error(`Page load failed: ${em} (${ec})`));
-      });
-    });
-
-    printWindow.destroy();
-    printWindow = null;
-    return { success: true };
-  } catch (error) {
-    log.error('Error during skin test silent print:', error);
-    if (printWindow && !printWindow.isDestroyed()) {
-      printWindow.destroy();
-    }
-    return { success: false, error: error.message };
-  }
-});
 
 ipcMain.handle('silent-print-pure-exchange', async (event, htmlContent) => {
   let printWindow = null;
@@ -955,9 +836,7 @@ ipcMain.handle('silent-print-pure-exchange', async (event, htmlContent) => {
 ipcMain.handle('test-print', async (event, { printerType, htmlContent }) => {
   let printWindow = null;
   try {
-    const settings = printerType === 'token'
-      ? printerSettings.tokenPrinter
-      : printerSettings.skinTestPrinter;
+    const settings = printerSettings.tokenPrinter;
 
     log.info(`Test print for ${printerType} to: ${settings.printerName || 'default'}`);
     log.info(`Test print settings: quality=${settings.quality}, color=${settings.color}, copies=${settings.copies}`);
@@ -985,7 +864,7 @@ ipcMain.handle('test-print', async (event, { printerType, htmlContent }) => {
     printWindow.webContents.setZoomLevel(0);
 
     // Build print options from the saved settings so quality/color are applied
-    const printOptions = mapSettingsToPrintOptions(settings, printerType === 'token' ? 'token' : 'skinTest');
+    const printOptions = mapSettingsToPrintOptions(settings, 'token');
     // For test prints always use silent=false so the system dialog confirms the job
     printOptions.silent = false;
     log.info('Test print options:', JSON.stringify(printOptions));

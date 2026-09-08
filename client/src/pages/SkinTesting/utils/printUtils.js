@@ -443,18 +443,6 @@ export const printData = async (data, valuesOnly = false) => {
   const logoSrc = isElectronEnv ? await getBase64Logo(logo) : logo;
   const content = generatePrintContent(data, logoSrc, valuesOnly);
 
-  if (isElectronEnv) {
-    try {
-      const result = await window.electron.silentPrintSkinTest(content);
-      if (!result.success) {
-        throw new Error(result.error || 'Silent print failed');
-      }
-      return;
-    } catch (error) {
-      console.error('Electron silent print failed, falling back to window print:', error);
-    }
-  }
-
   const printWindow = window.open('', '_blank', 'width=900,height=600,left=100,top=100');
 
   printWindow.document.write(content);
