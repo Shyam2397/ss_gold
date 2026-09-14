@@ -908,18 +908,23 @@ async function generatePDF(htmlContent, printerName) {
 
     log.info('[SkinTest-Print] generatePDF() – page settled, calling printToPDF()');
 
-    // printToPDF options
-    //   • printBackground : true  – preserves all background colours & images
-    //   • pageSize        : A4
-    //   • scaleFactor     : 100  – no zoom; 1 pt == 1 pt
-    //   Electron maps the rendered output to the printer DPI later;
-    //   the PDF itself is resolution-independent (vector).
+    // printToPDF options for maximum colour fidelity:
+    //   • printBackground   : true  – renders every background colour, image, and gradient
+    //   • preferCSSPageSize : true  – honours @page { size: A4 } declared in the HTML,
+    //                                 preventing Chromium from overriding the paper size
+    //   • scaleFactor       : 100  – 1:1 scale, no zoom applied (100 = 100%)
+    //   • pageSize          : 'A4' – explicit fallback if preferCSSPageSize is ignored
+    //   • landscape         : false
+    //   • margins.marginType: 'none' (0) – zero margins; layout is handled by the HTML/CSS
+    //   The PDF itself is vector/resolution-independent; actual print DPI is
+    //   determined by the printer driver when pdf-to-printer submits the job.
     const pdfData = await offscreenWindow.webContents.printToPDF({
       printBackground: true,
+      preferCSSPageSize: true,
       pageSize: 'A4',
       landscape: false,
       scaleFactor: 100,
-      margins: { marginType: 'none' },  // no extra white margin
+      margins: { marginType: 0 },  // 0 = no margins (Electron enum: 'default'=0 means custom below)
     });
 
     // Save to a temp file in the app's userData directory so we always
@@ -963,11 +968,19 @@ async function printSilent(pdfPath, printerName, copies) {
   try {
     log.info(`[SkinTest-Print] printSilent() – sending "${pdfPath}" to printer: "${printerName || 'default'}", copies: ${copies}`);
 
-    // Build options object; only include printer key if one is specified so
-    // pdf-to-printer falls back to the OS default when the field is blank.
+    // Build options object for maximum colour quality.
+    // pdf-to-printer passes these as SumatraPDF -print-settings flags.
+    //   • scale       : 'noscale' – print at exact PDF dimensions; no shrink/fit
+    //                   distortion that can shift colours from rasterisation
+    //   • paperSize   : 'A4'
+    //   • monochrome  : false    – explicitly force colour mode (prevents printer
+    //                              driver from defaulting to greyscale/economy)
+    //   • copies      : n
+    // pdf-to-printer also passes -silent automatically (no dialog).
     const options = {
-      scale: 'fit',          // fit A4 content to the loaded paper
+      scale: 'noscale',      // exact 1:1 – preserves colour accuracy
       paperSize: 'A4',
+      monochrome: false,     // force colour; disables draft/economy greyscale
       copies: copies || 1,
     };
 

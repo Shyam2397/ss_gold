@@ -106,11 +106,22 @@ export const generatePrintContent = (data, logoSrc = logo, valuesOnly = false) =
       <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Allura&display=swap" rel="stylesheet">
       <style>
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Allura&display=swap');
+
+        /* Force the browser/PDF renderer to use the sRGB colour space so
+           colours in the HTML map 1:1 to what goes into the PDF stream.     */
+        :root {
+          color-scheme: light;
+        }
+
+        @color-profile --srgb-profile {
+          src: url('https://unpkg.com/color-profiles@1.0.0/sRGB.icc');
+          components: 'red' 'green' 'blue';
+        }
         
         @page {
           size: A4 portrait;
-          margin: 0;
           size: 210mm 297mm;
+          margin: 0;
           padding: 0;
         }
         
@@ -124,8 +135,11 @@ export const generatePrintContent = (data, logoSrc = logo, valuesOnly = false) =
           width: 210mm;
           height: 99mm;
           background: #fff;
+          /* Both vendor-prefixed and standard form required so Chromium's
+             PDF renderer preserves every background colour and image.        */
           -webkit-print-color-adjust: exact !important;
           print-color-adjust: exact !important;
+          color-adjust: exact !important;
         }
         
         .container {
@@ -245,18 +259,29 @@ export const generatePrintContent = (data, logoSrc = logo, valuesOnly = false) =
           font-weight: 900;
           font-size: 13pt;
           border-radius: 3px;
-          display: grid;
-          grid-template-columns: repeat(4, 1fr);
-          gap: 8px;
-          text-align: center;
+          display: flex;
+          flex-direction: row;
+          justify-content: space-around;
           align-items: center;
+          text-align: center;
           user-select: text;
           margin-bottom: 4px;
-          padding: 8px 50px;
+          padding: 6px 50px;
           ${goldInfoBarMarginTop}
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+          color-adjust: exact !important;
+        }
+        .gold-info-bar > span {
+          flex: 1;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          line-height: 1;
         }
         .gold-info-bar .bar-value {
-          font-size: 14pt;
+          font-size: 20pt;
+          line-height: 1;
           ${goldInfoBarValueStyle}
         }
         .gold-info-bar > span:nth-child(1),
@@ -264,7 +289,7 @@ export const generatePrintContent = (data, logoSrc = logo, valuesOnly = false) =
           ${goldInfoBarLabelStyle}
         }
         .gold-info-bar.silver-mode {
-          padding: 8px 40px;
+          padding: 6px 40px;
         }
         .elements-table {
           display: grid;
@@ -307,6 +332,9 @@ export const generatePrintContent = (data, logoSrc = logo, valuesOnly = false) =
           user-select: none;
           padding: 2px 53px;
           ${remarksBorder}
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+          color-adjust: exact !important;
         }
         
         .remarks-authorized div:nth-child(2) {
