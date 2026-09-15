@@ -29,6 +29,9 @@ const DEFAULT_TOKEN_PRINTER_SETTINGS = {
 };
 
 // Default printer settings – skin-test certificate (A4 colour printer)
+// Explicit defaults below drive two layers of the colour pipeline:
+//   1. Chromium's printToPDF() (vector / colour-space accurate)
+//   2. pdf-to-printer → SumatraPDF driver hints (color=yes, quality=high, paper-type)
 const DEFAULT_SKIN_TEST_PRINTER_SETTINGS = {
   printerName: '',
   paperSource: '',
@@ -601,6 +604,14 @@ ipcMain.handle('save-printer-settings', async (event, settings) => {
 });
 
 // Helper: Map our settings to Electron print options
+//
+// Quality handling (per project convention):
+//   • quality === 'high' / 'best' / undefined → do NOT set printOptions.quality.
+//     This lets the printer driver use its native high-DPI / best defaults.
+//     Experience shows Electron's hard-coded `quality: 3` can sometimes
+//     result in softer output than the driver's native best mode.
+//   • quality === 'medium' / 'normal' → printOptions.quality = 2
+//   • quality === 'low' / 'draft'     → printOptions.quality = 1
 const mapSettingsToPrintOptions = (settings, printerType) => {
   const printOptions = {
     silent: settings.silentMode !== false,
@@ -644,8 +655,14 @@ const mapSettingsToPrintOptions = (settings, printerType) => {
     }
   }
 
-  // Always print at highest quality
-  printOptions.quality = 'best';
+  const q = (settings.quality || 'high').toLowerCase();
+  if (q === 'medium' || q === 'normal' || q === 'standard') {
+    printOptions.quality = 2;
+  } else if (q === 'low' || q === 'draft' || q === 'economy') {
+    printOptions.quality = 1;
+  }
+  // NOTE: 'high' / 'best' intentionally falls through without setting
+  // printOptions.quality — see docstring above.
 
   return printOptions;
 };
@@ -877,31 +894,67 @@ async function generatePDF(htmlContent, printerName) {
   try {
     log.info('[SkinTest-Print] generatePDF() – creating offscreen render window');
 
-    // Create a hidden window sized to A4 at 96 dpi (794 × 1123 px)
+    // Create a hidden window sized precisely to A4.
+    //   • useContentSize: true  – width/height refer to the render surface, not
+    //                              including any window chrome (frame:false makes
+    //                              this redundant but we keep it for clarity)
+    //   • backgroundColor       – explicitly opaque white so the compositor has
+    //                              a known solid backdrop for every pixel; this
+    //                              avoids any premultiplied-alpha colour shifts
+    //                              when the PDF rasteriser blends transparent pixels
+    //   • show / frame          – hidden, frameless
     offscreenWindow = new BrowserWindow({
       width: 794,
       height: 1123,
+      useContentSize: true,
       show: false,
       frame: false,
+      backgroundColor: '#FFFFFF',
+      hasShadow: false,
       webPreferences: {
         nodeIntegration: false,
         contextIsolation: true,
-        offscreen: false, // must be false so printToPDF captures colours
+        offscreen: false,
+        sandbox: false,
+        spellcheck: false,
       },
     });
 
-    // Load the HTML content; data: URI keeps everything self-contained
+    // Prevent any accidental visual glitches from animations.
+    offscreenWindow.webContents.on('before-input-event', (e) => e.preventDefault());
+
+    // Load the HTML content; data: URI keeps everything self-contained.
     await offscreenWindow.loadURL(
-      `data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`
+      `data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`,
+      {
+        extraHeaders: 'pragma: no-cache\n',
+      }
     );
 
-    // Wait for the page (fonts, images) to fully settle
+    // Wait for the page (fonts, images, layout) to fully settle.
+    // Uses both document.fonts.ready and a fixed delay to cover:
+    //   • web-font swap completion  (Poppins / Allura)
+    //   • image decoding
+    //   • Chromium's composite pass after load
     await offscreenWindow.webContents.executeJavaScript(`
-      new Promise((resolve) => {
+      new Promise(async (resolve) => {
+        const settle = () => setTimeout(resolve, 800);
         if (document.readyState === 'complete') {
-          setTimeout(resolve, 600);   // extra 600 ms for web-font rendering
+          try {
+            if (document.fonts && document.fonts.ready) {
+              await document.fonts.ready;
+            }
+          } catch (_) { /* ignore – older engines don't expose fonts.ready */ }
+          settle();
         } else {
-          window.addEventListener('load', () => setTimeout(resolve, 600));
+          window.addEventListener('load', async () => {
+            try {
+              if (document.fonts && document.fonts.ready) {
+                await document.fonts.ready;
+              }
+            } catch (_) { /* ignore */ }
+            settle();
+          });
         }
       });
     `);
@@ -909,38 +962,50 @@ async function generatePDF(htmlContent, printerName) {
     log.info('[SkinTest-Print] generatePDF() – page settled, calling printToPDF()');
 
     // printToPDF options for maximum colour fidelity:
-    //   • printBackground   : true  – renders every background colour, image, and gradient
-    //   • preferCSSPageSize : true  – honours @page { size: A4 } declared in the HTML,
-    //                                 preventing Chromium from overriding the paper size
-    //   • scaleFactor       : 100  – 1:1 scale, no zoom applied (100 = 100%)
-    //   • pageSize          : 'A4' – explicit fallback if preferCSSPageSize is ignored
+    //   • printBackground   : true  – renders every background colour, image,
+    //                                 gradient, and box-shadow
+    //   • preferCSSPageSize : true  – honours @page { size: A4 } declared in
+    //                                 the HTML, preventing Chromium from
+    //                                 overriding the paper size
+    //   • pageSize          : 'A4' – explicit fallback if preferCSSPageSize
+    //                                 is ignored by the underlying Skia/PDFium
     //   • landscape         : false
-    //   • margins.marginType: 'none' (0) – zero margins; layout is handled by the HTML/CSS
-    //   The PDF itself is vector/resolution-independent; actual print DPI is
-    //   determined by the printer driver when pdf-to-printer submits the job.
+    //   • scaleFactor       : 100   – 1:1 scale, no zoom applied (100 = 100%)
+    //   • margins.marginType: 1     – Electron enum: 0=default, 1=none,
+    //                                 2=minimum. 1 forces zero margins; layout
+    //                                 is handled entirely by the HTML/CSS.
+    //
+    // Chromium internally renders to the PDF using the sRGB colour space; the
+    // PDF stream itself is vector/resolution-independent.  Actual raster DPI
+    // is determined later by the printer driver when pdf-to-printer submits
+    // the job – we just make sure colours are not shifted along the way.
     const pdfData = await offscreenWindow.webContents.printToPDF({
       printBackground: true,
       preferCSSPageSize: true,
       pageSize: 'A4',
       landscape: false,
       scaleFactor: 100,
-      margins: { marginType: 0 },  // 0 = no margins (Electron enum: 'default'=0 means custom below)
+      margins: {
+        marginType: 1,
+        top: 0,
+        bottom: 0,
+        left: 0,
+        right: 0,
+      },
+      displayHeaderFooter: false,
     });
 
-    // Save to a temp file in the app's userData directory so we always
-    // have write access regardless of where the app is installed.
     const tmpDir = app.getPath('userData');
     const tmpPath = path.join(tmpDir, `skin-test-print-${Date.now()}.pdf`);
     fs.writeFileSync(tmpPath, pdfData);
 
-    log.info(`[SkinTest-Print] generatePDF() – PDF saved to: ${tmpPath}`);
+    log.info(`[SkinTest-Print] generatePDF() – PDF saved to: ${tmpPath} (${(pdfData.length / 1024).toFixed(1)} KB)`);
 
     offscreenWindow.destroy();
     offscreenWindow = null;
 
     return tmpPath;
   } catch (err) {
-    // Clean up window on error so it doesn't linger
     if (offscreenWindow && !offscreenWindow.isDestroyed()) {
       offscreenWindow.destroy();
     }
@@ -954,41 +1019,89 @@ async function generatePDF(htmlContent, printerName) {
  * Sends a PDF file directly to the target printer using pdf-to-printer.
  * No system print dialog is shown (fully silent).
  *
- * pdf-to-printer options on Windows:
- *   • printer  : target printer name (omit to use default)
- *   • scale    : 'fit'   – scale page to fit paper
- *   • paperSize: 'A4'
- *   • copies   : number of copies
+ * pdf-to-printer wraps SumatraPDF.  Beyond the named properties below,
+ * arbitrary flags can be injected via the `options` array which are
+ * appended directly to the SumatraPDF command line.
  *
- * @param {string} pdfPath    - Path to the temporary PDF file
- * @param {string} printerName - Printer name (empty string = system default)
- * @param {number} copies      - Number of copies to print
+ * @param {string} pdfPath       - Path to the temporary PDF file
+ * @param {object} printCfg      - Print configuration
+ * @param {string} printCfg.printerName  - Printer name ('' = system default)
+ * @param {number} printCfg.copies       - Number of copies
+ * @param {string} printCfg.quality      - 'high' | 'medium' | 'low'  (saved setting)
+ * @param {string} printCfg.color        - 'color' | 'monochrome'      (saved setting)
+ * @param {string} printCfg.paperType    - 'plain' | 'photo' | ...    (saved setting, optional)
+ * @param {string} printCfg.paperSource  - tray/bin name              (saved setting, optional)
  */
-async function printSilent(pdfPath, printerName, copies) {
+async function printSilent(pdfPath, printCfg) {
+  const { printerName, copies, quality, color, paperType, paperSource } = printCfg || {};
   try {
-    log.info(`[SkinTest-Print] printSilent() – sending "${pdfPath}" to printer: "${printerName || 'default'}", copies: ${copies}`);
+    log.info(`[SkinTest-Print] printSilent() – sending "${pdfPath}" to printer: "${printerName || 'default'}", copies: ${copies}, quality: ${quality}, color: ${color}, paperType: ${paperType || 'n/a'}`);
 
-    // Build options object for maximum colour quality.
-    // pdf-to-printer passes these as SumatraPDF -print-settings flags.
-    //   • scale       : 'noscale' – print at exact PDF dimensions; no shrink/fit
-    //                   distortion that can shift colours from rasterisation
-    //   • paperSize   : 'A4'
-    //   • monochrome  : false    – explicitly force colour mode (prevents printer
-    //                              driver from defaulting to greyscale/economy)
-    //   • copies      : n
-    // pdf-to-printer also passes -silent automatically (no dialog).
+    // Build the standard pdf-to-printer options.  `monochrome: false` is
+    // critical: without it many GDI drivers silently fall back to draft /
+    // economy greyscale even when the PDF contains vector colour content.
     const options = {
-      scale: 'noscale',      // exact 1:1 – preserves colour accuracy
+      scale: 'noscale',
       paperSize: 'A4',
-      monochrome: false,     // force colour; disables draft/economy greyscale
+      monochrome: color === 'monochrome',
       copies: copies || 1,
+      silent: true,
     };
 
     if (printerName && printerName.trim()) {
       options.printer = printerName.trim();
     }
 
-    // pdf-to-printer.print() returns a Promise; await it so we can log result
+    if (paperSource && paperSource.trim()) {
+      options.bin = paperSource.trim();
+    }
+
+    // Build a supplemental -print-settings string that is appended to the
+    // SumatraPDF command line via pdf-to-printer's `options` pass-through
+    // array.  These flags are low-level driver hints that most consumer /
+    // office colour printers honour:
+    //   • color=yes|no         – overrides driver "eco" defaults
+    //   • quality=high|normal  – selects driver quality preset
+    //   • paper=A4             – reconfirms paper size at driver level
+    //   • asr=no               – disable driver-level page auto-rotate
+    //                            which can do a colour-reinterpreting
+    //                            resample when re-orienting
+    //   • fit=no               – explicit no-fit to match our `noscale` above
+    const driverFlags = [];
+    driverFlags.push(color === 'monochrome' ? 'color=no' : 'color=yes');
+
+    // Map our quality setting into the driver's quality preset.
+    // 'high' (the default for skin-test) → driver preset "high".
+    // 'best' etc. from older saved configs are normalised to 'high'.
+    const q = (quality || 'high').toLowerCase();
+    if (q === 'high' || q === 'best' || q === 'maximum') {
+      driverFlags.push('quality=high');
+    } else if (q === 'medium' || q === 'normal' || q === 'standard') {
+      driverFlags.push('quality=normal');
+    } else {
+      driverFlags.push('quality=low');
+    }
+
+    driverFlags.push('paper=A4');
+    driverFlags.push('fit=no');
+    driverFlags.push('asr=no');
+
+    // Optional paper-type hint (photo/glossy/matte/plain).
+    if (paperType && paperType.trim()) {
+      const pt = paperType.trim().toLowerCase();
+      if (pt.includes('photo') || pt.includes('glossy') || pt.includes('matte')) {
+        driverFlags.push(`paper=${pt}`);
+      } else if (pt.includes('plain')) {
+        driverFlags.push('paper=plain');
+      }
+    }
+
+    const settingsStr = driverFlags.join(',');
+    log.info(`[SkinTest-Print] printSilent() – SumatraPDF -print-settings: "${settingsStr}"`);
+
+    // pdf-to-printer's `options` array receives raw CLI flags.
+    options.options = ['-print-settings', settingsStr];
+
     await pdfToPrinter.print(pdfPath, options);
 
     log.info('[SkinTest-Print] printSilent() – job submitted successfully');
@@ -996,8 +1109,6 @@ async function printSilent(pdfPath, printerName, copies) {
     log.error('[SkinTest-Print] printSilent() error:', err);
     throw err;
   } finally {
-    // Always remove the temp PDF regardless of success or failure to avoid
-    // accumulating files in userData over time.
     try {
       if (fs.existsSync(pdfPath)) {
         fs.unlinkSync(pdfPath);
@@ -1016,27 +1127,22 @@ async function printSilent(pdfPath, printerName, copies) {
  *   2. printSilent() – send PDF to printer silently via pdf-to-printer
  *
  * @param {string} htmlContent - Full HTML of the skin-test certificate
- * @param {string} printerName - Target printer name
- * @param {number} copies      - Copies to print
+ * @param {object} printCfg    - Print configuration (printerName, copies, quality, color, ...)
  * @returns {{ success: boolean, error?: string }}
  */
-async function printPage(htmlContent, printerName, copies) {
+async function printPage(htmlContent, printCfg) {
   let pdfPath = null;
   try {
     log.info('[SkinTest-Print] printPage() – starting skin-test silent print workflow');
 
-    // Step 1: Render HTML to a high-quality PDF
-    pdfPath = await generatePDF(htmlContent, printerName);
-
-    // Step 2: Silently send the PDF to the printer
-    await printSilent(pdfPath, printerName, copies);
+    pdfPath = await generatePDF(htmlContent, printCfg?.printerName || '');
+    await printSilent(pdfPath, printCfg);
 
     log.info('[SkinTest-Print] printPage() – workflow completed successfully');
     return { success: true };
   } catch (err) {
     log.error('[SkinTest-Print] printPage() – workflow failed:', err);
 
-    // Attempt cleanup if printSilent() threw before it could clean up
     if (pdfPath) {
       try {
         if (fs.existsSync(pdfPath)) fs.unlinkSync(pdfPath);
@@ -1057,23 +1163,39 @@ async function printPage(htmlContent, printerName, copies) {
  */
 ipcMain.handle('silent-print-skin-test', async (event, { htmlContent, printerName, copies }) => {
   try {
-    // Resolve printer name: prefer explicit argument, then saved A4 setting,
-    // then fall back to system default (empty string).
+    const savedSkinTest = printerSettings?.skinTestPrinter || {};
+    const savedToken = printerSettings?.tokenPrinter || {};
+
     const resolvedPrinter =
       printerName ||
-      printerSettings?.skinTestPrinter?.printerName ||
-      printerSettings?.tokenPrinter?.printerName ||
+      savedSkinTest.printerName ||
+      savedToken.printerName ||
       '';
 
     const resolvedCopies =
       copies ||
-      printerSettings?.skinTestPrinter?.copies ||
+      savedSkinTest.copies ||
       1;
 
-    log.info(`[SkinTest-Print] IPC handler – printer: "${resolvedPrinter}", copies: ${resolvedCopies}`);
+    const resolvedQuality = savedSkinTest.quality || 'high';
+    const resolvedColor = savedSkinTest.color || 'color';
+    const resolvedPaperType = savedSkinTest.paperType || '';
+    const resolvedPaperSource = savedSkinTest.paperSource || '';
 
-    // Delegate to the full orchestration function
-    const result = await printPage(htmlContent, resolvedPrinter, resolvedCopies);
+    log.info(
+      `[SkinTest-Print] IPC handler – printer: "${resolvedPrinter}", copies: ${resolvedCopies}, quality: ${resolvedQuality}, color: ${resolvedColor}`
+    );
+
+    const printCfg = {
+      printerName: resolvedPrinter,
+      copies: resolvedCopies,
+      quality: resolvedQuality,
+      color: resolvedColor,
+      paperType: resolvedPaperType,
+      paperSource: resolvedPaperSource,
+    };
+
+    const result = await printPage(htmlContent, printCfg);
     return result;
   } catch (err) {
     log.error('[SkinTest-Print] IPC handler – unexpected error:', err);

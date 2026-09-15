@@ -16,9 +16,16 @@ const convertImageToBase64 = async (imgSrc) => {
     const canvas = document.createElement('canvas');
     canvas.width = img.naturalWidth || img.width;
     canvas.height = img.naturalHeight || img.height;
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(img, 0, 0);
-    return canvas.toDataURL('image/png');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (ctx) {
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    } else {
+      const fallbackCtx = canvas.getContext('2d');
+      fallbackCtx.drawImage(img, 0, 0);
+    }
+    return canvas.toDataURL('image/png', 1.0);
   } catch (error) {
     console.warn('Failed to convert logo to base64, will fall back to raw URL:', error);
     return imgSrc;
@@ -107,15 +114,24 @@ export const generatePrintContent = (data, logoSrc = logo, valuesOnly = false) =
       <style>
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Allura&display=swap');
 
-        /* Force the browser/PDF renderer to use the sRGB colour space so
-           colours in the HTML map 1:1 to what goes into the PDF stream.     */
-        :root {
-          color-scheme: light;
+        html {
+          color-scheme: light only;
+          forced-color-adjust: none;
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+          color-adjust: exact !important;
+          background: #ffffff;
+          color: #000000;
+          font-display: swap;
+          -webkit-font-smoothing: antialiased;
+          -moz-osx-font-smoothing: grayscale;
+          text-rendering: optimizeLegibility;
+          shape-rendering: geometricPrecision;
+          image-rendering: auto;
         }
-
-        @color-profile --srgb-profile {
-          src: url('https://unpkg.com/color-profiles@1.0.0/sRGB.icc');
-          components: 'red' 'green' 'blue';
+        
+        :root {
+          color-scheme: light only;
         }
         
         @page {
@@ -125,21 +141,31 @@ export const generatePrintContent = (data, logoSrc = logo, valuesOnly = false) =
           padding: 0;
         }
         
+        * {
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+          color-adjust: exact !important;
+          forced-color-adjust: none;
+        }
+        
         body {
           margin: 0;
           padding: 0;
-          font-family: 'Poppins', sans-serif;
+          font-family: 'Poppins', 'Segoe UI', Tahoma, Arial, sans-serif;
           font-size: 10pt;
           ${bodyColor}
           box-sizing: border-box;
           width: 210mm;
           height: 99mm;
-          background: #fff;
-          /* Both vendor-prefixed and standard form required so Chromium's
-             PDF renderer preserves every background colour and image.        */
+          background: #ffffff;
+          color: #111111;
           -webkit-print-color-adjust: exact !important;
           print-color-adjust: exact !important;
           color-adjust: exact !important;
+          forced-color-adjust: none;
+          -webkit-font-smoothing: antialiased;
+          text-rendering: optimizeLegibility;
+          image-rendering: auto;
         }
         
         .container {
@@ -167,9 +193,15 @@ export const generatePrintContent = (data, logoSrc = logo, valuesOnly = false) =
           ${logoStyle}
           user-select: none;
           white-space: nowrap;
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+          forced-color-adjust: none;
         }
         .logo img {
           ${vo ? hidden : ''}
+          image-rendering: auto;
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
         }
         .logo span {
           margin-top: 6px;
@@ -348,14 +380,16 @@ export const generatePrintContent = (data, logoSrc = logo, valuesOnly = false) =
         }
 
         .footer-message {
-          font-family: 'Allura', cursive;
+          font-family: 'Allura', 'Brush Script MT', 'Segoe Script', cursive;
           font-size: 14pt;
           font-weight: 600;
           text-align: center;
           margin-top: 2px;
           user-select: none;
           ${footerStyle}
-          
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+          forced-color-adjust: none;
         }
       </style>
     </head>
