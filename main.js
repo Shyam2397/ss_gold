@@ -5,6 +5,8 @@ const os = require('os');
 const fs = require('fs');
 // pdf-to-printer: sends a PDF file directly to a Windows printer with no dialog
 const pdfToPrinter = require('pdf-to-printer');
+// devmode-helper: Windows DEVMODE manipulation for real paper type selection
+const devmodeHelper = require('./devmode-helper');
 
 // Add logging utility
 const log = require('electron-log');
@@ -667,6 +669,43 @@ const mapSettingsToPrintOptions = (settings, printerType) => {
   return printOptions;
 };
 
+const applyPrinterDevmode = async (settings, printLabel) => {
+  let printerName = settings?.printerName?.trim();
+  if (!printerName && mainWindow) {
+    try {
+      const printers = await mainWindow.webContents.getPrintersAsync();
+      printerName = printers.find((printer) => printer.isDefault)?.name || '';
+    } catch (error) {
+      log.warn(`[${printLabel}] Could not resolve the system default printer:`, error);
+    }
+  }
+
+  if (!printerName) {
+    log.info(`[${printLabel}] No explicit printer selected; skipping DEVMODE mutation.`);
+    return { applied: false, changed: {}, message: 'System default printer selected.' };
+  }
+
+  const overrides = {};
+  if (settings.paperType && settings.paperType.trim()) overrides.paperType = settings.paperType;
+  if (settings.color) overrides.color = settings.color;
+  if (settings.orientation) overrides.orientation = settings.orientation;
+  if (settings.quality) overrides.quality = settings.quality;
+  if (settings.copies != null) overrides.copies = settings.copies;
+
+  if (Object.keys(overrides).length === 0) {
+    return { applied: false, changed: {}, message: 'No DEVMODE overrides selected.' };
+  }
+
+  log.info(`[${printLabel}] Applying DEVMODE overrides: ${JSON.stringify(overrides)}`);
+  const result = await devmodeHelper.applyPrinterDefaults(printerName, overrides);
+  if (!result.applied) {
+    log.warn(`[${printLabel}] DEVMODE was not applied: ${result.message}`);
+  } else {
+    log.info(`[${printLabel}] DEVMODE applied: ${result.message}`);
+  }
+  return result;
+};
+
 ipcMain.handle('silent-print-token', async (event, htmlContent) => {
   let printWindow = null;
   try {
@@ -699,6 +738,7 @@ ipcMain.handle('silent-print-token', async (event, htmlContent) => {
 
     const printOptions = mapSettingsToPrintOptions(settings, 'token');
     log.info('Mapped print options for token:', JSON.stringify(printOptions));
+    await applyPrinterDevmode(settings, 'Token-Print');
 
     await printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`);
 
@@ -804,6 +844,7 @@ ipcMain.handle('silent-print-pure-exchange', async (event, htmlContent) => {
 
     const printOptions = mapSettingsToPrintOptions(settings, 'token');
     log.info('Mapped print options for pure exchange:', JSON.stringify(printOptions));
+    await applyPrinterDevmode(settings, 'PureExchange-Print');
 
     await printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`);
 
@@ -1031,11 +1072,30 @@ async function generatePDF(htmlContent, printerName) {
  * @param {string} printCfg.color        - 'color' | 'monochrome'      (saved setting)
  * @param {string} printCfg.paperType    - 'plain' | 'photo' | ...    (saved setting, optional)
  * @param {string} printCfg.paperSource  - tray/bin name              (saved setting, optional)
+ *
+ * IMPORTANT – driver capabilities & reality (2026-09):
+ *   • paperType (DEVMODE dmMediaType) CAN now be set via devmode-helper.js
+ *     using Win32 DocumentPropertiesW + SetPrinterW APIs. This applies the
+ *     paper type to the printer's default DEVMODE before printing.
+ *   • Only tokens explicitly listed in SumatraPDF "Printing.md" are used.
+ *     Unknown tokens (e.g. "quality=high", "color=yes", "fit=no", "asr=no")
+ *     can cause SumatraPDF to ignore the *whole* -print-settings string.
+ *     See https://www.sumatrapdfreader.org/docs/Printing.md .
  */
 async function printSilent(pdfPath, printCfg) {
   const { printerName, copies, quality, color, paperType, paperSource } = printCfg || {};
   try {
-    log.info(`[SkinTest-Print] printSilent() – sending "${pdfPath}" to printer: "${printerName || 'default'}", copies: ${copies}, quality: ${quality}, color: ${color}, paperType: ${paperType || 'n/a'}`);
+    log.info(
+      `[SkinTest-Print] printSilent() – pdf: "${pdfPath}", printer: "${printerName || 'default'}", copies: ${copies}, quality: ${quality}, color: ${color}, paperType: ${paperType || 'n/a'}, paperSource: ${paperSource || 'n/a'}`
+    );
+
+    await applyPrinterDevmode({
+      printerName,
+      paperType,
+      color,
+      quality,
+      copies,
+    }, 'SkinTest-Print');
 
     // Build the standard pdf-to-printer options.  `monochrome: false` is
     // critical: without it many GDI drivers silently fall back to draft /
@@ -1056,48 +1116,49 @@ async function printSilent(pdfPath, printCfg) {
       options.bin = paperSource.trim();
     }
 
-    // Build a supplemental -print-settings string that is appended to the
-    // SumatraPDF command line via pdf-to-printer's `options` pass-through
-    // array.  These flags are low-level driver hints that most consumer /
-    // office colour printers honour:
-    //   • color=yes|no         – overrides driver "eco" defaults
-    //   • quality=high|normal  – selects driver quality preset
-    //   • paper=A4             – reconfirms paper size at driver level
-    //   • asr=no               – disable driver-level page auto-rotate
-    //                            which can do a colour-reinterpreting
-    //                            resample when re-orienting
-    //   • fit=no               – explicit no-fit to match our `noscale` above
+    // =========================================================================
+    // SumatraPDF -print-settings  (ONLY tokens listed in official docs are used)
+    // Docs: https://www.sumatrapdfreader.org/docs/Printing.md#-print-settings-options
+    //
+    // Tokens we emit — all documented and supported:
+    //   • paper=A4                  – reconfirm paper SIZE at driver level
+    //                                 (matches our pdf-to-printer paperSize:A4)
+    //   • noscale                   – print at 100% (matches scale:'noscale')
+    //   • color  |  monochrome      – force colour / grayscale rendering
+    //   • disable-auto-rotation     – don't auto-rotate wide pages 90°;
+    //                                 prevents an extra resample that can
+    //                                 slightly shift colours
+    //   • ignore-pdf-print-settings – ignore any embedded ViewerPreferences
+    //                                 that would override our settings
+    //
+    // Tokens NOT emitted here (they are unsupported / non-documented and
+    // risk having the whole -print-settings string silently ignored):
+    //   • quality=<high|…>  – SumatraPDF exposes NO driver-quality token
+    //     (quality is handled by omitting Electron's `quality` enum so the
+    //      driver uses its native best DPI default — see mapSettingsToPrintOptions)
+    //   • color=yes / color=no      – wrong syntax; use bare "color" / "monochrome"
+    //   • fit=no / asr=no           – wrong syntax; use "noscale" /
+    //                                  "disable-auto-rotation"
+    //   • paper=photo/glossy/plain  – SumatraPDF `paper=` means PAPER SIZE,
+    //                                  not MediaType. Paper type (MediaType) is
+    //                                  now handled via DEVMODE before this call.
+    // =========================================================================
     const driverFlags = [];
-    driverFlags.push(color === 'monochrome' ? 'color=no' : 'color=yes');
 
-    // Map our quality setting into the driver's quality preset.
-    // 'high' (the default for skin-test) → driver preset "high".
-    // 'best' etc. from older saved configs are normalised to 'high'.
-    const q = (quality || 'high').toLowerCase();
-    if (q === 'high' || q === 'best' || q === 'maximum') {
-      driverFlags.push('quality=high');
-    } else if (q === 'medium' || q === 'normal' || q === 'standard') {
-      driverFlags.push('quality=normal');
-    } else {
-      driverFlags.push('quality=low');
-    }
+    // Colour mode: use the bare documented tokens.
+    driverFlags.push(color === 'monochrome' ? 'monochrome' : 'color');
 
+    // Exact sizing + no auto-rotate resample
     driverFlags.push('paper=A4');
-    driverFlags.push('fit=no');
-    driverFlags.push('asr=no');
+    driverFlags.push('noscale');
+    driverFlags.push('disable-auto-rotation');
 
-    // Optional paper-type hint (photo/glossy/matte/plain).
-    if (paperType && paperType.trim()) {
-      const pt = paperType.trim().toLowerCase();
-      if (pt.includes('photo') || pt.includes('glossy') || pt.includes('matte')) {
-        driverFlags.push(`paper=${pt}`);
-      } else if (pt.includes('plain')) {
-        driverFlags.push('paper=plain');
-      }
-    }
+    // Ignore any embedded PDF ViewerPreferences (PrintScaling / PickTrayByPDFSize / etc.)
+    // so our explicit settings always win, regardless of how a future PDF was generated.
+    driverFlags.push('ignore-pdf-print-settings');
 
     const settingsStr = driverFlags.join(',');
-    log.info(`[SkinTest-Print] printSilent() – SumatraPDF -print-settings: "${settingsStr}"`);
+    log.info(`[SkinTest-Print] printSilent() – SumatraPDF -print-settings: "${settingsStr}" (all tokens are officially documented)`);
 
     // pdf-to-printer's `options` array receives raw CLI flags.
     options.options = ['-print-settings', settingsStr];
@@ -1210,7 +1271,9 @@ ipcMain.handle('silent-print-skin-test', async (event, { htmlContent, printerNam
 ipcMain.handle('test-print', async (event, { printerType, htmlContent }) => {
   let printWindow = null;
   try {
-    const settings = printerSettings.tokenPrinter;
+    const settings = printerType === 'skinTest'
+      ? printerSettings.skinTestPrinter
+      : printerSettings.tokenPrinter;
 
     log.info(`Test print for ${printerType} to: ${settings.printerName || 'default'}`);
     log.info(`Test print settings: quality=${settings.quality}, color=${settings.color}, copies=${settings.copies}`);
@@ -1238,10 +1301,11 @@ ipcMain.handle('test-print', async (event, { printerType, htmlContent }) => {
     printWindow.webContents.setZoomLevel(0);
 
     // Build print options from the saved settings so quality/color are applied
-    const printOptions = mapSettingsToPrintOptions(settings, 'token');
+    const printOptions = mapSettingsToPrintOptions(settings, printerType);
     // For test prints always use silent=false so the system dialog confirms the job
     printOptions.silent = false;
     log.info('Test print options:', JSON.stringify(printOptions));
+    await applyPrinterDevmode(settings, `Test-${printerType}`);
 
     await printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`);
 

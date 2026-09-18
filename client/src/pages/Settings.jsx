@@ -41,15 +41,14 @@ const COLOR_OPTIONS = [
 
 const PAPER_TYPES = [
   { value: "", label: "Auto / Default" },
-  { value: "plain", label: "Plain Paper" },
-  { value: "thin", label: "Thin Paper" },
-  { value: "thick", label: "Thick Paper" },
-  { value: "glossy", label: "Glossy Paper" },
-  { value: "transparency", label: "Transparency" },
-  { value: "labels", label: "Labels" },
+  { value: "plain", label: "Plain paper" },
+  { value: "epson-photo-quality-ink-jet", label: "Epson Photo Quality Ink Jet" },
+  { value: "epson-matte", label: "Epson Matte" },
+  { value: "epson-ultra-glossy", label: "Epson Ultra Glossy" },
+  { value: "epson-premium-glossy", label: "Epson Premium Glossy" },
+  { value: "epson-premium-semigloss", label: "Epson Premium Semigloss" },
+  { value: "photo-paper-glossy", label: "Photo Paper Glossy" },
   { value: "envelope", label: "Envelope" },
-  { value: "cardstock", label: "Cardstock" },
-  { value: "thermal", label: "Thermal Paper" },
 ];
 
 const DEFAULT_TOKEN_SETTINGS = {
@@ -74,7 +73,7 @@ const DEFAULT_SKIN_TEST_SETTINGS = {
   silentMode: true,
 };
 
-const SelectField = ({ label, icon: Icon, value, onChange, options, disabled }) => (
+const SelectField = ({ label, icon: Icon, value, onChange, options, disabled, description }) => (
   <div>
     <label className="flex items-center text-sm font-medium text-amber-900 mb-1.5">
       {Icon && <Icon className="w-4 h-4 mr-1.5 text-amber-600" />}
@@ -92,6 +91,9 @@ const SelectField = ({ label, icon: Icon, value, onChange, options, disabled }) 
         </option>
       ))}
     </select>
+    {description && (
+      <p className="text-xs text-amber-600 mt-1">{description}</p>
+    )}
   </div>
 );
 
@@ -237,6 +239,7 @@ const PrinterCard = ({
             value={settings.paperType}
             onChange={(v) => updateField("paperType", v)}
             options={PAPER_TYPES}
+            description="Selects the physical media type at driver level (Plain / Photo / Glossy / Labels etc.) via Windows DEVMODE before printing."
           />
           <SelectField
             label="Color Mode"

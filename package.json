@@ -1,6 +1,6 @@
 {
   "name": "ss_gold",
-  "version": "1.6.8",
+  "version": "1.6.9",
   "main": "main.js",
   "author": "Shyam Sundar",
   "description": "gold testing application",
@@ -16,6 +16,7 @@
   "dependencies": {
     "electron-log": "^5.4.1",
     "electron-store": "^10.1.0",
+    "koffi": "^3.3.0",
     "node-fetch": "2",
     "openai": "^5.15.0",
     "pdf-to-printer": "^5.8.1"
@@ -33,7 +34,8 @@
     "appId": "com.example.ss-gold",
     "productName": "SS Gold",
     "asarUnpack": [
-      "node_modules/pdf-to-printer/**/*"
+      "node_modules/pdf-to-printer/**/*",
+      "node_modules/koffi/**/*"
     ],
     "win": {
       "target": "nsis",
@@ -48,11 +50,13 @@
     },
     "files": [
       "main.js",
+      "devmode-helper.js",
       "preload.js",
       "splash-preload.js",
       "splash.html",
       "client/dist/**/*",
-      "node_modules/pdf-to-printer/**/*"
+      "node_modules/pdf-to-printer/**/*",
+      "node_modules/koffi/**/*"
     ],
     "extraResources": [
       {
