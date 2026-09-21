@@ -114,7 +114,7 @@ const AddExpensePage = lazyLoad(() => import(
 const Settings = lazyLoad(() => import(
   /* webpackChunkName: "settings" */
   /* webpackPrefetch: true */
-  '../pages/Settings'
+  '../pages/Settings/Settings'
 ));
 
 // Enhanced route priorities with contextual information from config
@@ -283,7 +283,7 @@ const routesConfig = [
   {
     path: '/settings',
     Component: Settings,
-    preload: () => import(/* webpackPrefetch: true */ '../pages/Settings'),
+    preload: () => import(/* webpackPrefetch: true */ '../pages/Settings/Settings'),
     ...ROUTE_PRIORITIES['/settings']
   }
 ];
