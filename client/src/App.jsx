@@ -2,6 +2,7 @@ import React, { Suspense, useEffect, useCallback, useRef } from 'react';
 import { HashRouter as Router, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from './lib/queryClient';
+import { CompanyDetailsProvider } from './context/CompanyDetailsContext';
 import Login from './components/login/Login';
 import MainLayout from './components/mainLayout/MainLayout';
 import LoadingSpinner from './components/common/LoadingSpinner';
@@ -172,10 +173,12 @@ function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <Router>
-        <PreFetchComponent />
-        <AppRoutes loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
-      </Router>
+      <CompanyDetailsProvider>
+        <Router>
+          <PreFetchComponent />
+          <AppRoutes loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
+        </Router>
+      </CompanyDetailsProvider>
     </QueryClientProvider>
   );
 }

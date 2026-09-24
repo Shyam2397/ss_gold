@@ -13,7 +13,7 @@ const toCamelCase = (row) => ({
   email: row.email,
   website: row.website,
   gstin: row.gstin,
-  footerMessage: row.footer_message
+  logo: row.logo
 });
 
 const getCompanyDetails = async (req, res) => {
@@ -33,7 +33,7 @@ const getCompanyDetails = async (req, res) => {
         email: '',
         website: '',
         gstin: '',
-        footerMessage: ''
+        logo: ''
       });
     }
     res.json(toCamelCase(result.rows[0]));
@@ -56,13 +56,13 @@ const saveCompanyDetails = async (req, res) => {
     email,
     website,
     gstin,
-    footerMessage
+    logo
   } = req.body;
 
   const sql = `
     INSERT INTO company_details (
       id, name, tagline, address, city, state, pincode, phone,
-      alternate_phone, email, website, gstin, footer_message
+      alternate_phone, email, website, gstin, logo
     ) VALUES (1, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
     ON CONFLICT (id) DO UPDATE SET
       name = EXCLUDED.name,
@@ -76,7 +76,7 @@ const saveCompanyDetails = async (req, res) => {
       email = EXCLUDED.email,
       website = EXCLUDED.website,
       gstin = EXCLUDED.gstin,
-      footer_message = EXCLUDED.footer_message,
+      logo = EXCLUDED.logo,
       updated_at = CURRENT_TIMESTAMP
     RETURNING *
   `;
@@ -94,7 +94,7 @@ const saveCompanyDetails = async (req, res) => {
       email,
       website,
       gstin,
-      footerMessage
+      logo
     ]);
     res.json(toCamelCase(result.rows[0]));
   } catch (err) {

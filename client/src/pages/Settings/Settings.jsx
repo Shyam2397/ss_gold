@@ -19,9 +19,13 @@ import {
   FiGlobe,
   FiHash,
   FiRotateCcw,
+  FiImage,
+  FiUpload,
+  FiTrash2,
 } from "react-icons/fi";
 import PreviewModal from "../../components/common/PreviewModal";
 import { getApi } from "../../services/api";
+import { useCompanyDetails } from "../../context/CompanyDetailsContext";
 
 const isElectron = () => {
   return window.electron && window.electron.isElectron;
@@ -95,7 +99,7 @@ const DEFAULT_COMPANY_DETAILS = {
   email: "",
   website: "",
   gstin: "",
-  footerMessage: "",
+  logo: "",
 };
 
 const COMPANY_FIELDS = [
@@ -198,6 +202,36 @@ const ToggleField = ({ label, icon: Icon, value, onChange, description }) => (
     </button>
   </div>
 );
+
+const MAX_LOGO_SIZE = 400;
+
+const fileToDataUrl = (file) =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+
+const resizeImageDataUrl = (dataUrl, maxSize) =>
+  new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, maxSize / Math.max(img.width, img.height));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      try {
+        resolve(canvas.toDataURL("image/png"));
+      } catch (err) {
+        resolve(dataUrl);
+      }
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
 
 const PrinterCard = ({
   title,
@@ -387,6 +421,7 @@ const Settings = () => {
   const [printValuesOnlySaved, setPrintValuesOnlySaved] = useState(false);
 
   const isElectronEnv = isElectron();
+  const { updateCompanyDetails } = useCompanyDetails();
 
   const loadPrinters = useCallback(async () => {
     if (!isElectronEnv) return;
@@ -433,6 +468,7 @@ const Settings = () => {
         const parsed = { ...DEFAULT_COMPANY_DETAILS, ...response.data };
         setCompanyDetails(parsed);
         setSavedCompanyDetails(parsed);
+        updateCompanyDetails(parsed);
       } catch (error) {
         console.warn("Failed to load company details from server, using local copy:", error);
         try {
@@ -442,6 +478,7 @@ const Settings = () => {
             const parsed = { ...DEFAULT_COMPANY_DETAILS, ...JSON.parse(savedDetails) };
             setCompanyDetails(parsed);
             setSavedCompanyDetails(parsed);
+            updateCompanyDetails(parsed);
           }
         } catch (localError) {
           console.error("Failed to load company details:", localError);
@@ -479,6 +516,7 @@ const Settings = () => {
       const parsed = { ...DEFAULT_COMPANY_DETAILS, ...response.data };
       setSavedCompanyDetails(parsed);
       setCompanyDetails(parsed);
+      updateCompanyDetails(parsed);
       try {
         window.localStorage.setItem("companyDetails", JSON.stringify(parsed));
       } catch (cacheError) {
@@ -501,6 +539,25 @@ const Settings = () => {
 
   const updateCompanyField = (key, value) => {
     setCompanyDetails((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const handleLogoUpload = async (event) => {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+    try {
+      const dataUrl = await fileToDataUrl(file);
+      const resized = await resizeImageDataUrl(dataUrl, MAX_LOGO_SIZE);
+      updateCompanyField("logo", resized);
+    } catch (error) {
+      console.error("Failed to read the logo image:", error);
+      showMessage("error", "Failed to read the logo image.");
+    } finally {
+      event.target.value = "";
+    }
+  };
+
+  const removeLogo = () => {
+    updateCompanyField("logo", "");
   };
 
   const companyDetailsDirty =
@@ -732,7 +789,46 @@ const Settings = () => {
                 </p>
               </div>
               <div className="space-y-3">
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="grid grid-cols-1 items-center gap-3 sm:grid-cols-2">
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg border border-amber-200 bg-amber-50">
+                      {companyDetails.logo ? (
+                        <img
+                          src={companyDetails.logo}
+                          alt="Company logo"
+                          className="h-full w-full object-contain p-1"
+                        />
+                      ) : (
+                        <FiImage className="h-6 w-6 text-amber-400" />
+                      )}
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label
+                        htmlFor="company-logo"
+                        className="flex w-fit cursor-pointer items-center gap-2 rounded-lg border border-amber-300 px-3 py-1.5 text-sm font-medium text-amber-700 transition-all hover:bg-amber-50"
+                      >
+                        <FiUpload className="h-4 w-4" />
+                        {companyDetails.logo ? "Change logo" : "Upload logo"}
+                      </label>
+                      <input
+                        id="company-logo"
+                        type="file"
+                        accept="image/*"
+                        onChange={handleLogoUpload}
+                        className="hidden"
+                      />
+                      {companyDetails.logo && (
+                        <button
+                          type="button"
+                          onClick={removeLogo}
+                          className="flex items-center gap-1.5 text-xs font-medium text-red-600 transition-colors hover:text-red-700"
+                        >
+                          <FiTrash2 className="h-3.5 w-3.5" />
+                          Remove logo
+                        </button>
+                      )}
+                    </div>
+                  </div>
                   <TextField
                     id="company-name"
                     label="Company name"
@@ -741,6 +837,8 @@ const Settings = () => {
                     onChange={(v) => updateCompanyField("name", v)}
                     placeholder="company name"
                   />
+                </div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                   <TextField
                     id="company-tagline"
                     label="Tagline"
@@ -749,8 +847,6 @@ const Settings = () => {
                     onChange={(v) => updateCompanyField("tagline", v)}
                     placeholder="tagline or slogan"
                   />
-                </div>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <TextField
                     id="company-phone"
                     label="Phone number"
@@ -797,21 +893,21 @@ const Settings = () => {
                     placeholder="33ABCDE1234F1Z5"
                   />
                 </div>
-                <div>
-                  <label htmlFor="company-address" className="mb-1.5 flex items-center text-sm font-medium text-amber-900">
-                    <FiMapPin className="w-4 h-4 mr-1.5 text-amber-600" />
-                    Business address
-                  </label>
-                  <textarea
-                    id="company-address"
-                    rows="2"
-                    value={companyDetails.address}
-                    onChange={(event) => updateCompanyField("address", event.target.value)}
-                    placeholder="Street, area, district, PIN code"
-                    className="w-full resize-y rounded-lg border border-amber-200 bg-white px-3 py-1.5 text-sm text-amber-900 outline-none transition-all focus:border-amber-400 focus:ring-2 focus:ring-amber-400"
-                  />
-                </div>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2">
+                  <div>
+                    <label htmlFor="company-address" className="mb-1.5 flex items-center text-sm font-medium text-amber-900">
+                      <FiMapPin className="w-4 h-4 mr-1.5 text-amber-600" />
+                      Business address
+                    </label>
+                    <textarea
+                      id="company-address"
+                      rows="2"
+                      value={companyDetails.address}
+                      onChange={(event) => updateCompanyField("address", event.target.value)}
+                      placeholder="Street, area, district, PIN code"
+                      className="w-full resize-y rounded-lg border border-amber-200 bg-white px-3 py-1.5 text-sm text-amber-900 outline-none transition-all focus:border-amber-400 focus:ring-2 focus:ring-amber-400"
+                    />
+                  </div>
                   <TextField
                     id="company-city"
                     label="City"
@@ -820,6 +916,8 @@ const Settings = () => {
                     onChange={(v) => updateCompanyField("city", v)}
                     placeholder="city"
                   />
+                </div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <TextField
                     id="company-state"
                     label="State"
@@ -836,20 +934,6 @@ const Settings = () => {
                     value={companyDetails.pincode}
                     onChange={(v) => updateCompanyField("pincode", v)}
                     placeholder="PIN code"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="company-footer" className="mb-1.5 flex items-center text-sm font-medium text-amber-900">
-                    <FiCheckCircle className="w-4 h-4 mr-1.5 text-amber-600" />
-                    Footer / thank-you message
-                  </label>
-                  <input
-                    id="company-footer"
-                    type="text"
-                    value={companyDetails.footerMessage}
-                    onChange={(event) => updateCompanyField("footerMessage", event.target.value)}
-                    placeholder="Thank You .... Visit Again...."
-                    className="w-full rounded-lg border border-amber-200 bg-white px-3 py-1.5 text-sm text-amber-900 outline-none transition-all focus:border-amber-400 focus:ring-2 focus:ring-amber-400"
                   />
                 </div>
               </div>
@@ -899,6 +983,13 @@ const Settings = () => {
                 </div>
                 <div className="rounded-lg border border-dashed border-amber-300 bg-amber-50/50 p-4">
                   <div className="text-center">
+                    {companyDetails.logo && (
+                      <img
+                        src={companyDetails.logo}
+                        alt="Company logo"
+                        className="mx-auto mb-2 h-14 w-14 object-contain"
+                      />
+                    )}
                     <p className="text-lg font-extrabold uppercase tracking-wide text-amber-900">
                       {companyDetails.name || "Company name"}
                     </p>
@@ -935,9 +1026,6 @@ const Settings = () => {
                     {!companyDetails.address && !companyDetails.phone && !companyDetails.email && !companyDetails.website && (
                       <p className="text-amber-400">Fill in the fields to see a live preview.</p>
                     )}
-                  </div>
-                  <div className="mt-3 border-t border-amber-200 pt-3 text-center">
-                    <p className="font-decorative text-xl text-amber-700">{companyDetails.footerMessage || "Thank You"}</p>
                   </div>
                 </div>
               </div>

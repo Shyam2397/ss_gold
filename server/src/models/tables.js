@@ -273,7 +273,7 @@ const createCompanyDetailsTable = async () => {
       email VARCHAR(150),
       website VARCHAR(150),
       gstin VARCHAR(50),
-      footer_message TEXT,
+      logo TEXT,
       created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
     )
@@ -281,6 +281,9 @@ const createCompanyDetailsTable = async () => {
 
   try {
     await pool.query(createTableSQL);
+    // Migrations for tables created before newer schema versions
+    await pool.query('ALTER TABLE company_details ADD COLUMN IF NOT EXISTS logo TEXT');
+    await pool.query('ALTER TABLE company_details DROP COLUMN IF EXISTS footer_message');
   } catch (err) {
     console.error('Error creating company_details table:', err);
     throw err;

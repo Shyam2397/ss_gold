@@ -538,6 +538,41 @@ ipcMain.handle('get-logo-path', () => {
   );
 });
 
+// Company branding for the splash screen: returns saved name/logo from the
+// backend once it is ready; null if not saved yet (fresh install) or unreachable.
+const getBackendBaseUrlCandidates = () => {
+  const ports = [];
+  if (productionServerPort) ports.push(productionServerPort);
+  if (PORTS.SERVER && PORTS.SERVER !== productionServerPort) ports.push(PORTS.SERVER);
+  if (5009 !== productionServerPort && 5009 !== PORTS.SERVER) ports.push(5009);
+  return ports.map((port) => `http://localhost:${port}`);
+};
+
+ipcMain.handle('get-company-details', async () => {
+  const baseUrls = getBackendBaseUrlCandidates();
+  // Poll the backend for a short while since it boots in parallel with the splash
+  for (let attempt = 0; attempt < 12; attempt++) {
+    for (const baseUrl of baseUrls) {
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 1000);
+        const res = await fetch(`${baseUrl}/api/company-details`, { signal: controller.signal });
+        clearTimeout(timeout);
+        if (!res.ok) continue;
+        const data = await res.json();
+        if (data && data.name) {
+          return { name: data.name, logo: data.logo || '', tagline: data.tagline || '' };
+        }
+        return null;
+      } catch (error) {
+        // Backend not ready yet – try again
+      }
+    }
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  return null;
+});
+
 ipcMain.handle('get-system-memory', () => {
   return {
     total: os.totalmem(),
