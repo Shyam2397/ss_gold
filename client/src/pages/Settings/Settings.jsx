@@ -21,6 +21,7 @@ import {
   FiRotateCcw,
 } from "react-icons/fi";
 import PreviewModal from "../../components/common/PreviewModal";
+import { getApi } from "../../services/api";
 
 const isElectron = () => {
   return window.electron && window.electron.isElectron;
@@ -83,8 +84,8 @@ const DEFAULT_SKIN_TEST_SETTINGS = {
 };
 
 const DEFAULT_COMPANY_DETAILS = {
-  name: "SS GOLD",
-  tagline: "Computer X-ray Testing",
+  name: "",
+  tagline: "",
   address: "",
   city: "",
   state: "",
@@ -94,7 +95,7 @@ const DEFAULT_COMPANY_DETAILS = {
   email: "",
   website: "",
   gstin: "",
-  footerMessage: "Thank You .... Visit Again....",
+  footerMessage: "",
 };
 
 const COMPANY_FIELDS = [
@@ -124,7 +125,7 @@ const SelectField = ({ label, icon: Icon, value, onChange, options, disabled, de
       value={value}
       onChange={(e) => onChange(e.target.value)}
       disabled={disabled}
-      className="w-full px-3 py-2 rounded-lg border border-amber-200 bg-white text-amber-900 focus:ring-2 focus:ring-amber-400 focus:border-amber-400 outline-none transition-all text-sm disabled:bg-amber-50 disabled:text-amber-500"
+      className="w-full px-3 py-1.5 rounded-lg border border-amber-200 bg-white text-amber-900 focus:ring-2 focus:ring-amber-400 focus:border-amber-400 outline-none transition-all text-sm disabled:bg-amber-50 disabled:text-amber-500"
     >
       {options.map((opt) => (
         <option key={opt.value} value={opt.value}>
@@ -150,7 +151,7 @@ const NumberField = ({ label, icon: Icon, value, onChange, min = 1, max = 99 }) 
       min={min}
       max={max}
       onChange={(e) => onChange(Math.max(min, Math.min(max, parseInt(e.target.value) || 1)))}
-      className="w-full px-3 py-2 rounded-lg border border-amber-200 bg-white text-amber-900 focus:ring-2 focus:ring-amber-400 focus:border-amber-400 outline-none transition-all text-sm"
+      className="w-full px-3 py-1.5 rounded-lg border border-amber-200 bg-white text-amber-900 focus:ring-2 focus:ring-amber-400 focus:border-amber-400 outline-none transition-all text-sm"
     />
   </div>
 );
@@ -168,13 +169,13 @@ const TextField = ({ label, icon: Icon, value, onChange, placeholder, type = "te
       placeholder={placeholder}
       onChange={(e) => onChange(e.target.value)}
       disabled={disabled}
-      className="w-full px-3 py-2 rounded-lg border border-amber-200 bg-white text-amber-900 focus:ring-2 focus:ring-amber-400 focus:border-amber-400 outline-none transition-all text-sm disabled:bg-amber-50 disabled:text-amber-500"
+      className="w-full px-3 py-1.5 rounded-lg border border-amber-200 bg-white text-amber-900 focus:ring-2 focus:ring-amber-400 focus:border-amber-400 outline-none transition-all text-sm disabled:bg-amber-50 disabled:text-amber-500"
     />
   </div>
 );
 
 const ToggleField = ({ label, icon: Icon, value, onChange, description }) => (
-  <div className="flex items-center justify-between p-3 bg-amber-50 rounded-lg border border-amber-100">
+  <div className="flex items-center justify-between p-2.5 bg-amber-50 rounded-lg border border-amber-100">
     <div className="flex items-start">
       {Icon && <Icon className="w-5 h-5 mr-2 mt-0.5 text-amber-600" />}
       <div>
@@ -221,7 +222,7 @@ const PrinterCard = ({
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-amber-100 overflow-hidden">
-      <div className={`p-4 bg-gradient-to-r ${iconColor}`}>
+      <div className={`p-3 bg-gradient-to-r ${iconColor}`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center text-white">
             <Icon className="w-6 h-6 mr-3" />
@@ -241,7 +242,7 @@ const PrinterCard = ({
         </div>
       </div>
 
-      <div className="p-5 space-y-4">
+      <div className="p-4 space-y-3">
         {!isElectronEnv && (
           <div className="flex items-start p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
             <FiAlertCircle className="w-5 h-5 text-yellow-600 mr-2 flex-shrink-0 mt-0.5" />
@@ -260,7 +261,7 @@ const PrinterCard = ({
             value={settings.printerName}
             onChange={(e) => updateField("printerName", e.target.value)}
             disabled={!isElectronEnv || printers.length === 0}
-            className="w-full px-3 py-2 rounded-lg border border-amber-200 bg-white text-amber-900 focus:ring-2 focus:ring-amber-400 focus:border-amber-400 outline-none transition-all text-sm disabled:bg-amber-50 disabled:text-amber-500"
+            className="w-full px-3 py-1.5 rounded-lg border border-amber-200 bg-white text-amber-900 focus:ring-2 focus:ring-amber-400 focus:border-amber-400 outline-none transition-all text-sm disabled:bg-amber-50 disabled:text-amber-500"
           >
             <option value="">-- System Default Printer --</option>
             {printers.map((p) => (
@@ -277,7 +278,7 @@ const PrinterCard = ({
           )}
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
           <SelectField
             label="Paper Size"
             icon={FiFileText}
@@ -292,21 +293,6 @@ const PrinterCard = ({
             onChange={(v) => updateField("orientation", v)}
             options={ORIENTATIONS}
           />
-          <SelectField
-            label="Paper Type"
-            icon={FiFileText}
-            value={settings.paperType}
-            onChange={(v) => updateField("paperType", v)}
-            options={PAPER_TYPES}
-            description="Selects the physical media type at driver level (Plain / Photo / Glossy / Labels etc.) via Windows DEVMODE before printing."
-          />
-          <SelectField
-            label="Color Mode"
-            icon={FiSettings}
-            value={settings.color}
-            onChange={(v) => updateField("color", v)}
-            options={COLOR_OPTIONS}
-          />
           <NumberField
             label="Number of Copies"
             icon={FiCopy}
@@ -314,6 +300,21 @@ const PrinterCard = ({
             onChange={(v) => updateField("copies", v)}
             min={1}
             max={50}
+          />
+          <SelectField
+            label="Paper Type"
+            icon={FiFileText}
+            value={settings.paperType}
+            onChange={(v) => updateField("paperType", v)}
+            options={PAPER_TYPES}
+            description="Sets the physical media type at driver level (DEVMODE)."
+          />
+          <SelectField
+            label="Color Mode"
+            icon={FiSettings}
+            value={settings.color}
+            onChange={(v) => updateField("color", v)}
+            options={COLOR_OPTIONS}
           />
         </div>
 
@@ -422,24 +423,46 @@ const Settings = () => {
   }, [isElectronEnv, loadPrinters, loadSettings]);
 
   useEffect(() => {
-    try {
-      const savedDetails = window.localStorage.getItem("companyDetails");
-      if (savedDetails) {
-        const parsed = { ...DEFAULT_COMPANY_DETAILS, ...JSON.parse(savedDetails) };
+    let cancelled = false;
+
+    const loadCompanyDetails = async () => {
+      try {
+        const api = await getApi();
+        const response = await api.get("/api/company-details");
+        if (cancelled) return;
+        const parsed = { ...DEFAULT_COMPANY_DETAILS, ...response.data };
         setCompanyDetails(parsed);
         setSavedCompanyDetails(parsed);
+      } catch (error) {
+        console.warn("Failed to load company details from server, using local copy:", error);
+        try {
+          const savedDetails = window.localStorage.getItem("companyDetails");
+          if (cancelled) return;
+          if (savedDetails) {
+            const parsed = { ...DEFAULT_COMPANY_DETAILS, ...JSON.parse(savedDetails) };
+            setCompanyDetails(parsed);
+            setSavedCompanyDetails(parsed);
+          }
+        } catch (localError) {
+          console.error("Failed to load company details:", localError);
+        }
       }
-      const savedConfirmationPreference = window.localStorage.getItem("showSaveConfirmation");
-      if (savedConfirmationPreference !== null) {
-        setShowSaveConfirmation(savedConfirmationPreference === "true");
-      }
-      const savedPrintValuesOnly = window.localStorage.getItem("skinTest_printValuesOnly");
-      if (savedPrintValuesOnly !== null) {
-        setPrintValuesOnly(savedPrintValuesOnly === "true");
-      }
-    } catch (error) {
-      console.error("Failed to load company details:", error);
+    };
+
+    loadCompanyDetails();
+
+    const savedConfirmationPreference = window.localStorage.getItem("showSaveConfirmation");
+    if (savedConfirmationPreference !== null) {
+      setShowSaveConfirmation(savedConfirmationPreference === "true");
     }
+    const savedPrintValuesOnly = window.localStorage.getItem("skinTest_printValuesOnly");
+    if (savedPrintValuesOnly !== null) {
+      setPrintValuesOnly(savedPrintValuesOnly === "true");
+    }
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const showMessage = (type, text) => {
@@ -448,15 +471,27 @@ const Settings = () => {
     setTimeout(() => setGlobalMessage(null), 4000);
   };
 
-  const saveCompanyDetails = () => {
+  const saveCompanyDetails = async () => {
+    setCompanySaveStatus("saving");
     try {
-      window.localStorage.setItem("companyDetails", JSON.stringify(companyDetails));
-      setSavedCompanyDetails({ ...companyDetails });
+      const api = await getApi();
+      const response = await api.put("/api/company-details", companyDetails);
+      const parsed = { ...DEFAULT_COMPANY_DETAILS, ...response.data };
+      setSavedCompanyDetails(parsed);
+      setCompanyDetails(parsed);
+      try {
+        window.localStorage.setItem("companyDetails", JSON.stringify(parsed));
+      } catch (cacheError) {
+        console.warn("Failed to cache company details locally:", cacheError);
+      }
       setCompanySaveStatus("saved");
       showMessage("success", "Company details saved successfully!");
       setTimeout(() => setCompanySaveStatus("idle"), 2000);
     } catch (error) {
-      showMessage("error", "Failed to save company details: " + error.message);
+      console.error("Failed to save company details:", error);
+      setCompanySaveStatus("idle");
+      setTimeout(() => setCompanySaveStatus("idle"), 2000);
+      showMessage("error", "Failed to save company details: " + (error.response?.data?.error || error.message));
     }
   };
 
@@ -676,7 +711,7 @@ const Settings = () => {
       </div>
 
       {activeTab === "company" && (
-        <div id="company-settings-panel" role="tabpanel" className="max-w-5xl animate-slideIn">
+        <div id="company-settings-panel" role="tabpanel" className="max-w-9xl animate-slideIn">
           {companyDetailsDirty && (
             <div className="mb-4 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
               <FiAlertCircle className="h-5 w-5 mt-0.5 flex-shrink-0 text-amber-600" />
@@ -687,24 +722,24 @@ const Settings = () => {
           )}
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
             <div className="rounded-xl border border-amber-100 bg-white p-5 shadow-sm lg:col-span-3">
-              <div className="mb-5">
+              <div className="mb-4">
                 <div className="flex items-center gap-2">
                   <FiHome className="h-5 w-5 text-amber-600" />
                   <h2 className="text-lg font-bold text-amber-900">Company details</h2>
                 </div>
-                <p className="mt-1 text-sm text-amber-600">
+                <p className="mt-0.5 text-sm text-amber-600">
                   These details appear on tokens and printed certificates.
                 </p>
               </div>
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="space-y-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <TextField
                     id="company-name"
                     label="Company name"
                     icon={FiHome}
                     value={companyDetails.name}
                     onChange={(v) => updateCompanyField("name", v)}
-                    placeholder="SS GOLD"
+                    placeholder="company name"
                   />
                   <TextField
                     id="company-tagline"
@@ -712,10 +747,10 @@ const Settings = () => {
                     icon={FiInfo}
                     value={companyDetails.tagline}
                     onChange={(v) => updateCompanyField("tagline", v)}
-                    placeholder="Computer X-ray Testing"
+                    placeholder="tagline or slogan"
                   />
                 </div>
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <TextField
                     id="company-phone"
                     label="Phone number"
@@ -723,8 +758,19 @@ const Settings = () => {
                     type="tel"
                     value={companyDetails.phone}
                     onChange={(v) => updateCompanyField("phone", v)}
-                    placeholder="8903225544"
+                    placeholder="phone number"
                   />
+                  <TextField
+                    id="company-alternate-phone"
+                    label="Alternate phone"
+                    icon={FiPhone}
+                    type="tel"
+                    value={companyDetails.alternatePhone}
+                    onChange={(v) => updateCompanyField("alternatePhone", v)}
+                    placeholder="optional phone number"
+                  />
+                </div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                   <TextField
                     id="company-email"
                     label="Email address"
@@ -740,7 +786,7 @@ const Settings = () => {
                     icon={FiGlobe}
                     value={companyDetails.website}
                     onChange={(v) => updateCompanyField("website", v)}
-                    placeholder="www.ssgold.in"
+                    placeholder="www.company.com"
                   />
                   <TextField
                     id="company-gstin"
@@ -758,11 +804,38 @@ const Settings = () => {
                   </label>
                   <textarea
                     id="company-address"
-                    rows="3"
+                    rows="2"
                     value={companyDetails.address}
                     onChange={(event) => updateCompanyField("address", event.target.value)}
                     placeholder="Street, area, district, PIN code"
-                    className="w-full resize-y rounded-lg border border-amber-200 bg-white px-3 py-2 text-sm text-amber-900 outline-none transition-all focus:border-amber-400 focus:ring-2 focus:ring-amber-400"
+                    className="w-full resize-y rounded-lg border border-amber-200 bg-white px-3 py-1.5 text-sm text-amber-900 outline-none transition-all focus:border-amber-400 focus:ring-2 focus:ring-amber-400"
+                  />
+                </div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  <TextField
+                    id="company-city"
+                    label="City"
+                    icon={FiMapPin}
+                    value={companyDetails.city}
+                    onChange={(v) => updateCompanyField("city", v)}
+                    placeholder="city"
+                  />
+                  <TextField
+                    id="company-state"
+                    label="State"
+                    icon={FiMapPin}
+                    value={companyDetails.state}
+                    onChange={(v) => updateCompanyField("state", v)}
+                    placeholder="state"
+                  />
+                  <TextField
+                    id="company-pincode"
+                    label="PIN code"
+                    icon={FiMapPin}
+                    type="tel"
+                    value={companyDetails.pincode}
+                    onChange={(v) => updateCompanyField("pincode", v)}
+                    placeholder="PIN code"
                   />
                 </div>
                 <div>
@@ -776,11 +849,11 @@ const Settings = () => {
                     value={companyDetails.footerMessage}
                     onChange={(event) => updateCompanyField("footerMessage", event.target.value)}
                     placeholder="Thank You .... Visit Again...."
-                    className="w-full rounded-lg border border-amber-200 bg-white px-3 py-2 text-sm text-amber-900 outline-none transition-all focus:border-amber-400 focus:ring-2 focus:ring-amber-400"
+                    className="w-full rounded-lg border border-amber-200 bg-white px-3 py-1.5 text-sm text-amber-900 outline-none transition-all focus:border-amber-400 focus:ring-2 focus:ring-amber-400"
                   />
                 </div>
               </div>
-              <div className="mt-5 flex flex-wrap items-center justify-end gap-3 border-t border-amber-100 pt-4">
+              <div className="mt-4 flex flex-wrap items-center justify-end gap-3 border-t border-amber-100 pt-3">
                 <button
                   type="button"
                   onClick={resetCompanyDetails}
@@ -793,15 +866,27 @@ const Settings = () => {
                 <button
                   type="button"
                   onClick={saveCompanyDetails}
-                  disabled={companySaveStatus === "saved"}
+                  disabled={companySaveStatus === "saved" || companySaveStatus === "saving"}
                   className={`flex items-center rounded-lg px-4 py-2 text-sm font-medium text-white transition-all ${
                     companySaveStatus === "saved"
                       ? "bg-green-600"
+                      : companySaveStatus === "saving"
+                      ? "bg-amber-400 cursor-wait"
                       : "bg-gradient-to-r from-amber-600 to-yellow-500 hover:from-amber-700 hover:to-yellow-600"
                   }`}
                 >
-                  {companySaveStatus === "saved" ? <FiCheckCircle className="mr-1.5 h-4 w-4" /> : <FiSave className="mr-1.5 h-4 w-4" />}
-                  {companySaveStatus === "saved" ? "Saved!" : "Save company details"}
+                  {companySaveStatus === "saved" ? (
+                    <FiCheckCircle className="mr-1.5 h-4 w-4" />
+                  ) : companySaveStatus === "saving" ? (
+                    <FiRefreshCw className="mr-1.5 h-4 w-4 animate-spin" />
+                  ) : (
+                    <FiSave className="mr-1.5 h-4 w-4" />
+                  )}
+                  {companySaveStatus === "saved"
+                    ? "Saved!"
+                    : companySaveStatus === "saving"
+                    ? "Saving..."
+                    : "Save company details"}
                 </button>
               </div>
             </div>
@@ -869,7 +954,7 @@ const Settings = () => {
 
       {activeTab === "printer" && (
         <div id="printer-settings-panel" role="tabpanel" className="animate-slideIn">
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 max-w-5xl">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 max-w-6xl">
         <PrinterCard
           title="Token / Receipt Printer"
           subtitle="Thermal 80mm / 58mm printer"

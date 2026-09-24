@@ -258,6 +258,35 @@ const createEntriesTable = async () => {
   }
 };
 
+const createCompanyDetailsTable = async () => {
+  const createTableSQL = `
+    CREATE TABLE IF NOT EXISTS company_details (
+      id INTEGER PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+      name VARCHAR(150) NOT NULL,
+      tagline VARCHAR(255),
+      address TEXT,
+      city VARCHAR(100),
+      state VARCHAR(100),
+      pincode VARCHAR(10),
+      phone VARCHAR(20),
+      alternate_phone VARCHAR(20),
+      email VARCHAR(150),
+      website VARCHAR(150),
+      gstin VARCHAR(50),
+      footer_message TEXT,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )
+  `;
+
+  try {
+    await pool.query(createTableSQL);
+  } catch (err) {
+    console.error('Error creating company_details table:', err);
+    throw err;
+  }
+};
+
 const createCashAdjustmentsTable = async () => {
   const createTableSQL = `
     CREATE TABLE IF NOT EXISTS cash_adjustments (
@@ -292,6 +321,7 @@ const initializeTables = async () => {
     await createPureExchangeTable();
     await createEntriesTable();
     await createCashAdjustmentsTable();
+    await createCompanyDetailsTable();
   } catch (err) {
     console.error('Error initializing tables:', err);
     throw err;
@@ -307,6 +337,7 @@ module.exports = {
   createTokensTable,
   createEntriesTable,
   createCashAdjustmentsTable,
+  createCompanyDetailsTable,
   createUsersTable,
   initializeTables
 };
