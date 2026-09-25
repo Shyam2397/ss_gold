@@ -522,6 +522,17 @@ const Settings = () => {
       } catch (cacheError) {
         console.warn("Failed to cache company details locally:", cacheError);
       }
+      if (window.electron && typeof window.electron.cacheSplashBranding === "function") {
+        try {
+          await window.electron.cacheSplashBranding({
+            name: parsed.name,
+            tagline: parsed.tagline,
+            logo: parsed.logo,
+          });
+        } catch (cacheError) {
+          console.warn("Failed to cache splash branding:", cacheError);
+        }
+      }
       setCompanySaveStatus("saved");
       showMessage("success", "Company details saved successfully!");
       setTimeout(() => setCompanySaveStatus("idle"), 2000);

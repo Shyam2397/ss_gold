@@ -86,6 +86,7 @@ contextBridge.exposeInMainWorld(
     setWindowState: (bounds) => ipcRenderer.send('setWindowState', bounds),
     // API configuration
     getApiUrl: () => ipcRenderer.invoke('get-api-url'),
+    cacheSplashBranding: (details) => ipcRenderer.invoke('cache-splash-branding', details),
     // Printer management
     getAvailablePrinters: () => getAvailablePrinters(),
     getPrinterSettings: () => getPrinterSettings(),

@@ -187,6 +187,41 @@ const getBackendBaseUrl = () => {
   return `http://127.0.0.1:${backendPort}`;
 };
 
+const normalizeSplashBranding = (details) => {
+  const name = typeof details?.name === 'string' ? details.name.trim() : '';
+  const logo = typeof details?.logo === 'string' ? details.logo.trim() : '';
+  const tagline = typeof details?.tagline === 'string' ? details.tagline.trim() : '';
+  if (!name && !logo) return null;
+  return { name, logo, tagline };
+};
+
+const getSplashBrandingCachePath = () => path.join(app.getPath('userData'), 'splash-branding.json');
+
+const readSplashBrandingCache = () => {
+  try {
+    const cachePath = getSplashBrandingCachePath();
+    if (!fs.existsSync(cachePath)) return null;
+    return normalizeSplashBranding(JSON.parse(fs.readFileSync(cachePath, 'utf8')));
+  } catch (error) {
+    log.warn('Failed to read splash branding cache:', error);
+    return null;
+  }
+};
+
+const writeSplashBrandingCache = (details) => {
+  const normalized = normalizeSplashBranding(details);
+  const cachePath = getSplashBrandingCachePath();
+  try {
+    if (!normalized) {
+      if (fs.existsSync(cachePath)) fs.unlinkSync(cachePath);
+      return;
+    }
+    fs.writeFileSync(cachePath, JSON.stringify(normalized), 'utf8');
+  } catch (error) {
+    log.warn('Failed to write splash branding cache:', error);
+  }
+};
+
 // Window state management
 function getWindowState() {
   const defaultState = {
@@ -607,12 +642,11 @@ ipcMain.handle('get-logo-path', () => {
 });
 
 const getCompanyDetailsFromBackend = async () => {
-  if (backendReadyPromise) {
-    try {
-      await backendReadyPromise;
-    } catch (error) {
-      return null;
-    }
+  const cachedBranding = readSplashBrandingCache();
+  if (cachedBranding) return cachedBranding;
+
+  for (let attempt = 0; attempt < 40 && !backendPort; attempt++) {
+    await new Promise((resolve) => setTimeout(resolve, 50));
   }
 
   const baseUrl = getBackendBaseUrl();
@@ -625,14 +659,10 @@ const getCompanyDetailsFromBackend = async () => {
       const res = await fetch(`${baseUrl}/api/company-details`, { signal: controller.signal });
       if (!res.ok) throw new Error(`Company details request failed: ${res.status}`);
       const data = await res.json();
-      const name = typeof data?.name === 'string' ? data.name.trim() : '';
-      const logo = typeof data?.logo === 'string' ? data.logo.trim() : '';
-      if (!name && !logo) return null;
-      return {
-        name,
-        logo,
-        tagline: typeof data?.tagline === 'string' ? data.tagline : '',
-      };
+      const branding = normalizeSplashBranding(data);
+      if (!branding) return null;
+      writeSplashBrandingCache(branding);
+      return branding;
     } catch (error) {
       if (attempt < 2) {
         await new Promise((resolve) => setTimeout(resolve, 250));
@@ -647,6 +677,11 @@ const getCompanyDetailsFromBackend = async () => {
 
 ipcMain.handle('get-company-details', () => {
   return getCompanyDetailsFromBackend();
+});
+
+ipcMain.handle('cache-splash-branding', (_event, details) => {
+  writeSplashBrandingCache(details);
+  return true;
 });
 
 ipcMain.on('splash-branding-ready', () => {
