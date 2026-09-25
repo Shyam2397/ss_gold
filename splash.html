@@ -98,19 +98,53 @@
         document.addEventListener('DOMContentLoaded', async () => {
             const logo = document.getElementById('splash-logo');
             const company = document.getElementById('splash-company');
+            const defaultLogo = logo.src;
+            const defaultCompany = company.textContent;
+
+            const waitForLogo = () => new Promise((resolve) => {
+                if (logo.complete && logo.naturalWidth > 0) {
+                    resolve();
+                    return;
+                }
+
+                let timeoutId;
+                const finish = () => {
+                    clearTimeout(timeoutId);
+                    resolve();
+                };
+                timeoutId = setTimeout(finish, 2000);
+                logo.addEventListener('load', finish, { once: true });
+                logo.addEventListener('error', finish, { once: true });
+            });
+
             try {
                 if (window.electronAPI && typeof window.electronAPI.getCompanyDetails === 'function') {
                     const details = await window.electronAPI.getCompanyDetails();
-                    if (details && details.name) {
-                        company.textContent = details.name;
-                        logo.alt = details.name;
-                        if (details.logo) {
-                            logo.src = details.logo;
-                        }
+                    const name = typeof details?.name === 'string' ? details.name.trim() : '';
+                    const savedLogo = typeof details?.logo === 'string' ? details.logo.trim() : '';
+
+                    if (name) {
+                        company.textContent = name;
+                        logo.alt = name;
+                    } else {
+                        company.textContent = defaultCompany;
+                    }
+
+                    if (savedLogo) {
+                        logo.onerror = () => {
+                            logo.onerror = null;
+                            logo.src = defaultLogo;
+                        };
+                        logo.src = savedLogo;
                     }
                 }
             } catch (error) {
                 console.error('Failed to load company details:', error);
+            } finally {
+                await waitForLogo();
+                if (window.electronAPI && typeof window.electronAPI.notifySplashBrandingReady === 'function') {
+                    window.electronAPI.notifySplashBrandingReady();
+                }
             }
         });
     </script>

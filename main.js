@@ -3,6 +3,7 @@ const path = require('path');
 const { spawn, exec } = require('child_process');
 const os = require('os');
 const fs = require('fs');
+const fetch = require('node-fetch');
 // pdf-to-printer: sends a PDF file directly to a Windows printer with no dialog
 const pdfToPrinter = require('pdf-to-printer');
 // devmode-helper: Windows DEVMODE manipulation for real paper type selection
@@ -162,18 +163,28 @@ log.info('Using in-memory store');
 // Enable garbage collection exposure
 app.commandLine.appendSwitch('js-flags', '--expose-gc');
 
-let backendProcess;
 let mainWindow;
 let backendServer;
 let viteServer;
 let splashWindow;
 let productionServerPort;
+let backendPort;
+let backendReadyPromise;
+let mainWindowReady = false;
+let splashBrandingReady = false;
+let splashRevealed = false;
+let splashRevealTimer;
 
 // Update port constants and add max retry
 const PORTS = {
   VITE: 3000,
   SERVER: 3001,
   MAX_RETRY: 10
+};
+
+const getBackendBaseUrl = () => {
+  if (!backendPort) return null;
+  return `http://127.0.0.1:${backendPort}`;
 };
 
 // Window state management
@@ -269,7 +280,6 @@ function monitorMemory() {
 
 // Startup optimization
 async function waitForServer(url, maxRetries = 20) {
-  const fetch = require('node-fetch');
   for (let i = 0; i < maxRetries; i++) {
     try {
       await fetch(url);
@@ -288,6 +298,27 @@ async function startServers() {
     log.info('Starting servers...');
 
     if (!app.isPackaged) {
+      const externalViteUrl = process.env.ELECTRON_START_URL;
+      if (externalViteUrl) {
+        const externalBackendUrl = process.env.ELECTRON_BACKEND_URL || 'http://localhost:5009';
+        const viteEndpoint = new URL(externalViteUrl);
+        const backendEndpoint = new URL(externalBackendUrl);
+        PORTS.VITE = Number(viteEndpoint.port) || (viteEndpoint.protocol === 'https:' ? 443 : 80);
+        PORTS.SERVER = Number(backendEndpoint.port) || (backendEndpoint.protocol === 'https:' ? 443 : 80);
+        backendPort = PORTS.SERVER;
+        log.info(`Using externally managed development servers - Vite: ${viteEndpoint.origin}, Server: ${backendEndpoint.origin}`);
+        const [viteReady, serverReady] = await Promise.all([
+          waitForServer(viteEndpoint.toString()),
+          waitForServer(backendEndpoint.toString()),
+        ]);
+        if (!viteReady || !serverReady) {
+          throw new Error('External development servers failed to start in time');
+        }
+        const startupTime = metrics.endMeasure('servers-startup');
+        log.info(`Servers started in ${startupTime}ms`);
+        return;
+      }
+
       // In development, start both Vite and backend servers
       await Promise.all([killPort(PORTS.VITE), killPort(PORTS.SERVER)]);
       log.info('Existing development ports cleaned');
@@ -298,14 +329,18 @@ async function startServers() {
       ]);
       log.info(`Found available ports - Vite: ${vitePort}, Server: ${serverPort}`);
 
+      PORTS.VITE = vitePort;
+      PORTS.SERVER = serverPort;
+      backendPort = serverPort;
+
       await Promise.all([
         new Promise((resolve, reject) => {
-          backendServer = spawn('node', ['server/server.js'], {
+          backendServer = spawn('node', [path.join(__dirname, 'server', 'server.js')], {
             stdio: 'pipe',
-            cwd: __dirname,
+            cwd: path.join(__dirname, 'server'),
             shell: true,
             windowsHide: true,
-            env: { ...process.env, PORT: serverPort },
+            env: { ...process.env, PORT: backendPort },
           });
           backendServer.stdout.on('data', (data) => log.info(`[Backend]: ${data}`));
           backendServer.stderr.on('data', (data) => log.error(`[Backend Error]: ${data}`));
@@ -333,8 +368,6 @@ async function startServers() {
         }),
       ]);
 
-      PORTS.VITE = vitePort;
-      PORTS.SERVER = serverPort;
       log.info('All development servers started');
 
       const [viteReady, serverReady] = await Promise.all([
@@ -348,22 +381,27 @@ async function startServers() {
     } else {
       // In production, only start the backend server
       productionServerPort = await findAvailablePort(PORTS.SERVER);
+      backendPort = productionServerPort;
       log.info(`Production server port: ${productionServerPort}`);
 
-      const serverPath = path.join(__dirname, '..', 'server', 'server.js');
-      const serverDir = path.join(__dirname, '..', 'server');
+      const serverPath = app.isPackaged
+        ? path.join(process.resourcesPath, 'server', 'server.js')
+        : path.join(__dirname, 'server', 'server.js');
+      const serverDir = path.dirname(serverPath);
+      const serverCommand = app.isPackaged ? process.execPath : 'node';
 
       log.info(`Starting production server from: ${serverPath}`);
       log.info(`Working directory for server: ${serverDir}`);
 
-      backendServer = spawn('node', [serverPath], {
+      backendServer = spawn(serverCommand, [serverPath], {
         cwd: serverDir,
-        shell: false, // Important for packaged apps
+        shell: false,
         windowsHide: true,
         env: {
           ...process.env,
-          PORT: productionServerPort,
+          PORT: backendPort,
           NODE_ENV: 'production',
+          ...(app.isPackaged ? { ELECTRON_RUN_AS_NODE: '1' } : {}),
         },
       });
 
@@ -426,6 +464,31 @@ const stateManager = {
   }
 };
 
+function revealApplication() {
+  if (splashRevealed || !mainWindowReady || !splashBrandingReady) return;
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+
+  splashRevealed = true;
+  if (splashRevealTimer) {
+    clearTimeout(splashRevealTimer);
+    splashRevealTimer = null;
+  }
+  if (splashWindow && !splashWindow.isDestroyed()) {
+    splashWindow.destroy();
+    splashWindow = null;
+  }
+  mainWindow.show();
+}
+
+function scheduleSplashRevealTimeout() {
+  if (splashRevealTimer) return;
+  splashRevealTimer = setTimeout(() => {
+    splashRevealTimer = null;
+    splashBrandingReady = true;
+    revealApplication();
+  }, 5000);
+}
+
 function createSplashWindow() {
   const iconPath = path.join(
     app.isPackaged ? process.resourcesPath : __dirname,
@@ -444,10 +507,21 @@ function createSplashWindow() {
       contextIsolation: true
     }
   });
-  splashWindow.loadFile('splash.html');
+  splashWindow.loadFile(path.join(__dirname, 'splash.html')).catch((error) => {
+    log.error('Failed to load splash screen:', error);
+    splashBrandingReady = true;
+    revealApplication();
+  });
 }
 
 async function createWindow() {
+  mainWindowReady = false;
+  splashRevealed = false;
+  if (splashRevealTimer) {
+    clearTimeout(splashRevealTimer);
+    splashRevealTimer = null;
+  }
+
   const iconPath = path.join(
     app.isPackaged ? process.resourcesPath : __dirname,
     app.isPackaged ? 'assets/logo.ico' : 'client/src/assets/logo.ico'
@@ -472,12 +546,9 @@ async function createWindow() {
   }
 
   mainWindow.webContents.on('did-finish-load', () => {
-    setTimeout(() => {
-      if (splashWindow) {
-        splashWindow.destroy();
-      }
-      mainWindow.show();
-    }, 1500);
+    mainWindowReady = true;
+    scheduleSplashRevealTimeout();
+    revealApplication();
   });
 
   mainWindow.webContents.on('did-fail-load', () => {
@@ -525,10 +596,7 @@ ipcMain.on('setWindowState', (event, bounds) => {
 });
 
 ipcMain.handle('get-api-url', () => {
-  if (productionServerPort) {
-    return `http://localhost:${productionServerPort}`;
-  }
-  return null;
+  return getBackendBaseUrl();
 });
 
 ipcMain.handle('get-logo-path', () => {
@@ -538,39 +606,52 @@ ipcMain.handle('get-logo-path', () => {
   );
 });
 
-// Company branding for the splash screen: returns saved name/logo from the
-// backend once it is ready; null if not saved yet (fresh install) or unreachable.
-const getBackendBaseUrlCandidates = () => {
-  const ports = [];
-  if (productionServerPort) ports.push(productionServerPort);
-  if (PORTS.SERVER && PORTS.SERVER !== productionServerPort) ports.push(PORTS.SERVER);
-  if (5009 !== productionServerPort && 5009 !== PORTS.SERVER) ports.push(5009);
-  return ports.map((port) => `http://localhost:${port}`);
+const getCompanyDetailsFromBackend = async () => {
+  if (backendReadyPromise) {
+    try {
+      await backendReadyPromise;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  const baseUrl = getBackendBaseUrl();
+  if (!baseUrl) return null;
+
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 1500);
+    try {
+      const res = await fetch(`${baseUrl}/api/company-details`, { signal: controller.signal });
+      if (!res.ok) throw new Error(`Company details request failed: ${res.status}`);
+      const data = await res.json();
+      const name = typeof data?.name === 'string' ? data.name.trim() : '';
+      const logo = typeof data?.logo === 'string' ? data.logo.trim() : '';
+      if (!name && !logo) return null;
+      return {
+        name,
+        logo,
+        tagline: typeof data?.tagline === 'string' ? data.tagline : '',
+      };
+    } catch (error) {
+      if (attempt < 2) {
+        await new Promise((resolve) => setTimeout(resolve, 250));
+      }
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  return null;
 };
 
-ipcMain.handle('get-company-details', async () => {
-  const baseUrls = getBackendBaseUrlCandidates();
-  // Poll the backend for a short while since it boots in parallel with the splash
-  for (let attempt = 0; attempt < 12; attempt++) {
-    for (const baseUrl of baseUrls) {
-      try {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 1000);
-        const res = await fetch(`${baseUrl}/api/company-details`, { signal: controller.signal });
-        clearTimeout(timeout);
-        if (!res.ok) continue;
-        const data = await res.json();
-        if (data && data.name) {
-          return { name: data.name, logo: data.logo || '', tagline: data.tagline || '' };
-        }
-        return null;
-      } catch (error) {
-        // Backend not ready yet – try again
-      }
-    }
-    await new Promise((resolve) => setTimeout(resolve, 250));
-  }
-  return null;
+ipcMain.handle('get-company-details', () => {
+  return getCompanyDetailsFromBackend();
+});
+
+ipcMain.on('splash-branding-ready', () => {
+  splashBrandingReady = true;
+  revealApplication();
 });
 
 ipcMain.handle('get-system-memory', () => {
@@ -1414,34 +1495,52 @@ ipcMain.handle('test-print', async (event, { printerType, htmlContent }) => {
 // ============================================================
 
 function killPort(port) {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     const platform = process.platform;
     const cmd = platform === 'win32'
-      ? `netstat -ano | findstr :${port}`
+      ? 'netstat -ano -p tcp'
       : `lsof -i :${port} -t`;
-    exec(cmd, (error, stdout, stderr) => {
+
+    exec(cmd, (error, stdout) => {
       if (error) {
         log.info(`No process found on port ${port}`);
         resolve();
         return;
       }
-      const pid = platform === 'win32'
-        ? stdout.split('\n')[0].split(' ').filter(Boolean).pop()
-        : stdout.trim();
-      if (pid) {
-        const killCmd = platform === 'win32' ? `taskkill /F /PID ${pid}` : `kill -9 ${pid}`;
-        exec(killCmd, (error) => {
-          if (error) {
-            log.error(`Failed to kill process on port ${port}:`, error);
-            reject(error);
-          } else {
-            log.info(`Successfully killed process on port ${port}`);
-            resolve();
-          }
-        });
-      } else {
+
+      const pids = platform === 'win32'
+        ? stdout
+          .split(/\r?\n/)
+          .map((line) => {
+            const columns = line.trim().split(/\s+/);
+            if (columns.length < 5 || columns[0].toUpperCase() !== 'TCP') return null;
+            if (!columns[1].endsWith(`:${port}`) || columns[3].toUpperCase() !== 'LISTENING') return null;
+            return Number.parseInt(columns[4], 10);
+          })
+          .filter((pid) => Number.isInteger(pid) && pid > 0)
+        : stdout
+          .split(/\r?\n/)
+          .map((pid) => Number.parseInt(pid.trim(), 10))
+          .filter((pid) => Number.isInteger(pid) && pid > 0);
+
+      const uniquePids = [...new Set(pids)];
+      if (uniquePids.length === 0) {
+        log.info(`No process found on port ${port}`);
         resolve();
+        return;
       }
+
+      Promise.all(uniquePids.map((pid) => new Promise((processResolve) => {
+        const killCmd = platform === 'win32' ? `taskkill /F /T /PID ${pid}` : `kill -9 ${pid}`;
+        exec(killCmd, (killError) => {
+          if (killError) {
+            log.warn(`Failed to kill process on port ${port} (PID ${pid}):`, killError.message);
+          } else {
+            log.info(`Successfully killed process on port ${port} (PID ${pid})`);
+          }
+          processResolve();
+        });
+      }))).then(resolve);
     });
   });
 }
@@ -1503,9 +1602,10 @@ async function cleanupProcesses() {
 
   // 1. Close all windows
   if (mainWindow && !mainWindow.isDestroyed()) {
+    const windowToClose = mainWindow;
     cleanupTasks.push(safeCleanup('closing main window', () => {
-      mainWindow.removeAllListeners();
-      mainWindow.destroy();
+      windowToClose.removeAllListeners();
+      windowToClose.destroy();
       mainWindow = null;
     }));
   }
@@ -1518,26 +1618,21 @@ async function cleanupProcesses() {
   }
 
   // 2. Kill backend processes
-  if (backendProcess) {
-    cleanupTasks.push(safeCleanup('killing backend process', () => 
-      safeKillPid(backendProcess.pid, 'backend server')
+  if (backendServer) {
+    const backendPid = backendServer.pid;
+    cleanupTasks.push(safeCleanup('killing backend server', () =>
+      safeKillPid(backendPid, 'backend server')
     ));
-    backendProcess = null;
+    backendServer = null;
   }
 
   // 3. Kill Vite dev server if in development
   if (viteServer && !app.isPackaged) {
-    cleanupTasks.push(safeCleanup('killing Vite server', () => 
-      safeKillPid(viteServer.pid, 'Vite server')
+    const vitePid = viteServer.pid;
+    cleanupTasks.push(safeCleanup('killing Vite server', () =>
+      safeKillPid(vitePid, 'Vite server')
     ));
     viteServer = null;
-  }
-
-  // 4. Kill any processes on our ports
-  if (backendServer && backendServer.port) {
-    cleanupTasks.push(safeCleanup(`killing process on port ${backendServer.port}`, () => 
-      killPort(backendServer.port)
-    ));
   }
 
   // Wait for all cleanup tasks to complete with a timeout
@@ -1638,13 +1733,14 @@ app.whenReady().then(async () => {
   metrics.startMeasure('app-startup');
   try {
     // Create splash window immediately for better perceived performance
-    createSplashWindow();
-    
-    // Start servers and window creation in parallel
-    const serverPromise = startServers().catch(error => {
+    backendReadyPromise = startServers().catch(error => {
       log.error('Failed to start servers:', error);
       throw error;
     });
+    createSplashWindow();
+
+    // Start servers and window creation in parallel
+    const serverPromise = backendReadyPromise;
 
     // Recover state in parallel with server startup
     const statePromise = Promise.resolve().then(() => {
