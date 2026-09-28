@@ -11,6 +11,7 @@ const FormField = ({
   step,
   name,
   placeholder,
+  inputRef,
   size: _size, // destructured to prevent leaking to DOM
 }) => (
   <div className="relative rounded-md shadow-sm">
@@ -26,6 +27,7 @@ const FormField = ({
       required={required}
       step={step}
       placeholder={placeholder}
+      ref={inputRef}
       className={`
         w-full
         rounded-md

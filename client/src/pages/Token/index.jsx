@@ -46,6 +46,7 @@ const useRenderCounter = () => {
 const TokenPage = () => {
   const [state, dispatch] = useReducer(tokenReducer, initialState);
   const searchCacheRef = useRef(new Map());
+  const codeInputRef = useRef(null);
   const clockIntervalRef = useRef(null);
   const editModeRef = useRef(state.editMode);
   editModeRef.current = state.editMode;
@@ -228,48 +229,51 @@ const TokenPage = () => {
     return true;
   }, [state.code, state.name, state.weight, state.sample]);
 
+  const getTokenData = useCallback(() => ({
+    tokenNo: state.tokenNo,
+    date: state.date,
+    time: state.time,
+    code: state.code,
+    name: state.name,
+    test: state.test,
+    weight: parseFloat(state.weight).toFixed(3),
+    sample: state.sample,
+    amount: state.amount,
+  }), [state.tokenNo, state.date, state.time, state.code, state.name, state.test, state.weight, state.sample, state.amount]);
+
+  const resetAfterSave = useCallback(async () => {
+    if (state.editMode) {
+      const newTokenNo = await generateTokenNumber();
+      dispatch({ type: 'RESET_AFTER_EDIT', tokenNo: newTokenNo });
+    } else {
+      dispatch({ type: 'RESET_FORM' });
+      const newTokenNo = await generateTokenNumber();
+      if (newTokenNo) {
+        dispatch({ type: 'SET_FIELD', field: 'tokenNo', value: newTokenNo });
+      }
+    }
+
+    codeInputRef.current?.focus();
+  }, [state.editMode, generateTokenNumber]);
+
   // Optimize form submission with proper dependencies
   const handleSubmit = useCallback(async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
 
-    const tokenData = {
-      tokenNo: state.tokenNo,
-      date: state.date,
-      time: state.time,
-      code: state.code,
-      name: state.name,
-      test: state.test,
-      weight: parseFloat(state.weight).toFixed(3),
-      sample: state.sample,
-      amount: state.amount,
-    };
+    const tokenData = getTokenData();
 
     try {
       const success = await saveToken(tokenData, state.editMode ? state.editId : null);
       
       if (success) {
-        // Immediately refresh the table data
         await fetchTokens();
-        
-        // If it was an edit operation
-        if (state.editMode) {
-          const newTokenNo = await generateTokenNumber();
-          dispatch({ type: 'RESET_AFTER_EDIT', tokenNo: newTokenNo });
-        } else {
-          dispatch({ type: 'RESET_FORM' });
-          await generateTokenNumber().then(newTokenNo => 
-            dispatch({ type: 'SET_FIELD', field: 'tokenNo', value: newTokenNo })
-          );
-        }
+        await resetAfterSave();
       }
     } catch (error) {
       dispatch({ type: 'SET_FIELD', field: 'error', value: error.message });
     }
-  }, [state.tokenNo, state.date, state.time, state.code, state.name, 
-      state.test, state.weight, state.sample, state.amount, 
-      state.editMode, state.editId, validateForm, saveToken, 
-      generateTokenNumber, fetchTokens]);
+  }, [getTokenData, state.editMode, state.editId, validateForm, saveToken, fetchTokens, resetAfterSave]);
 
   // Add table refresh interval (optional)
   useEffect(() => {
@@ -296,23 +300,18 @@ const TokenPage = () => {
   }, [generateTokenNumber]);
 
   const handlePrint = useCallback(async () => {
+    if (!validateForm()) return;
+
+    const tokenData = getTokenData();
+
     try {
       const imagesToPreload = [logoPath];
       await preloadImages(imagesToPreload);
       const base64Logo = await convertImageToBase64(logoPath);
-      
-      const tokenData = {
-        tokenNo: state.tokenNo,
-        date: state.date,
-        time: state.time,
-        name: state.name,
-        test: state.test,
-        weight: state.weight,
-        sample: state.sample,
-        amount: state.amount
-      };
-
       const printContent = generatePrintContent(tokenData, base64Logo);
+
+      const saved = await saveToken(tokenData, state.editMode ? state.editId : null);
+      if (!saved) return;
 
       const isElectronEnv = window.electron && window.electron.isElectron;
 
@@ -329,6 +328,9 @@ const TokenPage = () => {
         }
       } else {
         const printWindow = window.open('', '', 'width=800,height=400');
+        if (!printWindow) {
+          throw new Error('Unable to open print window');
+        }
         printWindow.document.write(printContent);
         printWindow.document.close();
         
@@ -337,11 +339,14 @@ const TokenPage = () => {
           printWindow.close();
         }, 250);
       }
+
+      await fetchTokens();
+      await resetAfterSave();
     } catch (error) {
       console.error('Print error:', error);
       dispatch({ type: 'SET_FIELD', field: 'error', value: 'Failed to print token: ' + (error.message || 'Unknown error') });
     }
-  }, [state.tokenNo, state.date, state.time, state.name, state.test, state.weight, state.sample, state.amount]);
+  }, [getTokenData, state.editMode, state.editId, validateForm, saveToken, fetchTokens, resetAfterSave]);
 
   // Debounced search handler with memoization - optimize dependencies
   const handleSearch = useCallback(debounce((query) => {
@@ -499,6 +504,7 @@ const TokenPage = () => {
                   icon={FiHash}
                   value={state.code}
                   onChange={handlers.handleCodeChange}
+                  inputRef={codeInputRef}
                   required
                   size="lg"
                 />
@@ -569,7 +575,7 @@ const TokenPage = () => {
                   className="inline-flex items-center px-3 py-1.5 text-sm bg-gradient-to-r from-amber-600 to-yellow-500 text-white rounded-xl hover:from-amber-700 hover:to-yellow-600 transition-all"
                 >
                   <FiPrinter className="mr-1.5 h-4 w-4" />
-                  Print
+                  Save and Print
                 </button>
               </div>
             </form>
