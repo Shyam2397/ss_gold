@@ -43,16 +43,44 @@ const useRenderCounter = () => {
   return 0;
 };
 
+// A logo failure must never block saving/printing - fall back to printing without it
+const preparePrintLogo = async () => {
+  try {
+    await preloadImages([logoPath]);
+    return await convertImageToBase64(logoPath);
+  } catch (err) {
+    console.error('Logo could not be prepared, printing without it:', err);
+    return null;
+  }
+};
+
 const TokenPage = () => {
   const [state, dispatch] = useReducer(tokenReducer, initialState);
   const searchCacheRef = useRef(new Map());
   const codeInputRef = useRef(null);
+  const hasAutoFocusedCodeRef = useRef(false);
+  const isBusyRef = useRef(false);
   const clockIntervalRef = useRef(null);
   const editModeRef = useRef(state.editMode);
   editModeRef.current = state.editMode;
   const renderCount = useRenderCounter();
   const MESSAGE_TIMEOUT = 5000; // 5 seconds
-  
+
+  // Auto-focus the Code input on mount (page load / navigation).
+  // Uses a callback ref because FormField is lazy-loaded, so the node only
+  // exists after the chunk resolves.
+  const attachCodeInputRef = useCallback((node) => {
+    codeInputRef.current = node;
+    if (node && !hasAutoFocusedCodeRef.current) {
+      hasAutoFocusedCodeRef.current = true;
+      requestAnimationFrame(() => {
+        if (codeInputRef.current && document.activeElement !== codeInputRef.current) {
+          codeInputRef.current.focus();
+        }
+      });
+    }
+  }, []);
+
   // Custom hook for token operations
   const {
     tokens,
@@ -259,9 +287,13 @@ const TokenPage = () => {
   // Optimize form submission with proper dependencies
   const handleSubmit = useCallback(async (e) => {
     e.preventDefault();
+    if (isBusyRef.current) return; // Guard against double submits (click + Enter)
     if (!validateForm()) return;
 
     const tokenData = getTokenData();
+
+    isBusyRef.current = true;
+    dispatch({ type: 'SET_FIELD', field: 'isBusy', value: true });
 
     try {
       const success = await saveToken(tokenData, state.editMode ? state.editId : null);
@@ -272,6 +304,9 @@ const TokenPage = () => {
       }
     } catch (error) {
       dispatch({ type: 'SET_FIELD', field: 'error', value: error.message });
+    } finally {
+      isBusyRef.current = false;
+      dispatch({ type: 'SET_FIELD', field: 'isBusy', value: false });
     }
   }, [getTokenData, state.editMode, state.editId, validateForm, saveToken, fetchTokens, resetAfterSave]);
 
@@ -300,51 +335,80 @@ const TokenPage = () => {
   }, [generateTokenNumber]);
 
   const handlePrint = useCallback(async () => {
+    if (isBusyRef.current) return;
     if (!validateForm()) return;
 
     const tokenData = getTokenData();
+    const isElectronEnv = !!(window.electron && window.electron.isElectron);
 
+    // The print window has to be opened synchronously, while we still hold the
+    // user activation. Any await before window.open() lets the popup blocker
+    // reject it, which would leave the token saved but never printed.
+    let printWindow = null;
+    if (!isElectronEnv) {
+      printWindow = window.open('', '', 'width=800,height=400');
+      if (!printWindow) {
+        dispatch({
+          type: 'SET_FIELD',
+          field: 'error',
+          value: 'Print window was blocked. Allow pop-ups for this page and try again.'
+        });
+        return;
+      }
+      printWindow.document.open();
+      printWindow.document.write('<!doctype html><html><body></body></html>');
+      printWindow.document.close();
+    }
+
+    isBusyRef.current = true;
+    dispatch({ type: 'SET_FIELD', field: 'isBusy', value: true });
+
+    let saved = false;
     try {
-      const imagesToPreload = [logoPath];
-      await preloadImages(imagesToPreload);
-      const base64Logo = await convertImageToBase64(logoPath);
+      const base64Logo = await preparePrintLogo();
       const printContent = generatePrintContent(tokenData, base64Logo);
 
-      const saved = await saveToken(tokenData, state.editMode ? state.editId : null);
-      if (!saved) return;
-
-      const isElectronEnv = window.electron && window.electron.isElectron;
+      saved = await saveToken(tokenData, state.editMode ? state.editId : null);
+      if (!saved) return; // Error already surfaced by useToken; keep the form so it can be retried
 
       if (isElectronEnv) {
         dispatch({ type: 'SET_FIELD', field: 'success', value: 'Sending to printer...' });
         const result = await window.electron.silentPrintToken(printContent);
-        if (result.success) {
-          dispatch({ type: 'SET_FIELD', field: 'success', value: 'Token printed successfully!' });
-          setTimeout(() => {
-            dispatch({ type: 'SET_FIELD', field: 'success', value: '' });
-          }, 3000);
-        } else {
-          throw new Error(result.error || 'Silent print failed');
+        if (!result || !result.success) {
+          throw new Error((result && result.error) || 'Silent print failed');
         }
+        dispatch({ type: 'SET_FIELD', field: 'success', value: 'Token printed successfully!' });
+        setTimeout(() => {
+          dispatch({ type: 'SET_FIELD', field: 'success', value: '' });
+        }, 3000);
       } else {
-        const printWindow = window.open('', '', 'width=800,height=400');
-        if (!printWindow) {
-          throw new Error('Unable to open print window');
-        }
+        printWindow.document.open();
         printWindow.document.write(printContent);
         printWindow.document.close();
-        
-        setTimeout(() => {
-          printWindow.print();
-          printWindow.close();
-        }, 250);
+        await new Promise((resolve) => setTimeout(resolve, 250));
+        printWindow.focus();
+        printWindow.print();
       }
-
-      await fetchTokens();
-      await resetAfterSave();
     } catch (error) {
       console.error('Print error:', error);
-      dispatch({ type: 'SET_FIELD', field: 'error', value: 'Failed to print token: ' + (error.message || 'Unknown error') });
+      dispatch({
+        type: 'SET_FIELD',
+        field: 'error',
+        value: 'Failed to print token: ' + (error.message || 'Unknown error') + (saved ? ' The token was saved.' : '')
+      });
+    } finally {
+      if (printWindow && !printWindow.closed) {
+        printWindow.close();
+      }
+      isBusyRef.current = false;
+      dispatch({ type: 'SET_FIELD', field: 'isBusy', value: false });
+
+      // Once the token is stored, always roll on to a fresh token number - even
+      // when printing failed - so a retry cannot create a duplicate token_no.
+      if (saved) {
+        await fetchTokens();
+        await resetAfterSave();
+      }
     }
   }, [getTokenData, state.editMode, state.editId, validateForm, saveToken, fetchTokens, resetAfterSave]);
 
@@ -504,7 +568,7 @@ const TokenPage = () => {
                   icon={FiHash}
                   value={state.code}
                   onChange={handlers.handleCodeChange}
-                  inputRef={codeInputRef}
+                  inputRef={attachCodeInputRef}
                   required
                   size="lg"
                 />
@@ -557,14 +621,16 @@ const TokenPage = () => {
                 <button
                   type="button"
                   onClick={resetForm}
-                  className="inline-flex items-center px-3 py-1.5 text-sm border border-amber-200 border-solid text-amber-700 rounded-xl hover:bg-amber-50 transition-all"
+                  disabled={state.isBusy}
+                  className="inline-flex items-center px-3 py-1.5 text-sm border border-amber-200 border-solid text-amber-700 rounded-xl hover:bg-amber-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
                 >
                   <FiRotateCcw className="mr-1.5 h-4 w-4" />
                   Reset
                 </button>
                 <button
                   type="submit"
-                  className="inline-flex items-center px-3 py-1.5 text-sm bg-gradient-to-r from-amber-600 to-yellow-500 text-white rounded-xl hover:from-amber-700 hover:to-yellow-600 transition-all"
+                  disabled={state.isBusy}
+                  className="inline-flex items-center px-3 py-1.5 text-sm bg-gradient-to-r from-amber-600 to-yellow-500 text-white rounded-xl hover:from-amber-700 hover:to-yellow-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <FiSave className="mr-1.5 h-4 w-4" />
                   {state.editMode ? "Update Token" : "Save Token"}
@@ -572,10 +638,11 @@ const TokenPage = () => {
                 <button
                   type="button"
                   onClick={handlePrint}
-                  className="inline-flex items-center px-3 py-1.5 text-sm bg-gradient-to-r from-amber-600 to-yellow-500 text-white rounded-xl hover:from-amber-700 hover:to-yellow-600 transition-all"
+                  disabled={state.isBusy}
+                  className="inline-flex items-center px-3 py-1.5 text-sm bg-gradient-to-r from-amber-600 to-yellow-500 text-white rounded-xl hover:from-amber-700 hover:to-yellow-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <FiPrinter className="mr-1.5 h-4 w-4" />
-                  Save and Print
+                  {state.isBusy ? "Saving..." : "Save and Print"}
                 </button>
               </div>
             </form>

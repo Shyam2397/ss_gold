@@ -13,6 +13,7 @@ export const initialState = {
   // UI state
   editMode: false,
   editId: null,
+  isBusy: false,
   filteredTokens: [],
   searchQuery: "",
   deleteConfirmation: {
