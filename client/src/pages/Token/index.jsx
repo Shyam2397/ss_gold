@@ -54,6 +54,19 @@ const preparePrintLogo = async () => {
   }
 };
 
+// The logo never changes, so decode it once per session instead of on every
+// print. `null` = not resolved yet, `false` = unavailable.
+let printLogoCache = null;
+const getPrintLogo = () => {
+  if (printLogoCache !== null) {
+    return Promise.resolve(printLogoCache || null);
+  }
+  return preparePrintLogo().then((base64) => {
+    printLogoCache = base64 || false;
+    return base64 || null;
+  });
+};
+
 const TokenPage = () => {
   const [state, dispatch] = useReducer(tokenReducer, initialState);
   const searchCacheRef = useRef(new Map());
@@ -79,6 +92,18 @@ const TokenPage = () => {
         }
       });
     }
+  }, []);
+
+  // Focus the Code input after the form is cleared. Deferred to the next frame
+  // so it runs after the reset re-render has committed the empty value.
+  const focusCodeInput = useCallback(() => {
+    requestAnimationFrame(() => {
+      const node = codeInputRef.current;
+      if (node && document.activeElement !== node) {
+        node.focus();
+        if (typeof node.select === 'function') node.select();
+      }
+    });
   }, []);
 
   // Custom hook for token operations
@@ -270,19 +295,21 @@ const TokenPage = () => {
   }), [state.tokenNo, state.date, state.time, state.code, state.name, state.test, state.weight, state.sample, state.amount]);
 
   const resetAfterSave = useCallback(async () => {
+    // Clear the fields first and let the next token number arrive afterwards,
+    // so the operator is never left staring at a form waiting on the network.
     if (state.editMode) {
-      const newTokenNo = await generateTokenNumber();
-      dispatch({ type: 'RESET_AFTER_EDIT', tokenNo: newTokenNo });
+      dispatch({ type: 'RESET_AFTER_EDIT', tokenNo: state.tokenNo });
     } else {
       dispatch({ type: 'RESET_FORM' });
-      const newTokenNo = await generateTokenNumber();
-      if (newTokenNo) {
-        dispatch({ type: 'SET_FIELD', field: 'tokenNo', value: newTokenNo });
-      }
     }
 
-    codeInputRef.current?.focus();
-  }, [state.editMode, generateTokenNumber]);
+    focusCodeInput();
+
+    const newTokenNo = await generateTokenNumber();
+    if (newTokenNo) {
+      dispatch({ type: 'SET_FIELD', field: 'tokenNo', value: newTokenNo });
+    }
+  }, [state.editMode, state.tokenNo, generateTokenNumber, focusCodeInput]);
 
   // Optimize form submission with proper dependencies
   const handleSubmit = useCallback(async (e) => {
@@ -299,8 +326,8 @@ const TokenPage = () => {
       const success = await saveToken(tokenData, state.editMode ? state.editId : null);
       
       if (success) {
-        await fetchTokens();
-        await resetAfterSave();
+        resetAfterSave();
+        fetchTokens();
       }
     } catch (error) {
       dispatch({ type: 'SET_FIELD', field: 'error', value: error.message });
@@ -332,7 +359,8 @@ const TokenPage = () => {
       // Fallback to basic reset if token generation fails
       dispatch({ type: 'RESET_FORM' });
     }
-  }, [generateTokenNumber]);
+    focusCodeInput();
+  }, [generateTokenNumber, focusCodeInput]);
 
   const handlePrint = useCallback(async () => {
     if (isBusyRef.current) return;
@@ -365,11 +393,26 @@ const TokenPage = () => {
 
     let saved = false;
     try {
-      const base64Logo = await preparePrintLogo();
-      const printContent = generatePrintContent(tokenData, base64Logo);
+      // Save and logo decoding run in parallel - neither has to wait for the
+      // other, and the receipt only needs both to be ready before printing.
+      const [, saveResult] = await Promise.all([
+        getPrintLogo(),
+        saveToken(tokenData, state.editMode ? state.editId : null)
+      ]);
+      saved = !!saveResult;
+      if (!saved) {
+        // Error already surfaced by useToken; keep the form so it can be retried
+        if (printWindow && !printWindow.closed) printWindow.close();
+        return;
+      }
 
-      saved = await saveToken(tokenData, state.editMode ? state.editId : null);
-      if (!saved) return; // Error already surfaced by useToken; keep the form so it can be retried
+      // Reset the form as soon as the token is stored so the next entry can be
+      // typed straight away. The 30s interval (plus the mutation's cache update)
+      // keeps the list fresh, so we do not block on a refetch here.
+      resetAfterSave();
+      fetchTokens();
+
+      const printContent = generatePrintContent(tokenData, await getPrintLogo());
 
       if (isElectronEnv) {
         dispatch({ type: 'SET_FIELD', field: 'success', value: 'Sending to printer...' });
@@ -402,13 +445,6 @@ const TokenPage = () => {
       }
       isBusyRef.current = false;
       dispatch({ type: 'SET_FIELD', field: 'isBusy', value: false });
-
-      // Once the token is stored, always roll on to a fresh token number - even
-      // when printing failed - so a retry cannot create a duplicate token_no.
-      if (saved) {
-        await fetchTokens();
-        await resetAfterSave();
-      }
     }
   }, [getTokenData, state.editMode, state.editId, validateForm, saveToken, fetchTokens, resetAfterSave]);
 
@@ -496,9 +532,10 @@ const TokenPage = () => {
         dispatch({ type: 'RESET_FORM' });
         const newTokenNo = await generateTokenNumber();
         dispatch({ type: 'SET_FIELD', field: 'tokenNo', value: newTokenNo });
+        focusCodeInput();
       }
     }
-  }), [handlePrint, updatePaymentStatus, fetchTokens, handleCodeChange, deleteToken, generateTokenNumber, state.deleteConfirmation.tokenId, state.searchQuery, state.filteredTokens]);
+  }), [handlePrint, updatePaymentStatus, fetchTokens, handleCodeChange, deleteToken, generateTokenNumber, state.deleteConfirmation.tokenId, state.searchQuery, state.filteredTokens, focusCodeInput]);
 
   // Add error boundary wrapper
   return (
