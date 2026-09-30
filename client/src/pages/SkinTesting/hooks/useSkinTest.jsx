@@ -332,15 +332,24 @@ export const useSkinTest = () => {
     updateFormData(name, value);
   }, [state.isEditing, state.error, updateFormData]);
 
-  const memoizedHandleSubmit = useCallback(async (e) => {
-    e.preventDefault();
-    
-    // Create a custom setError function that uses dispatch
+  // The shared save routine behind both the Save button and Save & Print.
+  //
+  // It reports back whether the record was actually persisted, and hands back a
+  // snapshot taken *before* the reset. The form is cleared to initialFormData on
+  // success, so a caller that wants to print afterwards must not read
+  // state.formData - by then it is a blank form and the receipt would come out
+  // empty.
+  const persistForm = useCallback(async () => {
     const setErrorWithDispatch = (errorMsg) => {
       dispatch({ type: ACTIONS.SET_ERROR, payload: errorMsg });
     };
-    
-    if (!validateForm(state.formData, setErrorWithDispatch, state.isEditing)) return;
+
+    if (!validateForm(state.formData, setErrorWithDispatch, state.isEditing)) {
+      return { ok: false, data: null };
+    }
+
+    // Captured before any await, and before the reset below.
+    const snapshot = { ...state.formData };
 
     try {
       dispatch({ type: ACTIONS.SET_LOADING, payload: true });
@@ -375,14 +384,23 @@ export const useSkinTest = () => {
       dispatch({ type: ACTIONS.SET_FORM_DATA, payload: initialFormData });
       dispatch({ type: ACTIONS.SET_ERROR, payload: '' });
       dispatch({ type: ACTIONS.SET_SUM, payload: 0 });
+
+      return { ok: true, data: snapshot };
     } catch (err) {
       console.error('Error submitting form:', err);
       const errorMessage = err.message || 'Failed to submit form';
       dispatch({ type: ACTIONS.SET_ERROR, payload: errorMessage });
+      return { ok: false, data: null };
     } finally {
       dispatch({ type: ACTIONS.SET_LOADING, payload: false });
     }
   }, [state.formData, state.isEditing, state.skinTests, loadSkinTests]);
+
+  // Enter inside a field still saves only - printing is an explicit button.
+  const memoizedHandleSubmit = useCallback(async (e) => {
+    e?.preventDefault();
+    await persistForm();
+  }, [persistForm]);
 
   const handleTokenChange = async (e) => {
     e.preventDefault(); // Prevent form submission
@@ -470,6 +488,9 @@ export const useSkinTest = () => {
     handleTokenChange: memoizedHandleTokenChange,
     handleChange: memoizedHandleChange,
     handleSubmit: memoizedHandleSubmit,
+    // Exposed so the Save & Print button can reuse the same save routine and
+    // print only when this resolves with ok === true.
+    saveForm: persistForm,
     handleEdit: memoizedHandleEdit,
     handleDelete: memoizedHandleDelete,
     handleReset: memoizedHandleReset,

@@ -33,7 +33,7 @@ const SkinTestForm = ({
   handleChange,
   handleSubmit,
   handleReset,
-  handlePrint,
+  handleSaveAndPrint,
   getFieldIcon,
   printValuesOnly,
   setPrintValuesOnly,
@@ -156,18 +156,21 @@ const SkinTestForm = ({
         </button>
         <button
           type="submit"
-          className="inline-flex items-center px-3 py-2 border border-transparent rounded-2xl shadow-sm text-sm font-medium text-white bg-gradient-to-r from-amber-600 to-yellow-500 hover:from-amber-700 hover:to-yellow-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 transition-all"
+          disabled={loading}
+          className="inline-flex items-center px-3 py-2 border border-transparent rounded-2xl shadow-sm text-sm font-medium text-white bg-gradient-to-r from-amber-600 to-yellow-500 hover:from-amber-700 hover:to-yellow-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:from-amber-600 disabled:hover:to-yellow-500"
         >
           <FiSave className="mr-2 h-4 w-4" />
           Save Test
         </button>
         <button
           type="button"
-          onClick={() => handlePrint(formData)}
-          className="inline-flex items-center px-3 py-2 border border-transparent rounded-2xl shadow-sm text-sm font-medium text-white bg-gradient-to-r from-amber-600 to-yellow-500 hover:from-amber-700 hover:to-yellow-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 transition-all"
+          onClick={handleSaveAndPrint}
+          disabled={loading}
+          title="Save this test, then print the certificate"
+          className="inline-flex items-center px-3 py-2 border border-transparent rounded-2xl shadow-sm text-sm font-medium text-white bg-gradient-to-r from-amber-600 to-yellow-500 hover:from-amber-700 hover:to-yellow-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:from-amber-600 disabled:hover:to-yellow-500"
         >
           <FiPrinter className="mr-2 h-4 w-4" />
-          Print
+          Save &amp; Print
         </button>
       </div>
     </form>

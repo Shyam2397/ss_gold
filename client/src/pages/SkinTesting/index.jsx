@@ -65,6 +65,7 @@ const SkinTesting = () => {
     handleTokenChange,
     handleChange,
     handleSubmit,
+    saveForm,
     handleEdit,
     handleDelete,
     handleReset,
@@ -137,9 +138,35 @@ const SkinTesting = () => {
     setSearchQuery('');
   }, []);
 
+  // Table rows reprint an already-saved record, so this stays print-only.
   const handlePrint = (data, valuesOnly) => {
     printData(data, valuesOnly ?? printValuesOnly);
   };
+
+  // Save & Print: persist first, then print the snapshot the save returned.
+  // Printing is gated on ok so a receipt is never produced for a record that
+  // failed validation, clashed on token number, or hit a server error.
+  //
+  // The ref is the real guard. `loading` is reducer state that flips back to
+  // false the moment the save resolves, but the print itself is still running,
+  // and a second click in that gap would print twice.
+  const savingAndPrintingRef = React.useRef(false);
+  const handleSaveAndPrint = useCallback(async () => {
+    if (savingAndPrintingRef.current) return;
+    savingAndPrintingRef.current = true;
+    try {
+      const { ok, data } = await saveForm();
+      if (ok) {
+        await printData(data, printValuesOnly);
+      }
+    } catch (err) {
+      // printData already logs its own failures; never surface a raw print
+      // error over the form, and the save outcome is already in the banner.
+      console.error('Save & print failed:', err);
+    } finally {
+      savingAndPrintingRef.current = false;
+    }
+  }, [saveForm, printValuesOnly]);
   
   // Memoize the table row component to prevent unnecessary re-renders
   const memoizedTableRow = React.useMemo(() => (
@@ -203,7 +230,7 @@ const SkinTesting = () => {
         handleChange={handleChange}
         handleSubmit={handleSubmit}
         handleReset={handleReset}
-        handlePrint={handlePrint}
+        handleSaveAndPrint={handleSaveAndPrint}
         getFieldIcon={getFieldIcon}
         printValuesOnly={printValuesOnly}
         setPrintValuesOnly={setPrintValuesOnly}
