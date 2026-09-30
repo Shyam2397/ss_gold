@@ -25,10 +25,9 @@ import {
   LoadingSpinner
 } from './components/LazyComponents';
 
-// Dynamically import DeleteConfirmationModal only when needed
-const DeleteConfirmationModal = React.lazy(() => 
-  import(/* webpackChunkName: "token-delete-modal" */ './components/DeleteConfirmationModal')
-);
+// DeleteConfirmationModal is already exported as a lazily-loaded component by
+// LazyComponents. It used to be lazy-loaded a second time here, duplicating the
+// wrapper (and the chunk name) for no benefit.
 
 // Hooks
 import useToken from './hooks/useTokenQuery';
@@ -38,10 +37,9 @@ import { preloadImages, convertImageToBase64, generatePrintContent } from './uti
 
 import { tokenReducer, initialState } from './reducers/tokenReducer';
 
-// Remove the render counter to avoid unnecessary logging
-const useRenderCounter = () => {
-  return 0;
-};
+// A stable reference: an inline array literal gave FormSelect a new `options`
+// prop on every render, which defeated its memo comparison.
+const TEST_OPTIONS = ["Skin Testing", "Photo Testing"];
 
 // A logo failure must never block saving/printing - fall back to printing without it
 const preparePrintLogo = async () => {
@@ -67,17 +65,38 @@ const getPrintLogo = () => {
   });
 };
 
+const FONT_WAIT_TIMEOUT = 3000;
+
+// Resolves once the print document's webfonts are usable, or after the timeout
+// if they never arrive. Never rejects - printing must still be attempted.
+const waitForFonts = (printWindow) => {
+  const fontsReady = printWindow.document.fonts?.ready;
+  if (!fontsReady || typeof fontsReady.then !== 'function') {
+    return Promise.resolve();
+  }
+  return Promise.race([
+    fontsReady.catch(() => {}),
+    new Promise((resolve) => setTimeout(resolve, FONT_WAIT_TIMEOUT))
+  ]);
+};
+
 const TokenPage = () => {
   const [state, dispatch] = useReducer(tokenReducer, initialState);
   const searchCacheRef = useRef(new Map());
   const codeInputRef = useRef(null);
   const hasAutoFocusedCodeRef = useRef(false);
   const isBusyRef = useRef(false);
+  const isDeleteBusyRef = useRef(false);
+  const codeLookupIdRef = useRef(0);
   const clockIntervalRef = useRef(null);
   const editModeRef = useRef(state.editMode);
-  editModeRef.current = state.editMode;
-  const renderCount = useRenderCounter();
   const MESSAGE_TIMEOUT = 5000; // 5 seconds
+
+  // Mirrored into a ref in an effect rather than during render: writing to a ref
+  // while rendering is a side effect and is unsafe under concurrent rendering.
+  useEffect(() => {
+    editModeRef.current = state.editMode;
+  }, [state.editMode]);
 
   // Auto-focus the Code input on mount (page load / navigation).
   // Uses a callback ref because FormField is lazy-loaded, so the node only
@@ -112,7 +131,6 @@ const TokenPage = () => {
     loading,
     error,
     success,
-    fetchTokens,
     generateTokenNumber,
     saveToken,
     deleteToken,
@@ -120,23 +138,11 @@ const TokenPage = () => {
     updatePaymentStatus
   } = useToken();
 
-  // Clear error message after timeout (for errors from useToken hook)
-  useEffect(() => {
-    let errorTimer;
-    if (error) {
-      errorTimer = setTimeout(() => {
-        dispatch({ type: 'SET_FIELD', field: 'error', value: '' });
-      }, MESSAGE_TIMEOUT);
-    }
-    return () => {
-      if (errorTimer) clearTimeout(errorTimer);
-    };
-  }, [error]);
-
-  // Clear local error messages after timeout
+  // Clear local error messages after timeout. The hook owns its own error
+  // state and timer, so this only handles errors raised by the form itself.
   useEffect(() => {
     let localErrorTimer;
-    if (state.error && !error) { // Only for local errors, not from useToken hook
+    if (state.error) {
       localErrorTimer = setTimeout(() => {
         dispatch({ type: 'SET_FIELD', field: 'error', value: '' });
       }, MESSAGE_TIMEOUT);
@@ -144,7 +150,7 @@ const TokenPage = () => {
     return () => {
       if (localErrorTimer) clearTimeout(localErrorTimer);
     };
-  }, [state.error, error]);
+  }, [state.error]);
 
   // Live clock - updates time field every minute (aligned to actual minute boundaries)
   // Skips updates when in edit mode to preserve the token's original time
@@ -178,53 +184,9 @@ const TokenPage = () => {
     };
   }, []);
 
-  // Optimize initial data fetching
-  useEffect(() => {
-    let isMounted = true;
-    
-    const initializeData = async () => {
-      try {
-        dispatch({ type: 'SET_FIELD', field: 'loading', value: true });
-        const [tokensResponse, newTokenNo] = await Promise.all([
-          fetchTokens(),
-          generateTokenNumber()
-        ]);
-        
-        if (isMounted && newTokenNo) {
-          dispatch({ type: 'SET_FIELD', field: 'tokenNo', value: newTokenNo });
-        }
-        if (isMounted) {
-          getCurrentDateTime();
-        }
-      } catch (error) {
-        if (isMounted) {
-          dispatch({ type: 'SET_FIELD', field: 'error', value: error.message });
-        }
-      } finally {
-        if (isMounted) {
-          dispatch({ type: 'SET_FIELD', field: 'loading', value: false });
-        }
-      }
-    };
-    
-    initializeData();
-    
-    return () => {
-      isMounted = false;
-    };
-  }, []); // Empty dependencies array is correct here
-
-  // Initialize filteredTokens with tokens - optimize with useMemo
-  const filteredTokens = useMemo(() => {
-    if (!state.searchQuery) {
-      return tokens;
-    }
-    return state.filteredTokens;
-  }, [tokens, state.searchQuery, state.filteredTokens]);
-
   const getCurrentDateTime = () => {
     const currentDate = new Date();
-    
+
     // Date formatting similar to TokenTable
     const day = currentDate.getDate().toString().padStart(2, '0');
     const month = (currentDate.getMonth() + 1).toString().padStart(2, '0');
@@ -240,10 +202,63 @@ const TokenPage = () => {
     dispatch({ type: 'SET_FIELD', field: 'time', value: formattedTime });
   };
 
+  // Seed the form with the first token number and today's date. The token list
+  // itself is fetched by the query hook, so there is nothing to await here.
+  useEffect(() => {
+    let isMounted = true;
+
+    const initializeData = async () => {
+      try {
+        getCurrentDateTime();
+        const newTokenNo = await generateTokenNumber();
+        if (isMounted && newTokenNo) {
+          dispatch({ type: 'SET_FIELD', field: 'tokenNo', value: newTokenNo });
+        } else if (isMounted) {
+          dispatch({
+            type: 'SET_FIELD',
+            field: 'error',
+            value: 'Could not generate the next token number. Please try again.'
+          });
+        }
+      } catch (error) {
+        if (isMounted) {
+          dispatch({ type: 'SET_FIELD', field: 'error', value: error.message });
+        }
+      }
+    };
+
+    initializeData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [generateTokenNumber]);
+
+  // Initialize filteredTokens with tokens - optimize with useMemo
+  const filteredTokens = useMemo(() => {
+    if (!state.searchQuery) {
+      return tokens;
+    }
+    return state.filteredTokens;
+  }, [tokens, state.searchQuery, state.filteredTokens]);
+
   // Handle form field changes - memoize this handler
   const handleFieldChange = useCallback((field, value) => {
     dispatch({ type: 'SET_FIELD', field, value });
   }, []);
+
+  // Returns one stable change handler per field. Inline arrows here gave the
+  // memoized FormField/FormSelect a new onChange on every render, so they
+  // re-rendered on each keystroke regardless of value.
+  const fieldChangeHandler = useMemo(() => {
+    const cache = new Map();
+    return (field) => {
+      if (!cache.has(field)) {
+        cache.set(field, (e) => handleFieldChange(field, e.target.value));
+      }
+      return cache.get(field);
+    };
+  }, [handleFieldChange]);
 
   // Handle code change with name fetch - optimize dependencies
   const handleCodeChange = useCallback(async (e) => {
@@ -251,13 +266,21 @@ const TokenPage = () => {
     handleFieldChange('code', inputCode);
 
     if (inputCode.length === 4) {
+      // Lookups are not cancellable, so a slow earlier request could land after
+      // a newer one and overwrite it with a stale name. Only the latest
+      // lookup is allowed to write to the form.
+      const requestId = ++codeLookupIdRef.current;
       try {
         const fetchedName = await fetchNameByCode(inputCode);
+        if (codeLookupIdRef.current !== requestId) return;
         handleFieldChange('name', fetchedName);
       } catch (error) {
+        if (codeLookupIdRef.current !== requestId) return;
         handleFieldChange('name', 'Not Found');
       }
     } else {
+      // Invalidate any lookup still in flight for a now-invalid code.
+      codeLookupIdRef.current += 1;
       handleFieldChange('name', '');
     }
   }, [handleFieldChange, fetchNameByCode]);
@@ -271,6 +294,16 @@ const TokenPage = () => {
       dispatch({ type: 'SET_FIELD', field: 'error', value: "Name not found for the entered code." });
       return false;
     }
+    if (state.weight === '' || state.weight === null || state.weight === undefined) {
+      dispatch({ type: 'SET_FIELD', field: 'error', value: "Weight is required." });
+      return false;
+    }
+    // NaN fails every comparison, so it has to be rejected explicitly rather
+    // than relying on the <= 0 check below.
+    if (Number.isNaN(Number(state.weight))) {
+      dispatch({ type: 'SET_FIELD', field: 'error', value: "Weight must be a number." });
+      return false;
+    }
     if (state.weight <= 0) {
       dispatch({ type: 'SET_FIELD', field: 'error', value: "Weight must be a positive number." });
       return false;
@@ -279,8 +312,20 @@ const TokenPage = () => {
       dispatch({ type: 'SET_FIELD', field: 'error', value: "Sample cannot be empty." });
       return false;
     }
+    if (state.amount === '' || state.amount === null || state.amount === undefined) {
+      dispatch({ type: 'SET_FIELD', field: 'error', value: "Amount is required." });
+      return false;
+    }
+    if (Number.isNaN(Number(state.amount))) {
+      dispatch({ type: 'SET_FIELD', field: 'error', value: "Amount must be a number." });
+      return false;
+    }
+    if (state.amount < 0) {
+      dispatch({ type: 'SET_FIELD', field: 'error', value: "Amount cannot be negative." });
+      return false;
+    }
     return true;
-  }, [state.code, state.name, state.weight, state.sample]);
+  }, [state.code, state.name, state.weight, state.sample, state.amount]);
 
   const getTokenData = useCallback(() => ({
     tokenNo: state.tokenNo,
@@ -289,18 +334,22 @@ const TokenPage = () => {
     code: state.code,
     name: state.name,
     test: state.test,
-    weight: parseFloat(state.weight).toFixed(3),
+    // Send numbers, not pre-formatted strings, so the DECIMAL columns receive
+    // a well-typed value instead of a string that has to be re-parsed.
+    weight: Number(state.weight).toFixed(3),
     sample: state.sample,
-    amount: state.amount,
+    amount: Number(state.amount).toFixed(2)
   }), [state.tokenNo, state.date, state.time, state.code, state.name, state.test, state.weight, state.sample, state.amount]);
 
   const resetAfterSave = useCallback(async () => {
     // Clear the fields first and let the next token number arrive afterwards,
     // so the operator is never left staring at a form waiting on the network.
+    // The token number is blanked rather than carried over: the previous one has
+    // just been consumed, and leaving it on screen invites a duplicate save.
     if (state.editMode) {
-      dispatch({ type: 'RESET_AFTER_EDIT', tokenNo: state.tokenNo });
+      dispatch({ type: 'RESET_AFTER_EDIT', tokenNo: '' });
     } else {
-      dispatch({ type: 'RESET_FORM' });
+      dispatch({ type: 'RESET_FORM', tokenNo: '' });
     }
 
     focusCodeInput();
@@ -308,8 +357,14 @@ const TokenPage = () => {
     const newTokenNo = await generateTokenNumber();
     if (newTokenNo) {
       dispatch({ type: 'SET_FIELD', field: 'tokenNo', value: newTokenNo });
+    } else {
+      dispatch({
+        type: 'SET_FIELD',
+        field: 'error',
+        value: 'Could not generate the next token number. Please try again before saving.'
+      });
     }
-  }, [state.editMode, state.tokenNo, generateTokenNumber, focusCodeInput]);
+  }, [state.editMode, generateTokenNumber, focusCodeInput]);
 
   // Optimize form submission with proper dependencies
   const handleSubmit = useCallback(async (e) => {
@@ -323,11 +378,12 @@ const TokenPage = () => {
     dispatch({ type: 'SET_FIELD', field: 'isBusy', value: true });
 
     try {
-      const success = await saveToken(tokenData, state.editMode ? state.editId : null);
-      
-      if (success) {
+      const saved = await saveToken(tokenData, state.editMode ? state.editId : null);
+
+      if (saved) {
+        // The mutation already merged the new row into the query cache and the
+        // query refetches on its own interval, so no refetch is needed here.
         resetAfterSave();
-        fetchTokens();
       }
     } catch (error) {
       dispatch({ type: 'SET_FIELD', field: 'error', value: error.message });
@@ -335,28 +391,27 @@ const TokenPage = () => {
       isBusyRef.current = false;
       dispatch({ type: 'SET_FIELD', field: 'isBusy', value: false });
     }
-  }, [getTokenData, state.editMode, state.editId, validateForm, saveToken, fetchTokens, resetAfterSave]);
-
-  // Add table refresh interval (optional)
-  useEffect(() => {
-    const interval = setInterval(() => {
-      fetchTokens();
-    }, 30000); // Refresh every 30 seconds
-
-    return () => clearInterval(interval);
-  }, [fetchTokens]);
+  }, [getTokenData, state.editMode, state.editId, validateForm, saveToken, resetAfterSave]);
 
   // Reset form and generate new token number - optimize dependencies
   const resetForm = useCallback(async () => {
     try {
       const newTokenNo = await generateTokenNumber();
-      dispatch({ 
+      dispatch({
         type: 'RESET_FORM',
         tokenNo: newTokenNo
       });
+      if (!newTokenNo) {
+        dispatch({
+          type: 'SET_FIELD',
+          field: 'error',
+          value: 'Could not generate the next token number. Please try again.'
+        });
+      }
     } catch (error) {
       console.error('Error resetting form:', error);
-      // Fallback to basic reset if token generation fails
+      // Fallback to basic reset if token generation fails. The previous number
+      // is still unused here, so keeping it is safe.
       dispatch({ type: 'RESET_FORM' });
     }
     focusCodeInput();
@@ -407,10 +462,9 @@ const TokenPage = () => {
       }
 
       // Reset the form as soon as the token is stored so the next entry can be
-      // typed straight away. The 30s interval (plus the mutation's cache update)
-      // keeps the list fresh, so we do not block on a refetch here.
+      // typed straight away. The mutation's cache update plus the query's own
+      // refetch interval keep the list fresh, so nothing is refetched here.
       resetAfterSave();
-      fetchTokens();
 
       const printContent = generatePrintContent(tokenData, await getPrintLogo());
 
@@ -428,7 +482,13 @@ const TokenPage = () => {
         printWindow.document.open();
         printWindow.document.write(printContent);
         printWindow.document.close();
-        await new Promise((resolve) => setTimeout(resolve, 250));
+        // Wait for the webfonts rather than a fixed 250ms. The receipt pulls
+        // Poppins/Allura from fonts.googleapis.com, so a fixed delay printed the
+        // fallback font whenever the network was slower than that - and silently
+        // did so every time when offline. document.fonts.ready settles once the
+        // stylesheet has loaded and the faces are usable, with a cap so a hung
+        // request cannot block the print indefinitely.
+        await waitForFonts(printWindow);
         printWindow.focus();
         printWindow.print();
       }
@@ -446,53 +506,67 @@ const TokenPage = () => {
       isBusyRef.current = false;
       dispatch({ type: 'SET_FIELD', field: 'isBusy', value: false });
     }
-  }, [getTokenData, state.editMode, state.editId, validateForm, saveToken, fetchTokens, resetAfterSave]);
+  }, [getTokenData, state.editMode, state.editId, validateForm, saveToken, resetAfterSave]);
 
-  // Debounced search handler with memoization - optimize dependencies
-  const handleSearch = useCallback(debounce((query) => {
-    if (!query.trim()) {
-      dispatch({ type: 'SET_FIELD', field: 'filteredTokens', value: tokens });
-      return;
-    }
+  // Debounced search. useCallback(debounce(...)) re-ran debounce() on every
+  // render and threw away all but the newest instance; useMemo keeps exactly one
+  // per tokens change, and the effect below cancels it on unmount.
+  const handleSearch = useMemo(
+    () =>
+      debounce((query) => {
+        if (!query.trim()) {
+          dispatch({ type: 'SET_FIELD', field: 'filteredTokens', value: tokens });
+          return;
+        }
 
-    const searchTerms = query.toLowerCase().split(' ').filter(term => term.length > 0);
-    
-    // Memoize search results for the same query
-    const cacheKey = `${query}-${tokens.length}`;
-    
-    if (searchCacheRef.current.has(cacheKey)) {
-      dispatch({ type: 'SET_FIELD', field: 'filteredTokens', value: searchCacheRef.current.get(cacheKey) });
-      return;
-    }
-    
-    const filtered = tokens.filter(token => {
-      const searchFields = [
-        token.tokenNo?.toString() || '',
-        token.code?.toString() || '',
-        token.name || '',
-        token.test || '',
-        token.sample || '',
-        token.weight?.toString() || '',
-        token.amount?.toString() || ''
-      ];
+        const searchTerms = query.toLowerCase().split(' ').filter(term => term.length > 0);
 
-      return searchTerms.every(term => 
-        searchFields.some(field => 
-          field.toLowerCase().includes(term)
-        )
-      );
-    });
+        // Memoize search results for the same query
+        const cacheKey = `${query}-${tokens.length}`;
 
-    searchCacheRef.current.set(cacheKey, filtered);
-    dispatch({ type: 'SET_FIELD', field: 'filteredTokens', value: filtered });
-  }, 300), [tokens]);
+        if (searchCacheRef.current.has(cacheKey)) {
+          dispatch({ type: 'SET_FIELD', field: 'filteredTokens', value: searchCacheRef.current.get(cacheKey) });
+          return;
+        }
+
+        const filtered = tokens.filter(token => {
+          const searchFields = [
+            token.tokenNo?.toString() || '',
+            token.code?.toString() || '',
+            token.name || '',
+            token.test || '',
+            token.sample || '',
+            token.weight?.toString() || '',
+            token.amount?.toString() || ''
+          ];
+
+          return searchTerms.every(term =>
+            searchFields.some(field =>
+              field.toLowerCase().includes(term)
+            )
+          );
+        });
+
+        searchCacheRef.current.set(cacheKey, filtered);
+        dispatch({ type: 'SET_FIELD', field: 'filteredTokens', value: filtered });
+      }, 300),
+    [tokens]
+  );
 
   // Clear cache when tokens change - optimize this effect
   useEffect(() => {
     searchCacheRef.current.clear();
   }, [tokens]); // This is correct - we want to clear cache when tokens change
 
-  // Cleanup debounce on unmount - fix dependency
+  // Keeping the query in reducer state and the filtering in a debounced ref
+  // means an inline handler would rebuild the debounce on every keystroke.
+  const handleSearchInput = useCallback((e) => {
+    const query = e.target.value;
+    dispatch({ type: 'SET_FIELD', field: 'searchQuery', value: query });
+    handleSearch(query);
+  }, [handleSearch]);
+
+  // Cleanup debounce on unmount
   useEffect(() => {
     return () => {
       handleSearch.cancel();
@@ -506,41 +580,51 @@ const TokenPage = () => {
     },
     handlePrint,
     handlePaymentStatusChange: async (tokenId, isPaid) => {
-      // Use optimistic update without refetching
-      await updatePaymentStatus(tokenId, isPaid);
-      
-      // Update filtered tokens to reflect the change immediately
-      if (state.searchQuery) {
-        // If we're in search mode, update the filtered tokens
-        const updatedFilteredTokens = state.filteredTokens.map(token => 
-          token.id === tokenId ? { ...token, isPaid } : token
-        );
-        dispatch({ type: 'SET_FIELD', field: 'filteredTokens', value: updatedFilteredTokens });
+      // The mutation already patches the query cache on success. Patching
+      // filteredTokens here as well meant a second, competing copy of the row
+      // that the next refetch would silently overwrite.
+      const updated = await updatePaymentStatus(tokenId, isPaid);
+      if (!updated) {
+        dispatch({ type: 'SET_FIELD', field: 'error', value: 'Could not update the payment status.' });
       }
     },
     handleCodeChange,
-    handleFieldChange: (field, value) => {
-      dispatch({ type: 'SET_FIELD', field, value });
+    handleOpenDelete: (id) => {
+      dispatch({ type: 'SET_FIELD', field: 'deleteConfirmation', value: { isOpen: true, tokenId: id } });
+    },
+    handleCancelDelete: () => {
+      dispatch({ type: 'SET_FIELD', field: 'deleteConfirmation', value: { isOpen: false, tokenId: null } });
     },
     handleConfirmDelete: async () => {
       if (!state.deleteConfirmation.tokenId) return;
-      const success = await deleteToken(state.deleteConfirmation.tokenId);
-      if (success) {
-        // Immediately refresh the table data
-        await fetchTokens();
-        dispatch({ type: 'SET_FIELD', field: 'deleteConfirmation', value: { isOpen: false, tokenId: null } });
-        dispatch({ type: 'RESET_FORM' });
-        const newTokenNo = await generateTokenNumber();
-        dispatch({ type: 'SET_FIELD', field: 'tokenNo', value: newTokenNo });
-        focusCodeInput();
+      // The modal stays mounted until the request resolves, so a double click
+      // would otherwise fire two DELETEs for the same id.
+      if (isDeleteBusyRef.current) return;
+      isDeleteBusyRef.current = true;
+
+      try {
+        dispatch({ type: 'SET_FIELD', field: 'isDeleting', value: true });
+        const deleted = await deleteToken(state.deleteConfirmation.tokenId);
+        if (deleted) {
+          dispatch({ type: 'SET_FIELD', field: 'deleteConfirmation', value: { isOpen: false, tokenId: null } });
+          dispatch({ type: 'RESET_FORM', tokenNo: '' });
+          const newTokenNo = await generateTokenNumber();
+          if (newTokenNo) {
+            dispatch({ type: 'SET_FIELD', field: 'tokenNo', value: newTokenNo });
+          }
+          focusCodeInput();
+        }
+      } finally {
+        isDeleteBusyRef.current = false;
+        dispatch({ type: 'SET_FIELD', field: 'isDeleting', value: false });
       }
     }
-  }), [handlePrint, updatePaymentStatus, fetchTokens, handleCodeChange, deleteToken, generateTokenNumber, state.deleteConfirmation.tokenId, state.searchQuery, state.filteredTokens, focusCodeInput]);
+  }), [handlePrint, updatePaymentStatus, handleCodeChange, deleteToken, generateTokenNumber, state.deleteConfirmation.tokenId, focusCodeInput]);
 
   // Add error boundary wrapper
   return (
     <ErrorBoundary
-      fallback={<div>Something went wrong. Please try again.</div>}
+      fallback="Something went wrong. Please try again."
     >
       <Suspense fallback={<div>Loading...</div>}>
         <div className="container mx-auto px-4 py-3">
@@ -553,7 +637,11 @@ const TokenPage = () => {
                 </h2>
               </div>
               {(state.error || error) && (
-                <div className="p-1.5 bg-red-50 border-l-3 border-red-500 rounded">
+                <div
+                  className="p-1.5 bg-red-50 border-l-3 border-red-500 rounded"
+                  role="alert"
+                  aria-live="assertive"
+                >
                   <div className="flex">
                     <div className="ml-2">
                       <p className="text-xs text-red-700">{state.error || error}</p>
@@ -562,7 +650,11 @@ const TokenPage = () => {
                 </div>
               )}
               {success && (
-                <div className="p-1.5 bg-green-50 border-l-3 border-green-500 border-solid rounded">
+                <div
+                  className="p-1.5 bg-green-50 border-l-3 border-green-500 border-solid rounded"
+                  role="status"
+                  aria-live="polite"
+                >
                   <div className="flex">
                     <div className="ml-2">
                       <p className="text-xs text-green-700">{success}</p>
@@ -582,7 +674,6 @@ const TokenPage = () => {
                   value={state.tokenNo}
                   readOnly
                   required
-                  size="lg"
                 />
                 <FormField
                   label="Date"
@@ -590,7 +681,6 @@ const TokenPage = () => {
                   value={state.date}
                   readOnly
                   required
-                  size="lg"
                 />
                 <FormField
                   label="Time"
@@ -598,7 +688,6 @@ const TokenPage = () => {
                   value={state.time}
                   readOnly
                   required
-                  size="lg"
                 />
                 <FormField
                   label="Code"
@@ -607,24 +696,21 @@ const TokenPage = () => {
                   onChange={handlers.handleCodeChange}
                   inputRef={attachCodeInputRef}
                   required
-                  size="lg"
                 />
                 <FormField
                   label="Name"
                   icon={FiUser}
                   value={state.name}
                   readOnly={!state.editMode}
-                  onChange={(e) => handleFieldChange('name', e.target.value)}
+                  onChange={fieldChangeHandler('name')}
                   required
-                  size="lg"
                 />
                 <FormSelect
                   label="Test"
                   icon={FiClipboard}
                   value={state.test}
-                  onChange={(e) => handleFieldChange('test', e.target.value)}
-                  options={["Skin Testing", "Photo Testing"]}
-                  size="lg"
+                  onChange={fieldChangeHandler('test')}
+                  options={TEST_OPTIONS}
                 />
                 <FormField
                   label="Weight"
@@ -632,25 +718,22 @@ const TokenPage = () => {
                   type="number"
                   step="0.001"
                   value={state.weight}
-                  onChange={(e) => handleFieldChange('weight', e.target.value)}
+                  onChange={fieldChangeHandler('weight')}
                   required
-                  size="lg"
                 />
                 <FormField
                   label="Sample"
                   icon={FiPackage}
                   value={state.sample}
-                  onChange={(e) => handleFieldChange('sample', e.target.value)}
+                  onChange={fieldChangeHandler('sample')}
                   required
-                  size="lg"
                 />
                 <FormField
                   label="Amount"
                   icon={FiDollarSign}
                   value={state.amount}
-                  onChange={(e) => handleFieldChange('amount', e.target.value)}
+                  onChange={fieldChangeHandler('amount')}
                   required
-                  size="lg"
                 />
               </div>
 
@@ -679,7 +762,7 @@ const TokenPage = () => {
                   className="inline-flex items-center px-3 py-1.5 text-sm bg-gradient-to-r from-amber-600 to-yellow-500 text-white rounded-xl hover:from-amber-700 hover:to-yellow-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <FiPrinter className="mr-1.5 h-4 w-4" />
-                  {state.isBusy ? "Saving..." : "Save and Print"}
+                  {state.isBusy ? "Saving & Printing..." : "Save and Print"}
                 </button>
               </div>
             </form>
@@ -694,17 +777,16 @@ const TokenPage = () => {
                 </h3>
               </div>
               <div className="relative w-64">
+                <label htmlFor="token-search" className="sr-only">Search tokens</label>
                 <input
-                  type="text"
+                  id="token-search"
+                  type="search"
                   placeholder="Search tokens..."
                   value={state.searchQuery}
-                  onChange={(e) => {
-                    dispatch({ type: 'SET_FIELD', field: 'searchQuery', value: e.target.value });
-                    handleSearch(e.target.value);
-                  }}
-                  onDoubleClick={resetForm}  // Add double-click to reset
+                  onChange={handleSearchInput}
+                  onDoubleClick={resetForm}
                   className="w-full pl-8 pr-3 py-1.5 rounded border border-amber-200 border-solid focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition-all text-sm text-amber-900 rounded-xl"
-                  title="Double click to reset search"  // Add tooltip
+                  title="Double click to reset search"
                 />
                 <FiSearch className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-amber-400 w-4 h-4" />
               </div>
@@ -716,7 +798,7 @@ const TokenPage = () => {
               <TokenTable
                 tokens={filteredTokens}
                 onEdit={handlers.handleEdit}
-                onDelete={(id) => dispatch({ type: 'SET_FIELD', field: 'deleteConfirmation', value: { isOpen: true, tokenId: id } })}
+                onDelete={handlers.handleOpenDelete}
                 onPaymentStatusChange={handlers.handlePaymentStatusChange}
               />
             )}
@@ -725,8 +807,9 @@ const TokenPage = () => {
           {state.deleteConfirmation.isOpen && (
             <Suspense fallback={<LoadingSpinner />}>
               <DeleteConfirmationModal
-                onCancel={() => dispatch({ type: 'SET_FIELD', field: 'deleteConfirmation', value: { isOpen: false, tokenId: null } })}
+                onCancel={handlers.handleCancelDelete}
                 onConfirm={handlers.handleConfirmDelete}
+                isBusy={state.isDeleting}
               />
             </Suspense>
           )}
@@ -751,9 +834,24 @@ class ErrorBoundary extends React.Component {
     console.error('Token page error:', error, errorInfo);
   }
 
+  handleReset = () => {
+    this.setState({ hasError: false });
+  };
+
   render() {
     if (this.state.hasError) {
-      return this.props.fallback;
+      return (
+        <div className="p-4 text-center" role="alert">
+          <p className="text-sm text-red-700">{this.props.fallback}</p>
+          <button
+            type="button"
+            onClick={this.handleReset}
+            className="mt-3 px-3 py-1.5 text-sm bg-amber-600 text-white rounded-xl hover:bg-amber-700 transition-all"
+          >
+            Try again
+          </button>
+        </div>
+      );
     }
     return this.props.children;
   }

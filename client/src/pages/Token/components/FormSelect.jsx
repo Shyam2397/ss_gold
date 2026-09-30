@@ -75,7 +75,15 @@ const FormSelect = ({
 
 // Memoize the component to prevent unnecessary re-renders
 export default memo(FormSelect, (prevProps, nextProps) => {
-  return prevProps.value === nextProps.value && 
-         prevProps.options === nextProps.options &&
-         prevProps.error === nextProps.error;
+  return (
+    prevProps.value === nextProps.value &&
+    prevProps.options === nextProps.options &&
+    prevProps.error === nextProps.error &&
+    prevProps.label === nextProps.label &&
+    prevProps.id === nextProps.id &&
+    prevProps.required === nextProps.required &&
+    prevProps.placeholder === nextProps.placeholder &&
+    prevProps.icon === nextProps.icon &&
+    prevProps.onChange === nextProps.onChange
+  );
 });

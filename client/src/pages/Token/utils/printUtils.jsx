@@ -30,10 +30,25 @@ export const convertImageToBase64 = (imagePath) => {
   });
 };
 
+// The receipt is written into a same-origin window via document.write, so any
+// markup in a customer-supplied field (name, sample, amount) would execute with
+// access to the app. Everything interpolated into the template must go through
+// here first.
+const escapeHtml = (value) => {
+  if (value === null || value === undefined) return '';
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+};
+
 const formatTimeToAMPM = (time24) => {
   if (!time24) return '';
-  const [hours, minutes] = time24.split(':');
+  const [hours, minutes] = String(time24).split(':');
   const hour = parseInt(hours, 10);
+  if (Number.isNaN(hour)) return '';
   const ampm = hour >= 12 ? 'PM' : 'AM';
   const hour12 = hour % 12 || 12;
   return `${hour12}:${minutes} ${ampm}`;
@@ -42,17 +57,19 @@ const formatTimeToAMPM = (time24) => {
 export const generatePrintContent = (tokenData, logoBase64) => {
   const { tokenNo, date, time, name, test, weight, sample, amount } = tokenData;
   const formattedTime = formatTimeToAMPM(time);
+  const safeWeight = parseFloat(weight);
+  const safeAmount = parseFloat(amount);
   
   return `
     <html>
       <head>
         <title>Token Receipt - SS GOLD</title>
+        <meta charset="utf-8" />
         <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Allura&display=swap" rel="stylesheet">
         <style>
-        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Allura&display=swap');
-          @page { 
-            size: 80mm auto; 
-            margin: 0 8mm 0 0; 
+          @page {
+            size: 80mm auto;
+            margin: 0 8mm 0 0;
           }
           body { 
             font-family: 'Poppins', Arial, sans-serif; 
@@ -147,7 +164,7 @@ export const generatePrintContent = (tokenData, logoBase64) => {
         <div class="header">
           <div class="header-text">
             <div class="logo-container">
-              ${logoBase64 ? `<img src="${logoBase64}" alt="SS GOLD Logo" class="logo" />` : ''}
+              ${logoBase64 ? `<img src="${escapeHtml(logoBase64)}" alt="SS GOLD Logo" class="logo" />` : ''}
               <h1 class="header-title">SS GOLD</h1>
             </div>
             <p class="header-subtitle">Computer X-ray Testing</p>
@@ -156,33 +173,33 @@ export const generatePrintContent = (tokenData, logoBase64) => {
           </div>        
         </div>
         <div class="date-time">
-          <span>${date}</span>
-          <span>${formattedTime}</span>
+          <span>${escapeHtml(date)}</span>
+          <span>${escapeHtml(formattedTime)}</span>
         </div>
         <div class="content">
           <div class="row">
             <span>Token No</span>
-            <span>${tokenNo}</span>
+            <span>${escapeHtml(tokenNo)}</span>
           </div>
           <div class="row">
             <span>Name</span>
-            <span>${name}</span>
+            <span>${escapeHtml(name)}</span>
           </div>
           <div class="row">
             <span>Test</span>
-            <span>${test}</span>
+            <span>${escapeHtml(test)}</span>
           </div>
           <div class="row">
             <span>Weight</span>
-            <span>${parseFloat(weight).toFixed(3)} g</span>
+            <span>${Number.isNaN(safeWeight) ? '' : safeWeight.toFixed(3)} g</span>
           </div>
           <div class="row">
             <span>Sample</span>
-            <span>${sample}</span>
+            <span>${escapeHtml(sample)}</span>
           </div>
           <div class="row">
             <span>Amount</span>
-            <span>₹${amount}</span>
+            <span>&#8377;${escapeHtml(Number.isNaN(safeAmount) ? amount : safeAmount.toFixed(2))}</span>
           </div>
         </div>
         <div class="thank-you">

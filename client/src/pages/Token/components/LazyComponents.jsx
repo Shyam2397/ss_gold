@@ -2,7 +2,7 @@ import React, { Suspense, memo } from 'react';
 
 // Create a more robust loading spinner
 const LoadingSpinner = memo(() => (
-  <div className="flex justify-center items-center p-8">
+  <div className="flex justify-center items-center p-8" role="status" aria-live="polite">
     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-600"></div>
     <span className="ml-2 text-amber-700">Loading...</span>
   </div>
@@ -15,27 +15,18 @@ const LazyComponentWrapper = (Component, displayName) => {
       <Component {...props} />
     </Suspense>
   ));
-  
+
   WrappedComponent.displayName = displayName;
   return WrappedComponent;
 };
 
-// Lazy load components with more specific chunk names for better debugging
-const LazyFormField = React.lazy(() => 
-  import(/* webpackChunkName: "token-form-field" */ './FormField')
-);
-
-const LazyFormSelect = React.lazy(() => 
-  import(/* webpackChunkName: "token-form-select" */ './FormSelect')
-);
-
-const LazyTokenTable = React.lazy(() => 
-  import(/* webpackChunkName: "token-table" */ './TokenTable')
-);
-
-const LazyDeleteConfirmationModal = React.lazy(() => 
-  import(/* webpackChunkName: "token-delete-modal" */ './DeleteConfirmationModal')
-);
+// Lazy load components so each lands in its own chunk. The webpackChunkName
+// magic comments that used to sit here are inert - this project builds with
+// Vite/Rollup, which derives chunk names from the import path.
+const LazyFormField = React.lazy(() => import('./FormField'));
+const LazyFormSelect = React.lazy(() => import('./FormSelect'));
+const LazyTokenTable = React.lazy(() => import('./TokenTable'));
+const LazyDeleteConfirmationModal = React.lazy(() => import('./DeleteConfirmationModal'));
 
 // Create wrapped components
 const FormField = LazyComponentWrapper(LazyFormField, 'FormField');

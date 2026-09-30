@@ -2,100 +2,95 @@ import React, { useMemo, useCallback, memo } from 'react';
 import { FiEdit2, FiTrash2, FiCheckCircle, FiXCircle } from 'react-icons/fi';
 import { AutoSizer, Table, Column } from 'react-virtualized';
 import 'react-virtualized/styles.css';
+import { formatDate } from '../../../utils/dateUtils';
 
-// Create a cache for date formatting functions
-const createDateFormatter = () => {
+const MAX_CACHE_ENTRIES = 500;
+
+// Bounded so a long-lived session cannot grow these without limit.
+const createBoundedCache = () => {
   const cache = new Map();
-  
-  return (dateString) => {
-    if (!dateString) return '';
-    
-    // Check cache first
-    if (cache.has(dateString)) {
-      return cache.get(dateString);
-    }
-    
-    try {
-      // Handle different date formats
-      const date = new Date(dateString);
-      if (isNaN(date.getTime())) {
-        // Try parsing DD-MM-YYYY format
-        const [day, month, year] = dateString.split('-');
-        if (day && month && year) {
-          const result = `${day}-${month}-${year}`;
-          cache.set(dateString, result);
-          return result;
-        }
-        cache.set(dateString, dateString);
-        return dateString;
-      }
-      
-      // Format to DD-MM-YYYY
-      const day = date.getDate().toString().padStart(2, '0');
-      const month = (date.getMonth() + 1).toString().padStart(2, '0');
-      const year = date.getFullYear();
-      
-      const result = `${day}-${month}-${year}`;
-      cache.set(dateString, result);
-      return result;
-    } catch (error) {
-      console.error('Date parsing error:', error);
-      cache.set(dateString, dateString);
-      return dateString;
+  return {
+    get: (key) => (cache.has(key) ? cache.get(key) : undefined),
+    set: (key, value) => {
+      if (cache.size >= MAX_CACHE_ENTRIES) cache.clear();
+      cache.set(key, value);
+      return value;
     }
   };
 };
 
+// The API returns dates as 'YYYY-MM-DD'. Parsing that with `new Date(str)`
+// yields UTC midnight, so the local-time getters below rendered the previous
+// day in every timezone behind UTC. formatDate reads it as local midnight.
+const createDateFormatter = () => {
+  const cache = createBoundedCache();
+
+  return (dateString) => {
+    if (!dateString) return '';
+
+    const cached = cache.get(dateString);
+    if (cached !== undefined) return cached;
+
+    const result = formatDate(dateString);
+    return cache.set(dateString, result);
+  };
+};
+
 const createTimeFormatter = () => {
-  const cache = new Map();
-  
+  const cache = createBoundedCache();
+
   return (timeString) => {
     if (!timeString) return '';
-    
-    // Check cache first
-    if (cache.has(timeString)) {
-      return cache.get(timeString);
-    }
-    
-    const [hours, minutes] = timeString.split(':');
+
+    const cached = cache.get(timeString);
+    if (cached !== undefined) return cached;
+
+    const [hours, minutes] = String(timeString).split(':');
+    const hour = parseInt(hours, 10);
+    // An unparseable time would otherwise render the literal "Invalid Date".
+    if (Number.isNaN(hour) || Number.isNaN(parseInt(minutes, 10))) return '';
+
     const date = new Date();
-    date.setHours(parseInt(hours), parseInt(minutes));
+    date.setHours(hour, parseInt(minutes, 10), 0, 0);
     const result = date.toLocaleTimeString('en-IN', {
       hour: '2-digit',
       minute: '2-digit',
       hour12: true
     });
-    
-    cache.set(timeString, result);
-    return result;
+
+    return cache.set(timeString, result);
   };
 };
 
-// Create formatter instances
-const formatDateToIST = createDateFormatter();
-const formatTimeToIST = createTimeFormatter();
-
 // Memoize formatters outside component to prevent recreation
 const formatters = {
-  date: formatDateToIST,
-  time: formatTimeToIST,
-  weight: (val) => parseFloat(val || 0).toFixed(3),
-  amount: (val) => typeof val === 'number' ? val.toFixed(2) : val
+  date: createDateFormatter(),
+  time: createTimeFormatter(),
+  weight: (val) => {
+    const parsed = parseFloat(val || 0);
+    return Number.isNaN(parsed) ? '' : parsed.toFixed(3);
+  },
+  amount: (val) => {
+    const parsed = parseFloat(val);
+    return Number.isNaN(parsed) ? '' : parsed.toFixed(2);
+  }
 };
 
 // Memoize ActionsCell component
 const ActionsCell = memo(({ rowData, onEdit, onDelete, onPaymentStatusChange }) => (
-  <div className="flex items-center justify-center space-x-2">
+  <div className="flex items-center justify-center space-x-2 h-full">
     <input
       type="checkbox"
       checked={Boolean(rowData.isPaid)}
       onChange={(e) => onPaymentStatusChange(rowData.id, e.target.checked)}
       className="h-4 w-4 text-amber-600 focus:ring-amber-500 border-gray-300 border-[1px] border-solid rounded cursor-pointer"
+      aria-label={`Mark token ${rowData.tokenNo} as ${rowData.isPaid ? 'unpaid' : 'paid'}`}
     />
     <span className={`flex items-center ${rowData.isPaid ? 'text-green-600' : 'text-red-600'}`}>
       {rowData.isPaid ? <FiCheckCircle className="w-4 h-4" /> : <FiXCircle className="w-4 h-4" />}
     </span>
     <button
+      type="button"
       onClick={() => onEdit(rowData)}
       className="text-amber-600 hover:text-amber-500 p-1 rounded-xl hover:bg-white"
       aria-label={`Edit token ${rowData.tokenNo}`}
@@ -103,6 +98,7 @@ const ActionsCell = memo(({ rowData, onEdit, onDelete, onPaymentStatusChange }) 
       <FiEdit2 className="w-3.5 h-3.5" />
     </button>
     <button
+      type="button"
       onClick={() => onDelete(rowData.id)}
       className="text-red-600 hover:text-red-500 p-1 rounded-xl hover:bg-white"
       aria-label={`Delete token ${rowData.tokenNo}`}
@@ -115,13 +111,17 @@ const ActionsCell = memo(({ rowData, onEdit, onDelete, onPaymentStatusChange }) 
 // Memoize DataCell component
 const DataCell = memo(({ value, formatter }) => {
   if (value === null || value === undefined) {
-    return <div className="text-center text-xs text-gray-400">-</div>;
+    return <div className="flex items-center justify-center h-full text-xs text-gray-400">-</div>;
   }
 
   const formattedValue = formatter ? formatter(value) : value;
-  
+
   return (
-    <div className="text-center text-xs text-amber-900 truncate py-4">
+    <div
+      className="flex items-center justify-center h-full text-xs text-amber-900 truncate px-1"
+      // Without a title the truncated text is unrecoverable on hover.
+      title={typeof formattedValue === 'string' ? formattedValue : undefined}
+    >
       {formattedValue}
     </div>
   );
@@ -212,8 +212,10 @@ const TokenTable = ({ tokens = [], onEdit, onDelete, onPaymentStatusChange }) =>
               rowGetter={({ index }) => tokens[index]}
               rowClassName={getRowClassName}
               overscanRowCount={5}
-              // Add accessibility attributes
+              role="grid"
               aria-label="Tokens table"
+              aria-rowcount={tokens.length}
+              aria-colcount={columns.length}
             >
               {columns.map(({ label, key, width, flexGrow }) => (
                 <Column
@@ -226,8 +228,6 @@ const TokenTable = ({ tokens = [], onEdit, onDelete, onPaymentStatusChange }) =>
                   headerRenderer={headerRenderer}
                   className="divide-x divide-amber-100 rounded-xl"
                   style={{ overflow: 'hidden' }}
-                  // Add accessibility attributes
-                  aria-label={`${label} column`}
                 />
               ))}
             </Table>
@@ -238,44 +238,8 @@ const TokenTable = ({ tokens = [], onEdit, onDelete, onPaymentStatusChange }) =>
   );
 };
 
-// Create a more efficient comparison function
-const areTokensEqual = (prevTokens, nextTokens) => {
-  // Quick length check
-  if (prevTokens.length !== nextTokens.length) return false;
-  
-  // Check all tokens for changes (not just the first 50)
-  for (let i = 0; i < prevTokens.length; i++) {
-    const prevToken = prevTokens[i];
-    const nextToken = nextTokens[i];
-    
-    // Check all relevant fields including isPaid
-    if (prevToken.id !== nextToken.id || 
-        prevToken.isPaid !== nextToken.isPaid ||
-        prevToken.tokenNo !== nextToken.tokenNo ||
-        prevToken.code !== nextToken.code ||
-        prevToken.name !== nextToken.name ||
-        prevToken.test !== nextToken.test ||
-        prevToken.weight !== nextToken.weight ||
-        prevToken.sample !== nextToken.sample ||
-        prevToken.amount !== nextToken.amount ||
-        prevToken.date !== nextToken.date ||
-        prevToken.time !== nextToken.time) {
-      return false;
-    }
-  }
-  
-  return true;
-};
-
-// Memoize the entire component with improved comparison
-export default memo(TokenTable, (prevProps, nextProps) => {
-  // Compare tokens efficiently
-  if (!areTokensEqual(prevProps.tokens, nextProps.tokens)) return false;
-  
-  // Compare other props
-  return (
-    prevProps.onEdit === nextProps.onEdit &&
-    prevProps.onDelete === nextProps.onDelete &&
-    prevProps.onPaymentStatusChange === nextProps.onPaymentStatusChange
-  );
-});
+// React Query replaces `tokens` with a new array only when the data actually
+// changes, so reference equality is the correct and complete check. The previous
+// hand-written comparator listed individual fields, which meant any new column
+// would silently stop triggering a re-render.
+export default memo(TokenTable);
