@@ -22,12 +22,9 @@ import {
   FormField,
   FormSelect,
   TokenTable,
+  DeleteConfirmationModal,
   LoadingSpinner
 } from './components/LazyComponents';
-
-// DeleteConfirmationModal is already exported as a lazily-loaded component by
-// LazyComponents. It used to be lazy-loaded a second time here, duplicating the
-// wrapper (and the chunk name) for no benefit.
 
 // Hooks
 import useToken from './hooks/useTokenQuery';

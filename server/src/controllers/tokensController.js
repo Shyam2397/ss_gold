@@ -227,7 +227,10 @@ const updateToken = async (req, res) => {
 
     await client.query('COMMIT');
 
-    // Transform to camelCase for frontend
+    // Transform to camelCase for frontend.
+    // Returned flat to match createToken, so the client has one shape to merge
+    // for both operations. This endpoint has a single caller, so nothing else
+    // depends on the previous { success, data } envelope.
     const transformedRow = {
       id: result.rows[0].id,
       tokenNo: result.rows[0].token_no,
@@ -242,10 +245,7 @@ const updateToken = async (req, res) => {
       isPaid: result.rows[0].is_paid
     };
 
-    res.status(200).json({
-      success: true,
-      data: transformedRow
-    });
+    res.status(200).json(transformedRow);
   } catch (err) {
     await client.query('ROLLBACK');
     console.error('Error updating token:', err);

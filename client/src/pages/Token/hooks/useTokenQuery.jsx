@@ -7,11 +7,19 @@ import toast from 'react-hot-toast';
 
 const NAME_CACHE_TTL = 5 * 60 * 1000;
 
+// Every error from the tokens controller carries `error` (see handleDatabaseError
+// and the explicit 400/404 responses) - never `message`. Reading only `.message`
+// meant the real reason was always discarded and the generic fallback shown.
+export const extractErrorMessage = (error, fallback) => {
+  const body = error?.response?.data;
+  return body?.error || body?.message || fallback;
+};
+
 // The API returns is_paid as an INTEGER (0/1) and the money columns as
 // DECIMAL, which node-postgres hands back as strings. Normalising on the way in
 // keeps the table's strict prop comparison from seeing true !== 1 and
 // re-rendering on every poll, and keeps the amount formatter on one code path.
-const normalizeToken = (token) => {
+export const normalizeToken = (token) => {
   if (!token || typeof token !== 'object') return token;
   const toNumber = (value) => {
     if (value === null || value === undefined || value === '') return value;
@@ -73,7 +81,7 @@ const useTokenQuery = () => {
         return sortTokensByTokenNo(data.map(normalizeToken));
       } catch (error) {
         console.error('Error fetching tokens:', error);
-        throw new Error(error.response?.data?.message || 'Failed to fetch tokens');
+        throw new Error(extractErrorMessage(error, 'Failed to fetch tokens'));
       }
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
@@ -94,7 +102,7 @@ const useTokenQuery = () => {
         const data = await tokenService.generateTokenNumber();
         return data.tokenNo;
       } catch (error) {
-        throw new Error(error.response?.data?.error || 'Failed to generate token number');
+        throw new Error(extractErrorMessage(error, 'Failed to generate token number'));
       }
     },
     onError: (error) => {
@@ -107,17 +115,16 @@ const useTokenQuery = () => {
   const saveTokenMutation = useMutation({
     mutationFn: async ({ tokenData, editId = null }) => {
       try {
-        if (editId) {
-          // PUT /tokens/:id answers with a { success, data } envelope while
-          // POST /tokens returns the row itself. Unwrap it so the cache
-          // update below always has the same shape to merge.
-          const response = await tokenService.updateToken(editId, tokenData);
-          return normalizeToken(response?.data ?? response);
-        } else {
-          return normalizeToken(await tokenService.createToken(tokenData));
-        }
+        const response = editId
+          ? await tokenService.updateToken(editId, tokenData)
+          : await tokenService.createToken(tokenData);
+        // `response?.data ?? response` is a rolling-deploy shim: against a server
+        // that still returns the old { success, data } envelope for PUT. Both
+        // ends are now flat, so this can collapse to plain `response` once no
+        // unpatched server is running.
+        return normalizeToken(response?.data ?? response);
       } catch (error) {
-        throw new Error(error.response?.data?.message || 'Failed to save token');
+        throw new Error(extractErrorMessage(error, 'Failed to save token'));
       }
     },
     onSuccess: (newToken, variables) => {
@@ -150,7 +157,7 @@ const useTokenQuery = () => {
         const response = await tokenService.deleteToken(tokenId);
         return { ...response, tokenId };
       } catch (error) {
-        throw new Error(error.response?.data?.message || 'Failed to delete token');
+        throw new Error(extractErrorMessage(error, 'Failed to delete token'));
       }
     },
     onSuccess: (data) => {
@@ -174,7 +181,7 @@ const useTokenQuery = () => {
         const response = await tokenService.updatePaymentStatus(tokenId, isPaid);
         return { ...response, tokenId, isPaid: Boolean(isPaid) };
       } catch (error) {
-        throw new Error(error.response?.data?.message || 'Failed to update payment status');
+        throw new Error(extractErrorMessage(error, 'Failed to update payment status'));
       }
     },
     onSuccess: (data) => {

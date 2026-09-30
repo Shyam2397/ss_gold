@@ -1,6 +1,8 @@
 import React, { memo } from 'react';
 import { FiAlertCircle, FiChevronDown, FiClipboard } from 'react-icons/fi';
 
+let fieldCounter = 0;
+
 const FormSelect = ({
   label,
   value,
@@ -11,7 +13,18 @@ const FormSelect = ({
   placeholder,
   error,
   icon: Icon = FiClipboard
-}) => (
+}) => {
+  // The floating label needs to point at a real control. index.jsx passes no
+  // `id`, so without this the select had no id and the label had no `for` -
+  // the "Test" field was the one control on the page unlabelled to a screen
+  // reader. Same generated-id fallback FormField uses.
+  const generatedId = React.useMemo(() => {
+    fieldCounter += 1;
+    return `token-select-${fieldCounter}`;
+  }, []);
+  const selectId = id || generatedId;
+
+  return (
   <div className="relative rounded-md shadow-sm">
     <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
       {Icon && <Icon className="h-5 w-5 text-amber-600" aria-hidden="true" />}
@@ -20,7 +33,7 @@ const FormSelect = ({
       <FiChevronDown className="h-4 w-4 text-amber-600" aria-hidden="true" />
     </div>
     <select
-      id={id}
+      id={selectId}
       value={value}
       onChange={onChange}
       required={required}
@@ -58,7 +71,7 @@ const FormSelect = ({
       ))}
     </select>
     <label
-      htmlFor={id}
+      htmlFor={selectId}
       className="absolute -top-2 left-2 -mt-px inline-block bg-white px-1 text-xs font-medium text-amber-900"
     >
       {label}
@@ -71,7 +84,8 @@ const FormSelect = ({
       </p>
     )}
   </div>
-);
+  );
+};
 
 // Memoize the component to prevent unnecessary re-renders
 export default memo(FormSelect, (prevProps, nextProps) => {
