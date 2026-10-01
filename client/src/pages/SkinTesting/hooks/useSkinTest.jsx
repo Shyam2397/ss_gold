@@ -4,13 +4,6 @@ import { validateForm, processFormData } from '../utils/validation';
 import { calculateSum, calculateKarat } from '../utils/calculations';
 import skinTestService from '../../../services/skinTestService';
 
-// Clean up old cache-related code if it exists
-const skinTestCache = {
-  get: () => null,
-  set: () => {},
-  clearResource: () => {}
-};
-
 // Action types
 const ACTIONS = {
   SET_FORM_DATA: 'set_form_data',
@@ -454,6 +447,18 @@ export const useSkinTest = () => {
 
     if (name !== 'tokenNo') return;
 
+    // Every edit to the token retires the previous lookup before anything else
+    // is considered. Retiring it HERE - rather than only on the valid path
+    // below - is what closes the race: an in-flight `await` no longer matches
+    // `tokenLookupIdRef.current`, so it cannot write its stale details over the
+    // field, and a pending debounce timer is dropped instead of firing for a
+    // token the operator has already moved on from.
+    const lookupId = ++tokenLookupIdRef.current;
+    if (tokenLookupTimerRef.current) {
+      clearTimeout(tokenLookupTimerRef.current);
+      tokenLookupTimerRef.current = null;
+    }
+
     // A complete token is one letter followed by one or more digits ("A1").
     // Partial input like "A" can never match a stored token, so skip the lookup
     // instead of firing a guaranteed 404 that races the real request and ends
@@ -464,11 +469,7 @@ export const useSkinTest = () => {
       return;
     }
 
-    // Debounce so intermediate keystrokes don't each hit the backend, and tag
-    // the request so a stale response can never clobber a newer one.
-    if (tokenLookupTimerRef.current) clearTimeout(tokenLookupTimerRef.current);
-    const lookupId = ++tokenLookupIdRef.current;
-
+    // Debounce so intermediate keystrokes don't each hit the backend.
     dispatch({ type: ACTIONS.SET_LOADING, payload: true });
     tokenLookupTimerRef.current = setTimeout(async () => {
       try {
@@ -534,10 +535,6 @@ export const useSkinTest = () => {
         }
       }
     }, 300);
-  };
-
-  const clearFormFields = () => {
-    dispatch({ type: ACTIONS.CLEAR_FORM_FIELDS });
   };
 
   // Memoize handlers to prevent recreation on each render

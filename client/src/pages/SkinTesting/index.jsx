@@ -193,11 +193,6 @@ const SkinTesting = () => {
     setSearchQuery('');
   }, []);
 
-  // Table rows reprint an already-saved record, so this stays print-only.
-  const handlePrint = (data, valuesOnly) => {
-    printData(data, valuesOnly ?? printValuesOnly);
-  };
-
   // Save & Print: persist first, then print the snapshot the save returned.
   // Printing is gated on ok so a receipt is never produced for a record that
   // failed validation, clashed on token number, or hit a server error.
@@ -223,17 +218,22 @@ const SkinTesting = () => {
     }
   }, [saveForm, printValuesOnly]);
   
+  // Stable so the memoized table's shallow prop check actually passes; an
+  // inline arrow here is a new function on every render and re-renders the
+  // whole virtualized grid each time.
+  const openDeleteConfirmation = useCallback((id) => {
+    setDeleteConfirmation({ isOpen: true, itemId: id });
+  }, []);
+
   // Memoize the table row component to prevent unnecessary re-renders
   const memoizedTableRow = React.useMemo(() => (
     <TableRow
       skinTests={filteredSkinTests}
       initialFormData={initialFormData}
       onEdit={handleEdit}
-      onDelete={(id) => setDeleteConfirmation({ isOpen: true, itemId: id })}
-      onPrint={handlePrint}
-      searchQuery={searchQuery}
+      onDelete={openDeleteConfirmation}
     />
-  ), [filteredSkinTests, handleEdit, handlePrint, searchQuery]);
+  ), [filteredSkinTests, handleEdit, openDeleteConfirmation]);
 
   // Use state for immediate feedback
   const [inputValue, setInputValue] = React.useState('');
@@ -244,32 +244,22 @@ const SkinTesting = () => {
   }, [inputValue, handleSearch]);
 
 
-  const customerFields = {
-    tokenNo: '',
-    date: '',
-    time: '',
+  // The icon map is constant, so the lookup can be a stable reference: the form
+  // is memoized and takes this as a prop, which would otherwise re-render every
+  // field on every parent render.
+  const FIELD_ICONS = {
+    tokenNo: FiHash,
+    date: FiCalendar,
+    time: FiClock,
+    name: FiUser,
+    weight: FiPackage,
+    sample: FiPackage,
+    gold_fineness: FiPercent,
+    karat: FiStar,
+    remarks: FiMessageSquare
   };
 
-  const tokenFields = {
-    name: '',
-    weight: '',
-    sample: '',
-  };
-
-  const getFieldIcon = (key) => {
-    const iconMap = {
-      tokenNo: FiHash,
-      date: FiCalendar,
-      time: FiClock,
-      name: FiUser,
-      weight: FiPackage,
-      sample: FiPackage,
-      gold_fineness: FiPercent,
-      karat: FiStar,
-      remarks: FiMessageSquare
-    };
-    return iconMap[key.toLowerCase()] || null;
-  };
+  const getFieldIcon = useCallback((key) => FIELD_ICONS[key.toLowerCase()] || null, []);
 
   return (
     <div className="container mx-auto px-4 py-4">

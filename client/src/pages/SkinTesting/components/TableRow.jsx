@@ -9,6 +9,30 @@ import entryService from '../../../services/entryService';
 import { isEqual } from 'lodash';
 import { calculateKarat } from '../utils/calculations';
 
+// Composition columns rendered with two decimals. Hoisted to module scope so it
+// is not rebuilt on every single cell render.
+const TWO_DECIMAL_FIELDS = new Set([
+  'highest',
+  'average',
+  'gold_fineness',
+  'silver',
+  'copper',
+  'zinc',
+  'cadmium',
+  'nickel',
+  'tungsten',
+  'iridium',
+  'ruthenium',
+  'osmium',
+  'rhodium',
+  'rhenium',
+  'indium',
+  'titanium',
+  'palladium',
+  'platinum',
+  'others'
+]);
+
 const TableRow = React.memo(({ 
   skinTests, 
   initialFormData,
@@ -318,27 +342,7 @@ const TableRow = React.memo(({
       return formatTimeForDisplay(value);
     } else if (dataKey === 'weight') {
       return parseFloat(value).toFixed(3);
-    } else if ([
-      'highest',
-      'average',
-      'gold_fineness',
-      'silver',
-      'copper',
-      'zinc',
-      'cadmium',
-      'nickel',
-      'tungsten',
-      'iridium',
-      'ruthenium',
-      'osmium',
-      'rhodium',
-      'rhenium',
-      'indium',
-      'titanium',
-      'palladium',
-      'platinum',
-      'others'
-    ].includes(dataKey)) {
+    } else if (TWO_DECIMAL_FIELDS.has(dataKey)) {
       return parseFloat(value).toFixed(2);
     }
     return value;
@@ -433,10 +437,13 @@ const TableRow = React.memo(({
   );
 });
 
-// Custom comparison function for React.memo
+// Custom comparison function for React.memo.
+//
+// Every prop that affects rendering is compared. `initialFormData` feeds the
+// column set, so a changed one must not be skipped.
 const areEqual = (prevProps, nextProps) => {
-  // Only re-render if the skinTest data has actually changed
   return isEqual(prevProps.skinTests, nextProps.skinTests) &&
+         prevProps.initialFormData === nextProps.initialFormData &&
          prevProps.onEdit === nextProps.onEdit &&
          prevProps.onDelete === nextProps.onDelete;
 };
