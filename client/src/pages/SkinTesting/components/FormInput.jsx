@@ -1,18 +1,23 @@
 import React from 'react';
 import { FiAlertCircle } from 'react-icons/fi';
 
-const FormInput = ({
-  label,
-  name,
-  value,
-  onChange,
-  type = 'text',
-  placeholder = '',
-  error = '',
-  readOnly = false,
-  size = 'base',
-  icon: Icon = null
-}) => {
+// forwardRef so the page can drive focus between fields (token -> highest)
+// without this component needing to know anything about form flow.
+const FormInput = React.forwardRef(function FormInput(
+  {
+    label,
+    name,
+    value,
+    onChange,
+    type = 'text',
+    placeholder = '',
+    error = '',
+    readOnly = false,
+    size = 'base',
+    icon: Icon = null
+  },
+  ref
+) {
   const baseClasses = `
     w-full
     rounded-md
@@ -37,6 +42,7 @@ const FormInput = ({
         {Icon && <Icon className={`${size === 'base' ? 'h-5 w-5' : 'h-4 w-4'} text-amber-600`} aria-hidden="true" />}
       </div>
       <input
+        ref={ref}
         type={type}
         name={name}
         id={name}
@@ -56,8 +62,10 @@ const FormInput = ({
       </label>
     </div>
   );
-};
+});
 
+// `onChange` is intentionally left out of the comparison: every handler the
+// page passes down is memoized, and including it would defeat the memo.
 const areEqual = (prevProps, nextProps) => {
   return (
     prevProps.value === nextProps.value &&

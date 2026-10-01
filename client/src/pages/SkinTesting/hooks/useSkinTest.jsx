@@ -23,7 +23,8 @@ const ACTIONS = {
   SET_SUM: 'set_sum',
   SET_SEARCH_QUERY: 'set_search_query',
   RESET_FORM: 'reset_form',
-  CLEAR_FORM_FIELDS: 'clear_form_fields'
+  CLEAR_FORM_FIELDS: 'clear_form_fields',
+  TOKEN_DATA_LOADED: 'token_data_loaded'
 };
 
 // Initial state
@@ -35,7 +36,10 @@ const initialState = {
   success: '',
   loading: false,
   sum: 0,
-  searchQuery: ''
+  searchQuery: '',
+  // Counter, not a boolean: a fresh token lookup must re-trigger focus even if a
+  // previous one already did, and React bails out of a `false -> false` update.
+  tokenDataVersion: 0
 };
 
 // Reducer function
@@ -121,6 +125,11 @@ const skinTestReducer = (state, action) => {
           code: '',
           phoneNumber: ''
         }
+      };
+    case ACTIONS.TOKEN_DATA_LOADED:
+      return {
+        ...state,
+        tokenDataVersion: state.tokenDataVersion + 1
       };
     default:
       return state;
@@ -445,6 +454,10 @@ export const useSkinTest = () => {
               // Continue without phone number if there's an error
             }
           }
+
+          // Bumped last, after every dispatch above has been issued, so the
+          // consumer that reacts to this moves focus onto a fully populated form.
+          dispatch({ type: ACTIONS.TOKEN_DATA_LOADED });
         } else {
           dispatch({ type: ACTIONS.SET_ERROR, payload: 'No token data found.' });
           dispatch({ type: ACTIONS.CLEAR_FORM_FIELDS });
@@ -482,6 +495,9 @@ export const useSkinTest = () => {
     loading: state.loading,
     sum: state.sum,
     searchQuery: state.searchQuery,
+    // Increments once per successful token lookup. The page watches it to hand
+    // focus to the first test-result field as soon as the details land.
+    tokenDataVersion: state.tokenDataVersion,
     setSearchQuery: useCallback((value) => {
       dispatch({ type: ACTIONS.SET_SEARCH_QUERY, payload: value });
     }, []),

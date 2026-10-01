@@ -37,6 +37,8 @@ const SkinTestForm = ({
   getFieldIcon,
   printValuesOnly,
   setPrintValuesOnly,
+  tokenInputRef,
+  highestInputRef,
 }) => (
   <div className="bg-white rounded-lg shadow-sm p-4 border border-amber-100">
     <div className="flex items-center justify-between mb-4">
@@ -83,6 +85,7 @@ const SkinTestForm = ({
           return (
             <FormInput
               key={key}
+              ref={key === 'tokenNo' ? tokenInputRef : undefined}
               label={key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
               name={key}
               value={inputValue}
@@ -113,6 +116,9 @@ const SkinTestForm = ({
           .map((key) => (
             <FormInput
               key={key}
+              // `highest` is the first test-result field, so it is where
+              // typing continues once a token has been resolved.
+              ref={key === 'highest' ? highestInputRef : undefined}
               label={key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
               name={key}
               value={formData[key]}

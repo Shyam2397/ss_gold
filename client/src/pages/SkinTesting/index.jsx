@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   FiSearch,
   FiRotateCcw,
@@ -51,6 +51,10 @@ const debounce = (func, wait) => {
   };
 };
 
+// Grace period between a token resolving and focus moving to the first
+// test-result field, so the operator can see the details that just populated.
+const FOCUS_HIGHEST_DELAY_MS = 5000;
+
 const SkinTesting = () => {
   const {
     formData,
@@ -61,6 +65,7 @@ const SkinTesting = () => {
     loading,
     sum,
     searchQuery,
+    tokenDataVersion,
     setSearchQuery,
     handleTokenChange,
     handleChange,
@@ -93,9 +98,54 @@ const SkinTesting = () => {
     }
   }, []);
 
+  const tokenInputRef = useRef(null);
+  const highestInputRef = useRef(null);
+
+  // The target input may not be mounted yet when this runs (a save reset
+  // re-renders the field list, and a token lookup populates it a tick later),
+  // so the focus is deferred a frame rather than applied inline.
+  const focusField = useCallback((ref) => {
+    const raf = requestAnimationFrame(() => ref.current?.focus());
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
+  const focusTokenInput = useCallback(() => focusField(tokenInputRef), [focusField]);
+  const focusHighestInput = useCallback(() => focusField(highestInputRef), [focusField]);
+
   useEffect(() => {
     loadSkinTests();
   }, [loadSkinTests]);
+
+  // Arriving on the page: the first thing to do is enter a token number.
+  useEffect(() => {
+    return focusTokenInput();
+  }, [focusTokenInput]);
+
+  // A resolved token means the header details are filled; typing belongs in the
+  // results grid from here on. The move is held back briefly so the fetched
+  // name/weight/sample/phone land on screen before focus leaves the token field.
+  // The timer is cleared if another token is looked up (or the form resets)
+  // while it is still pending, so focus never lands on a stale target.
+  useEffect(() => {
+    if (tokenDataVersion === 0) return undefined;
+    const timer = setTimeout(() => {
+      focusHighestInput();
+    }, FOCUS_HIGHEST_DELAY_MS);
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [tokenDataVersion, focusHighestInput]);
+
+  // Saving clears the form back to a blank record, so hand focus back to token.
+  useEffect(() => {
+    if (!success) return undefined;
+    return focusTokenInput();
+  }, [success, focusTokenInput]);
+
+  const handleResetAndFocus = useCallback(() => {
+    handleReset();
+    focusTokenInput();
+  }, [handleReset, focusTokenInput]);
 
   // Memoize the filtered results with a stable reference
   const filteredSkinTests = React.useMemo(() => {
@@ -229,11 +279,13 @@ const SkinTesting = () => {
         handleTokenChange={handleTokenChange}
         handleChange={handleChange}
         handleSubmit={handleSubmit}
-        handleReset={handleReset}
+        handleReset={handleResetAndFocus}
         handleSaveAndPrint={handleSaveAndPrint}
         getFieldIcon={getFieldIcon}
         printValuesOnly={printValuesOnly}
         setPrintValuesOnly={setPrintValuesOnly}
+        tokenInputRef={tokenInputRef}
+        highestInputRef={highestInputRef}
       />
 
       {/* Test Results Table */}
@@ -268,7 +320,7 @@ const SkinTesting = () => {
             {searchQuery && (
               <button
                 type="button"
-                onClick={handleReset}
+                onClick={handleResetAndFocus}
                 className="inline-flex items-center px-3 py-2 border border-amber-200 text-amber-700 rounded-md hover:bg-amber-50 transition-all"
               >
                 <FiRotateCcw className="h-4 w-4" />

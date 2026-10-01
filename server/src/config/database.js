@@ -5,7 +5,7 @@ const defaultConfig = {
   host: process.env.DB_HOST || 'localhost',
   database: process.env.DB_NAME || 'gold_testing',
   password: process.env.DB_PASSWORD || 'postgres',
-  port: parseInt(process.env.DB_PORT || '5432'),
+  port: parseInt(process.env.DB_PORT || '5433'),
   // Increase connection timeout and add retry settings
   connectionTimeoutMillis: 30000, // 30 seconds
   idleTimeoutMillis: 60000, // 1 minute
