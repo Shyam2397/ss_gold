@@ -1,4 +1,4 @@
-import { useReducer, useCallback, useEffect } from 'react';
+import { useReducer, useCallback, useEffect, useRef } from 'react';
 import { initialFormData } from '../constants/initialState';
 import { validateForm, processFormData } from '../utils/validation';
 import { calculateSum, calculateKarat } from '../utils/calculations';
@@ -24,7 +24,8 @@ const ACTIONS = {
   SET_SEARCH_QUERY: 'set_search_query',
   RESET_FORM: 'reset_form',
   CLEAR_FORM_FIELDS: 'clear_form_fields',
-  TOKEN_DATA_LOADED: 'token_data_loaded'
+  TOKEN_DATA_LOADED: 'token_data_loaded',
+  TOKEN_LOOKUP_FAILED: 'token_lookup_failed'
 };
 
 // Initial state
@@ -39,7 +40,10 @@ const initialState = {
   searchQuery: '',
   // Counter, not a boolean: a fresh token lookup must re-trigger focus even if a
   // previous one already did, and React bails out of a `false -> false` update.
-  tokenDataVersion: 0
+  tokenDataVersion: 0,
+  // True only while the current tokenNo resolved to a real token. Focus leaves
+  // the token field (moves to the results grid) only in this state.
+  tokenResolved: false
 };
 
 // Reducer function
@@ -129,7 +133,13 @@ const skinTestReducer = (state, action) => {
     case ACTIONS.TOKEN_DATA_LOADED:
       return {
         ...state,
-        tokenDataVersion: state.tokenDataVersion + 1
+        tokenDataVersion: state.tokenDataVersion + 1,
+        tokenResolved: true
+      };
+    case ACTIONS.TOKEN_LOOKUP_FAILED:
+      return {
+        ...state,
+        tokenResolved: false
       };
     default:
       return state;
@@ -138,6 +148,17 @@ const skinTestReducer = (state, action) => {
 
 export const useSkinTest = () => {
   const [state, dispatch] = useReducer(skinTestReducer, initialState);
+
+  // Guards the token lookup: only the most recent request may update the form.
+  const tokenLookupIdRef = useRef(0);
+  const tokenLookupTimerRef = useRef(null);
+
+  // Clear any pending token lookup when the page unmounts.
+  useEffect(() => {
+    return () => {
+      if (tokenLookupTimerRef.current) clearTimeout(tokenLookupTimerRef.current);
+    };
+  }, []);
   
   // Clear error messages after a timeout
   useEffect(() => {
@@ -411,22 +432,42 @@ export const useSkinTest = () => {
     await persistForm();
   }, [persistForm]);
 
-  const handleTokenChange = async (e) => {
+  const handleTokenChange = (e) => {
     e.preventDefault(); // Prevent form submission
     const { name, value } = e.target;
     if (state.error) dispatch({ type: ACTIONS.SET_ERROR, payload: '' });
-    
-    // Update the token number in the form data
-    updateFormData(name, value);
 
-    if (name === 'tokenNo' && value) {
-      dispatch({ type: ACTIONS.SET_LOADING, payload: true });
+    // Store the normalized value so the field always holds the same format the
+    // DB uses (uppercase letter + digits).
+    const normalized = value.trim().toUpperCase();
+    updateFormData(name, normalized);
+
+    if (name !== 'tokenNo') return;
+
+    // A complete token is one letter followed by one or more digits ("A1").
+    // Partial input like "A" can never match a stored token, so skip the lookup
+    // instead of firing a guaranteed 404 that races the real request and ends
+    // up showing a bogus "not found".
+    if (!/^[A-Z]\d+$/.test(normalized)) {
+      dispatch({ type: ACTIONS.TOKEN_LOOKUP_FAILED });
+      dispatch({ type: ACTIONS.SET_LOADING, payload: false });
+      return;
+    }
+
+    // Debounce so intermediate keystrokes don't each hit the backend, and tag
+    // the request so a stale response can never clobber a newer one.
+    if (tokenLookupTimerRef.current) clearTimeout(tokenLookupTimerRef.current);
+    const lookupId = ++tokenLookupIdRef.current;
+
+    dispatch({ type: ACTIONS.SET_LOADING, payload: true });
+    tokenLookupTimerRef.current = setTimeout(async () => {
       try {
-        const tokenData = await skinTestService.getTokenData(value);
-        
+        const tokenData = await skinTestService.getTokenData(normalized);
+        if (lookupId !== tokenLookupIdRef.current) return;
+
         if (tokenData) {
           const { date, time, name, weight, sample, code } = tokenData;
-          
+
           const updatedFormData = {
             ...state.formData,
             date: date || '',
@@ -435,17 +476,20 @@ export const useSkinTest = () => {
             weight: weight ? parseFloat(weight).toFixed(3) : '',
             sample: sample || '',
             code: code || '',
-            tokenNo: value,
+            tokenNo: normalized,
           };
-          
+
+          // A resolved token must drop any error left over from a prior lookup.
+          dispatch({ type: ACTIONS.SET_ERROR, payload: '' });
           dispatch({ type: ACTIONS.SET_FORM_DATA, payload: updatedFormData });
 
           if (code) {
             try {
               const phoneNumber = await skinTestService.getPhoneNumber(code);
+              if (lookupId !== tokenLookupIdRef.current) return;
               if (phoneNumber) {
-                dispatch({ 
-                  type: ACTIONS.SET_FORM_DATA, 
+                dispatch({
+                  type: ACTIONS.SET_FORM_DATA,
                   payload: { ...updatedFormData, phoneNumber }
                 });
               }
@@ -459,11 +503,14 @@ export const useSkinTest = () => {
           // consumer that reacts to this moves focus onto a fully populated form.
           dispatch({ type: ACTIONS.TOKEN_DATA_LOADED });
         } else {
+          dispatch({ type: ACTIONS.TOKEN_LOOKUP_FAILED });
           dispatch({ type: ACTIONS.SET_ERROR, payload: 'No token data found.' });
           dispatch({ type: ACTIONS.CLEAR_FORM_FIELDS });
         }
       } catch (err) {
         console.error('Error fetching token data:', err);
+        if (lookupId !== tokenLookupIdRef.current) return;
+        dispatch({ type: ACTIONS.TOKEN_LOOKUP_FAILED });
         if (err.response?.status === 404) {
           dispatch({ type: ACTIONS.SET_ERROR, payload: 'Token number not found.' });
         } else {
@@ -471,9 +518,12 @@ export const useSkinTest = () => {
         }
         dispatch({ type: ACTIONS.CLEAR_FORM_FIELDS });
       } finally {
-        dispatch({ type: ACTIONS.SET_LOADING, payload: false });
+        if (lookupId === tokenLookupIdRef.current) {
+          tokenLookupTimerRef.current = null;
+          dispatch({ type: ACTIONS.SET_LOADING, payload: false });
+        }
       }
-    }
+    }, 300);
   };
 
   const clearFormFields = () => {
@@ -498,6 +548,8 @@ export const useSkinTest = () => {
     // Increments once per successful token lookup. The page watches it to hand
     // focus to the first test-result field as soon as the details land.
     tokenDataVersion: state.tokenDataVersion,
+    // True while the current tokenNo resolved to a real token.
+    tokenResolved: state.tokenResolved,
     setSearchQuery: useCallback((value) => {
       dispatch({ type: ACTIONS.SET_SEARCH_QUERY, payload: value });
     }, []),

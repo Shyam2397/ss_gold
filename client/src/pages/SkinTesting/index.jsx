@@ -66,6 +66,7 @@ const SkinTesting = () => {
     sum,
     searchQuery,
     tokenDataVersion,
+    tokenResolved,
     setSearchQuery,
     handleTokenChange,
     handleChange,
@@ -116,25 +117,29 @@ const SkinTesting = () => {
     loadSkinTests();
   }, [loadSkinTests]);
 
-  // Arriving on the page: the first thing to do is enter a token number.
+  // Arriving on the page, or any time the current token is empty/invalid, the
+  // token field is where typing belongs - there are no results to fill until a
+  // token actually resolves.
   useEffect(() => {
+    if (tokenResolved) return undefined;
     return focusTokenInput();
-  }, [focusTokenInput]);
+  }, [tokenResolved, focusTokenInput]);
 
   // A resolved token means the header details are filled; typing belongs in the
   // results grid from here on. The move is held back briefly so the fetched
   // name/weight/sample/phone land on screen before focus leaves the token field.
-  // The timer is cleared if another token is looked up (or the form resets)
-  // while it is still pending, so focus never lands on a stale target.
+  // The timer dies with the effect, so it is cancelled the moment the token goes
+  // unresolved (an empty field or a failed lookup) - focus never lands on a
+  // stale target.
   useEffect(() => {
-    if (tokenDataVersion === 0) return undefined;
+    if (!tokenResolved || tokenDataVersion === 0) return undefined;
     const timer = setTimeout(() => {
       focusHighestInput();
     }, FOCUS_HIGHEST_DELAY_MS);
     return () => {
       clearTimeout(timer);
     };
-  }, [tokenDataVersion, focusHighestInput]);
+  }, [tokenResolved, tokenDataVersion, focusHighestInput]);
 
   // Saving clears the form back to a blank record, so hand focus back to token.
   useEffect(() => {
