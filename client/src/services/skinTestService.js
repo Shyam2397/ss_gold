@@ -95,8 +95,11 @@ const skinTestService = {
       
       return phoneNumber;
     } catch (error) {
-      // Cache error results as well to prevent repeated failed requests
-      phoneNumbersCache.set(code, null);
+      // Failures are deliberately NOT cached. Caching a failed lookup for the
+      // full 5-minute TTL made a single transient network/DB blip look like
+      // "no phone number" for that code afterwards, which is what surfaced the
+      // spurious "enter a number" prompt in the WhatsApp share button. Letting
+      // it throw uncached means the next attempt retries for real.
       throw error;
     }
   },

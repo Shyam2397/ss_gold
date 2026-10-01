@@ -41,6 +41,7 @@ export const validateForm = (formData, setError, isEditing = false) => {
     'titanium',
     'palladium',
     'platinum',
+    'others',
   ];
 
   for (const field of numericFields) {
@@ -81,7 +82,7 @@ export const processFormData = (formData) => {
     titanium: formData.titanium ? parseFloat(formData.titanium) : 0,
     palladium: formData.palladium ? parseFloat(formData.palladium) : 0,
     platinum: formData.platinum ? parseFloat(formData.platinum) : 0,
-    others: (formData.others || '').trim(),
+    others: formData.others ? parseFloat(formData.others) : 0,
     remarks: (formData.remarks || '').trim(),
     code: (formData.code || '').trim(),
     phoneNumber: (formData.phoneNumber || '').trim(),
@@ -92,7 +93,7 @@ export const processFormData = (formData) => {
     'weight', 'highest', 'average', 'gold_fineness', 'karat',
     'silver', 'copper', 'zinc', 'cadmium', 'nickel', 'tungsten',
     'iridium', 'ruthenium', 'osmium', 'rhodium', 'rhenium',
-    'indium', 'titanium', 'palladium', 'platinum'
+    'indium', 'titanium', 'palladium', 'platinum', 'others'
   ];
 
   numericFields.forEach(field => {

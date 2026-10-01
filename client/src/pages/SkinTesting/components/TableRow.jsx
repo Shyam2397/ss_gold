@@ -381,9 +381,6 @@ const TableRow = React.memo(({
                 rowGetter={({ index }) => sortedTests[index]}
                 overscanRowCount={5} // Add this to improve scroll performance
                 scrollToIndex={0}
-                // Add these props to improve performance
-                estimatedRowSize={48}
-                defaultHeight={450}
                 rowClassName={({ index }) => 
                   `${
                     index === -1 
@@ -393,11 +390,11 @@ const TableRow = React.memo(({
                         : 'bg-amber-50/40 hover:bg-amber-200'
                   } transition-colors text-amber-900 text-xs font-medium rounded`
                 }
-                noRowsRenderer={() => (
+                noContent={
                   <div className="flex items-center justify-center h-full text-gray-500">
                     No tests found
                   </div>
-                )}
+                }
               >
                 <Column
                   label="Actions"
@@ -406,7 +403,6 @@ const TableRow = React.memo(({
                   flexShrink={0}
                   cellRenderer={renderActions}
                   headerClassName="bg-amber-500 text-white text-xs font-medium uppercase tracking-wider whitespace-nowrap text-center pointer-events-none rounded-tl-lg"
-                  className="sticky left-0 z-10"
                 />
                 {columns.map(key => (
                   <Column

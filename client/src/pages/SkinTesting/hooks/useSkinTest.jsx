@@ -153,6 +153,16 @@ export const useSkinTest = () => {
   const tokenLookupIdRef = useRef(0);
   const tokenLookupTimerRef = useRef(null);
 
+  // handleTokenChange is memoized without state.formData in its deps - adding
+  // it would hand the input a fresh onChange on every keystroke and defeat the
+  // memo. This ref mirrors the latest formData so the async lookup merges onto
+  // the current results instead of the snapshot captured when the handler was
+  // created (which used to silently revert values typed in the meantime).
+  const formDataRef = useRef(state.formData);
+  useEffect(() => {
+    formDataRef.current = state.formData;
+  }, [state.formData]);
+
   // Clear any pending token lookup when the page unmounts.
   useEffect(() => {
     return () => {
@@ -469,7 +479,7 @@ export const useSkinTest = () => {
           const { date, time, name, weight, sample, code } = tokenData;
 
           const updatedFormData = {
-            ...state.formData,
+            ...formDataRef.current,
             date: date || '',
             time: time || '',
             name: name || '',

@@ -48,6 +48,18 @@ const getBase64Logo = async (fallbackSrc) => {
   return base64LogoCache.pending;
 };
 
+// Customer-controlled text (name, sample, remarks) is interpolated into the
+// certificate markup below. Escaping it prevents a name or remark containing
+// "<", "&" or tags from corrupting the printed layout. Ampersand is replaced
+// first so already-escaped sequences are not double-escaped.
+const escapeHtml = (value) =>
+  String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
 export const generatePrintContent = (data, logoSrc = logo, valuesOnly = false) => {
   const goldFineness = parseFloat(data.gold_fineness) || 0;
   const silverValue = parseFloat(data.silver) || 0;
@@ -414,35 +426,35 @@ export const generatePrintContent = (data, logoSrc = logo, valuesOnly = false) =
                 <label for="tokenNo">Token No</label>
                 <span class="sep">:</span>
               </div>
-              <span id="tokenNo" class="value">${data.tokenNo || data.tokenno || '-'}</span>
+              <span id="tokenNo" class="value">${escapeHtml(data.tokenNo || data.tokenno || '-')}</span>
             </div>
             <div class="grid-item padding-left">
               <div class="dual">
               <label for="date">Date</label>
               <span class="sep">:</span>
               </div>
-              <span id="date" class="value">${formatDateForDisplay(data.date)}</span>
+              <span id="date" class="value">${escapeHtml(formatDateForDisplay(data.date))}</span>
             </div>
             <div class="grid-item">
               <div class="dual">
               <label for="name">Name</label>
               <span class="sep">:</span>
               </div>
-              <span id="name" class="value">${data.name || '-'}</span>
+              <span id="name" class="value">${escapeHtml(data.name || '-')}</span>
             </div> 
             <div class="grid-item padding-left">
               <div class="dual">
               <label for="time">Time</label>
               <span class="sep">:</span>
               </div>
-              <span id="time" class="value">${formatTimeForDisplay(data.time)}</span>
+              <span id="time" class="value">${escapeHtml(formatTimeForDisplay(data.time))}</span>
             </div>
              <div class="grid-item">
               <div class="dual">
               <label for="sample">Sample</label>
               <span class="sep">:</span>
               </div>
-              <span id="sample" class="value">${data.sample || '-'}</span>
+              <span id="sample" class="value">${escapeHtml(data.sample || '-')}</span>
             </div>
             <div class="grid-item padding-left">
               <div class="dual">
@@ -487,7 +499,7 @@ export const generatePrintContent = (data, logoSrc = logo, valuesOnly = false) =
 
         <section class="remarks-authorized" aria-label="Remarks and authorization">
           <div>REMARKS</div>
-          <div>${data.remarks ? data.remarks.charAt(0).toUpperCase() + data.remarks.slice(1) : '-'}</div>
+          <div>${data.remarks ? escapeHtml(data.remarks.charAt(0).toUpperCase() + data.remarks.slice(1)) : '-'}</div>
           <div>Authorized By</div>
           <div>SS GOLD</div>
         </section>
