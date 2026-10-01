@@ -1,9 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const { login, createUser } = require('../controllers/authController');
+const { login, createUser, getProfile, changePassword } = require('../controllers/authController');
 const { checkDatabaseConnection, listUsers } = require('../utils/dbUtils');
 const { handleDatabaseError } = require('../middleware/errorHandler');
-const { validateLogin } = require('../middleware/validation');
+const { validateLogin, validateChangePassword } = require('../middleware/validation');
+const { authenticate } = require('../middleware/auth');
 
 // Login route
 router.post('/login', validateLogin, async (req, res) => {
@@ -20,6 +21,24 @@ router.post('/register', validateLogin, async (req, res) => {
     await createUser(req, res);
   } catch (err) {
     handleDatabaseError(err, res, 'User registration failed');
+  }
+});
+
+// Details of the currently logged in user
+router.get('/me', authenticate, async (req, res) => {
+  try {
+    await getProfile(req, res);
+  } catch (err) {
+    handleDatabaseError(err, res, 'Failed to load account details');
+  }
+});
+
+// Update the password of the currently logged in user
+router.post('/change-password', authenticate, validateChangePassword, async (req, res) => {
+  try {
+    await changePassword(req, res);
+  } catch (err) {
+    handleDatabaseError(err, res, 'Failed to update password');
   }
 });
 

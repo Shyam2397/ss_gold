@@ -1,4 +1,10 @@
 const { pool } = require('../config/database');
+const bcrypt = require('bcryptjs');
+
+// Credentials shipped with a fresh installation. The account is flagged with
+// must_change_password = TRUE so the app forces a new password after first login.
+const DEFAULT_ADMIN_USERNAME = process.env.DEFAULT_ADMIN_USERNAME || 'ADMIN';
+const DEFAULT_ADMIN_PASSWORD = process.env.DEFAULT_ADMIN_PASSWORD || 'ADMIN123';
 
 const createTokensTable = async () => {
   const client = await pool.connect();
@@ -200,37 +206,61 @@ const createUsersTable = async () => {
       id SERIAL PRIMARY KEY,
       username VARCHAR(50) UNIQUE NOT NULL,
       password VARCHAR(255) NOT NULL,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      must_change_password BOOLEAN NOT NULL DEFAULT FALSE,
+      password_changed_at TIMESTAMP DEFAULT NULL,
+      last_login_at TIMESTAMP DEFAULT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `;
-  
+
   try {
     await pool.query(createTableSQL);
-    
-    // Check if admin user exists
-    const adminCheck = await pool.query(
-      "SELECT * FROM users WHERE username = 'ADMIN'"
+
+    // Migrations for installs created before the default-password flow existed
+    await pool.query(
+      'ALTER TABLE users ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN NOT NULL DEFAULT FALSE'
     );
-    
-    // If admin doesn't exist, create it
+    await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS password_changed_at TIMESTAMP DEFAULT NULL');
+    await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMP DEFAULT NULL');
+    await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP');
+
+    const adminCheck = await pool.query(
+      'SELECT id, password, must_change_password FROM users WHERE username = $1',
+      [DEFAULT_ADMIN_USERNAME]
+    );
+
+    // If the default account doesn't exist, create it with a forced password change
     if (adminCheck.rows.length === 0) {
-      let hashedPassword;
-      try {
-        const bcrypt = require('bcrypt');
-        const salt = await bcrypt.genSalt(10);
-        hashedPassword = await bcrypt.hash('ADMIN123', salt);
-      } catch (bcryptErr) {
-        console.warn('Warning: bcrypt not available, using plain password');
-        hashedPassword = 'ADMIN123'; // Fallback to plain password if bcrypt fails
-      }
-      
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash(DEFAULT_ADMIN_PASSWORD, salt);
+
       await pool.query(
-        "INSERT INTO users (username, password) VALUES ($1, $2)",
-        ['ADMIN', hashedPassword]
+        'INSERT INTO users (username, password, must_change_password) VALUES ($1, $2, TRUE)',
+        [DEFAULT_ADMIN_USERNAME, hashedPassword]
+      );
+
+      console.log(
+        `Created default account "${DEFAULT_ADMIN_USERNAME}" with password "${DEFAULT_ADMIN_PASSWORD}". ` +
+          'A password change is required on first login.'
+      );
+      return;
+    }
+
+    // Existing installs: flag the account when it still runs on the shipped default password
+    const admin = adminCheck.rows[0];
+    if (admin.must_change_password) return;
+
+    const stillUsingDefaultPassword = await bcrypt.compare(DEFAULT_ADMIN_PASSWORD, admin.password);
+    if (stillUsingDefaultPassword) {
+      await pool.query('UPDATE users SET must_change_password = TRUE WHERE id = $1', [admin.id]);
+      console.log(
+        `Account "${DEFAULT_ADMIN_USERNAME}" still uses the default password. ` +
+          'A password change is required on next login.'
       );
     }
   } catch (err) {
-    if (err.code !== '23505' || !err.detail.includes('(username)=(ADMIN)')) {
+    if (err.code !== '23505' || !err.detail?.includes(`(username)=(${DEFAULT_ADMIN_USERNAME})`)) {
       console.error('Error creating users table:', err);
       throw err;
     }

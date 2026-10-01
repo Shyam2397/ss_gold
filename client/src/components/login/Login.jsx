@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { loginUser, isAuthenticated } from '../../services/authService';
+import { loginUser } from '../../services/authService';
+import { useUser } from '../UserInterface/UserContext';
 import LoginHeader from './LoginHeader';
 import LoginForm from './LoginForm';
 
@@ -10,13 +11,7 @@ const Login = ({ setLoggedIn }) => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-
-  // Check if user is already logged in
-  useEffect(() => {
-    if (isAuthenticated()) {
-      navigate('/dashboard');
-    }
-  }, [navigate]);
+  const { adoptSessionUser } = useUser();
 
   const validateForm = () => {
     if (!username || username.length < 3) {
@@ -45,6 +40,9 @@ const Login = ({ setLoggedIn }) => {
       const result = await loginUser(username, password);
       
       if (result.success) {
+        // Load the signed in account into context so the sidebar and the
+        // forced password change gate see the current user straight away.
+        await adoptSessionUser(result.user);
         setLoggedIn(true);
         navigate('/dashboard');
       } else {

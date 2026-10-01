@@ -117,6 +117,11 @@ const Settings = lazyLoad(() => import(
   '../pages/Settings/Settings'
 ));
 
+const UserInterface = lazyLoad(() => import(
+  /* webpackChunkName: "user-interface" */
+  '../components/UserInterface/UserInterface'
+));
+
 // Enhanced route priorities with contextual information from config
 
 // Preload queue with better memory management and priority
@@ -285,6 +290,12 @@ const routesConfig = [
     Component: Settings,
     preload: () => import(/* webpackPrefetch: true */ '../pages/Settings/Settings'),
     ...ROUTE_PRIORITIES['/settings']
+  },
+  {
+    path: '/user',
+    Component: UserInterface,
+    preload: () => import('../components/UserInterface/UserInterface'),
+    ...ROUTE_PRIORITIES['/user']
   }
 ];
 

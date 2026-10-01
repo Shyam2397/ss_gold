@@ -9,6 +9,10 @@ const getApiUrl = async () => {
   return import.meta.env.VITE_API_URL;
 };
 
+// Endpoints where a 401 means "wrong credentials", not "session expired".
+// Clearing the session on those would log the user out while signing in.
+const CREDENTIAL_ENDPOINTS = ['/auth/login', '/auth/change-password'];
+
 // Create axios instance with default config
 const createApiInstance = async () => {
   const baseURL = await getApiUrl();
@@ -38,10 +42,17 @@ const createApiInstance = async () => {
   instance.interceptors.response.use(
     (response) => response,
     (error) => {
-      if (error.response?.status === 401) {
-        // Handle unauthorized
+      const url = error.config?.url || '';
+      const isCredentialEndpoint = CREDENTIAL_ENDPOINTS.some((path) => url.includes(path));
+
+      if (error.response?.status === 401 && !isCredentialEndpoint) {
+        // Session is no longer valid - drop the stored credentials and reload so
+        // the app falls back to the login screen (HashRouter serves everything at "/")
         localStorage.removeItem('token');
-        window.location.href = '/login';
+        localStorage.removeItem('user');
+        localStorage.removeItem('isLoggedIn');
+        window.location.hash = '#/';
+        window.location.reload();
       }
       return Promise.reject(error);
     }

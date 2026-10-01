@@ -2,6 +2,7 @@ import React, { memo, useCallback } from 'react';
 import { FiDatabase, FiDollarSign, FiSettings, FiChevronDown, FiChevronRight } from 'react-icons/fi';
 import { SidebarMenuSection } from './SidebarMenuSection';
 import { SidebarMenuItem } from './SidebarMenuItem';
+import { SidebarUserCard } from './SidebarUserCard';
 import { VirtualizedMenuItems } from './VirtualizedMenuItems';
 import { useSidebar } from './SidebarProvider';
 import { cn } from '../../lib/utils';
@@ -152,16 +153,18 @@ export const SidebarMenuContent = memo(({
 
       {/* Settings Section */}
       <SidebarMenuSection>
-        {/* User Profile - Simplified for mobile/collapsed */}
-        <div className={cn("flex items-center h-8 px-2 rounded-lg text-gray-600 transition-all duration-200", !isMobile && "hover:bg-amber-50 hover:text-amber-900")}>
-          <div className="flex items-center overflow-hidden">
-            <div className="flex items-center justify-center w-5 flex-shrink-0 pl-1"><img className="h-5 w-5 rounded-full object-cover border border-amber-200" src={user?.profileImage || 'https://via.placeholder.com/40'} alt="User" /></div>
-            {(open || isMobile) && <span className="font-medium text-md ml-3 truncate">{user?.name || 'User'}</span>}
-          </div>
-        </div>
-        {/* Settings Menu Item */}
         <SidebarMenuItem icon={FiSettings} label={open || isMobile ? "Settings" : ""} to="/settings" isActive={isActive("/settings")} handleNavigation={handleNavigation} onClick={isMobile ? () => setOpen(false) : undefined} />
       </SidebarMenuSection>
+
+      {/* Account Section */}
+      <div className="mt-1 border-t border-amber-100 pt-2">
+        <SidebarUserCard
+          user={user}
+          isActive={isActive}
+          handleNavigation={handleNavigation}
+          isMobile={isMobile}
+        />
+      </div>
     </div>
   );
 });

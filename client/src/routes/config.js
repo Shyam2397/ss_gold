@@ -7,7 +7,8 @@ export const ROUTE_PRIORITIES = {
   '/cashbook': { priority: 2, preloadChunks: true, keepInMemory: true },
   '/expenses/add': { priority: 1, preloadChunks: true },
   '/unpaid-customers': { priority: 2, preloadChunks: true },
-  '/settings': { priority: 2, preloadChunks: false }
+  '/settings': { priority: 2, preloadChunks: false },
+  '/user': { priority: 3, preloadChunks: false }
 };
 
 export const SCROLL_BEHAVIOR = {

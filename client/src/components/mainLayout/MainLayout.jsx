@@ -2,14 +2,11 @@ import React, { useState } from 'react';
 import { Toaster } from 'react-hot-toast';
 import Sidebar from '../sidebar/Sidebar';
 import MainContent from './MainContent';
+import { useUser } from '../UserInterface/UserContext';
 
 const MainLayout = ({ setLoggedIn }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-
-  const user = {
-    name: "John Doe",
-    profileImage: "https://img.daisyui.com/images/stock/photo-1534528741775-53994a69daeb.webp",
-  };
+  const { user } = useUser();
 
   return (
     <div className="flex flex-col md:flex-row h-screen bg-gray-50 overflow-hidden">
@@ -19,7 +16,6 @@ const MainLayout = ({ setLoggedIn }) => {
         animate={true}
         user={user}
         setLoggedIn={setLoggedIn}
-        className="w-full md:w-64 lg:w-72 xl:w-80"
       />
       <div className="flex-1 flex flex-col overflow-hidden relative">
         <Toaster 

@@ -9,6 +9,8 @@ import {
   FiBook,
   FiLogOut,
   FiMenu,
+  FiUser,
+  FiKey,
   FiX 
 } from 'react-icons/fi';
 
@@ -29,6 +31,8 @@ export const Icons = {
   Book: FiBook,
   LogOut: FiLogOut,
   Menu: FiMenu,
+  User: FiUser,
+  Key: FiKey,
   X: FiX,
   GoldBar: GiGoldBar,
   TestTubes: GiTestTubes

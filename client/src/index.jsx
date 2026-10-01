@@ -3,6 +3,15 @@ import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
+import { logoutUser } from './services/authService';
+
+// Closing the application ends the session: drop any credentials left behind by
+// the previous run so every launch starts at the login screen. This runs before
+// React mounts so no component fires a request with the stale token.
+logoutUser();
+if (window.location.hash && window.location.hash !== '#/') {
+  window.location.hash = '#/';
+}
 
 // Optimize metric reporting
 const reportMetric = (metric) => {

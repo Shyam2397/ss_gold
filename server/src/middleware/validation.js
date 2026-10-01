@@ -107,6 +107,8 @@ const validateExpenseType = (req, res, next) => {
   next();
 };
 
+const PASSWORD_MIN_LENGTH = 6;
+
 const validateLogin = (req, res, next) => {
   const { username, password } = req.body;
 
@@ -129,11 +131,58 @@ const validateLogin = (req, res, next) => {
   }
 
   // Validate password strength
-  if (password.length < 6) {
+  if (password.length < PASSWORD_MIN_LENGTH) {
     return res.status(400).json({
       success: false,
       error: 'Invalid password',
-      detail: 'Password must be at least 6 characters long'
+      detail: `Password must be at least ${PASSWORD_MIN_LENGTH} characters long`
+    });
+  }
+
+  next();
+};
+
+const validateChangePassword = (req, res, next) => {
+  const { currentPassword, newPassword, confirmPassword } = req.body;
+
+  if (!newPassword || !confirmPassword) {
+    return res.status(400).json({
+      success: false,
+      error: 'Missing required fields',
+      detail: 'New password and confirm password are required'
+    });
+  }
+
+  if (newPassword.length < PASSWORD_MIN_LENGTH) {
+    return res.status(400).json({
+      success: false,
+      error: 'Invalid password',
+      detail: `New password must be at least ${PASSWORD_MIN_LENGTH} characters long`
+    });
+  }
+
+  if (!/[a-zA-Z]/.test(newPassword) || !/\d/.test(newPassword)) {
+    return res.status(400).json({
+      success: false,
+      error: 'Weak password',
+      detail: 'New password must contain at least one letter and one number'
+    });
+  }
+
+  if (newPassword !== confirmPassword) {
+    return res.status(400).json({
+      success: false,
+      error: 'Passwords do not match',
+      detail: 'New password and confirm password must match'
+    });
+  }
+
+  if (currentPassword && currentPassword === newPassword) {
+    return res.status(400).json({
+      success: false,
+      error: 'Password unchanged',
+      code: 'PASSWORD_UNCHANGED',
+      detail: 'New password must be different from the current password'
     });
   }
 
@@ -147,5 +196,7 @@ module.exports = {
   validateEntry,
   validatePureExchange,
   validateExpenseType,
-  validateLogin
+  validateLogin,
+  validateChangePassword,
+  PASSWORD_MIN_LENGTH
 };

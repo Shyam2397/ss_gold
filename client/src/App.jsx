@@ -3,8 +3,10 @@ import { HashRouter as Router, Routes, Route, useLocation, useNavigate } from 'r
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from './lib/queryClient';
 import { CompanyDetailsProvider } from './context/CompanyDetailsContext';
+import { UserProvider, useUser } from './components/UserInterface/UserContext';
 import Login from './components/login/Login';
 import MainLayout from './components/mainLayout/MainLayout';
+import UserInterface from './components/UserInterface/UserInterface';
 import LoadingSpinner from './components/common/LoadingSpinner';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import routes, { preloadRoute } from './routes';
@@ -106,6 +108,26 @@ const PreFetchComponent = () => {
   return null;
 };
 
+const AuthenticatedApp = ({ setLoggedIn }) => {
+  const { mustChangePassword, signOut } = useUser();
+
+  // After install the account runs on the shipped default password - keep the
+  // rest of the app locked until a new one is set.
+  if (mustChangePassword) {
+    return (
+      <UserInterface
+        variant="required"
+        onSignOut={() => {
+          signOut();
+          setLoggedIn(false);
+        }}
+      />
+    );
+  }
+
+  return <MainLayout setLoggedIn={setLoggedIn} />;
+};
+
 const AppRoutes = ({ loggedIn, setLoggedIn }) => {
   const location = useLocation();
 
@@ -123,7 +145,7 @@ const AppRoutes = ({ loggedIn, setLoggedIn }) => {
           path="/"
           element={
             loggedIn ? (
-              <MainLayout setLoggedIn={setLoggedIn} />
+              <AuthenticatedApp setLoggedIn={setLoggedIn} />
             ) : (
               <Login setLoggedIn={setLoggedIn} />
             )
@@ -173,12 +195,14 @@ function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <CompanyDetailsProvider>
-        <Router>
-          <PreFetchComponent />
-          <AppRoutes loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
-        </Router>
-      </CompanyDetailsProvider>
+      <UserProvider>
+        <CompanyDetailsProvider>
+          <Router>
+            <PreFetchComponent />
+            <AppRoutes loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
+          </Router>
+        </CompanyDetailsProvider>
+      </UserProvider>
     </QueryClientProvider>
   );
 }

@@ -4,6 +4,7 @@ import { IconContext } from 'react-icons';
 import { Icons } from './SidebarIcons';
 import { throttle } from "../../lib/utils";
 import { SCROLL_BEHAVIOR } from '../../routes';
+import { logoutUser } from '../../services/authService';
 import { SidebarProvider, useSidebar } from './SidebarProvider';
 import { SidebarDesktop } from './SidebarDesktop';
 import { SidebarMobile } from './SidebarMobile';
@@ -93,7 +94,7 @@ const SidebarContent = memo(({ user, setLoggedIn }) => {
   }, [navigate, isNavigating]);
 
   const handleLogout = useCallback(() => {
-    localStorage.removeItem('isLoggedIn');
+    logoutUser();
     setLoggedIn(false);
   }, [setLoggedIn]);
 
