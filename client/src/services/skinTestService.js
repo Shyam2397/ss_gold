@@ -88,7 +88,7 @@ const skinTestService = {
     try {
       const api = await getApi();
       const response = await api.get(`/skin-tests/phone_number/${code}`);
-      const phoneNumber = response.data.phone || '';
+      const phoneNumber = response.data.phoneNumber || '';
       
       // Cache the result
       phoneNumbersCache.set(code, phoneNumber);

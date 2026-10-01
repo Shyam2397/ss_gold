@@ -237,7 +237,7 @@ const getPhoneNumberByCode = async (req, res) => {
   
   try {
     const result = await pool.query(
-      "SELECT phoneNumber FROM entries WHERE code = $1",
+      "SELECT phone_number as \"phoneNumber\" FROM entries WHERE code = $1",
       [code]
     );
     
