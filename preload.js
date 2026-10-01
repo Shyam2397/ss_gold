@@ -61,6 +61,19 @@ async function testPrint(printerType, htmlContent) {
   return ipcRenderer.invoke('test-print', { printerType, htmlContent });
 }
 
+/**
+ * sendWhatsApp()
+ * Hands a pre-filled WhatsApp link to the OS so the installed WhatsApp desktop
+ * app (or the default browser via the wa.me fallback) opens it - no new window
+ * is created inside the app.
+ *
+ * @param {{ phoneNumber: string, message: string }} payload
+ * @returns {Promise<{ success: boolean, used?: string, error?: string }>}
+ */
+async function sendWhatsApp(payload) {
+  return ipcRenderer.invoke('send-whatsapp', payload);
+}
+
 // Expose protected methods that allow the renderer process to use
 // the ipcRenderer without exposing the entire object
 contextBridge.exposeInMainWorld(
@@ -97,6 +110,8 @@ contextBridge.exposeInMainWorld(
     silentPrintSkinTest: (htmlContent, printerName, copies) =>
       silentPrintSkinTest(htmlContent, printerName, copies),
     testPrint: (printerType, htmlContent) => testPrint(printerType, htmlContent),
+    // WhatsApp sharing (OS-level, no in-app window)
+    sendWhatsApp: (payload) => sendWhatsApp(payload),
     // Check if we're running in Electron
     isElectron: true
   }

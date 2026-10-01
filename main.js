@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const path = require('path');
 const { spawn, exec } = require('child_process');
 const os = require('os');
@@ -694,6 +694,41 @@ ipcMain.handle('get-system-memory', () => {
     total: os.totalmem(),
     free: os.freemem(),
   };
+});
+
+// ============================================================
+// WHATSAPP SHARING IPC HANDLER
+// ============================================================
+//
+// Hands the pre-filled WhatsApp link to the OS so nothing opens as a new
+// Electron window. The `whatsapp://` scheme is registered by the WhatsApp
+// desktop app, so on those machines the chat is focused directly and silently.
+// If that protocol is not registered, fall back to the wa.me web link, which
+// the default browser handles.
+ipcMain.handle('send-whatsapp', async (_event, payload) => {
+  const phoneNumber = String(payload?.phoneNumber || '').replace(/\D/g, '');
+  const text = String(payload?.message || '');
+
+  if (!phoneNumber || !text) {
+    return { success: false, error: 'Missing phone number or message.' };
+  }
+
+  const encodedText = encodeURIComponent(text);
+  const candidates = [
+    `whatsapp://send?phone=${phoneNumber}&text=${encodedText}`,
+    `https://wa.me/${phoneNumber}?text=${encodedText}`
+  ];
+
+  for (const url of candidates) {
+    try {
+      await shell.openExternal(url);
+      return { success: true, used: url };
+    } catch (error) {
+      log.warn(`openExternal failed for ${url.split('?')[0]}:`, error.message);
+    }
+  }
+
+  return { success: false, error: 'Could not open WhatsApp on this system.' };
 });
 
 // ============================================================

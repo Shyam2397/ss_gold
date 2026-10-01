@@ -129,7 +129,20 @@ const TableRow = React.memo(({
       phoneNumber = '91' + phoneNumber;
 
       // Open WhatsApp
-      window.open(`https://wa.me/${phoneNumber}?text=${message}`, '_blank');
+      if (window.electron && typeof window.electron.sendWhatsApp === 'function') {
+        // Electron: hand the link to the OS (WhatsApp desktop app, or the
+        // default browser via the wa.me fallback) so no new in-app window opens.
+        const result = await window.electron.sendWhatsApp({
+          phoneNumber,
+          message: messageLines.join('\n'),
+        });
+        if (!result?.success) {
+          toast.error(result?.error || 'Could not open WhatsApp. Please try again.');
+        }
+      } else {
+        // Browser dev-mode fallback.
+        window.open(`https://wa.me/${phoneNumber}?text=${message}`, '_blank');
+      }
     } finally {
       // Reset loading state for this specific row
       setLoadingStates(prev => {
