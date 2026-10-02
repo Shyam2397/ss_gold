@@ -1,15 +1,5 @@
 import React from 'react';
 
-// Skeleton for form inputs
-export const FormInputSkeleton = ({ className }) => {
-  return (
-    <div className={`form-control animate-pulse ${className}`}>
-      <div className="h-3 w-16 bg-amber-200/60 rounded mb-1"></div>
-      <div className="h-7 w-full bg-amber-100/80 rounded border border-amber-200/40 border-solid"></div>
-    </div>
-  );
-};
-
 // Skeleton for table rows
 export const TableRowSkeleton = () => {
   return (
@@ -24,7 +14,9 @@ export const TableRowSkeleton = () => {
   );
 };
 
-// Skeleton for the entire table with multiple rows
+// Skeleton for the entire table with multiple rows.
+// Only rendered when no rows are staged yet - once a batch exists the real rows
+// stay on screen through a save.
 export const TableSkeleton = ({ rowCount = 3 }) => {
   return (
     <>
@@ -32,12 +24,5 @@ export const TableSkeleton = ({ rowCount = 3 }) => {
         <TableRowSkeleton key={index} />
       ))}
     </>
-  );
-};
-
-// Button skeleton
-export const ButtonSkeleton = ({ width = 'w-20', height = 'h-[30px]' }) => {
-  return (
-    <div className={`${width} ${height} bg-amber-300/50 rounded animate-pulse`}></div>
   );
 };

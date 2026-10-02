@@ -1,6 +1,51 @@
+import loadImage from 'blueimp-load-image';
 import { formatDate } from '../../../utils/dateUtils';
+import logoPath from '../../../assets/logo.png';
 
-export const buildPrintHtml = (rows) => {
+export const convertImageToBase64 = (imagePath) => {
+    return new Promise((resolve, reject) => {
+        loadImage(
+            imagePath,
+            (canvas) => {
+                resolve(canvas.toDataURL('image/png'));
+            },
+            {
+                maxWidth: 1000,
+                maxHeight: 1000,
+                canvas: true,
+                orientation: true
+            }
+        );
+    });
+};
+
+// The silent-print path hands this markup to the Electron main process, which
+// loads it via a `data:` URL. That document has no base path, so a plain
+// "/assets/logo.png" reference resolves to nothing and the logo is simply absent
+// from the slip - with no error. A production build inlines the PNG via
+// `assetsInlineLimit`, but the dev server does not and main.js points an
+// unpackaged app at http://localhost:3000, so convert it at runtime too.
+//
+// A logo failure must never block printing, so fall back to the raw asset path.
+// `null` = not resolved yet, `false` = unavailable.
+let printLogoCache = null;
+const getEstimateLogo = async () => {
+    if (printLogoCache !== null) return printLogoCache || null;
+
+    try {
+        printLogoCache = (await convertImageToBase64(logoPath)) || false;
+    } catch (err) {
+        console.error('Logo could not be prepared, printing without it:', err);
+        printLogoCache = false;
+    }
+    return printLogoCache || logoPath;
+};
+
+// Resolves the logo inside the builder rather than taking it as an argument, so
+// no caller can accidentally hand it the un-inlined asset path.
+export const buildPrintHtml = async (rows) => {
+    const logo = await getEstimateLogo();
+
     const tableData = rows || [];
     // Rows carry the storage-format date (ISO), so render it day-first for the
     // customer. formatDate handles ISO and the legacy dd-MM-yyyy rows alike.
@@ -19,7 +64,9 @@ export const buildPrintHtml = (rows) => {
             body {
               font-family: 'Poppins', sans-serif;
               width: 80mm;
-              padding: 0 3mm;
+              /* top padding keeps the logo clear of the printer's non-printable
+                 margin; @page has no top margin */
+              padding: 1mm 3mm 0;
               margin: 0;
               font-size: 13px;
               font-weight: 600;
@@ -28,6 +75,16 @@ export const buildPrintHtml = (rows) => {
               text-align: center;
               font-size: 14px;
               font-weight: 600;
+            }
+            .logo {
+              display: block;
+              width: 26px;
+              height: 26px;
+              margin: 0 auto 1px;
+              object-fit: contain;
+              filter: grayscale(100%) contrast(120%) brightness(0%);
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
             }
             .info-date {
               display: flex;
@@ -90,6 +147,7 @@ export const buildPrintHtml = (rows) => {
           </style>
         </head>
         <body>
+          <img src="${logo}" alt="SS GOLD Logo" class="logo"/>
           <div class="center">
             << ROUGH ESTIMATE >>
           </div>
@@ -209,7 +267,9 @@ export const printPureExchange = async (rows) => {
     const tableData = rows || [];
     if (tableData.length === 0) return { confirmed: false, reason: 'empty' };
 
-    const htmlContent = buildPrintHtml(tableData);
+    // The logo is inlined by buildPrintHtml - a `data:` URL print cannot resolve an
+    // asset path, so an un-inlined logo is silently missing.
+    const htmlContent = await buildPrintHtml(tableData);
 
     // Check if running in Electron environment
     const isElectronEnv = window.electron && window.electron.isElectron;

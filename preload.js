@@ -38,6 +38,19 @@ async function silentPrintPureExchange(htmlContent) {
 }
 
 /**
+ * silentPrintCustomerStatement()
+ * Sends the 80mm unpaid-customer statement HTML to the main process, which
+ * renders it in a hidden window and forwards it to the configured thermal
+ * printer with no dialog.
+ *
+ * @param {string} htmlContent - Full HTML string of the statement
+ * @returns {Promise<{ success: boolean, error?: string }>}
+ */
+async function silentPrintCustomerStatement(htmlContent) {
+  return ipcRenderer.invoke('silent-print-customer-statement', htmlContent);
+}
+
+/**
  * silentPrintSkinTest()
  * Sends the skin-test certificate HTML to the main process, which:
  *   1. Renders it to a high-quality A4 PDF via webContents.printToPDF()
@@ -106,6 +119,8 @@ contextBridge.exposeInMainWorld(
     savePrinterSettings: (settings) => savePrinterSettings(settings),
     silentPrintToken: (htmlContent) => silentPrintToken(htmlContent),
     silentPrintPureExchange: (htmlContent) => silentPrintPureExchange(htmlContent),
+    silentPrintCustomerStatement: (htmlContent) =>
+      silentPrintCustomerStatement(htmlContent),
     // Skin-test silent print: PDF workflow via pdf-to-printer (A4, high-quality, no dialog)
     silentPrintSkinTest: (htmlContent, printerName, copies) =>
       silentPrintSkinTest(htmlContent, printerName, copies),

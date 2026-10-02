@@ -1,4 +1,15 @@
 // Import the logo
+// The silent-print path hands this HTML to the Electron main process, which loads
+// it via a `data:` URL. That document has no base path, so a normal
+// "/assets/logo.png" reference resolves to nothing and the statement header prints
+// blank - with no error, since a missing image is not reported. The logo therefore
+// has to be inlined as a data URI.
+//
+// A production build does that via `assetsInlineLimit` in vite.config.js, but the
+// dev server does not, and main.js points an unpackaged app at
+// http://localhost:3000. `getStatementLogo` below converts it at runtime as well,
+// exactly like the Token receipt does.
+import loadImage from 'blueimp-load-image';
 import logoPath from '../../../assets/logo.png';
 
 // Preload images to ensure they're loaded before printing
@@ -13,6 +24,40 @@ export const preloadImages = (imagePaths) => {
       })
     )
   );
+};
+
+export const convertImageToBase64 = (imagePath) => {
+  return new Promise((resolve, reject) => {
+    loadImage(
+      imagePath,
+      (canvas) => {
+        resolve(canvas.toDataURL('image/png'));
+      },
+      {
+        maxWidth: 1000,
+        maxHeight: 1000,
+        canvas: true,
+        orientation: true
+      }
+    );
+  });
+};
+
+// A logo failure must never block the receipt, so fall back to the raw asset
+// path - which still works for the browser-dialog print. `null` = not resolved
+// yet, `false` = unavailable.
+let printLogoCache = null;
+const getStatementLogo = async () => {
+  if (printLogoCache !== null) return printLogoCache || null;
+
+  try {
+    await preloadImages([logoPath]);
+    printLogoCache = (await convertImageToBase64(logoPath)) || false;
+  } catch (err) {
+    console.error('Logo could not be prepared, printing without it:', err);
+    printLogoCache = false;
+  }
+  return printLogoCache || logoPath;
 };
 
 // Format date for display as dd-mm-yy
@@ -67,7 +112,7 @@ const formatTestName = (testName) => {
 };
 
 // Generate print content for customer statement
-export const generateCustomerStatementContent = (customerData) => {
+export const generateCustomerStatementContent = (customerData, logo = logoPath) => {
   const { customerName, customerPhone, code, totalAmount, entries = [] } = customerData;
   
   // Format currency
@@ -99,7 +144,7 @@ export const generateCustomerStatementContent = (customerData) => {
           @page { 
             size: 80mm auto; 
             margin: 0;
-            padding: 0 8px;
+            padding: 0 10mm 0 0;
           }
           body { 
             font-family: Arial, sans-serif;
@@ -233,7 +278,7 @@ export const generateCustomerStatementContent = (customerData) => {
        <div class="header">
           <div class="header-text">
             <div class="logo-container">
-                <img src="${logoPath}" alt="SS GOLD Logo" class="logo"/>
+                <img src="${logo}" alt="SS GOLD Logo" class="logo"/>
                 <h1 class="header-title">SS GOLD</h1>
             </div>
             <p class="header-subtitle">Computer X-ray Testing</p>
@@ -290,33 +335,58 @@ const formatTimeToAMPM = (time24) => {
   return `${hour12}:${minutes} ${ampm}`;
 };
 
-// Function to handle the print action
-export const printCustomerStatement = async (customerData) => {
-  try {
-    // Preload the logo image
-    const imagesToPreload = [logoPath];
-    await preloadImages(imagesToPreload);
-    
-    // Generate the print content
-    const printContent = generateCustomerStatementContent(customerData);
-    
-    // Open the print window
-    const printWindow = window.open('', '', 'width=800,height=400');
-    if (!printWindow) {
-      throw new Error('Popup was blocked. Please allow popups for this site.');
-    }
-    
-    // Write the content and close the document
-    printWindow.document.write(printContent);
-    printWindow.document.close();
-    
-    // Print after a short delay to ensure content is loaded
-    setTimeout(() => {
-      printWindow.print();
-      printWindow.close();
-    }, 250);
-  } catch (error) {
-    console.error('Print error:', error);
-    throw error; // Re-throw to be caught by the component
+// Browser-dialog fallback. Still used when running outside Electron, and as the
+// safety net when the silent print fails, so the operator always gets a receipt.
+const printViaDialog = (printContent) => {
+  const printWindow = window.open('', '', 'width=800,height=400');
+  if (!printWindow) {
+    throw new Error('Popup was blocked. Please allow popups for this site.');
   }
+
+  printWindow.document.write(printContent);
+  printWindow.document.close();
+
+  // Print after a short delay to ensure content is loaded
+  setTimeout(() => {
+    printWindow.print();
+    printWindow.close();
+  }, 250);
+};
+
+/**
+ * Prints the 80mm customer statement.
+ *
+ * Prefers the Electron thermal printer so no dialog appears and no popup blocker
+ * is involved. Falls back to the browser dialog if the silent print fails, so a
+ * printer error never leaves the operator without a way to get the statement.
+ *
+ * @returns {Promise<{ confirmed: boolean, reason?: string }>} `confirmed` is true
+ *   only when the spooler took the job; the dialog path cannot be confirmed
+ *   because the operator may cancel it.
+ */
+export const printCustomerStatement = async (customerData) => {
+  // Inline the logo before generating the markup - a `data:` URL print cannot
+  // resolve an asset path, so an un-inlined logo silently prints a blank header.
+  const logo = await getStatementLogo();
+
+  const printContent = generateCustomerStatementContent(customerData, logo);
+
+  const isElectronEnv = window.electron && window.electron.isElectron;
+
+  if (isElectronEnv) {
+    try {
+      const result = await window.electron.silentPrintCustomerStatement(printContent);
+      if (!result.success) {
+        throw new Error(result.error || 'Silent print failed');
+      }
+      return { confirmed: true };
+    } catch (error) {
+      // Do not surface this - fall through so a printer hiccup still produces a
+      // receipt via the dialog.
+      console.error('Customer statement silent print failed, using dialog:', error);
+    }
+  }
+
+  printViaDialog(printContent);
+  return { confirmed: false, reason: 'dialog' };
 };

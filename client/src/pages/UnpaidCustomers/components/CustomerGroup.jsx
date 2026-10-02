@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useState } from 'react';
 import { ChevronDown, ChevronRight, Phone, CreditCard, Printer } from 'lucide-react';
 import { printCustomerStatement } from '../utils/printUtils';
 
@@ -11,6 +11,37 @@ const CustomerGroup = ({
   isExpanded,
   onToggle
 }) => {
+  const [printStatus, setPrintStatus] = useState('');
+  // A statement is physical paper, so a double-click must not produce two
+  // receipts. `disabled` alone would not help, since it only applies after a
+  // re-render.
+  const isPrintingRef = useRef(false);
+
+  const handlePrint = async (event) => {
+    event.stopPropagation();
+    if (isPrintingRef.current) return;
+    isPrintingRef.current = true;
+    setPrintStatus('Printing…');
+
+    try {
+      const outcome = await printCustomerStatement({
+        customerName,
+        customerPhone,
+        code,
+        totalAmount,
+        entries: customers
+      });
+
+      setPrintStatus(outcome.confirmed ? 'Printed' : 'Printed (check printer)');
+    } catch (error) {
+      console.error('Print error:', error);
+      setPrintStatus('Print failed');
+    } finally {
+      isPrintingRef.current = false;
+      setTimeout(() => setPrintStatus(''), 3000);
+    }
+  };
+
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-IN', {
       style: 'currency',
@@ -78,27 +109,16 @@ const CustomerGroup = ({
             </p>
           </div>
           <button
-            onClick={async (e) => {
-              e.stopPropagation();
-              try {
-                await printCustomerStatement({
-                  customerName,
-                  customerPhone,
-                  code,
-                  totalAmount,
-                  entries: customers
-                });
-              } catch (error) {
-                console.error('Print error:', error);
-                // You might want to show a toast or alert here
-                alert('Failed to open print dialog. Please check your popup blocker settings.');
-              }
-            }}
-            className="p-1 text-gray-400 hover:text-[#D3B04D] transition-colors no-print"
+            onClick={handlePrint}
+            disabled={printStatus === 'Printing…'}
+            className="p-1 text-gray-400 hover:text-[#D3B04D] transition-colors no-print disabled:opacity-50"
             title="Print Statement"
           >
             <Printer className="h-3.5 w-3.5" />
           </button>
+          {printStatus && (
+            <span className="text-[10px] text-gray-500 whitespace-nowrap">{printStatus}</span>
+          )}
           <div 
             className="text-gray-400 group-hover:text-[#D3B04D] transition-colors flex-shrink-0"
             onClick={onToggle}

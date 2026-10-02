@@ -12,6 +12,14 @@ export default defineConfig({
         format: 'es'
     },
     build: {
+        // The unpaid-customer statement is printed by the Electron main process,
+        // which loads the HTML through a `data:` URL. A data: document has no base
+        // path, so the logo has to be embedded as a base64 data URI - referenced as
+        // /assets/logo.png it resolves to nothing and the statement header prints
+        // blank, with no error. Returning undefined leaves every other asset on
+        // Vite's default 4 KB threshold.
+        assetsInlineLimit: (filePath) =>
+            filePath.endsWith('logo.png') ? true : undefined,
         chunkSizeWarningLimit: 1000, // Increase chunk size warning limit
         rollupOptions: {
             output: {

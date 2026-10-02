@@ -1104,6 +1104,127 @@ ipcMain.handle('silent-print-pure-exchange', async (event, htmlContent) => {
 });
 
 // ============================================================
+// UNPAID CUSTOMER STATEMENT SILENT PRINT
+// ============================================================
+
+/**
+ * The statement is 80mm thermal like the token and pure-exchange receipts, so
+ * it reuses the same thermal printer settings and print-option mapping rather
+ * than adding a second configuration surface. 58mm/80mm width is derived from
+ * the saved paper size exactly as the token path does.
+ */
+ipcMain.handle('silent-print-customer-statement', async (event, htmlContent) => {
+  let printWindow = null;
+  try {
+    const settings = printerSettings.tokenPrinter;
+    log.info(`Starting customer statement print to printer: ${settings.printerName || 'default'}`);
+    log.info(`Customer statement print settings: copies=${settings.copies}, silent=${settings.silentMode}`);
+
+    const paperSize = (settings.documentSize || '80mm').toLowerCase();
+    const is58mm = paperSize.includes('58mm');
+    const contentWidth = is58mm ? 220 : 305;
+
+    printWindow = new BrowserWindow({
+      width: contentWidth,
+      height: 600,
+      useContentSize: true,
+      show: false,
+      resizable: false,
+      minimizable: false,
+      maximizable: false,
+      fullscreenable: false,
+      frame: false,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+        offscreen: false,
+      }
+    });
+
+    printWindow.webContents.setZoomLevel(0);
+
+    const printOptions = mapSettingsToPrintOptions(settings, 'token');
+    log.info('Mapped print options for customer statement:', JSON.stringify(printOptions));
+    await applyPrinterDevmode(settings, 'CustomerStatement-Print');
+
+    // The logo is inlined as a base64 data URI by Vite (see assetsInlineLimit in
+    // vite.config.js). A data: URL document has no base path, so a normal
+    // /assets/logo.png reference would silently fail to load here and print a
+    // blank header.
+    await printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`);
+
+    await new Promise((resolve, reject) => {
+      let stylesLoaded = false;
+      let loadTimeout;
+
+      // Wait for styles (and the inlined logo) to be fully decoded
+      printWindow.webContents.executeJavaScript(`
+        new Promise((resolve) => {
+          const done = () => setTimeout(resolve, 500);
+          if (document.readyState === 'complete') {
+            if (document.fonts && document.fonts.status !== 'loaded') {
+              document.fonts.ready.then(done, done);
+            } else {
+              done();
+            }
+          } else {
+            window.addEventListener('load', done);
+          }
+        });
+      `).then(() => {
+        stylesLoaded = true;
+        clearTimeout(loadTimeout);
+
+        printWindow.webContents.print(printOptions, (success, failureReason) => {
+          if (success) {
+            log.info('Customer statement print completed successfully');
+            resolve(true);
+          } else {
+            log.error(`Customer statement print failed: ${failureReason}`);
+            reject(new Error(failureReason || 'Print failed'));
+          }
+        });
+      }).catch((err) => {
+        if (!stylesLoaded) {
+          reject(new Error(`Failed to wait for styles: ${err.message}`));
+        }
+      });
+
+      // Timeout fallback
+      loadTimeout = setTimeout(() => {
+        if (!stylesLoaded) {
+          log.warn('Style loading timeout, proceeding with print anyway');
+          printWindow.webContents.print(printOptions, (success, failureReason) => {
+            if (success) {
+              log.info('Customer statement print completed successfully (after timeout)');
+              resolve(true);
+            } else {
+              log.error(`Customer statement print failed: ${failureReason}`);
+              reject(new Error(failureReason || 'Print failed'));
+            }
+          });
+        }
+      }, 3000);
+
+      printWindow.webContents.once('did-fail-load', (e, ec, em) => {
+        clearTimeout(loadTimeout);
+        reject(new Error(`Page load failed: ${em} (${ec})`));
+      });
+    });
+
+    printWindow.destroy();
+    printWindow = null;
+    return { success: true };
+  } catch (error) {
+    log.error('Error during customer statement silent print:', error);
+    if (printWindow && !printWindow.isDestroyed()) {
+      printWindow.destroy();
+    }
+    return { success: false, error: error.message };
+  }
+});
+
+// ============================================================
 // SKIN TEST SILENT PRINT  –  PDF-based, high-quality workflow
 // ============================================================
 
