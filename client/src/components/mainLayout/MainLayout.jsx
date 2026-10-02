@@ -1,12 +1,34 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import Sidebar from '../sidebar/Sidebar';
 import MainContent from './MainContent';
 import { useUser } from '../UserInterface/UserContext';
 
+// App.jsx remounts the whole route tree on every navigation
+// (<Routes key={location.pathname}>), which resets the sidebar to its default
+// open state. Keeping this outside React lets the drawer state survive the
+// remount so it can actually be closed when the user navigates.
+let persistedSidebarOpen = true;
+let lastPathname = null;
+
 const MainLayout = ({ setLoggedIn }) => {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const location = useLocation();
+  const [isSidebarOpen, setSidebarOpenState] = useState(persistedSidebarOpen);
   const { user } = useUser();
+
+  const setIsSidebarOpen = useCallback((next) => {
+    persistedSidebarOpen = typeof next === 'function' ? next(persistedSidebarOpen) : next;
+    setSidebarOpenState(persistedSidebarOpen);
+  }, []);
+
+  // Auto-close the sidebar when the route changes (first render is left as-is)
+  useEffect(() => {
+    if (lastPathname !== null && lastPathname !== location.pathname) {
+      setIsSidebarOpen(false);
+    }
+    lastPathname = location.pathname;
+  }, [location.pathname, setIsSidebarOpen]);
 
   return (
     <div className="flex flex-col md:flex-row h-screen bg-gray-50 overflow-hidden">

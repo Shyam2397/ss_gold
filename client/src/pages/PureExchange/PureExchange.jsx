@@ -1,10 +1,11 @@
-import React, { useReducer } from 'react';
+import React, { useReducer, useRef, useCallback, useEffect } from 'react';
 import {
     FiSave,
     FiRotateCcw,
     FiAlertCircle,
     FiPlus,
-    FiDatabase
+    FiDatabase,
+    FiPrinter
 } from 'react-icons/fi';
 import { GiGoldBar } from 'react-icons/gi';
 import { useNavigate } from 'react-router-dom';
@@ -13,6 +14,7 @@ import skinTestService from '../../services/skinTestService';
 import MemoizedFormInput from './components/MemoizedFormInput';
 import TableRow from './components/TableRow';
 import { FormInputSkeleton, TableSkeleton, ButtonSkeleton } from './components/SkeletonLoaders';
+import { printPureExchange } from './utils/printUtils';
 const ThermalPrinter = React.lazy(() => import('./ThermalPrinter'));
 
 // Suspense fallback component
@@ -97,11 +99,29 @@ const pureExchangeReducer = (state, action) => {
 const PureExchange = () => {
     const [state, dispatch] = useReducer(pureExchangeReducer, initialState);
     const { tokenNo, point, tableData, error, loading } = state;
-    const { checkExists, createPureExchange: createExchange, isCreating } = usePureExchange();
+    const { checkExists, createPureExchangeAsync: createExchange, isCreating } = usePureExchange();
     const navigate = useNavigate();
     
     // Combine local loading state with API creating state for UI feedback
     const isLoading = loading || isCreating;
+
+    const tokenNoInputRef = useRef(null);
+
+    // Focus and select the token number input so the next token can be typed straight away
+    const focusTokenInput = useCallback(() => {
+        const input = tokenNoInputRef.current;
+        if (input) {
+            input.focus();
+            input.select();
+        }
+    }, []);
+
+    // Keep the token number input ready once any async action finishes
+    useEffect(() => {
+        if (!isLoading) {
+            focusTokenInput();
+        }
+    }, [isLoading, focusTokenInput]);
 
     // Function to set error with auto-clear timeout
     const setErrorWithTimeout = (message) => {
@@ -151,17 +171,20 @@ const PureExchange = () => {
     const handleAdd = async () => {
         if (!tokenNo.trim()) {
             setErrorWithTimeout('Please enter a token number');
+            focusTokenInput();
             return;
         }
 
         if (!point || isNaN(parseFloat(point))) {
             setErrorWithTimeout('Please enter a valid point value');
+            focusTokenInput();
             return;
         }
 
         const tokenExists = tableData.some(row => row.tokenNo === tokenNo.trim());
         if (tokenExists) {
             setErrorWithTimeout(`Token number ${tokenNo} is already added to the table`);
+            focusTokenInput();
             return;
         }
 
@@ -222,12 +245,36 @@ const PureExchange = () => {
         };
 
         dispatch({ type: ACTIONS.ADD_TABLE_ROW, payload: newRow });
+        focusTokenInput();
+    };
+
+    // Shared persistence used by both the Save and the Save & Print actions.
+    // Records are independent, so they are saved in parallel (Promise.allSettled)
+    // instead of one-by-one to cut latency on multi-row saves.
+    const persistRecords = async (records) => {
+        const results = await Promise.allSettled(
+            records.map((record) => createExchange(record))
+        );
+
+        const duplicate = results.find(
+            (result) => result.status === 'rejected' && result.reason?.response?.status === 409
+        );
+        if (duplicate) {
+            setErrorWithTimeout('One or more tokens already exist in Pure Exchange data.');
+            return false;
+        }
+
+        const failure = results.find((result) => result.status === 'rejected');
+        if (failure) throw failure.reason;
+
+        return true;
     };
 
     const handleSave = async () => {
         try {
             if (tableData.length === 0) {
                 setErrorWithTimeout('Please add at least one entry before saving.');
+                focusTokenInput();
                 return;
             }
 
@@ -237,19 +284,8 @@ const PureExchange = () => {
             // Prepare data for saving (excluding id field)
             const dataToSave = tableData.map(({ id, ...rest }) => rest);
 
-            // Save each record
-            for (const record of dataToSave) {
-                try {
-                    await createExchange(record);
-                } catch (error) {
-                    if (error.response?.status === 409) {
-                        setErrorWithTimeout(`Token ${record.tokenNo} already exists in Pure Exchange data.`);
-                        dispatch({ type: ACTIONS.SET_LOADING, payload: false });
-                        return;
-                    }
-                    throw error; // Re-throw other errors
-                }
-            }
+            const saved = await persistRecords(dataToSave);
+            if (!saved) return;
 
             // Clear the table after successful save
             dispatch({ type: ACTIONS.SET_TABLE_DATA, payload: [] });
@@ -260,14 +296,59 @@ const PureExchange = () => {
             setErrorWithTimeout(errorMessage);
         } finally {
             dispatch({ type: ACTIONS.SET_LOADING, payload: false });
+            focusTokenInput();
+        }
+    };
+
+    const handleSaveAndPrint = async () => {
+        if (tableData.length === 0) {
+            setErrorWithTimeout('Please add at least one entry before saving.');
+            focusTokenInput();
+            return;
+        }
+
+        // Snapshot the rows so the receipt can be printed after the table is cleared
+        const rowsToPrint = [...tableData];
+        const dataToSave = rowsToPrint.map(({ id, ...rest }) => rest);
+
+        dispatch({ type: ACTIONS.SET_LOADING, payload: true });
+        dispatch({ type: ACTIONS.SET_ERROR, payload: '' });
+
+        let saved = false;
+        try {
+            saved = await persistRecords(dataToSave);
+            if (saved) {
+                // Clear the table after successful save
+                dispatch({ type: ACTIONS.SET_TABLE_DATA, payload: [] });
+            }
+        } catch (error) {
+            console.error('Error saving data:', error);
+            const errorMessage = error.response?.data?.error || 'Error saving data. Please try again.';
+            setErrorWithTimeout(errorMessage);
+        } finally {
+            // Release the UI before printing so the form is usable while the job spools
+            dispatch({ type: ACTIONS.SET_LOADING, payload: false });
+            focusTokenInput();
+        }
+
+        if (!saved) return;
+
+        try {
+            await printPureExchange(rowsToPrint);
+            setErrorWithTimeout('Data saved and printed successfully!');
+        } catch (error) {
+            console.error('Error printing data:', error);
+            setErrorWithTimeout('Data saved, but printing failed.');
         }
     };
 
     const handleReset = () => {
         dispatch({ type: ACTIONS.RESET_FORM });
+        focusTokenInput();
     };
 
     const handleNavigateToExchangeData = () => {
+        focusTokenInput();
         navigate('/exchange-data');
     };
 
@@ -312,6 +393,7 @@ const PureExchange = () => {
                                 value={tokenNo}
                                 onChange={(e) => dispatch({ type: ACTIONS.SET_TOKEN_NO, payload: e.target.value })}
                                 className="flex-1"
+                                inputRef={tokenNoInputRef}
                             />
                             <MemoizedFormInput
                                 label="Point"
@@ -390,6 +472,7 @@ const PureExchange = () => {
                             <ButtonSkeleton width="w-16" />
                             <ButtonSkeleton width="w-16" />
                             <ButtonSkeleton width="w-24" />
+                            <ButtonSkeleton width="w-28" />
                         </div>
                     ) : (
                         <>
@@ -411,11 +494,11 @@ const PureExchange = () => {
                             <button
                                 onClick={handleSave}
                                 className="px-2 py-1 bg-amber-500 text-white text-sm rounded hover:bg-amber-600 transition-colors flex items-center space-x-1 h-[30px] rounded-xl"
-                                disabled={isLoading || tableData.length === 0}
+                                disabled={isLoading}
                             >
                                 {isLoading ? (
                                     <>
-                                        <div className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-white border-solid border-t-transparent" />
+                                        <div className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-amber-500 border-solid border-t-transparent" />
                                         <span>Saving...</span>
                                     </>
                                 ) : (
@@ -425,9 +508,32 @@ const PureExchange = () => {
                                     </>
                                 )}
                             </button>
+                            <button
+                                onClick={handleSaveAndPrint}
+                                className="px-2 py-1 bg-amber-600 text-white text-sm rounded hover:bg-amber-700 transition-colors flex items-center space-x-1 h-[30px] rounded-xl"
+                                disabled={isLoading}
+                            >
+                                {isLoading ? (
+                                    <>
+                                        <div className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-white border-solid border-t-transparent" />
+                                        <span>Saving &amp; Printing...</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <FiPrinter className="w-3.5 h-3.5" />
+                                        <span>Save &amp; Print</span>
+                                    </>
+                                )}
+                            </button>
                             {/* Thermal Printer Component */}
                             <React.Suspense fallback={<PrinterFallback />}>
-                                <ThermalPrinter tableData={tableData} />
+                                <ThermalPrinter
+                                    tableData={tableData}
+                                    onEmpty={() => {
+                                        setErrorWithTimeout('Please add at least one entry before printing.');
+                                        focusTokenInput();
+                                    }}
+                                />
                             </React.Suspense>
                         </>
                     )}

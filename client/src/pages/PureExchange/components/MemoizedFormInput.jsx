@@ -1,12 +1,13 @@
 import React from 'react';
 
-const FormInput = ({ label, name, value, onChange, readOnly = false, className }) => {
+const FormInput = ({ label, name, value, onChange, readOnly = false, className, inputRef }) => {
     return (
         <div className={`form-control ${className}`}>
             <label className="block text-xs font-medium text-amber-900 mb-0.5">
                 {label}
             </label>
             <input
+                ref={inputRef}
                 type="text"
                 name={name}
                 value={value}

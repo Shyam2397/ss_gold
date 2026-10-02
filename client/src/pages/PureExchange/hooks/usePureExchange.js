@@ -73,6 +73,7 @@ export const usePureExchange = () => {
     error,
     checkExists,
     createPureExchange: createMutation.mutate,
+    createPureExchangeAsync: createMutation.mutateAsync,
     updatePureExchange: updateMutation.mutate,
     deletePureExchange: deleteMutation.mutate,
     isCreating: createMutation.isPending,
