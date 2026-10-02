@@ -338,6 +338,74 @@ const validateProfile = (req, res, next) => {
   next();
 };
 
+const COMPANY_DETAILS_LIMITS = {
+  name: 150,
+  tagline: 150,
+  address: 500,
+  city: 100,
+  state: 100,
+  pincode: 20,
+  phone: 40,
+  alternatePhone: 40,
+  email: 150,
+  website: 150,
+  gstin: 30
+};
+
+const validateCompanyDetails = (req, res, next) => {
+  const body = req.body || {};
+
+  for (const [field, maxLength] of Object.entries(COMPANY_DETAILS_LIMITS)) {
+    const value = body[field];
+
+    if (value === undefined || value === null) continue;
+
+    if (typeof value !== 'string') {
+      return res.status(400).json({
+        error: `Invalid ${field}`,
+        detail: `${field} must be text`
+      });
+    }
+
+    if (value.length > maxLength) {
+      return res.status(400).json({
+        error: `${field} is too long`,
+        detail: `${field} must be ${maxLength} characters or fewer`
+      });
+    }
+  }
+
+  if (body.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.email)) {
+    return res.status(400).json({
+      error: 'Invalid email address',
+      detail: 'Enter a valid email address'
+    });
+  }
+
+  // No GSTIN format check on purpose: a typo already stored in the row would
+  // then block saving every other company field
+
+  // Logos are stored inline as data URLs, so cap them the same way profile
+  // photos are capped rather than trusting the client
+  if (body.logo !== undefined && body.logo !== null && body.logo !== '') {
+    if (typeof body.logo !== 'string' || !body.logo.startsWith('data:image/')) {
+      return res.status(400).json({
+        error: 'Invalid logo',
+        detail: 'Logo must be an image data URL'
+      });
+    }
+
+    if (body.logo.length > MAX_PROFILE_IMAGE_LENGTH) {
+      return res.status(400).json({
+        error: 'Logo too large',
+        detail: 'Logo must be smaller than 400 KB after resizing'
+      });
+    }
+  }
+
+  next();
+};
+
 module.exports = {
   validateExpense,
   validateSkinTest,
@@ -351,6 +419,8 @@ module.exports = {
   validateUpdateUser,
   validateResetPassword,
   validateProfile,
+  validateCompanyDetails,
+  COMPANY_DETAILS_LIMITS,
   PASSWORD_MIN_LENGTH,
   MAX_PROFILE_IMAGE_LENGTH
 };

@@ -9,6 +9,16 @@ const {
 } = require('../controllers/entriesController');
 const { validateEntry } = require('../middleware/validation');
 const { handleDatabaseError } = require('../middleware/errorHandler');
+const { authenticate, requireMenuAccess } = require('../middleware/auth');
+
+router.use(authenticate);
+
+// "Customer Data" and "Unpaid Customers" read the same rows as "New Entries",
+// but only "New Entries" may change them
+router.use(requireMenuAccess({
+  read: ['entries', 'customer-data', 'unpaid-customers', 'dashboard'],
+  write: ['entries']
+}));
 
 router.get('/', async (req, res) => {
   try {

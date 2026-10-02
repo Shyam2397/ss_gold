@@ -33,7 +33,7 @@ export const SidebarUserCard = memo(({ user, isActive, handleNavigation, isMobil
         aria-label="Open my account"
         title={isExpanded ? undefined : username}
         className={cn(
-          'group flex items-center gap-3 rounded-xl border px-2 py-2 transition-all duration-200',
+          'group flex items-center gap-2 rounded-xl border px-2 py-3 transition-all duration-200 pl-2.5',
           active
             ? 'border-amber-200 bg-amber-100'
             : 'border-transparent hover:border-amber-200 hover:bg-amber-50'

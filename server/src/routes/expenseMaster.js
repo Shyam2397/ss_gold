@@ -8,6 +8,14 @@ const {
 } = require('../controllers/expenseMasterController');
 const { validateExpenseType } = require('../middleware/validation');
 const { handleDatabaseError } = require('../middleware/errorHandler');
+const { authenticate, requireMenuAccess } = require('../middleware/auth');
+
+router.use(authenticate);
+
+router.use(requireMenuAccess({
+  read: ['expenses-add', 'cashbook'],
+  write: ['expenses-add']
+}));
 
 // Create a new expense type
 router.post('/', validateExpenseType, async (req, res) => {

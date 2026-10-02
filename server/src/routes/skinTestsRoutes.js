@@ -11,6 +11,14 @@ const {
 } = require('../controllers/skinTestsController');
 const { validateSkinTest } = require('../middleware/validation');
 const { handleDatabaseError } = require('../middleware/errorHandler');
+const { authenticate, requireMenuAccess } = require('../middleware/auth');
+
+router.use(authenticate);
+
+router.use(requireMenuAccess({
+  read: ['skin-testing', 'skintest-data', 'dashboard'],
+  write: ['skin-testing']
+}));
 
 router.get('/', async (req, res) => {
   try {

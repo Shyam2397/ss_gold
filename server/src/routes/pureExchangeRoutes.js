@@ -9,6 +9,14 @@ const {
 } = require('../controllers/pureExchangeController');
 const { validatePureExchange } = require('../middleware/validation');
 const { handleDatabaseError } = require('../middleware/errorHandler');
+const { authenticate, requireMenuAccess } = require('../middleware/auth');
+
+router.use(authenticate);
+
+router.use(requireMenuAccess({
+  read: ['pure-exchange', 'exchange-data', 'dashboard'],
+  write: ['pure-exchange']
+}));
 
 router.get('/', async (req, res) => {
   try {

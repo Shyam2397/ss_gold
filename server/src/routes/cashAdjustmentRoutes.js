@@ -8,23 +8,20 @@ const {
   deleteCashAdjustment,
   getCashAdjustmentSummary
 } = require('../controllers/cashAdjustmentController');
+const { authenticate, requireMenuAccess } = require('../middleware/auth');
 
-// Create a new cash adjustment
-router.post('/', createCashAdjustment);
+router.use(authenticate);
 
-// Get all cash adjustments (with optional date range query params: ?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD)
-router.get('/', getCashAdjustments);
+const access = requireMenuAccess({
+  read: ['cashbook', 'cash-adjustments'],
+  write: ['cash-adjustments']
+});
 
-// Get cash adjustment summary by date range (requires both startDate and endDate query params)
-router.get('/summary', getCashAdjustmentSummary);
-
-// Get a single cash adjustment by ID
-router.get('/:id', getCashAdjustmentById);
-
-// Update a cash adjustment
-router.put('/:id', updateCashAdjustment);
-
-// Delete a cash adjustment
-router.delete('/:id', deleteCashAdjustment);
+router.post('/', access, createCashAdjustment);
+router.get('/', access, getCashAdjustments);
+router.get('/summary', access, getCashAdjustmentSummary);
+router.get('/:id', access, getCashAdjustmentById);
+router.put('/:id', access, updateCashAdjustment);
+router.delete('/:id', access, deleteCashAdjustment);
 
 module.exports = router;

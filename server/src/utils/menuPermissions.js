@@ -31,9 +31,24 @@ const sanitizePermissions = (permissions) => {
   return [...new Set(permissions.filter((key) => isValidPermissionKey(key)))];
 };
 
+/**
+ * Reads the JSON list back out of the users.permissions TEXT column. Unknown or
+ * malformed entries are dropped so a bad row can never widen access.
+ */
+const parseStoredPermissions = (raw) => {
+  if (!raw) return [];
+  if (Array.isArray(raw)) return sanitizePermissions(raw);
+  try {
+    return sanitizePermissions(JSON.parse(raw));
+  } catch {
+    return [];
+  }
+};
+
 module.exports = {
   MENU_KEYS,
   VALID_KEYS,
   isValidPermissionKey,
-  sanitizePermissions
+  sanitizePermissions,
+  parseStoredPermissions
 };

@@ -11,6 +11,17 @@ const {
 } = require('../controllers/tokensController');
 const { validateToken } = require('../middleware/validation');
 const { handleDatabaseError } = require('../middleware/errorHandler');
+const { authenticate, requireMenuAccess } = require('../middleware/auth');
+
+router.use(authenticate);
+
+// Tokens are read by the Token and Token Data menus, by Skin Testing (to label a
+// certificate), by Unpaid Customers and by the Cash Book, so any of those grants
+// a read. Only the Token menu may create, edit or delete one.
+router.use(requireMenuAccess({
+  read: ['token', 'token-data', 'skin-testing', 'skintest-data', 'unpaid-customers', 'cashbook', 'dashboard'],
+  write: ['token']
+}));
 
 router.get('/', async (req, res) => {
   try {

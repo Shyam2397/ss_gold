@@ -9,6 +9,14 @@ const {
 } = require('../controllers/expensesController');
 const { validateExpense } = require('../middleware/validation');
 const { handleDatabaseError } = require('../middleware/errorHandler');
+const { authenticate, requireMenuAccess } = require('../middleware/auth');
+
+router.use(authenticate);
+
+router.use(requireMenuAccess({
+  read: ['cashbook', 'expenses-add', 'dashboard'],
+  write: ['expenses-add']
+}));
 
 // Create a new expense
 router.post('/', validateExpense, async (req, res) => {
