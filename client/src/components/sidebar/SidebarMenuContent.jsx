@@ -12,6 +12,9 @@ export const SidebarMenuContent = memo(({
   dataMenuItems,
   expenseMenuItems,
   user,
+  canAccessSettings = true,
+  hasAnyDataItem = true,
+  hasAnyExpenseItem = true,
   isActive,
   handleNavigation,
   isDataOpen,
@@ -98,6 +101,7 @@ export const SidebarMenuContent = memo(({
       </SidebarMenuSection>
 
       {/* Data Section */}
+      {hasAnyDataItem && (
       <SidebarMenuSection>
         <div className="space-y-1">
           <button
@@ -123,8 +127,10 @@ export const SidebarMenuContent = memo(({
           )}
         </div>
       </SidebarMenuSection>
+      )}
 
       {/* Expenses Section */}
+      {hasAnyExpenseItem && (
       <SidebarMenuSection>
         <div className="space-y-1">
           <button
@@ -150,11 +156,14 @@ export const SidebarMenuContent = memo(({
           )}
         </div>
       </SidebarMenuSection>
+      )}
 
       {/* Settings Section */}
+      {canAccessSettings && (
       <SidebarMenuSection>
         <SidebarMenuItem icon={FiSettings} label={open || isMobile ? "Settings" : ""} to="/settings" isActive={isActive("/settings")} handleNavigation={handleNavigation} onClick={isMobile ? () => setOpen(false) : undefined} />
       </SidebarMenuSection>
+      )}
 
       {/* Account Section */}
       <div className="mt-1 border-t border-amber-100 pt-2">

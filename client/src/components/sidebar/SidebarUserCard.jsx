@@ -4,6 +4,7 @@ import { FiAlertTriangle, FiChevronRight, FiShield } from 'react-icons/fi';
 import { cn } from '../../lib/utils';
 import { useSidebar } from './SidebarProvider';
 import UserAvatar from '../UserInterface/UserAvatar';
+import { displayName } from '../../utils/permissions';
 
 /**
  * Account block shown at the bottom of the menu. Links to the user page where the
@@ -12,10 +13,11 @@ import UserAvatar from '../UserInterface/UserAvatar';
 export const SidebarUserCard = memo(({ user, isActive, handleNavigation, isMobile = false }) => {
   const { open, setOpen } = useSidebar();
 
-  const username = user?.username || user?.name || 'User';
+  const username = displayName(user);
   const mustChangePassword = Boolean(user?.mustChangePassword);
   const isExpanded = open || isMobile;
   const active = isActive('/user');
+  const roleLabel = user?.role === 'admin' ? 'Administrator' : 'Staff';
 
   return (
     <div className="px-1.5 pb-1">
@@ -39,6 +41,7 @@ export const SidebarUserCard = memo(({ user, isActive, handleNavigation, isMobil
       >
         <UserAvatar
           username={username}
+          src={user?.profileImage}
           size="sm"
           ringClassName={active ? 'ring-2 ring-amber-300' : 'ring-2 ring-amber-200'}
         />
@@ -68,7 +71,7 @@ export const SidebarUserCard = memo(({ user, isActive, handleNavigation, isMobil
                 ) : (
                   <>
                     <FiShield className="mr-1 h-3 w-3 flex-shrink-0" />
-                    Change password
+                    {roleLabel}
                   </>
                 )}
               </p>

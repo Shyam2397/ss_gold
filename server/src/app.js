@@ -6,6 +6,7 @@ const { pool } = require('./config/database');
 
 // Import routes
 const authRoutes = require('./routes/authRoutes');
+const userRoutes = require('./routes/userRoutes');
 const entriesRoutes = require('./routes/entriesRoutes');
 const tokensRoutes = require('./routes/tokensRoutes');
 const skinTestsRoutes = require('./routes/skinTestsRoutes');
@@ -60,6 +61,7 @@ const startServer = async () => {
 
     // Routes
     app.use('/auth', authRoutes);
+    app.use('/users', userRoutes);
     app.use('/entries', entriesRoutes);
     app.use('/tokens', tokensRoutes);
     app.use('/skin-tests', skinTestsRoutes);

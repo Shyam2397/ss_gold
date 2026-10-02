@@ -5,6 +5,8 @@ import { Icons } from './SidebarIcons';
 import { throttle } from "../../lib/utils";
 import { SCROLL_BEHAVIOR } from '../../routes';
 import { logoutUser } from '../../services/authService';
+import { useUser } from '../UserInterface/UserContext';
+import { filterByPermission, canAccessPath as canAccessPathFor } from '../../utils/permissions';
 import { SidebarProvider, useSidebar } from './SidebarProvider';
 import { SidebarDesktop } from './SidebarDesktop';
 import { SidebarMobile } from './SidebarMobile';
@@ -24,6 +26,7 @@ const Sidebar = ({ open: openProp, setOpen: setOpenProp, animate = true, user, s
 // Content component managing state and logic, rendering Desktop/Mobile versions
 const SidebarContent = memo(({ user, setLoggedIn }) => {
   const { setOpen, animate } = useSidebar(); // Get setOpen/animate from context
+  const { user: sessionUser } = useUser();
   const location = useLocation();
   const navigate = useNavigate();
   const [isDataOpen, setIsDataOpen] = useState(false);
@@ -100,23 +103,32 @@ const SidebarContent = memo(({ user, setLoggedIn }) => {
 
   const isActive = (path) => location.pathname === path;
 
-  const mainMenuItems = useMemo(() => [
+  const allMainMenuItems = useMemo(() => [
     { icon: Icons.Home, label: 'Dashboard', path: '/dashboard' },
     { icon: Icons.Users, label: 'New Entries', path: '/entries' },
     { icon: Icons.Tag, label: 'Token', path: '/token' },
     { icon: Icons.TestTubes, label: 'Skin Testing', path: '/skin-testing' },
     { icon: Icons.Camera, label: 'Photo Testing', path: '/photo-testing' },
     { icon: Icons.GoldBar, label: 'Pure Exchange', path: '/pure-exchange' },
-    
   ], []);
 
-  const dataMenuItems = useMemo(() => [
+  const allDataMenuItems = useMemo(() => [
     { icon: Icons.Database, label: 'Customer Data', path: '/customer-data' },
     { icon: Icons.Database, label: 'Token Data', path: '/token-data' },
     { icon: Icons.Database, label: 'Skin Test Data', path: '/skintest-data' },
     { icon: Icons.Database, label: 'Exchange Data', path: '/exchange-data' },
     { icon: Icons.DollarSign, label: 'Unpaid Customers', path: '/unpaid-customers' },
   ], []);
+
+  // Hide anything the signed in account has not been granted
+  const mainMenuItems = useMemo(
+    () => filterByPermission(sessionUser, allMainMenuItems),
+    [sessionUser, allMainMenuItems]
+  );
+  const dataMenuItems = useMemo(
+    () => filterByPermission(sessionUser, allDataMenuItems),
+    [sessionUser, allDataMenuItems]
+  );
 
   const handleExpenseClick = useCallback((item) => {
     if (item.modalSetter) {
@@ -135,7 +147,7 @@ const SidebarContent = memo(({ user, setLoggedIn }) => {
     add: setShowAddExpense
   }), []);
 
-  const expenseMenuItems = useMemo(() => [
+  const allExpenseMenuItems = useMemo(() => [
     { type: 'link', icon: Icons.Book, label: 'Cash Book', path: '/cashbook', onClick: () => handleNavigation('/cashbook') },
     { 
       type: 'link', 
@@ -153,6 +165,11 @@ const SidebarContent = memo(({ user, setLoggedIn }) => {
     },
   ], [handleNavigation]);
 
+  const expenseMenuItems = useMemo(
+    () => filterByPermission(sessionUser, allExpenseMenuItems),
+    [sessionUser, allExpenseMenuItems]
+  );
+
   // Props to pass down to both Desktop and Mobile Sidebars
   const commonSidebarProps = {
     user,
@@ -161,6 +178,9 @@ const SidebarContent = memo(({ user, setLoggedIn }) => {
     mainMenuItems,
     dataMenuItems,
     expenseMenuItems,
+    canAccessSettings: canAccessPathFor(sessionUser, '/settings'),
+    hasAnyDataItem: dataMenuItems.length > 0,
+    hasAnyExpenseItem: expenseMenuItems.length > 0,
     isActive,
     isDataOpen,
     setIsDataOpen,

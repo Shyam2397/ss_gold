@@ -3,6 +3,8 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { handleDatabaseError } = require('../middleware/errorHandler');
 const { getJwtSecret } = require('../middleware/auth');
+const { ADMIN_ROLE } = require('../models/tables');
+const { parsePermissions } = require('./userController');
 
 const signToken = (user) =>
   jwt.sign(
@@ -14,6 +16,11 @@ const signToken = (user) =>
 const toPublicUser = (user) => ({
   id: user.id,
   username: user.username,
+  fullName: user.full_name || '',
+  role: user.role,
+  isActive: user.is_active,
+  permissions: user.role === ADMIN_ROLE ? [] : parsePermissions(user.permissions),
+  profileImage: user.profile_image || null,
   mustChangePassword: Boolean(user.must_change_password),
   passwordChangedAt: user.password_changed_at || null,
   lastLoginAt: user.last_login_at || null,
@@ -48,6 +55,15 @@ const login = async (req, res) => {
       });
     }
 
+    // Deactivated accounts are refused before the password is even checked
+    if (!user.is_active) {
+      return res.status(403).json({
+        success: false,
+        error: 'This account has been deactivated. Contact an administrator.',
+        code: 'ACCOUNT_DISABLED'
+      });
+    }
+
     // Compare password
     const isValidPassword = await bcrypt.compare(password, user.password);
     if (!isValidPassword) {
@@ -70,11 +86,7 @@ const login = async (req, res) => {
       success: true,
       message: 'Login successful',
       token,
-      user: {
-        id: user.id,
-        username: user.username,
-        mustChangePassword: Boolean(user.must_change_password)
-      }
+      user: toPublicUser({ ...user, last_login_at: new Date().toISOString() })
     });
 
   } catch (err) {
@@ -138,7 +150,8 @@ const createUser = async (req, res) => {
 const getProfile = async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT id, username, must_change_password, password_changed_at, last_login_at, created_at
+      `SELECT id, username, full_name, role, permissions, profile_image, is_active,
+              must_change_password, password_changed_at, last_login_at, created_at
        FROM users WHERE id = $1`,
       [req.user.id]
     );
@@ -210,7 +223,8 @@ const changePassword = async (req, res) => {
            password_changed_at = CURRENT_TIMESTAMP,
            updated_at = CURRENT_TIMESTAMP
        WHERE id = $2
-       RETURNING id, username, must_change_password, password_changed_at, last_login_at, created_at`,
+       RETURNING id, username, full_name, role, permissions, profile_image, is_active,
+                 must_change_password, password_changed_at, last_login_at, created_at`,
       [hashedPassword, user.id]
     );
 

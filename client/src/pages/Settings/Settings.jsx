@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   FiHome,
   FiPrinter,
@@ -22,10 +22,13 @@ import {
   FiImage,
   FiUpload,
   FiTrash2,
+  FiUsers,
 } from "react-icons/fi";
 import PreviewModal from "../../components/common/PreviewModal";
 import { getApi } from "../../services/api";
 import { useCompanyDetails } from "../../context/CompanyDetailsContext";
+import UserManagement from "../../components/UserInterface/UserManagement";
+import { useUser } from "../../components/UserInterface/UserContext";
 
 const isElectron = () => {
   return window.electron && window.electron.isElectron;
@@ -116,6 +119,7 @@ const SETTINGS_TABS = [
   { id: "company", label: "Company", description: "Business details", icon: FiHome },
   { id: "printer", label: "Printer", description: "Print profiles", icon: FiPrinter },
   { id: "preferences", label: "Preferences", description: "App behaviour", icon: FiSliders },
+  { id: "users", label: "Users", description: "Accounts & access", icon: FiUsers, adminOnly: true },
   { id: "about", label: "About", description: "Info & notes", icon: FiInfo },
 ];
 
@@ -422,6 +426,21 @@ const Settings = () => {
 
   const isElectronEnv = isElectron();
   const { updateCompanyDetails } = useCompanyDetails();
+  const { isAdmin } = useUser();
+
+  // The server rejects user management for non-admins, so hide the tab rather
+  // than showing an empty panel with an error
+  const visibleTabs = useMemo(
+    () => SETTINGS_TABS.filter((tab) => !tab.adminOnly || isAdmin),
+    [isAdmin]
+  );
+
+  // Never leave a non-admin sitting on a tab they cannot see
+  useEffect(() => {
+    if (!visibleTabs.some((tab) => tab.id === activeTab)) {
+      setActiveTab(visibleTabs[0]?.id || "company");
+    }
+  }, [visibleTabs, activeTab]);
 
   const loadPrinters = useCallback(async () => {
     if (!isElectronEnv) return;
@@ -732,10 +751,10 @@ const Settings = () => {
           role="tablist"
           aria-label="Settings sections"
           onKeyDown={(e) => {
-            const idx = SETTINGS_TABS.findIndex((t) => t.id === activeTab);
+            const idx = visibleTabs.findIndex((t) => t.id === activeTab);
             let next = null;
-            if (e.key === "ArrowRight") next = SETTINGS_TABS[(idx + 1) % SETTINGS_TABS.length].id;
-            if (e.key === "ArrowLeft") next = SETTINGS_TABS[(idx - 1 + SETTINGS_TABS.length) % SETTINGS_TABS.length].id;
+            if (e.key === "ArrowRight") next = visibleTabs[(idx + 1) % visibleTabs.length].id;
+            if (e.key === "ArrowLeft") next = visibleTabs[(idx - 1 + visibleTabs.length) % visibleTabs.length].id;
             if (next) {
               e.preventDefault();
               setActiveTab(next);
@@ -743,7 +762,7 @@ const Settings = () => {
           }}
           className="flex flex-wrap gap-1 rounded-2xl border border-amber-100 bg-amber-50/60 p-1.5 shadow-sm sm:flex-nowrap"
         >
-          {SETTINGS_TABS.map((tab) => {
+          {visibleTabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
             return (
@@ -1126,6 +1145,12 @@ const Settings = () => {
               )}
             </div>
           </div>
+        </div>
+      )}
+
+      {activeTab === "users" && isAdmin && (
+        <div id="users-settings-panel" role="tabpanel">
+          <UserManagement />
         </div>
       )}
 

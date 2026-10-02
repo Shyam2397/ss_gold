@@ -12,6 +12,7 @@ import ErrorBoundary from './components/common/ErrorBoundary';
 import routes, { preloadRoute } from './routes';
 import { SCROLL_BEHAVIOR } from './routes/config';
 import { metrics } from './utils/performance';
+import { displayName } from './utils/permissions';
 
 // Prefetch component for route preloading
 const PreFetchComponent = () => {
@@ -128,6 +129,49 @@ const AuthenticatedApp = ({ setLoggedIn }) => {
   return <MainLayout setLoggedIn={setLoggedIn} />;
 };
 
+const NoAccess = ({ path }) => {
+  const navigate = useNavigate();
+  const { firstAccessiblePath } = useUser();
+  const fallback = firstAccessiblePath || '/dashboard';
+
+  // Nudge them to a page they can actually open instead of leaving a dead end
+  useEffect(() => {
+    if (path !== fallback) {
+      navigate(fallback, { replace: true });
+    }
+  }, [path, fallback, navigate]);
+
+  return (
+    <div className="flex min-h-[60vh] items-center justify-center px-4">
+      <div className="max-w-md rounded-2xl border border-amber-200 bg-amber-50 p-6 text-center">
+        <h2 className="text-lg font-bold text-amber-900">You do not have access to this page</h2>
+        <p className="mt-2 text-sm text-amber-700">
+          Ask an administrator to grant you access from Settings, then try again.
+        </p>
+      </div>
+    </div>
+  );
+};
+
+/**
+ * Wraps a route so a user without the matching menu permission is redirected
+ * to the first page they are allowed to open.
+ */
+const PermissionRoute = ({ path, children }) => {
+  const { user, canAccess } = useUser();
+
+  // Wait for the account to load so permissions are known before deciding
+  if (!user) {
+    return <LoadingSpinner />;
+  }
+
+  if (!canAccess(path)) {
+    return <NoAccess path={path} />;
+  }
+
+  return children;
+};
+
 const AppRoutes = ({ loggedIn, setLoggedIn }) => {
   const location = useLocation();
 
@@ -156,11 +200,13 @@ const AppRoutes = ({ loggedIn, setLoggedIn }) => {
               key={path}
               path={path}
               element={
-                <ErrorBoundary>
-                  <Suspense fallback={<LoadingSpinner />}>
-                    <Component />
-                  </Suspense>
-                </ErrorBoundary>
+                <PermissionRoute path={path}>
+                  <ErrorBoundary>
+                    <Suspense fallback={<LoadingSpinner />}>
+                      <Component />
+                    </Suspense>
+                  </ErrorBoundary>
+                </PermissionRoute>
               }
             />
           ))}

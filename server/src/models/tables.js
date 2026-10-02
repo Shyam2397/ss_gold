@@ -5,6 +5,10 @@ const bcrypt = require('bcryptjs');
 // must_change_password = TRUE so the app forces a new password after first login.
 const DEFAULT_ADMIN_USERNAME = process.env.DEFAULT_ADMIN_USERNAME || 'ADMIN';
 const DEFAULT_ADMIN_PASSWORD = process.env.DEFAULT_ADMIN_PASSWORD || 'ADMIN123';
+const DEFAULT_ADMIN_FULL_NAME = process.env.DEFAULT_ADMIN_FULL_NAME || 'Administrator';
+
+// Roles that bypass the per-menu permission list and can manage other accounts
+const ADMIN_ROLE = 'admin';
 
 const createTokensTable = async () => {
   const client = await pool.connect();
@@ -206,6 +210,11 @@ const createUsersTable = async () => {
       id SERIAL PRIMARY KEY,
       username VARCHAR(50) UNIQUE NOT NULL,
       password VARCHAR(255) NOT NULL,
+      full_name VARCHAR(150),
+      role VARCHAR(20) NOT NULL DEFAULT 'admin',
+      permissions TEXT NOT NULL DEFAULT '[]',
+      profile_image TEXT,
+      is_active BOOLEAN NOT NULL DEFAULT TRUE,
       must_change_password BOOLEAN NOT NULL DEFAULT FALSE,
       password_changed_at TIMESTAMP DEFAULT NULL,
       last_login_at TIMESTAMP DEFAULT NULL,
@@ -217,13 +226,22 @@ const createUsersTable = async () => {
   try {
     await pool.query(createTableSQL);
 
-    // Migrations for installs created before the default-password flow existed
+    // Migrations for installs created before these columns existed
     await pool.query(
       'ALTER TABLE users ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN NOT NULL DEFAULT FALSE'
     );
     await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS password_changed_at TIMESTAMP DEFAULT NULL');
     await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMP DEFAULT NULL');
     await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP');
+    await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS full_name VARCHAR(150)');
+    await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(20) NOT NULL DEFAULT 'admin'");
+    await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS permissions TEXT NOT NULL DEFAULT '[]'");
+    await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_image TEXT');
+    await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE');
+    await pool.query("UPDATE users SET permissions = '[]' WHERE permissions IS NULL");
+    await pool.query(
+      `UPDATE users SET full_name = username WHERE full_name IS NULL OR TRIM(full_name) = ''`
+    );
 
     const adminCheck = await pool.query(
       'SELECT id, password, must_change_password FROM users WHERE username = $1',
@@ -236,8 +254,9 @@ const createUsersTable = async () => {
       const hashedPassword = await bcrypt.hash(DEFAULT_ADMIN_PASSWORD, salt);
 
       await pool.query(
-        'INSERT INTO users (username, password, must_change_password) VALUES ($1, $2, TRUE)',
-        [DEFAULT_ADMIN_USERNAME, hashedPassword]
+        `INSERT INTO users (username, password, full_name, role, permissions, is_active, must_change_password)
+         VALUES ($1, $2, $3, 'admin', '[]', TRUE, TRUE)`,
+        [DEFAULT_ADMIN_USERNAME, hashedPassword, DEFAULT_ADMIN_FULL_NAME]
       );
 
       console.log(
@@ -372,5 +391,6 @@ module.exports = {
   createCashAdjustmentsTable,
   createCompanyDetailsTable,
   createUsersTable,
-  initializeTables
+  initializeTables,
+  ADMIN_ROLE
 };

@@ -108,6 +108,8 @@ const validateExpenseType = (req, res, next) => {
 };
 
 const PASSWORD_MIN_LENGTH = 6;
+// Resized avatars are stored inline as data URLs; 400 KB of base64 is roughly 300 KB of image
+const MAX_PROFILE_IMAGE_LENGTH = 400 * 1024;
 
 const validateLogin = (req, res, next) => {
   const { username, password } = req.body;
@@ -189,6 +191,153 @@ const validateChangePassword = (req, res, next) => {
   next();
 };
 
+const validateCreateUser = (req, res, next) => {
+  const { username, password } = req.body;
+
+  if (!username || !password) {
+    return res.status(400).json({
+      success: false,
+      error: 'Missing required fields',
+      detail: 'Username and password are required'
+    });
+  }
+
+  if (!/^[A-Za-z0-9._-]{3,50}$/.test(username)) {
+    return res.status(400).json({
+      success: false,
+      error: 'Invalid username',
+      detail: 'Username must be 3-50 characters using letters, numbers, dot, dash or underscore'
+    });
+  }
+
+  if (password.length < PASSWORD_MIN_LENGTH) {
+    return res.status(400).json({
+      success: false,
+      error: 'Invalid password',
+      detail: `Password must be at least ${PASSWORD_MIN_LENGTH} characters long`
+    });
+  }
+
+  if (!/[a-zA-Z]/.test(password) || !/\d/.test(password)) {
+    return res.status(400).json({
+      success: false,
+      error: 'Weak password',
+      detail: 'Password must contain at least one letter and one number'
+    });
+  }
+
+  if (req.body.permissions !== undefined && !Array.isArray(req.body.permissions)) {
+    return res.status(400).json({
+      success: false,
+      error: 'Invalid permissions',
+      detail: 'Permissions must be a list of menu keys'
+    });
+  }
+
+  next();
+};
+
+const validateUpdateUser = (req, res, next) => {
+  const { role, permissions, isActive } = req.body;
+
+  if (role !== undefined && !['admin', 'staff'].includes(role)) {
+    return res.status(400).json({
+      success: false,
+      error: 'Invalid role',
+      detail: 'Role must be either admin or staff'
+    });
+  }
+
+  if (permissions !== undefined && !Array.isArray(permissions)) {
+    return res.status(400).json({
+      success: false,
+      error: 'Invalid permissions',
+      detail: 'Permissions must be a list of menu keys'
+    });
+  }
+
+  if (isActive !== undefined && typeof isActive !== 'boolean') {
+    return res.status(400).json({
+      success: false,
+      error: 'Invalid status',
+      detail: 'isActive must be true or false'
+    });
+  }
+
+  next();
+};
+
+const validateResetPassword = (req, res, next) => {
+  const { newPassword } = req.body;
+
+  if (!newPassword) {
+    return res.status(400).json({
+      success: false,
+      error: 'Missing required fields',
+      detail: 'New password is required'
+    });
+  }
+
+  if (newPassword.length < PASSWORD_MIN_LENGTH) {
+    return res.status(400).json({
+      success: false,
+      error: 'Invalid password',
+      detail: `New password must be at least ${PASSWORD_MIN_LENGTH} characters long`
+    });
+  }
+
+  if (!/[a-zA-Z]/.test(newPassword) || !/\d/.test(newPassword)) {
+    return res.status(400).json({
+      success: false,
+      error: 'Weak password',
+      detail: 'Password must contain at least one letter and one number'
+    });
+  }
+
+  next();
+};
+
+const validateProfile = (req, res, next) => {
+  const { fullName = '', profileImage = null } = req.body;
+
+  if (typeof fullName !== 'string') {
+    return res.status(400).json({
+      success: false,
+      error: 'Invalid name',
+      detail: 'Full name must be text'
+    });
+  }
+
+  if (fullName.length > 150) {
+    return res.status(400).json({
+      success: false,
+      error: 'Name too long',
+      detail: 'Full name must be 150 characters or fewer'
+    });
+  }
+
+  // Photos are stored as data URLs, so cap the payload well below the row limit
+  if (profileImage !== null && profileImage !== undefined) {
+    if (typeof profileImage !== 'string' || !profileImage.startsWith('data:image/')) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid photo',
+        detail: 'Photo must be an image data URL'
+      });
+    }
+
+    if (profileImage.length > MAX_PROFILE_IMAGE_LENGTH) {
+      return res.status(400).json({
+        success: false,
+        error: 'Photo too large',
+        detail: 'Photo must be smaller than 400 KB after resizing'
+      });
+    }
+  }
+
+  next();
+};
+
 module.exports = {
   validateExpense,
   validateSkinTest,
@@ -198,5 +347,10 @@ module.exports = {
   validateExpenseType,
   validateLogin,
   validateChangePassword,
-  PASSWORD_MIN_LENGTH
+  validateCreateUser,
+  validateUpdateUser,
+  validateResetPassword,
+  validateProfile,
+  PASSWORD_MIN_LENGTH,
+  MAX_PROFILE_IMAGE_LENGTH
 };

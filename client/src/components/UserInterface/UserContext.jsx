@@ -7,14 +7,26 @@ import {
   logoutUser,
   updateStoredUser,
 } from '../../services/authService';
+import { updateMyProfile as updateMyProfileRequest } from '../../services/userService';
+import {
+  canAccessPath as canAccessPathFor,
+  firstAccessiblePath,
+  hasPermission as hasPermissionFor,
+  isAdmin as isAdminFor,
+} from '../../utils/permissions';
 
 const UserContext = createContext({
   user: null,
   loading: false,
   mustChangePassword: false,
+  isAdmin: false,
+  canAccess: () => true,
+  hasPermission: () => false,
+  firstAccessiblePath: '/user',
   adoptSessionUser: async () => ({ success: false }),
   refreshUser: async () => ({ success: false }),
   changePassword: async () => ({ success: false }),
+  updateProfile: async () => ({ success: false }),
   signOut: () => {}
 });
 
@@ -82,6 +94,22 @@ export const UserProvider = ({ children }) => {
     setUser(null);
   }, []);
 
+  // Keep the signed in account's own name and photo in step with the server
+  const updateProfile = useCallback(
+    async (payload) => {
+      setLoading(true);
+      const result = await updateMyProfileRequest(payload);
+
+      if (result.success) {
+        applyUser(result.user);
+      }
+
+      setLoading(false);
+      return result;
+    },
+    [applyUser]
+  );
+
   // Keep the stored account details in sync with the server while signed in
   useEffect(() => {
     if (!isAuthenticated()) {
@@ -107,18 +135,39 @@ export const UserProvider = ({ children }) => {
   }, []);
 
   const mustChangePassword = Boolean(user?.mustChangePassword);
+  const isAdmin = isAdminFor(user);
+
+  const canAccess = useCallback((path) => canAccessPathFor(user, path), [user]);
+  const hasPermission = useCallback((key) => hasPermissionFor(user, key), [user]);
 
   const value = useMemo(
     () => ({
       user,
       loading,
       mustChangePassword,
+      isAdmin,
+      canAccess,
+      hasPermission,
+      firstAccessiblePath: firstAccessiblePath(user),
       adoptSessionUser,
       refreshUser,
       changePassword,
+      updateProfile,
       signOut,
     }),
-    [user, loading, mustChangePassword, adoptSessionUser, refreshUser, changePassword, signOut]
+    [
+      user,
+      loading,
+      mustChangePassword,
+      isAdmin,
+      canAccess,
+      hasPermission,
+      adoptSessionUser,
+      refreshUser,
+      changePassword,
+      updateProfile,
+      signOut,
+    ]
   );
 
   return <UserContext.Provider value={value}>{children}</UserContext.Provider>;
