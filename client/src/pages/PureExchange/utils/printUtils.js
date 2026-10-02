@@ -1,6 +1,9 @@
+import { formatDate } from '../../../utils/dateUtils';
+
 export const buildPrintHtml = (rows) => {
     const tableData = rows || [];
-    // Format the current date and time
+    // Rows carry the storage-format date (ISO), so render it day-first for the
+    // customer. formatDate handles ISO and the legacy dd-MM-yyyy rows alike.
     const firstRow = tableData[0] || {};
 
     // Generate HTML content for 80mm thermal printer
@@ -91,7 +94,7 @@ export const buildPrintHtml = (rows) => {
             << ROUGH ESTIMATE >>
           </div>
           <div class="info-date">
-            <span>${firstRow.date || ''}</span>
+            <span>${formatDate(firstRow.date, 'dd-MM-yyyy')}</span>
             <span>${firstRow.time || ''}</span>
           </div>
           <div class="header">
@@ -176,9 +179,35 @@ export const buildPrintHtml = (rows) => {
     return htmlContent;
 };
 
+// Opens the browser print dialog for the receipt.
+//
+// A popup blocker makes window.open return null, and the old code then blew up
+// on `printWindow.document`, so the operator only ever saw
+// "Cannot read properties of null (reading 'document')" - with no idea that the
+// fix was to allow pop-ups.
+const printViaDialog = (htmlContent) => {
+    const printWindow = window.open('', '', 'width=800,height=400');
+
+    if (!printWindow) {
+        throw new Error('The print window was blocked by the browser. Allow pop-ups for this site, then print again.');
+    }
+
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+        printWindow.print();
+        printWindow.close();
+    }, 250);
+};
+
+// Returns { confirmed } rather than nothing, so the caller can tell the operator
+// the truth. `confirmed: true` means the spooler accepted the job. The dialog
+// path cannot be confirmed - window.print() only opens a dialog the operator may
+// cancel - so it reports false instead of a success the app cannot vouch for.
 export const printPureExchange = async (rows) => {
     const tableData = rows || [];
-    if (tableData.length === 0) return;
+    if (tableData.length === 0) return { confirmed: false, reason: 'empty' };
 
     const htmlContent = buildPrintHtml(tableData);
 
@@ -192,27 +221,16 @@ export const printPureExchange = async (rows) => {
         if (!result.success) {
           throw new Error(result.error || 'Silent print failed');
         }
+        return { confirmed: true };
       } catch (error) {
         console.error('Electron print error:', error);
         // Fallback to window.open if Electron print fails
-        const printWindow = window.open('', '', 'width=800,height=400');
-        printWindow.document.write(htmlContent);
-        printWindow.document.close();
-        printWindow.focus();
-        setTimeout(() => {
-          printWindow.print();
-          printWindow.close();
-        }, 250);
+        printViaDialog(htmlContent);
+        return { confirmed: false, reason: 'dialog' };
       }
-    } else {
-      // Fallback for non-Electron environment
-      const printWindow = window.open('', '', 'width=800,height=400');
-      printWindow.document.write(htmlContent);
-      printWindow.document.close();
-      printWindow.focus();
-      setTimeout(() => {
-        printWindow.print();
-        printWindow.close();
-      }, 250);
     }
+
+    // Fallback for non-Electron environment
+    printViaDialog(htmlContent);
+    return { confirmed: false, reason: 'dialog' };
 };

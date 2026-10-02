@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import pureExchangeService from '../../../services/pureExchangeService';
 
 export const CACHE_KEYS = {
@@ -9,13 +9,14 @@ export const CACHE_KEYS = {
 export const usePureExchange = () => {
   const queryClient = useQueryClient();
 
-  // Fetch all pure exchanges with caching
-  const { data: pureExchanges, isLoading, error } = useQuery({
-    queryKey: CACHE_KEYS.PURE_EXCHANGES, // Now using array
-    queryFn: pureExchangeService.getPureExchanges,
-    staleTime: 5 * 60 * 1000, // Consider data stale after 5 minutes
-    cacheTime: 30 * 60 * 1000, // Cache for 30 minutes
-  });
+  // NOTE: this hook deliberately does not run the PURE_EXCHANGES list query.
+  // Its only consumer is the PureExchange form, which stages rows locally and
+  // never reads the stored list - so the query downloaded the whole table on
+  // every page load and the result was thrown away. Because the query was
+  // mounted, every successful create also invalidated it, turning a single
+  // multi-row save into repeated full-table refetches. Consumers that do need
+  // the list should run their own useQuery against CACHE_KEYS.PURE_EXCHANGES;
+  // the invalidation in createMutation below keeps such a query fresh.
 
   // Check if pure exchange exists
   const checkExists = async (tokenNo) => {
@@ -33,16 +34,12 @@ export const usePureExchange = () => {
   // Create pure exchange mutation
   const createMutation = useMutation({
     mutationFn: pureExchangeService.createPureExchange,
-    onSuccess: (data, variables) => {
-      // Invalidate and refetch pure exchanges list
-      queryClient.invalidateQueries({ 
+    onSuccess: () => {
+      // Keep any mounted list query in sync. No-op while none is mounted, so it
+      // costs nothing on the PureExchange form.
+      queryClient.invalidateQueries({
         queryKey: CACHE_KEYS.PURE_EXCHANGES, // Now using array
         refetchType: 'active' // Only refetch active queries
-      });
-      // Also invalidate the specific token check
-      queryClient.invalidateQueries({ 
-        queryKey: [...CACHE_KEYS.PURE_EXCHANGE, variables.tokenNo], // Now using array
-        refetchActive: true
       });
     },
     // Don't retry on 409 (duplicate) errors
@@ -68,9 +65,6 @@ export const usePureExchange = () => {
   });
 
   return {
-    pureExchanges,
-    isLoading,
-    error,
     checkExists,
     createPureExchange: createMutation.mutate,
     createPureExchangeAsync: createMutation.mutateAsync,

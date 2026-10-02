@@ -1,43 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { FiX, FiLoader } from 'react-icons/fi';
+import { formatDate } from '../../../utils/dateUtils';
 
-const formatDateForDisplay = (dateStr) => {
-    if (!dateStr) return '';
-    const date = new Date(dateStr);
-    if (isNaN(date.getTime())) {
-        // Try parsing DD-MM-YYYY format
-        const [day, month, year] = dateStr.split('-');
-        if (day && month && year) {
-            return dateStr; // Already in correct format
-        }
-        return '';
-    }
-    const day = date.getDate().toString().padStart(2, '0');
-    const month = (date.getMonth() + 1).toString().padStart(2, '0');
-    const year = date.getFullYear();
-    return `${day}-${month}-${year}`;
-};
+// Both date helpers below used to be local copies that shared one flaw: they ran
+// `new Date()` on a date-only string, which JS parses as UTC, so every row moved
+// back a day in any timezone behind UTC. `formatDate` in utils/dateUtils reads
+// ISO as local midnight via date-fns `parseISO` and also accepts the legacy
+// dd-MM-yyyy rows, so it replaces both.
+//
+// Reads are converted to ISO for <input type="date">; writes stay ISO, because
+// dd-MM-yyyy is ambiguous input to Postgres and only parses day-first when the
+// session happens to set DateStyle to DMY.
 
-const formatDateForInput = (dateStr) => {
-    if (!dateStr) return '';
-    // Handle DD-MM-YYYY format
-    const parts = dateStr.split('-');
-    if (parts.length === 3) {
-        const [day, month, year] = parts;
-        if (day && month && year && year.length === 4) {
-            return `${year}-${month}-${day}`; // Convert to YYYY-MM-DD for input
-        }
-    }
-    // Handle other formats
-    const date = new Date(dateStr);
-    if (!isNaN(date.getTime())) {
-        const year = date.getFullYear();
-        const month = (date.getMonth() + 1).toString().padStart(2, '0');
-        const day = date.getDate().toString().padStart(2, '0');
-        return `${year}-${month}-${day}`;
-    }
-    return '';
-};
 
 const EditExchangeModal = ({ exchange, onClose, onUpdate }) => {
     const [formData, setFormData] = useState({
@@ -60,7 +34,7 @@ const EditExchangeModal = ({ exchange, onClose, onUpdate }) => {
         if (exchange) {
             setFormData({
                 tokenno: exchange.token_no || '',
-                date: formatDateForInput(exchange.date) || '',
+                date: formatDate(exchange.date, 'yyyy-MM-dd'),
                 time: exchange.time || '',
                 weight: exchange.weight || '',
                 highest: exchange.highest || '',
@@ -103,9 +77,11 @@ const EditExchangeModal = ({ exchange, onClose, onUpdate }) => {
         e.preventDefault();
         setIsSubmitting(true);
         try {
-            const submissionData = {
+            // Stored as ISO. Writing dd-MM-yyyy here was what let the ambiguity back in
+// whenever a row was edited.
+const submissionData = {
                 ...formData,
-                date: formatDateForDisplay(formData.date)
+                date: formatDate(formData.date, 'yyyy-MM-dd')
             };
             await onUpdate(submissionData);
             onClose();

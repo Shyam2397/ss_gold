@@ -85,3 +85,21 @@ export const formatDate = (date, formatStr = 'dd-MM-yyyy') => {
     return '';
   }
 };
+
+// Values written to Postgres must not depend on the operator's browser locale.
+// `toLocaleDateString` / `toLocaleTimeString` were previously used for this and
+// were wrong twice over:
+//
+//  - `dd-MM-yyyy` is ambiguous input for Postgres. It is only read as day-first
+//    because the session happens to set DateStyle input to DMY; the Postgres
+//    default is MDY, so the same payload stores 05-10 as October 5th on one
+//    server and May 10th on another. ISO is parsed identically everywhere.
+//  - Modern ICU renders a narrow no-break space (U+202F) before AM/PM. That
+//    character is not whitespace to the TIME parser, so the insert fails
+//    outright, and a 12-hour clock is ambiguous in a receipt anyway.
+//
+// Formatting from local wall-clock components with date-fns avoids toLocale*
+// entirely. `HH:mm:ss` keeps the sort key in ExchangeData parseable as-is.
+export const toStorageDate = (date = new Date()) => format(date, 'yyyy-MM-dd');
+
+export const toStorageTime = (date = new Date()) => format(date, 'HH:mm:ss');

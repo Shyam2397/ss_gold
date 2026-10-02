@@ -20,7 +20,28 @@ const useExchanges = () => {
 
   const parseTimeToSeconds = (timeStr) => {
     if (!timeStr) return 0;
-    const [hours = 0, minutes = 0, seconds = 0] = timeStr.split(':').map(Number);
+    const raw = timeStr.trim();
+    const meridiem = raw.match(/([ap])\.?m\.?$/i);
+
+    const digits = raw
+      .slice(0, meridiem ? meridiem.index : undefined)
+      .split(':')
+      .map((part) => Number.parseInt(part, 10));
+
+    // A NaN here would propagate through the sort comparator and scramble the
+    // whole list, so unreadable times fall back to 0 instead.
+    if (digits.some((part) => Number.isNaN(part))) return 0;
+
+    let [hours = 0, minutes = 0, seconds = 0] = digits;
+
+    // Rows saved before the 24-hour writer used a 12-hour clock whose AM/PM
+    // separator could be a narrow no-break space.
+    if (meridiem) {
+      const isPm = meridiem[1].toLowerCase() === 'p';
+      if (hours < 12 && isPm) hours += 12;
+      if (hours === 12 && !isPm) hours = 0;
+    }
+
     return (hours * 3600) + (minutes * 60) + seconds;
   };
 

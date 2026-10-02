@@ -75,12 +75,15 @@ const validateEntry = (req, res, next) => {
 };
 
 const validatePureExchange = (req, res, next) => {
-  const { tokenNo, date, weight } = req.body;
+  // Clients send the token under both casings: the row payload carries camelCase
+  // `tokenNo`, while the service layer also maps it to snake_case `token_no`.
+  // Accept either so the route does not depend on that duplication.
+  const { token_no, tokenNo, date, weight } = req.body;
 
-  if (!tokenNo || !date || !weight) {
+  if (!token_no || !tokenNo || !date || !weight) {
     return res.status(400).json({
       error: 'Missing required fields',
-      detail: 'tokenNo, date, and weight are required'
+      detail: 'token_no, date, and weight are required'
     });
   }
 

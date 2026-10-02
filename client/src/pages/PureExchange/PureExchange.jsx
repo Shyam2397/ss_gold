@@ -15,6 +15,7 @@ import MemoizedFormInput from './components/MemoizedFormInput';
 import TableRow from './components/TableRow';
 import { FormInputSkeleton, TableSkeleton, ButtonSkeleton } from './components/SkeletonLoaders';
 import { printPureExchange } from './utils/printUtils';
+import { toStorageDate, toStorageTime } from '../../utils/dateUtils';
 const ThermalPrinter = React.lazy(() => import('./ThermalPrinter'));
 
 // Suspense fallback component
@@ -107,6 +108,21 @@ const PureExchange = () => {
 
     const tokenNoInputRef = useRef(null);
 
+    // `disabled={isLoading}` only takes effect after React re-renders, so a fast
+    // double-click can fire a submit handler twice before that happens. This ref
+    // is set synchronously to close that window.
+    const isBusyRef = useRef(false);
+
+    const runGuarded = async (task) => {
+        if (isBusyRef.current) return;
+        isBusyRef.current = true;
+        try {
+            await task();
+        } finally {
+            isBusyRef.current = false;
+        }
+    };
+
     // Focus and select the token number input so the next token can be typed straight away
     const focusTokenInput = useCallback(() => {
         const input = tokenNoInputRef.current;
@@ -123,13 +139,30 @@ const PureExchange = () => {
         }
     }, [isLoading, focusTokenInput]);
 
-    // Function to set error with auto-clear timeout
-    const setErrorWithTimeout = (message) => {
+    // Function to set error with auto-clear timeout.
+    // The pending timer is tracked so a later message cannot be wiped early by an
+    // earlier one's timeout firing.
+    const errorTimerRef = useRef(null);
+
+    const setErrorWithTimeout = useCallback((message) => {
+        if (errorTimerRef.current) {
+            clearTimeout(errorTimerRef.current);
+        }
         dispatch({ type: ACTIONS.SET_ERROR, payload: message });
-        setTimeout(() => {
+        errorTimerRef.current = setTimeout(() => {
             dispatch({ type: ACTIONS.SET_ERROR, payload: '' });
+            errorTimerRef.current = null;
         }, 3000); // Clear after 3 seconds
-    };
+    }, []);
+
+    // Drop the pending timer on unmount so it cannot dispatch into a dead component
+    useEffect(() => {
+        return () => {
+            if (errorTimerRef.current) {
+                clearTimeout(errorTimerRef.current);
+            }
+        };
+    }, []);
 
     const fetchSkinTestData = async (tokenNo) => {
         try {
@@ -189,158 +222,247 @@ const PureExchange = () => {
         }
 
         dispatch({ type: ACTIONS.SET_LOADING, payload: true });
-        
-        // Check if token already exists in the database
+
         try {
-            const exists = await checkExists(tokenNo.trim());
-            if (exists) {
-                dispatch({ type: ACTIONS.SET_LOADING, payload: false });
-                setErrorWithTimeout(`Token ${tokenNo} already exists in Pure Exchange database`);
+            // Check if token already exists in the database
+            try {
+                const exists = await checkExists(tokenNo.trim());
+                if (exists) {
+                    setErrorWithTimeout(`Token ${tokenNo} already exists in Pure Exchange database`);
+                    return;
+                }
+            } catch (error) {
+                console.error('Error checking token existence:', error);
+                // Continue with the process even if check fails
+            }
+
+            // Fetch skin testing data
+            const skinTestData = await fetchSkinTestData(tokenNo);
+
+            // fetchSkinTestData reports the specific reason (missing token, missing
+            // fields, network error), so don't overwrite it with a generic message
+            if (!skinTestData) return;
+
+            // One receipt is headed with a single customer name, so a batch that
+            // mixes customers would print the wrong name over everyone else's
+            // tokens. Refuse to stage it instead.
+            const stagedName = tableData.length ? tableData[0].name : null;
+            const incomingName = skinTestData.name;
+            const normalizeName = (value) => (value || '').toString().trim().toLowerCase();
+            if (stagedName && normalizeName(stagedName) !== normalizeName(incomingName)) {
+                setErrorWithTimeout(
+                    `This exchange already contains tokens for ${stagedName}. Reset to start a new customer's exchange.`
+                );
                 return;
             }
+
+            dispatch({ type: ACTIONS.SET_ERROR, payload: '' }); // Clear any existing error message
+
+            // Extract required values
+            const { weight, highest, average, gold_fineness, name } = skinTestData;
+
+            const AfterScrapWeight = weight - 0.010;
+
+            // Calculate values based on the logic
+            const hWeight = (parseFloat(AfterScrapWeight) * parseFloat(highest)) / 100;
+            const aWeight = (parseFloat(AfterScrapWeight) * parseFloat(average)) / 100;
+            const gWeight = (parseFloat(AfterScrapWeight) * parseFloat(gold_fineness)) / 100;
+            const exGold = parseFloat(gold_fineness) - parseFloat(point);
+            const exWeight = (parseFloat(AfterScrapWeight) * exGold)/100;
+
+            // One capture per batch, so every row in a receipt is stamped with the
+            // same wall-clock instant. Sent as ISO/24h because the DB parses those
+            // the same way regardless of session DateStyle.
+            const capturedAt = new Date();
+
+            const newRow = {
+                id: tableData.length + 1,
+                tokenNo: tokenNo,
+                name: name, 
+                date: toStorageDate(capturedAt),
+                time: toStorageTime(capturedAt),
+                weight: parseFloat(AfterScrapWeight).toFixed(3),
+                highest: parseFloat(highest).toFixed(2),
+                hWeight: hWeight.toFixed(3),
+                average: parseFloat(average).toFixed(2),
+                aWeight: aWeight.toFixed(3),
+                goldFineness: parseFloat(gold_fineness).toFixed(2),
+                gWeight: gWeight.toFixed(3),
+                exGold: parseFloat(exGold).toFixed(2),
+                exWeight: exWeight.toFixed(3)
+            };
+
+            dispatch({ type: ACTIONS.ADD_TABLE_ROW, payload: newRow });
         } catch (error) {
-            console.error('Error checking token existence:', error);
-            // Continue with the process even if check fails
-        }
-        
-        // Fetch skin testing data
-        const skinTestData = await fetchSkinTestData(tokenNo);
-        
-        if (!skinTestData) {
+            console.error('Error adding token to the table:', error);
+            setErrorWithTimeout('Error adding this token. Please try again.');
+        } finally {
             dispatch({ type: ACTIONS.SET_LOADING, payload: false });
-            setErrorWithTimeout('The skin test report does not exist for this token number');
-            return;
         }
-        
-        dispatch({ type: ACTIONS.SET_LOADING, payload: false });
-        dispatch({ type: ACTIONS.SET_ERROR, payload: '' }); // Clear any existing error message
-        
-        // Extract required values
-        const { weight, highest, average, gold_fineness, name } = skinTestData;
-
-        const AfterScrapWeight = weight - 0.010;
-
-        // Calculate values based on the logic
-        const hWeight = (parseFloat(AfterScrapWeight) * parseFloat(highest)) / 100;
-        const aWeight = (parseFloat(AfterScrapWeight) * parseFloat(average)) / 100;
-        const gWeight = (parseFloat(AfterScrapWeight) * parseFloat(gold_fineness)) / 100;
-        const exGold = parseFloat(gold_fineness) - parseFloat(point);
-        const exWeight = (parseFloat(AfterScrapWeight) * exGold)/100;
-
-        const newRow = {
-            id: tableData.length + 1,
-            tokenNo: tokenNo,
-            name: name, 
-            date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\/+/g, '-'),
-            time: new Date().toLocaleTimeString(),
-            weight: parseFloat(AfterScrapWeight).toFixed(3),
-            highest: parseFloat(highest).toFixed(2),
-            hWeight: hWeight.toFixed(3),
-            average: parseFloat(average).toFixed(2),
-            aWeight: aWeight.toFixed(3),
-            goldFineness: parseFloat(gold_fineness).toFixed(2),
-            gWeight: gWeight.toFixed(3),
-            exGold: parseFloat(exGold).toFixed(2),
-            exWeight: exWeight.toFixed(3)
-        };
-
-        dispatch({ type: ACTIONS.ADD_TABLE_ROW, payload: newRow });
-        focusTokenInput();
     };
 
     // Shared persistence used by both the Save and the Save & Print actions.
     // Records are independent, so they are saved in parallel (Promise.allSettled)
     // instead of one-by-one to cut latency on multi-row saves.
+    //
+    // Returns a per-record breakdown rather than a single boolean. A partially
+    // successful save is the interesting case: the rows that did persist must be
+    // identified so the caller can drop them from the staged table. Keeping them
+    // staged is what used to deadlock the form - retrying would re-POST them,
+    // come back 409, and never succeed.
     const persistRecords = async (records) => {
         const results = await Promise.allSettled(
             records.map((record) => createExchange(record))
         );
 
-        const duplicate = results.find(
-            (result) => result.status === 'rejected' && result.reason?.response?.status === 409
-        );
-        if (duplicate) {
-            setErrorWithTimeout('One or more tokens already exist in Pure Exchange data.');
-            return false;
-        }
+        const savedIndices = [];
+        const duplicates = [];
+        const failures = [];
 
-        const failure = results.find((result) => result.status === 'rejected');
-        if (failure) throw failure.reason;
+        results.forEach((result, index) => {
+            if (result.status === 'fulfilled') {
+                savedIndices.push(index);
+            } else if (result.reason?.response?.status === 409) {
+                duplicates.push(records[index]);
+            } else {
+                failures.push(records[index]);
+            }
+        });
 
-        return true;
+        return {
+            allSaved: savedIndices.length === records.length,
+            savedIndices,
+            duplicates,
+            failures
+        };
     };
 
-    const handleSave = async () => {
-        try {
+    // Turn a partial-save breakdown into one message that names the tokens at
+    // fault, so the user knows which rows to deal with instead of guessing.
+    const describePartialSave = ({ duplicates, failures }) => {
+        const MAX_LISTED = 3;
+        const listTokens = (records) => {
+            const tokens = records.map((record) => record.tokenNo);
+            if (tokens.length <= MAX_LISTED) return tokens.join(', ');
+            return `${tokens.slice(0, MAX_LISTED).join(', ')} and ${tokens.length - MAX_LISTED} more`;
+        };
+
+        const parts = [];
+        if (duplicates.length) {
+            parts.push(`Already saved: ${listTokens(duplicates)}`);
+        }
+        if (failures.length) {
+            parts.push(`Could not save: ${listTokens(failures)}`);
+        }
+
+        return `${parts.join('. ')}. Rows that saved were removed - press Save to retry the rest.`;
+    };
+
+    const handleSave = () =>
+        runGuarded(async () => {
+            try {
+                if (tableData.length === 0) {
+                    setErrorWithTimeout('Please add at least one entry before saving.');
+                    focusTokenInput();
+                    return;
+                }
+
+                dispatch({ type: ACTIONS.SET_LOADING, payload: true });
+                dispatch({ type: ACTIONS.SET_ERROR, payload: '' });
+
+                // Prepare data for saving (excluding id field). Indices line up
+                // 1:1 with tableData so outcomes can be mapped back to rows.
+                const dataToSave = tableData.map(({ id, ...rest }) => rest);
+
+                const outcome = await persistRecords(dataToSave);
+
+                if (!outcome.allSaved) {
+                    // Keep only the rows that did not persist, so a retry cannot
+                    // re-send them and hit 409 forever.
+                    const savedIndexSet = new Set(outcome.savedIndices);
+                    dispatch({
+                        type: ACTIONS.SET_TABLE_DATA,
+                        payload: tableData.filter((_, index) => !savedIndexSet.has(index))
+                    });
+                    setErrorWithTimeout(describePartialSave(outcome));
+                    return;
+                }
+
+                // Clear the table after successful save
+                dispatch({ type: ACTIONS.SET_TABLE_DATA, payload: [] });
+                setErrorWithTimeout('Data saved successfully!');
+            } catch (error) {
+                console.error('Error saving data:', error);
+                const errorMessage = error.response?.data?.error || 'Error saving data. Please try again.';
+                setErrorWithTimeout(errorMessage);
+            } finally {
+                dispatch({ type: ACTIONS.SET_LOADING, payload: false });
+                focusTokenInput();
+            }
+        });
+
+    const handleSaveAndPrint = () =>
+        runGuarded(async () => {
             if (tableData.length === 0) {
-                setErrorWithTimeout('Please add at least one entry before saving.');
+                setErrorWithTimeout('Please add at least one entry before saving and printing.');
                 focusTokenInput();
                 return;
             }
 
+            // Snapshot the rows so the receipt can be printed after the table is cleared
+            const rowsToPrint = [...tableData];
+            const dataToSave = rowsToPrint.map(({ id, ...rest }) => rest);
+
             dispatch({ type: ACTIONS.SET_LOADING, payload: true });
             dispatch({ type: ACTIONS.SET_ERROR, payload: '' });
 
-            // Prepare data for saving (excluding id field)
-            const dataToSave = tableData.map(({ id, ...rest }) => rest);
+            let outcome = null;
+            try {
+                outcome = await persistRecords(dataToSave);
 
-            const saved = await persistRecords(dataToSave);
-            if (!saved) return;
-
-            // Clear the table after successful save
-            dispatch({ type: ACTIONS.SET_TABLE_DATA, payload: [] });
-            setErrorWithTimeout('Data saved successfully!');
-        } catch (error) {
-            console.error('Error saving data:', error);
-            const errorMessage = error.response?.data?.error || 'Error saving data. Please try again.';
-            setErrorWithTimeout(errorMessage);
-        } finally {
-            dispatch({ type: ACTIONS.SET_LOADING, payload: false });
-            focusTokenInput();
-        }
-    };
-
-    const handleSaveAndPrint = async () => {
-        if (tableData.length === 0) {
-            setErrorWithTimeout('Please add at least one entry before saving.');
-            focusTokenInput();
-            return;
-        }
-
-        // Snapshot the rows so the receipt can be printed after the table is cleared
-        const rowsToPrint = [...tableData];
-        const dataToSave = rowsToPrint.map(({ id, ...rest }) => rest);
-
-        dispatch({ type: ACTIONS.SET_LOADING, payload: true });
-        dispatch({ type: ACTIONS.SET_ERROR, payload: '' });
-
-        let saved = false;
-        try {
-            saved = await persistRecords(dataToSave);
-            if (saved) {
-                // Clear the table after successful save
-                dispatch({ type: ACTIONS.SET_TABLE_DATA, payload: [] });
+                if (outcome.allSaved) {
+                    // Clear the table after successful save
+                    dispatch({ type: ACTIONS.SET_TABLE_DATA, payload: [] });
+                } else {
+                    // Drop the rows that did persist, leaving only the failures
+                    // staged so a retry can't re-send them into a 409 loop.
+                    const savedIndexSet = new Set(outcome.savedIndices);
+                    dispatch({
+                        type: ACTIONS.SET_TABLE_DATA,
+                        payload: rowsToPrint.filter((_, index) => !savedIndexSet.has(index))
+                    });
+                }
+            } catch (error) {
+                console.error('Error saving data:', error);
+                const errorMessage = error.response?.data?.error || 'Error saving data. Please try again.';
+                setErrorWithTimeout(errorMessage);
+            } finally {
+                // Release the UI before printing so the form is usable while the job spools
+                dispatch({ type: ACTIONS.SET_LOADING, payload: false });
+                focusTokenInput();
             }
-        } catch (error) {
-            console.error('Error saving data:', error);
-            const errorMessage = error.response?.data?.error || 'Error saving data. Please try again.';
-            setErrorWithTimeout(errorMessage);
-        } finally {
-            // Release the UI before printing so the form is usable while the job spools
-            dispatch({ type: ACTIONS.SET_LOADING, payload: false });
-            focusTokenInput();
-        }
 
-        if (!saved) return;
+            // Printing only makes sense once every row is persisted - a receipt
+            // listing rows the server rejected would misrepresent the exchange.
+            if (!outcome || !outcome.allSaved) {
+                if (outcome) setErrorWithTimeout(describePartialSave(outcome));
+                return;
+            }
 
-        try {
-            await printPureExchange(rowsToPrint);
-            setErrorWithTimeout('Data saved and printed successfully!');
-        } catch (error) {
-            console.error('Error printing data:', error);
-            setErrorWithTimeout('Data saved, but printing failed.');
-        }
-    };
+            try {
+                const printOutcome = await printPureExchange(rowsToPrint);
+                // The save is confirmed either way; the print only counts as
+                // done when the spooler took the job.
+                setErrorWithTimeout(
+                    printOutcome?.confirmed
+                        ? 'Data saved and printed successfully!'
+                        : 'Data saved. Check the print dialog produced the receipt.'
+                );
+            } catch (error) {
+                console.error('Error printing data:', error);
+                setErrorWithTimeout('Data saved, but printing failed.');
+            }
+        });
 
     const handleReset = () => {
         dispatch({ type: ACTIONS.RESET_FORM });
@@ -348,7 +470,6 @@ const PureExchange = () => {
     };
 
     const handleNavigateToExchangeData = () => {
-        focusTokenInput();
         navigate('/exchange-data');
     };
 
@@ -531,6 +652,17 @@ const PureExchange = () => {
                                     tableData={tableData}
                                     onEmpty={() => {
                                         setErrorWithTimeout('Please add at least one entry before printing.');
+                                        focusTokenInput();
+                                    }}
+                                    onPrinted={(outcome) =>
+                                        setErrorWithTimeout(
+                                            outcome?.confirmed
+                                                ? 'Printed successfully!'
+                                                : 'Print dialog opened - check the receipt actually printed.'
+                                        )
+                                    }
+                                    onError={() => {
+                                        setErrorWithTimeout('Printing failed. Please try again.');
                                         focusTokenInput();
                                     }}
                                 />
