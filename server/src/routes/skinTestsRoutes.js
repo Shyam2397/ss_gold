@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const {
   getAllSkinTests,
+  getSkinTestByTokenNo,
   createSkinTest,
   updateSkinTest,
   deleteSkinTest,
@@ -42,6 +43,16 @@ router.post('/phone_numbers', async (req, res) => {
     await getPhoneNumbersByCodes(req, res);
   } catch (err) {
     handleDatabaseError(err, res, 'Failed to fetch phone numbers');
+  }
+});
+
+// Single-token lookup. Registered after the literal-prefixed GET routes above
+// so those keep matching first.
+router.get('/:tokenNo', async (req, res) => {
+  try {
+    await getSkinTestByTokenNo(req, res);
+  } catch (err) {
+    handleDatabaseError(err, res, 'Failed to fetch skin test');
   }
 });
 

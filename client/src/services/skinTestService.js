@@ -10,6 +10,20 @@ const skinTestService = {
     return response.data;
   },
 
+  // Get a single skin test by token number.
+  // Returns null when the token does not exist, so callers can show a specific
+  // message instead of downloading the whole table to discover that.
+  getSkinTestByTokenNo: async (tokenNo) => {
+    const api = await getApi();
+    try {
+      const response = await api.get(`/skin-tests/${encodeURIComponent(tokenNo)}`);
+      return response.data;
+    } catch (error) {
+      if (error.response?.status === 404) return null;
+      throw error;
+    }
+  },
+
   // Create a new skin test
   createSkinTest: async (data) => {
     const api = await getApi();

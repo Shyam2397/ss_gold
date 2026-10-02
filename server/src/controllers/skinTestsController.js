@@ -27,6 +27,46 @@ const getAllSkinTests = async (req, res) => {
   }
 };
 
+const getSkinTestByTokenNo = async (req, res) => {
+  try {
+    const tokenNo = (req.params.tokenNo || '').trim();
+
+    if (!tokenNo) {
+      return res.status(400).json({ error: 'Token number is required' });
+    }
+
+    // Same column list and aliases as getAllSkinTests so the client sees an
+    // identical row shape either way. Selecting the whole table just to find
+    // one token made every "Add" in Pure Exchange download the entire skin
+    // test history.
+    const query = `
+      SELECT token_no, date, time, name, weight, sample,
+             highest, average, gold_fineness, karat,
+             silver, copper, zinc, cadmium, nickel,
+             tungsten, iridium, ruthenium, osmium, rhodium,
+             rhenium, indium, titanium, palladium, platinum,
+             others, remarks, code
+      FROM skin_tests
+      WHERE BTRIM(token_no) = $1
+      LIMIT 1
+    `;
+
+    const result = await pool.query(query, [tokenNo]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        error: 'Token not found',
+        tokenNo
+      });
+    }
+
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Error in getSkinTestByTokenNo:', err);
+    return handleDatabaseError(err, res);
+  }
+};
+
 const createSkinTest = async (req, res) => {
   const data = req.body;
   
@@ -290,6 +330,7 @@ const resetSkinTests = async (req, res) => {
 
 module.exports = {
   getAllSkinTests,
+  getSkinTestByTokenNo,
   createSkinTest,
   updateSkinTest,
   deleteSkinTest,

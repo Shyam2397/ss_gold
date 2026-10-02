@@ -13,7 +13,7 @@ import { usePureExchange } from './hooks/usePureExchange';
 import skinTestService from '../../services/skinTestService';
 import MemoizedFormInput from './components/MemoizedFormInput';
 import TableRow from './components/TableRow';
-import { FormInputSkeleton, TableSkeleton, ButtonSkeleton } from './components/SkeletonLoaders';
+import { TableSkeleton } from './components/SkeletonLoaders';
 import { printPureExchange } from './utils/printUtils';
 import { toStorageDate, toStorageTime } from '../../utils/dateUtils';
 const ThermalPrinter = React.lazy(() => import('./ThermalPrinter'));
@@ -36,10 +36,28 @@ const ACTIONS = {
     SET_POINT: 'set_point',
     SET_TABLE_DATA: 'set_table_data',
     ADD_TABLE_ROW: 'add_table_row',
+    REMOVE_TABLE_ROW: 'remove_table_row',
     SET_ERROR: 'set_error',
     SET_LOADING: 'set_loading',
     RESET_FORM: 'reset_form'
 };
+
+// Banner colours are driven by an explicit severity rather than by sniffing the
+// message text for the word "successfully". Sniffing mis-coloured every message
+// that did not happen to contain that word - including the "check the print
+// dialog" warning, which was rendered as a hard error.
+const SEVERITY = {
+    ERROR: 'error',
+    SUCCESS: 'success',
+    WARNING: 'warning'
+};
+
+// Sanity ceiling for the point deduction. Fineness is a percentage, so a point
+// anywhere near this size is a typo rather than a real charge.
+const MAX_POINT = 10;
+
+// Scrap allowance subtracted from the skin-test weight.
+const SCRAP_ALLOWANCE = 0.010;
 
 // Initial state
 const initialState = {
@@ -47,6 +65,7 @@ const initialState = {
     point: '0.20',
     tableData: [],
     error: '',
+    errorSeverity: SEVERITY.ERROR,
     loading: false
 };
 
@@ -74,10 +93,16 @@ const pureExchangeReducer = (state, action) => {
                 tableData: [...state.tableData, action.payload],
                 tokenNo: '' // Clear token number after adding
             };
+        case ACTIONS.REMOVE_TABLE_ROW:
+            return {
+                ...state,
+                tableData: state.tableData.filter((row) => row.tokenNo !== action.payload)
+            };
         case ACTIONS.SET_ERROR:
             return {
                 ...state,
-                error: action.payload
+                error: action.payload,
+                errorSeverity: action.severity || SEVERITY.ERROR
             };
         case ACTIONS.SET_LOADING:
             return {
@@ -90,7 +115,8 @@ const pureExchangeReducer = (state, action) => {
                 tokenNo: '',
                 point: '0.20',
                 tableData: [],
-                error: ''
+                error: '',
+                errorSeverity: SEVERITY.ERROR
             };
         default:
             return state;
@@ -99,7 +125,7 @@ const pureExchangeReducer = (state, action) => {
 
 const PureExchange = () => {
     const [state, dispatch] = useReducer(pureExchangeReducer, initialState);
-    const { tokenNo, point, tableData, error, loading } = state;
+    const { tokenNo, point, tableData, error, errorSeverity, loading } = state;
     const { checkExists, createPureExchangeAsync: createExchange, isCreating } = usePureExchange();
     const navigate = useNavigate();
     
@@ -144,11 +170,11 @@ const PureExchange = () => {
     // earlier one's timeout firing.
     const errorTimerRef = useRef(null);
 
-    const setErrorWithTimeout = useCallback((message) => {
+    const setErrorWithTimeout = useCallback((message, severity = SEVERITY.ERROR) => {
         if (errorTimerRef.current) {
             clearTimeout(errorTimerRef.current);
         }
-        dispatch({ type: ACTIONS.SET_ERROR, payload: message });
+        dispatch({ type: ACTIONS.SET_ERROR, payload: message, severity });
         errorTimerRef.current = setTimeout(() => {
             dispatch({ type: ACTIONS.SET_ERROR, payload: '' });
             errorTimerRef.current = null;
@@ -166,33 +192,24 @@ const PureExchange = () => {
 
     const fetchSkinTestData = async (tokenNo) => {
         try {
-            const skinTests = await skinTestService.getSkinTests();
-            
-            if (!skinTests || skinTests.length === 0) {
-                setErrorWithTimeout('No skin testing data available');
-                return null;
-            }
+            // Fetch only the requested token. This used to pull the entire skin
+            // test table on every Add, purely to find one row inside it.
+            const skinTest = await skinTestService.getSkinTestByTokenNo(tokenNo.trim());
 
-            const skinTest = skinTests.find(test => {
-                // Check for both token_no and tokenNo for backward compatibility
-                const testTokenNo = (test.token_no || test.tokenNo || '').toString().trim();
-                return testTokenNo === tokenNo.toString().trim();
-            });
-            
             if (!skinTest) {
                 setErrorWithTimeout(`Token number ${tokenNo} not found in skin testing records`);
                 return null;
             }
-            
+
             // Validate required fields
             const requiredFields = ['weight', 'highest', 'average', 'gold_fineness', 'name'];
             const missingFields = requiredFields.filter(field => !skinTest[field]);
-            
+
             if (missingFields.length > 0) {
                 setErrorWithTimeout(`Missing required data: ${missingFields.join(', ')}`);
                 return null;
             }
-            
+
             return skinTest;
         } catch (error) {
             console.error('Error fetching skin test data:', error);
@@ -201,6 +218,13 @@ const PureExchange = () => {
         }
     };
 
+    // Un-stage a row. Safe with no confirmation: nothing has been written to the
+    // database yet, so this only discards a draft the operator can re-add.
+    const handleRemoveRow = useCallback((tokenNoToRemove) => {
+        dispatch({ type: ACTIONS.REMOVE_TABLE_ROW, payload: tokenNoToRemove });
+        focusTokenInput();
+    }, [focusTokenInput]);
+
     const handleAdd = async () => {
         if (!tokenNo.trim()) {
             setErrorWithTimeout('Please enter a token number');
@@ -208,8 +232,18 @@ const PureExchange = () => {
             return;
         }
 
-        if (!point || isNaN(parseFloat(point))) {
+        // Point is subtracted from gold fineness to get ex-gold, so an absurd
+        // value silently produced negative purity and negative weight on the
+        // receipt. Reject anything outside the plausible range instead.
+        const pointValue = parseFloat(point);
+        if (!point || isNaN(pointValue)) {
             setErrorWithTimeout('Please enter a valid point value');
+            focusTokenInput();
+            return;
+        }
+
+        if (pointValue < 0 || pointValue > MAX_POINT) {
+            setErrorWithTimeout(`Point value must be between 0 and ${MAX_POINT}`);
             focusTokenInput();
             return;
         }
@@ -261,7 +295,23 @@ const PureExchange = () => {
             // Extract required values
             const { weight, highest, average, gold_fineness, name } = skinTestData;
 
-            const AfterScrapWeight = weight - 0.010;
+            const AfterScrapWeight = parseFloat(weight) - SCRAP_ALLOWANCE;
+
+            // A token lighter than the scrap allowance would otherwise yield
+            // negative weights that look like a real figure on the receipt.
+            if (!(AfterScrapWeight > 0)) {
+                setErrorWithTimeout(
+                    `Token ${tokenNo} weighs ${weight}, which is too light for the ${SCRAP_ALLOWANCE.toFixed(3)} scrap allowance`
+                );
+                return;
+            }
+
+            if (parseFloat(gold_fineness) < pointValue) {
+                setErrorWithTimeout(
+                    `Point value ${point} is higher than the gold fineness ${gold_fineness} for token ${tokenNo}`
+                );
+                return;
+            }
 
             // Calculate values based on the logic
             const hWeight = (parseFloat(AfterScrapWeight) * parseFloat(highest)) / 100;
@@ -300,6 +350,16 @@ const PureExchange = () => {
             dispatch({ type: ACTIONS.SET_LOADING, payload: false });
         }
     };
+
+    // Enter anywhere in the input row stages the token, matching the Add button.
+// Both paths go through the same busy lock, so a held-down Enter cannot queue
+// several duplicate token lookups.
+const handleAddGuarded = () => runGuarded(handleAdd);
+
+const handleSubmitForm = (event) => {
+    event.preventDefault();
+    handleAddGuarded();
+};
 
     // Shared persistence used by both the Save and the Save & Print actions.
     // Records are independent, so they are saved in parallel (Promise.allSettled)
@@ -390,7 +450,7 @@ const PureExchange = () => {
 
                 // Clear the table after successful save
                 dispatch({ type: ACTIONS.SET_TABLE_DATA, payload: [] });
-                setErrorWithTimeout('Data saved successfully!');
+                setErrorWithTimeout('Data saved successfully!', SEVERITY.SUCCESS);
             } catch (error) {
                 console.error('Error saving data:', error);
                 const errorMessage = error.response?.data?.error || 'Error saving data. Please try again.';
@@ -456,7 +516,8 @@ const PureExchange = () => {
                 setErrorWithTimeout(
                     printOutcome?.confirmed
                         ? 'Data saved and printed successfully!'
-                        : 'Data saved. Check the print dialog produced the receipt.'
+                        : 'Data saved. Check the print dialog produced the receipt.',
+                    printOutcome?.confirmed ? SEVERITY.SUCCESS : SEVERITY.WARNING
                 );
             } catch (error) {
                 console.error('Error printing data:', error);
@@ -471,6 +532,12 @@ const PureExchange = () => {
 
     const handleNavigateToExchangeData = () => {
         navigate('/exchange-data');
+    };
+
+    const BANNER_CLASS = {
+        error: 'bg-red-50 text-red-700',
+        success: 'bg-green-50 text-green-700',
+        warning: 'bg-amber-50 text-amber-800'
     };
 
     return (
@@ -488,7 +555,7 @@ const PureExchange = () => {
                         <h2 className="text-xl font-bold text-amber-900">Pure Exchange</h2>
                     </div>
                     {error && (
-                <div className={`p-1 rounded-md ${error.includes('successfully') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                <div className={`p-1 rounded-md ${BANNER_CLASS[errorSeverity] || BANNER_CLASS.error}`}>
                     <div className="flex items-center">
                         <FiAlertCircle className="h-4 w-4" />
                         <p className="text-sm font-medium ml-2">{error}</p>
@@ -499,56 +566,50 @@ const PureExchange = () => {
 
                 {/* Input Section */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3 p-2 bg-amber-50/50 rounded mb-3">
-                    <div className="flex items-end space-x-2">
-                    {isLoading ? (
-                        <>
-                            <FormInputSkeleton className="flex-1" />
-                            <FormInputSkeleton className="w-20" />
-                            <ButtonSkeleton />
-                        </>
-                    ) : (
-                        <>
-                            <MemoizedFormInput
-                                label="Token Number"
-                                name="tokenNo"
-                                value={tokenNo}
-                                onChange={(e) => dispatch({ type: ACTIONS.SET_TOKEN_NO, payload: e.target.value })}
-                                className="flex-1"
-                                inputRef={tokenNoInputRef}
-                            />
-                            <MemoizedFormInput
-                                label="Point"
-                                name="point"
-                                value={point}
-                                onChange={(e) => dispatch({ type: ACTIONS.SET_POINT, payload: e.target.value })}
-                                className="w-20"
-                            />
-                            <button
-                                onClick={handleAdd}
-                                className="px-2 py-1 bg-amber-500 text-white text-sm rounded hover:bg-amber-600 transition-colors flex items-center space-x-1 h-[30px] rounded-xl"
-                                disabled={isLoading}
-                            >
-                                {isLoading ? (
-                                    <>
-                                        <div className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-white border-solid border-t-transparent" />
-                                        <span>Adding...</span>
-                                    </>
-                                ) : (
-                                    <>
-                                        <FiPlus className="w-3.5 h-3.5" />
-                                        <span>Add</span>
-                                    </>
-                                )}
-                            </button>
-                        </>
-                    )}
-                    </div>
+                    <form onSubmit={handleSubmitForm} className="flex items-end space-x-2">
+                    {/* The inputs stay mounted while busy. Swapping them for skeletons removed the
+                        very element focusTokenInput() targets, so the input lost focus
+                        on every Add, and it also hid the Add button's own "Adding..."
+                        label - that branch could never render. */}
+                        <MemoizedFormInput
+                            label="Token Number"
+                            name="tokenNo"
+                            value={tokenNo}
+                            onChange={(e) => dispatch({ type: ACTIONS.SET_TOKEN_NO, payload: e.target.value })}
+                            className="flex-1"
+                            inputRef={tokenNoInputRef}
+                        />
+                        <MemoizedFormInput
+                            label="Point"
+                            name="point"
+                            value={point}
+                            onChange={(e) => dispatch({ type: ACTIONS.SET_POINT, payload: e.target.value })}
+                            className="w-20"
+                        />
+                        <button
+                            type="submit"
+                            className="px-2 py-1 bg-amber-500 text-white text-sm rounded hover:bg-amber-600 transition-colors flex items-center space-x-1 h-[30px] rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                            disabled={isLoading}
+                        >
+                            {isLoading ? (
+                                <>
+                                    <div className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-white border-solid border-t-transparent" />
+                                    <span>Adding...</span>
+                                </>
+                            ) : (
+                                <>
+                                    <FiPlus className="w-3.5 h-3.5" />
+                                    <span>Add</span>
+                                </>
+                            )}
+                        </button>
+                    </form>
                 </div>
 
                 {/* Table Section */}
                 <div className="overflow-hidden rounded-xl border border-amber-100 border-solid mt-2">
                     <div className="overflow-x-auto">
-                        <div className="flex flex-col h-[calc(100vh-280px)]">
+                        <div className="flex flex-col h-[55vh] md:h-[calc(100vh-280px)]">
                             <div className="flex-grow overflow-y-auto scrollbar-thin scrollbar-thumb-amber-500 scrollbar-track-amber-100">
                                 <table className="min-w-full divide-y divide-amber-200">
                                 <thead className="bg-gradient-to-r from-amber-500 to-yellow-500 sticky top-0 z-10">
@@ -556,10 +617,11 @@ const PureExchange = () => {
                                         {[
                                             'S.no', 'Token-no', 'Name', 'Date', 'Time', 'Weight',
                                             'Highest', 'H.Weight', 'Average', 'A.Weight',
-                                            'Gold Fineness', 'G.Weight', 'Ex.Gold', 'Ex.Weight'
+                                            'Gold Fineness', 'G.Weight', 'Ex.Gold', 'Ex.Weight',
+                                            ''
                                         ].map((header) => (
                                             <th
-                                                key={header}
+                                                key={header || 'actions'}
                                                 className="px-2 py-1.5 text-left text-xs font-medium text-white uppercase tracking-wider whitespace-nowrap"
                                             >
                                                 {header}
@@ -568,14 +630,19 @@ const PureExchange = () => {
                                         </tr>
                                     </thead>
                                 <tbody className="bg-white divide-y divide-amber-100">
-                                    {isLoading ? (
+                                    {/* Only show the placeholder skeleton when there is
+                                        nothing staged yet. Previously every save swapped the
+                                        whole table for skeletons, so an in-flight batch looked
+                                        like the data had been wiped. */}
+                                    {tableData.length === 0 && isLoading ? (
                                         <TableSkeleton rowCount={3} />
                                     ) : (
                                         tableData.map((row, index) => (
-                                            <TableRow 
-                                                key={row.tokenNo} 
-                                                row={row} 
-                                                index={index} 
+                                            <TableRow
+                                                key={row.tokenNo}
+                                                row={row}
+                                                index={index}
+                                                onRemove={handleRemoveRow}
                                             />
                                         ))
                                     )}
@@ -588,17 +655,12 @@ const PureExchange = () => {
 
                 {/* Action Buttons */}
                 <div className="flex justify-end space-x-2 mt-2">
-                    {isLoading ? (
-                        <div className="flex space-x-2">
-                            <ButtonSkeleton width="w-16" />
-                            <ButtonSkeleton width="w-16" />
-                            <ButtonSkeleton width="w-24" />
-                            <ButtonSkeleton width="w-28" />
-                        </div>
-                    ) : (
-                        <>
-                            <button
-                                onClick={handleNavigateToExchangeData}
+                    {/* Buttons stay visible and show their own "Saving..." labels; they are only
+                    disabled. Swapping them for skeletons made those labels
+                    unreachable and made the whole toolbar blink out mid-save. */}
+                    <>
+                        <button
+                            onClick={handleNavigateToExchangeData}
                                 className="px-2 py-1 border border-amber-300 border-solid text-amber-700 text-sm rounded hover:bg-amber-50 transition-colors flex items-center space-x-1 h-[30px] rounded-xl"
                             >
                                 <FiDatabase className="w-3.5 h-3.5" />
@@ -658,7 +720,8 @@ const PureExchange = () => {
                                         setErrorWithTimeout(
                                             outcome?.confirmed
                                                 ? 'Printed successfully!'
-                                                : 'Print dialog opened - check the receipt actually printed.'
+                                                : 'Print dialog opened - check the receipt actually printed.',
+                                            outcome?.confirmed ? SEVERITY.SUCCESS : SEVERITY.WARNING
                                         )
                                     }
                                     onError={() => {
@@ -667,8 +730,7 @@ const PureExchange = () => {
                                     }}
                                 />
                             </React.Suspense>
-                        </>
-                    )}
+                    </>
                 </div>
             </div>
             

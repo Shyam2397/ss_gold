@@ -14,7 +14,8 @@ export const FormInputSkeleton = ({ className }) => {
 export const TableRowSkeleton = () => {
   return (
     <tr className="animate-pulse">
-      {Array(14).fill(0).map((_, index) => (
+      {/* 15 cells: 14 data columns plus the trailing row-action column. */}
+      {Array(15).fill(0).map((_, index) => (
         <td key={index} className="px-2 py-1.5 whitespace-nowrap">
           <div className="h-4 bg-amber-100/80 rounded w-12"></div>
         </td>

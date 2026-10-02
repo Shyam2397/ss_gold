@@ -24,7 +24,11 @@ const areEqual = (prevProps, nextProps) => {
     return (
         prevProps.value === nextProps.value &&
         prevProps.readOnly === nextProps.readOnly &&
-        prevProps.className === nextProps.className
+        prevProps.className === nextProps.className &&
+        // The ref drives focus/select after every action. If it were swapped out
+        // while the value stayed the same, the input would keep pointing at the
+        // old node and silently stop taking focus.
+        prevProps.inputRef === nextProps.inputRef
     );
 };
 
