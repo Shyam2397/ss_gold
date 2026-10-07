@@ -141,9 +141,7 @@ const SidebarContent = memo(({ user, setLoggedIn }) => {
   );
 
   const handleExpenseClick = useCallback((item) => {
-    if (item.modalSetter) {
-      item.modalSetter(true);
-    } else if (item.onClick) {
+    if (item.onClick) {
       item.onClick();
     }
     setIsExpensesOpen(false);
@@ -204,4 +202,4 @@ const SidebarContent = memo(({ user, setLoggedIn }) => {
   );
 });
 
-export default memo(Sidebar);
+export default Sidebar;

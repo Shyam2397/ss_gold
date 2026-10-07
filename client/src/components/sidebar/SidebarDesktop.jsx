@@ -91,7 +91,7 @@ export const SidebarDesktop = memo(({
       <ErrorBoundary>
         <div className="flex-1 flex flex-col min-h-0">
           <SidebarMenuContent {...{ mainMenuItems, dataMenuItems, expenseMenuItems, canAccessSettings, hasAnyDataItem, hasAnyExpenseItem, user, isActive, handleNavigation, isDataOpen, setIsDataOpen, isExpensesOpen, setIsExpensesOpen, onExpenseItemClick }} />
-          <SidebarFooter handleLogout={handleLogout} handleNavigation={handleNavigation} />
+          <SidebarFooter handleLogout={handleLogout} />
         </div>
       </ErrorBoundary>
     </motion.div>
