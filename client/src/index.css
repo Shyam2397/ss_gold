@@ -18,3 +18,30 @@
   display: flex;
   flex-direction: column;
 }
+
+/* An unpaid customer group runs this once every invoice under it has been
+   marked paid: the header row and the invoice table fade out together, then
+   their height collapses so the groups below slide up instead of jumping.
+   max-height starts far above any real group height, so the animation is a
+   no-op on layout until the collapse phase at the end. */
+@keyframes vanish-out {
+  0% {
+    opacity: 1;
+    max-height: 1500px;
+  }
+  35% {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  100% {
+    opacity: 0;
+    max-height: 0;
+    transform: translateY(-4px);
+  }
+}
+
+.vanish-out {
+  animation: vanish-out 450ms ease-in forwards;
+  overflow: hidden;
+  pointer-events: none;
+}

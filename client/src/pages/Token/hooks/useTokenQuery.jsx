@@ -184,21 +184,50 @@ const useTokenQuery = () => {
         throw new Error(extractErrorMessage(error, 'Failed to update payment status'));
       }
     },
+    // The checkbox is controlled by `isPaid`, so before this patch it could
+    // not flip until the PATCH round-trip completed - that dead time was the
+    // "slow refresh". Patching in onMutate makes the click paint instantly;
+    // the server response below simply confirms it.
+    onMutate: async ({ tokenId, isPaid }) => {
+      // A GET /tokens that started before the write (the 30s poll) must not
+      // resolve on top of the optimistic value and flip the box straight back.
+      await queryClient.cancelQueries({ queryKey: ['tokens'] });
+      const previousTokens = queryClient.getQueryData(['tokens']);
+      // `undefined` in -> no-op out: a cold cache must stay cold rather than
+      // be filled with a stale snapshot that a refetch would then contradict.
+      queryClient.setQueryData(['tokens'], (oldTokens) =>
+        oldTokens?.map(token =>
+          token.id === tokenId
+            ? { ...token, isPaid: Boolean(isPaid) }
+            : token
+        )
+      );
+      return { previousTokens };
+    },
     onSuccess: (data) => {
       // No toast or banner here: this fires on every checkbox click, so
       // confirming each one buries the messages that actually matter. The
       // checkbox itself already shows the new state, and only failures report.
-      queryClient.setQueryData(['tokens'], (oldTokens = []) =>
-        oldTokens.map(token =>
+      queryClient.setQueryData(['tokens'], (oldTokens) =>
+        oldTokens?.map(token =>
           token.id === data.tokenId
             ? { ...token, isPaid: data.isPaid }
             : token
         )
       );
     },
-    onError: (error) => {
+    onError: (error, _variables, context) => {
+      // The optimistic flip must not survive a failed write.
+      if (context?.previousTokens) {
+        queryClient.setQueryData(['tokens'], context.previousTokens);
+      }
       toast.error(error.message);
       setError(error.message);
+    },
+    onSettled: () => {
+      // A poll that slipped between the optimistic write and the response can
+      // still leave a stale row; one authoritative refetch closes that window.
+      queryClient.invalidateQueries({ queryKey: ['tokens'] });
     }
   });
 

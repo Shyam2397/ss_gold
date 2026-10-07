@@ -586,55 +586,70 @@ const TokenPage = () => {
     }
   }, [getTokenData, validateForm]);
 
+  // The filter itself, kept out of the debounce so the effect below can
+  // re-apply an active query synchronously when the token list changes.
+  const runSearch = useMemo(() => {
+    const filter = (query) => {
+      if (!query.trim()) {
+        dispatch({ type: 'SET_FIELD', field: 'filteredTokens', value: tokens });
+        return;
+      }
+
+      const searchTerms = query.toLowerCase().split(' ').filter(term => term.length > 0);
+
+      // Memoize search results for the same query
+      const cacheKey = `${query}-${tokens.length}`;
+
+      if (searchCacheRef.current.has(cacheKey)) {
+        dispatch({ type: 'SET_FIELD', field: 'filteredTokens', value: searchCacheRef.current.get(cacheKey) });
+        return;
+      }
+
+      const filtered = tokens.filter(token => {
+        const searchFields = [
+          token.tokenNo?.toString() || '',
+          token.code?.toString() || '',
+          token.name || '',
+          token.test || '',
+          token.sample || '',
+          token.weight?.toString() || '',
+          token.amount?.toString() || ''
+        ];
+
+        return searchTerms.every(term =>
+          searchFields.some(field =>
+            field.toLowerCase().includes(term)
+          )
+        );
+      });
+
+      searchCacheRef.current.set(cacheKey, filtered);
+      dispatch({ type: 'SET_FIELD', field: 'filteredTokens', value: filtered });
+    };
+
+    return filter;
+  }, [tokens]);
+
   // Debounced search. useCallback(debounce(...)) re-ran debounce() on every
   // render and threw away all but the newest instance; useMemo keeps exactly one
   // per tokens change, and the effect below cancels it on unmount.
-  const handleSearch = useMemo(
-    () =>
-      debounce((query) => {
-        if (!query.trim()) {
-          dispatch({ type: 'SET_FIELD', field: 'filteredTokens', value: tokens });
-          return;
-        }
+  const handleSearch = useMemo(() => debounce(runSearch, 300), [runSearch]);
 
-        const searchTerms = query.toLowerCase().split(' ').filter(term => term.length > 0);
-
-        // Memoize search results for the same query
-        const cacheKey = `${query}-${tokens.length}`;
-
-        if (searchCacheRef.current.has(cacheKey)) {
-          dispatch({ type: 'SET_FIELD', field: 'filteredTokens', value: searchCacheRef.current.get(cacheKey) });
-          return;
-        }
-
-        const filtered = tokens.filter(token => {
-          const searchFields = [
-            token.tokenNo?.toString() || '',
-            token.code?.toString() || '',
-            token.name || '',
-            token.test || '',
-            token.sample || '',
-            token.weight?.toString() || '',
-            token.amount?.toString() || ''
-          ];
-
-          return searchTerms.every(term =>
-            searchFields.some(field =>
-              field.toLowerCase().includes(term)
-            )
-          );
-        });
-
-        searchCacheRef.current.set(cacheKey, filtered);
-        dispatch({ type: 'SET_FIELD', field: 'filteredTokens', value: filtered });
-      }, 300),
-    [tokens]
-  );
-
-  // Clear cache when tokens change - optimize this effect
+  // The cache and the rows on screen both key off `tokens`, so they refresh
+  // together: drop the cache, then re-apply the active query without waiting
+  // out the 300ms debounce. A payment-status toggle patches `tokens`, and
+  // without this the table kept rendering the snapshot taken when the query
+  // was typed - the checkbox never appeared to change under a search.
   useEffect(() => {
     searchCacheRef.current.clear();
-  }, [tokens]); // This is correct - we want to clear cache when tokens change
+    if (state.searchQuery) {
+      runSearch(state.searchQuery);
+    }
+    // `state.searchQuery` is read rather than listed on purpose: typing
+    // already schedules the debounced search, and firing here too would
+    // defeat the throttle. `runSearch` changes exactly when `tokens` does.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [runSearch]);
 
   // Keeping the query in reducer state and the filtering in a debounced ref
   // means an inline handler would rebuild the debounce on every keystroke.
@@ -658,9 +673,10 @@ const TokenPage = () => {
     },
     handlePrint,
     handlePaymentStatusChange: async (tokenId, isPaid) => {
-      // The mutation already patches the query cache on success. Patching
-      // filteredTokens here as well meant a second, competing copy of the row
-      // that the next refetch would silently overwrite.
+      // The mutation flips the row optimistically on click and confirms (or
+      // rolls back) when the request settles. Patching filteredTokens here as
+      // well would mean a second, competing copy of the row - the effect above
+      // re-runs the search against the patched query cache instead.
       const updated = await updatePaymentStatus(tokenId, isPaid);
       if (!updated) {
         dispatch({ type: 'SET_FIELD', field: 'error', value: 'Could not update the payment status.' });

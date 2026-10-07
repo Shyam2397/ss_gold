@@ -9,7 +9,8 @@ const CustomerGroup = ({
   customerName,
   customerPhone,
   isExpanded,
-  onToggle
+  onToggle,
+  isVanishing
 }) => {
   const [printStatus, setPrintStatus] = useState('');
   // A statement is physical paper, so a double-click must not produce two
@@ -56,7 +57,9 @@ const CustomerGroup = ({
   };
 
   return (
-    <li className="hover:bg-amber-100 transition-colors duration-200">
+    <li
+      className={`hover:bg-amber-100 transition-colors duration-200${isVanishing ? ' vanish-out' : ''}`}
+    >
       <div 
         className="px-4 py-2.5 flex items-center justify-between cursor-pointer group h-14"
         onClick={onToggle}

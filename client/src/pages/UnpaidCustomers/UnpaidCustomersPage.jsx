@@ -1,4 +1,4 @@
-import React, { useMemo, Suspense, lazy, useCallback } from 'react';
+import React, { useMemo, Suspense, lazy, useCallback, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getUnpaidCustomers } from '../../services/customerService';
 import { format, parseISO } from 'date-fns';
@@ -27,6 +27,10 @@ const DashboardComponents = lazy(() => Promise.all([
 // Keep these separate as they might not be immediately visible
 const CustomerGroup = lazy(() => import('./components/CustomerGroup'));
 const CustomerInvoiceTable = lazy(() => import('./components/CustomerInvoiceTable'));
+
+// Matches the .vanish-out keyframes in index.css (450ms) plus a small buffer,
+// so the group is only unmounted once its fade-and-collapse has finished.
+const VANISH_DURATION_MS = 500;
 
 // Loading fallback components
 const LoadingFallback = ({ className = '' }) => (
@@ -174,6 +178,49 @@ const UnpaidCustomersPage = () => {
     return filteredCustomers.reduce((sum, group) => sum + group.customers.length, 0);
   }, [filteredCustomers]);
 
+  // A customer whose last invoice is paid disappears from `filteredCustomers`
+  // immediately (the row is dropped from the query cache), which would make the
+  // group pop out of the list. Keep a snapshot here for one animation cycle so
+  // the header and its invoice table can fade and collapse out first.
+  const [vanishingGroups, setVanishingGroups] = useState(() => new Map());
+
+  const handleGroupCleared = useCallback((code) => {
+    const index = filteredCustomers.findIndex(group => group.code === code);
+    // Already gone: a rollback brought the group back, or a second row of the
+    // same group cleared after the first one already started the animation.
+    if (index === -1) return;
+    setVanishingGroups(prev => {
+      if (prev.has(code)) return prev;
+      const next = new Map(prev);
+      next.set(code, { group: filteredCustomers[index], index });
+      return next;
+    });
+    setTimeout(() => {
+      setVanishingGroups(prev => {
+        if (!prev.has(code)) return prev;
+        const next = new Map(prev);
+        next.delete(code);
+        return next;
+      });
+    }, VANISH_DURATION_MS);
+  }, [filteredCustomers]);
+
+  // Groups being animated out keep their original slot: the vanished group is
+  // missing from `filteredCustomers`, so splicing it back at its remembered
+  // index puts it exactly where it was. If a rollback restored it to the live
+  // list, the live copy wins and the snapshot is ignored.
+  const visibleGroups = useMemo(() => {
+    if (vanishingGroups.size === 0) return filteredCustomers;
+    const merged = [...filteredCustomers];
+    [...vanishingGroups.entries()]
+      .sort((a, b) => a[1].index - b[1].index)
+      .forEach(([code, { group, index }]) => {
+        if (filteredCustomers.some(g => g.code === code)) return;
+        merged.splice(Math.min(index, merged.length), 0, { ...group, vanishing: true });
+      });
+    return merged;
+  }, [filteredCustomers, vanishingGroups]);
+
   // Simple functions don't need useCallback
   const toggleCustomerExpansion = (code) => {
     actions.toggleCustomer(code);
@@ -261,9 +308,9 @@ const UnpaidCustomersPage = () => {
             </Suspense>
 
             <div className="bg-white/70 backdrop-blur-sm rounded-2xl border border-gray-200/50 overflow-hidden shadow-lg">
-              {filteredCustomers.length > 0 ? (
+              {visibleGroups.length > 0 ? (
                 <ul className="divide-y divide-gray-200/50">
-                  {filteredCustomers.map(({ code, customers, totalAmount, customerName, customerPhone }) => (
+                  {visibleGroups.map(({ code, customers, totalAmount, customerName, customerPhone, vanishing }) => (
                     <React.Fragment key={code}>
                       <LazyComponent>
                         <CustomerGroup
@@ -274,15 +321,18 @@ const UnpaidCustomersPage = () => {
                           customerPhone={customerPhone}
                           isExpanded={isCustomerExpanded(code)}
                           onToggle={() => toggleCustomerExpansion(code)}
+                          isVanishing={vanishing}
                         />
                       </LazyComponent>
                       {isCustomerExpanded(code) && (
-                        <li>
+                        <li className={vanishing ? 'vanish-out' : ''}>
                           <LazyComponent>
                             <CustomerInvoiceTable 
                               customers={customers}
+                              groupCode={code}
                               isLoading={isLoading}
                               onPaymentStatusUpdate={refetch} 
+                              onGroupCleared={handleGroupCleared}
                             />
                           </LazyComponent>
                         </li>
