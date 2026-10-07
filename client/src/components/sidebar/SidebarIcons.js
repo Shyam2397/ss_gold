@@ -1,4 +1,4 @@
-import { 
+import {
   FiHome,
   FiUsers,
   FiTag,
@@ -9,17 +9,15 @@ import {
   FiBook,
   FiLogOut,
   FiMenu,
-  FiUser,
-  FiKey,
-  FiX 
+  FiX
 } from 'react-icons/fi';
 
-import { 
+import {
   GiGoldBar,
-  GiTestTubes 
+  GiTestTubes
 } from 'react-icons/gi';
 
-// Export icons with lazy loading wrapper
+// Shared icon map used across sidebar components
 export const Icons = {
   Home: FiHome,
   Users: FiUsers,
@@ -31,8 +29,6 @@ export const Icons = {
   Book: FiBook,
   LogOut: FiLogOut,
   Menu: FiMenu,
-  User: FiUser,
-  Key: FiKey,
   X: FiX,
   GoldBar: GiGoldBar,
   TestTubes: GiTestTubes

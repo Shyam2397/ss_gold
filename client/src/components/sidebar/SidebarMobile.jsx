@@ -1,10 +1,10 @@
-import React, { memo } from 'react';
+import React, { memo, useEffect } from 'react';
 import { AnimatePresence, motion } from "framer-motion";
-import { FiMenu } from 'react-icons/fi';
 import { useSidebar } from './SidebarProvider';
 import { SidebarHeader } from './SidebarHeader';
 import { SidebarFooter } from './SidebarFooter';
 import { SidebarMenuContent } from './SidebarMenuContent';
+import { Icons } from './SidebarIcons';
 
 export const SidebarMobile = memo(({
   user,
@@ -13,6 +13,9 @@ export const SidebarMobile = memo(({
   mainMenuItems,
   dataMenuItems,
   expenseMenuItems,
+  canAccessSettings,
+  hasAnyDataItem,
+  hasAnyExpenseItem,
   isActive,
   isDataOpen,
   setIsDataOpen,
@@ -20,20 +23,35 @@ export const SidebarMobile = memo(({
   setIsExpensesOpen,
   onExpenseItemClick,
 }) => {
-  const { open, setOpen } = useSidebar();
+  const { mobileOpen, setMobileOpen } = useSidebar();
+
+  // The drawer is a mobile-only overlay; if the viewport grows while it is open,
+  // close it so a stale open drawer cannot leak into the desktop sidebar.
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 768px)');
+    const onMatch = (e) => { if (e.matches) setMobileOpen(false); };
+    mq.addEventListener('change', onMatch);
+    return () => mq.removeEventListener('change', onMatch);
+  }, [setMobileOpen]);
 
   return (
     <>
       {/* Mobile Sidebar Button */}
       <div className="md:hidden fixed top-0 left-0 z-20 m-4">
-        <button onClick={() => setOpen(!open)} className="p-2 rounded-lg bg-white shadow-lg hover:bg-gray-50">
-          <FiMenu className="h-6 w-6 text-gray-600" />
+        <button
+          type="button"
+          onClick={() => setMobileOpen(!mobileOpen)}
+          aria-label="Toggle navigation menu"
+          aria-expanded={mobileOpen}
+          className="p-2 rounded-lg bg-white shadow-lg hover:bg-gray-50"
+        >
+          <Icons.Menu className="h-6 w-6 text-gray-600" />
         </button>
       </div>
 
       {/* Mobile Sidebar */}
       <AnimatePresence mode="wait">
-        {open && (
+        {mobileOpen && (
           <motion.div
             className="fixed inset-0 z-50 md:hidden"
             initial={{ opacity: 0 }}
@@ -44,7 +62,7 @@ export const SidebarMobile = memo(({
             {/* Backdrop */}
             <motion.div
               className="absolute inset-0 bg-black/50"
-              onClick={() => setOpen(false)}
+              onClick={() => setMobileOpen(false)}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -60,7 +78,7 @@ export const SidebarMobile = memo(({
             >
               <SidebarHeader isMobile={true} />
               <div className="flex-1 flex flex-col min-h-0">
-                <SidebarMenuContent isMobile={true} {...{ mainMenuItems, dataMenuItems, expenseMenuItems, user, isActive, handleNavigation, isDataOpen, setIsDataOpen, isExpensesOpen, setIsExpensesOpen, onExpenseItemClick }} />
+                <SidebarMenuContent isMobile={true} {...{ mainMenuItems, dataMenuItems, expenseMenuItems, canAccessSettings, hasAnyDataItem, hasAnyExpenseItem, user, isActive, handleNavigation, isDataOpen, setIsDataOpen, isExpensesOpen, setIsExpensesOpen, onExpenseItemClick }} />
                 <SidebarFooter handleLogout={handleLogout} handleNavigation={handleNavigation} />
               </div>
             </motion.div>

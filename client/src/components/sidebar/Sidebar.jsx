@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, memo, useEffect, useRef, Suspense } from 'react';
+import React, { useState, useMemo, useCallback, memo, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { IconContext } from 'react-icons';
 import { Icons } from './SidebarIcons';
@@ -10,9 +10,6 @@ import { filterByPermission, canAccessPath as canAccessPathFor } from '../../uti
 import { SidebarProvider, useSidebar } from './SidebarProvider';
 import { SidebarDesktop } from './SidebarDesktop';
 import { SidebarMobile } from './SidebarMobile';
-
-// Lazy load modals
-const AddExpense = React.lazy(() => import('../../pages/AddExpensePage'));
 
 // Main Sidebar component orchestrating context and content
 const Sidebar = ({ open: openProp, setOpen: setOpenProp, animate = true, user, setLoggedIn }) => {
@@ -27,21 +24,19 @@ const Sidebar = ({ open: openProp, setOpen: setOpenProp, animate = true, user, s
 const SidebarContent = memo(({ user, setLoggedIn }) => {
   const { setOpen, animate } = useSidebar(); // Get setOpen/animate from context
   const { user: sessionUser } = useUser();
+  // Single source of truth for permissions AND the account card. The context
+  // session user is preferred; the prop is only a fallback for renderers that
+  // mount Sidebar without a UserProvider.
+  const activeUser = sessionUser ?? user;
   const location = useLocation();
   const navigate = useNavigate();
   const [isDataOpen, setIsDataOpen] = useState(false);
   const [isExpensesOpen, setIsExpensesOpen] = useState(false);
-  const [showAddExpense, setShowAddExpense] = useState(false);
   const scrollPositionsRef = useRef(new Map());
   const [isNavigating, setIsNavigating] = useState(false);
+  const navTimeoutRef = useRef(null);
 
-  const throttledScroll = useMemo(
-    () =>
-      throttle((pathname, scrollY) => {
-        scrollPositionsRef.current.set(pathname, scrollY);
-      }, 100),
-    []
-  );
+  useEffect(() => () => clearTimeout(navTimeoutRef.current), []);
 
   useEffect(() => {
     let lastKnownPosition = window.scrollY;
@@ -69,7 +64,6 @@ const SidebarContent = memo(({ user, setLoggedIn }) => {
   const handleNavigation = useCallback((to) => {
     // Batch state updates
     const performNavigation = () => {
-      const currentPosition = window.scrollY;
       const scrollBehavior = SCROLL_BEHAVIOR[to];
 
       // Use React 18's automatic batching
@@ -91,17 +85,33 @@ const SidebarContent = memo(({ user, setLoggedIn }) => {
     // Debounce navigation to prevent rapid clicks
     if (!isNavigating) {
       setIsNavigating(true);
+      // Close any open Data/Expenses submenu and collapse the desktop rail in
+      // the same gesture that navigates. Otherwise the rail stays expanded for
+      // a frame (flashing with the section still open) before MainLayout's
+      // post-paint effect collapses it, and the sections re-open on the next
+      // expand because their state was left behind.
+      setIsDataOpen(false);
+      setIsExpensesOpen(false);
+      if (animate && window.matchMedia('(min-width: 768px)').matches) setOpen(false);
       performNavigation();
-      setTimeout(() => setIsNavigating(false), 300);
+      clearTimeout(navTimeoutRef.current);
+      navTimeoutRef.current = setTimeout(() => setIsNavigating(false), 300);
     }
-  }, [navigate, isNavigating]);
+  }, [navigate, isNavigating, animate, setOpen]);
 
   const handleLogout = useCallback(() => {
     logoutUser();
     setLoggedIn(false);
   }, [setLoggedIn]);
 
-  const isActive = (path) => location.pathname === path;
+  // Active when the current route equals the item's path or lives under it, so
+  // a detail view like /entries/5 still highlights "New Entries". A trailing
+  // slash boundary keeps sibling prefixes from matching (/token vs /token-data).
+  const isActive = useCallback((path) => {
+    if (!path) return false;
+    const current = location.pathname;
+    return current === path || current.startsWith(`${path.replace(/\/+$/, '')}/`);
+  }, [location.pathname]);
 
   const allMainMenuItems = useMemo(() => [
     { icon: Icons.Home, label: 'Dashboard', path: '/dashboard' },
@@ -122,30 +132,25 @@ const SidebarContent = memo(({ user, setLoggedIn }) => {
 
   // Hide anything the signed in account has not been granted
   const mainMenuItems = useMemo(
-    () => filterByPermission(sessionUser, allMainMenuItems),
-    [sessionUser, allMainMenuItems]
+    () => filterByPermission(activeUser, allMainMenuItems),
+    [activeUser, allMainMenuItems]
   );
   const dataMenuItems = useMemo(
-    () => filterByPermission(sessionUser, allDataMenuItems),
-    [sessionUser, allDataMenuItems]
+    () => filterByPermission(activeUser, allDataMenuItems),
+    [activeUser, allDataMenuItems]
   );
 
   const handleExpenseClick = useCallback((item) => {
     if (item.modalSetter) {
       item.modalSetter(true);
-      setIsExpensesOpen(false);
-      if (animate) setOpen(false);
     } else if (item.onClick) {
       item.onClick();
-      setIsExpensesOpen(false);
-      if (animate) setOpen(false);
     }
+    setIsExpensesOpen(false);
+    // Forces the hover-expanded desktop rail shut immediately. On mobile the
+    // drawer is closed by the menu handler, so the desktop state is left alone.
+    if (animate && window.matchMedia('(min-width: 768px)').matches) setOpen(false);
   }, [animate, setOpen]);
-  
-  // Define modal setter for add expense
-  const expenseModalSetters = useMemo(() => ({
-    add: setShowAddExpense
-  }), []);
 
   const allExpenseMenuItems = useMemo(() => [
     { type: 'link', icon: Icons.Book, label: 'Cash Book', path: '/cashbook', onClick: () => handleNavigation('/cashbook') },
@@ -166,19 +171,19 @@ const SidebarContent = memo(({ user, setLoggedIn }) => {
   ], [handleNavigation]);
 
   const expenseMenuItems = useMemo(
-    () => filterByPermission(sessionUser, allExpenseMenuItems),
-    [sessionUser, allExpenseMenuItems]
+    () => filterByPermission(activeUser, allExpenseMenuItems),
+    [activeUser, allExpenseMenuItems]
   );
 
   // Props to pass down to both Desktop and Mobile Sidebars
   const commonSidebarProps = {
-    user,
+    user: activeUser,
     handleLogout,
     handleNavigation,
     mainMenuItems,
     dataMenuItems,
     expenseMenuItems,
-    canAccessSettings: canAccessPathFor(sessionUser, '/settings'),
+    canAccessSettings: canAccessPathFor(activeUser, '/settings'),
     hasAnyDataItem: dataMenuItems.length > 0,
     hasAnyExpenseItem: expenseMenuItems.length > 0,
     isActive,
@@ -189,28 +194,12 @@ const SidebarContent = memo(({ user, setLoggedIn }) => {
     onExpenseItemClick: handleExpenseClick, // Pass the handler
   };
 
-  // Add performance monitoring
-  useEffect(() => {
-    const observer = new PerformanceObserver((list) => {
-      list.getEntries().forEach((entry) => {
-        console.log(`${entry.name}: ${entry.duration}`);
-      });
-    });
-    observer.observe({ entryTypes: ['measure'] });
-    return () => observer.disconnect();
-  }, []);
-
   return (
     <>
       <IconContext.Provider value={{ style: { verticalAlign: 'middle' } }}>
         <SidebarDesktop {...commonSidebarProps} />
         <SidebarMobile {...commonSidebarProps} />
       </IconContext.Provider>
-
-      {/* Wrap modals with Suspense */}
-      <Suspense fallback={<div>Loading...</div>}>
-        {showAddExpense && <AddExpense isOpen={showAddExpense} onClose={() => setShowAddExpense(false)} />}
-      </Suspense>
     </>
   );
 });

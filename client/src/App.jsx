@@ -173,8 +173,6 @@ const PermissionRoute = ({ path, children }) => {
 };
 
 const AppRoutes = ({ loggedIn, setLoggedIn }) => {
-  const location = useLocation();
-
   useEffect(() => {
     // Ensure proper scroll restoration
     if ('scrollRestoration' in window.history) {
@@ -184,7 +182,7 @@ const AppRoutes = ({ loggedIn, setLoggedIn }) => {
 
   return (
     <ErrorBoundary>
-      <Routes location={location} key={location.pathname}>
+      <Routes>
         <Route
           path="/"
           element={

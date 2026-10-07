@@ -11,7 +11,7 @@ import { displayName } from '../../utils/permissions';
  * signed in account can be reviewed and the password updated.
  */
 export const SidebarUserCard = memo(({ user, isActive, handleNavigation, isMobile = false }) => {
-  const { open, setOpen } = useSidebar();
+  const { open, setMobileOpen } = useSidebar();
 
   const username = displayName(user);
   const mustChangePassword = Boolean(user?.mustChangePassword);
@@ -28,7 +28,7 @@ export const SidebarUserCard = memo(({ user, isActive, handleNavigation, isMobil
             e.preventDefault();
             handleNavigation('/user');
           }
-          if (isMobile) setOpen(false);
+          if (isMobile) setMobileOpen(false);
         }}
         aria-label="Open my account"
         title={isExpanded ? undefined : username}

@@ -20,6 +20,9 @@ export const SidebarDesktop = memo(({
   mainMenuItems,
   dataMenuItems,
   expenseMenuItems,
+  canAccessSettings,
+  hasAnyDataItem,
+  hasAnyExpenseItem,
   isActive,
   isDataOpen,
   setIsDataOpen,
@@ -30,6 +33,14 @@ export const SidebarDesktop = memo(({
   const { open, setOpen, animate } = useSidebar();
   const expandTimeoutRef = useRef(null);
   const isAnimatingRef = useRef(false);
+  // Timestamp of the last time the rail collapsed. A just-navigated sidebar
+  // must stay shut: otherwise the hover-expand re-opens it under the cursor the
+  // instant the rail shrinks beneath a subsection click.
+  const collapsedAtRef = useRef(null);
+
+  useEffect(() => {
+    if (!open) collapsedAtRef.current = Date.now();
+  }, [open]);
 
   const sidebarRef = useResizeObserver(({ width }) => {
     if (!isAnimatingRef.current) {
@@ -39,6 +50,9 @@ export const SidebarDesktop = memo(({
 
   const handleMouseEnter = useCallback(() => {
     if (!animate || isAnimatingRef.current) return;
+    // Keep the rail closed for a short grace period after it was collapsed so
+    // the hover-expand cannot fight an item click that just navigated.
+    if (collapsedAtRef.current && Date.now() - collapsedAtRef.current < 600) return;
     clearTimeout(expandTimeoutRef.current);
     expandTimeoutRef.current = setTimeout(() => setOpen(true), 50);
   }, [animate, setOpen]);
@@ -76,7 +90,7 @@ export const SidebarDesktop = memo(({
       <SidebarHeader />
       <ErrorBoundary>
         <div className="flex-1 flex flex-col min-h-0">
-          <SidebarMenuContent {...{ mainMenuItems, dataMenuItems, expenseMenuItems, user, isActive, handleNavigation, isDataOpen, setIsDataOpen, isExpensesOpen, setIsExpensesOpen, onExpenseItemClick }} />
+          <SidebarMenuContent {...{ mainMenuItems, dataMenuItems, expenseMenuItems, canAccessSettings, hasAnyDataItem, hasAnyExpenseItem, user, isActive, handleNavigation, isDataOpen, setIsDataOpen, isExpensesOpen, setIsExpensesOpen, onExpenseItemClick }} />
           <SidebarFooter handleLogout={handleLogout} handleNavigation={handleNavigation} />
         </div>
       </ErrorBoundary>

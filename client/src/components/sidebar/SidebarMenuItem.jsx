@@ -18,13 +18,20 @@ const labelVariants = {
 };
 
 export const SidebarMenuItem = memo(({ icon: Icon, label, to, isActive, onClick, handleNavigation }) => {
-  const { open } = useSidebar();
+  const { open, mobileOpen } = useSidebar();
+  // Labels are shown when the desktop sidebar is expanded OR the mobile drawer
+  // is open - the two viewports own independent open states.
+  const labelsVisible = open || mobileOpen;
 
   return (
     <Link
       to={to || '#'} // Ensure 'to' is defined, default to '#' if only onClick is used
+      title={!labelsVisible ? label || undefined : undefined} // Tooltip when the label is visually hidden
+      aria-label={label || undefined} // Keep the item named when the label is display:none
       onClick={(e) => {
-        if (!to) e.preventDefault(); // Prevent navigation if 'to' is not provided
+        // When handleNavigation is present it calls navigate() itself, so stop
+        // the Link from following through or the route would be entered twice.
+        if (!to || handleNavigation) e.preventDefault();
         if (onClick) onClick();
         if (to && handleNavigation) handleNavigation(to);
       }}
@@ -35,7 +42,7 @@ export const SidebarMenuItem = memo(({ icon: Icon, label, to, isActive, onClick,
       )}
     >
       <div className="flex items-center justify-center w-5 pl-1"><Icon className={cn("h-5 w-5 flex-shrink-0", isActive && "text-amber-600")} /></div>
-      <motion.span variants={labelVariants} animate={open ? "visible" : "hidden"} className="font-medium text-md ml-3 whitespace-nowrap">{label}</motion.span>
+      <motion.span variants={labelVariants} animate={labelsVisible ? "visible" : "hidden"} className="font-medium text-md ml-3 whitespace-nowrap">{label}</motion.span>
     </Link>
   );
 });
