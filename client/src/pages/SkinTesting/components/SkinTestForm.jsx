@@ -4,7 +4,8 @@ import { formatDateForInput, formatTimeForInput } from '../utils/validation';
 import { 
   FiHash, 
   FiSave, 
-  FiPrinter, 
+  FiPrinter,
+  FiFileText,
   FiRotateCcw,
   FiAlertCircle,
   FiCheckCircle 
@@ -34,6 +35,9 @@ const SkinTestForm = ({
   handleSubmit,
   handleReset,
   handleSaveAndPrint,
+  handlePrintOnly,
+  isPrintOnlyBusy,
+  isActionBusy,
   getFieldIcon,
   printValuesOnly,
   setPrintValuesOnly,
@@ -155,14 +159,15 @@ const SkinTestForm = ({
         <button
           type="button"
           onClick={handleReset}
-          className="inline-flex items-center px-3 py-2 border border-amber-200 text-amber-700 rounded-2xl hover:bg-amber-50 transition-all"
+          disabled={isActionBusy}
+          className="inline-flex items-center px-3 py-2 border border-amber-200 text-amber-700 rounded-2xl hover:bg-amber-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
         >
           <FiRotateCcw className="mr-2 h-4 w-4" />
           Reset
         </button>
         <button
           type="submit"
-          disabled={loading}
+          disabled={isActionBusy}
           className="inline-flex items-center px-3 py-2 border border-transparent rounded-2xl shadow-sm text-sm font-medium text-white bg-gradient-to-r from-amber-600 to-yellow-500 hover:from-amber-700 hover:to-yellow-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:from-amber-600 disabled:hover:to-yellow-500"
         >
           <FiSave className="mr-2 h-4 w-4" />
@@ -171,12 +176,22 @@ const SkinTestForm = ({
         <button
           type="button"
           onClick={handleSaveAndPrint}
-          disabled={loading}
+          disabled={isActionBusy}
           title="Save this test, then print the certificate"
           className="inline-flex items-center px-3 py-2 border border-transparent rounded-2xl shadow-sm text-sm font-medium text-white bg-gradient-to-r from-amber-600 to-yellow-500 hover:from-amber-700 hover:to-yellow-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:from-amber-600 disabled:hover:to-yellow-500"
         >
           <FiPrinter className="mr-2 h-4 w-4" />
           Save &amp; Print
+        </button>
+        <button
+          type="button"
+          onClick={handlePrintOnly}
+          disabled={isActionBusy}
+          title="Print this certificate without saving the test"
+          className="inline-flex items-center px-3 py-2 border border-amber-200 text-amber-700 rounded-2xl hover:bg-amber-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+        >
+          <FiFileText className="mr-2 h-4 w-4" />
+          {isPrintOnlyBusy ? 'Printing...' : 'Print Only'}
         </button>
       </div>
     </form>

@@ -217,6 +217,34 @@ const SkinTesting = () => {
       savingAndPrintingRef.current = false;
     }
   }, [saveForm, printValuesOnly]);
+
+  // Print Only: renders the certificate from the form exactly as it stands, with
+  // no save. Nothing is written and the form is left untouched, so the operator
+  // can reprint as often as needed and still save the test afterwards.
+  //
+  // Guarded by its own ref for the same reason as above: `loading` only covers
+  // the save, so it does not stop a second print while the first is still going.
+  const printingOnlyRef = React.useRef(false);
+  const [isPrintOnlyBusy, setIsPrintOnlyBusy] = useState(false);
+  const handlePrintOnly = useCallback(async () => {
+    if (printingOnlyRef.current) return;
+    printingOnlyRef.current = true;
+    setIsPrintOnlyBusy(true);
+    try {
+      // Shallow copy so the certificate is built from one consistent snapshot
+      // even if a field is edited while the logo is still resolving. printData
+      // is reached before any await so its pop-up is still inside the click's
+      // user activation - the popup blocker would otherwise reject it.
+      await printData({ ...formData }, printValuesOnly);
+    } catch (err) {
+      // printData already logs its own failures; never surface a raw print
+      // error over the form.
+      console.error('Print only failed:', err);
+    } finally {
+      printingOnlyRef.current = false;
+      setIsPrintOnlyBusy(false);
+    }
+  }, [formData, printValuesOnly]);
   
   // Stable so the memoized table's shallow prop check actually passes; an
   // inline arrow here is a new function on every render and re-renders the
@@ -276,6 +304,15 @@ const SkinTesting = () => {
         handleSubmit={handleSubmit}
         handleReset={handleResetAndFocus}
         handleSaveAndPrint={handleSaveAndPrint}
+        handlePrintOnly={handlePrintOnly}
+        isPrintOnlyBusy={isPrintOnlyBusy}
+        // A save or either print run holds the action row. The save and
+        // save-and-print handlers only guard their own re-entry, and
+        // handleReset has no guard at all, so without this the form could be
+        // reset or saved underneath an in-flight print. The inputs keep
+        // following `loading` alone - typing during a print is harmless, and
+        // the certificate is built from a snapshot taken at click time.
+        isActionBusy={loading || isPrintOnlyBusy}
         getFieldIcon={getFieldIcon}
         printValuesOnly={printValuesOnly}
         setPrintValuesOnly={setPrintValuesOnly}

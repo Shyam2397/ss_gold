@@ -1,4 +1,4 @@
-import React, { useReducer, useEffect, useMemo, useCallback, Suspense, useRef } from "react";
+import React, { useReducer, useEffect, useMemo, useCallback, useState, Suspense, useRef } from "react";
 import debounce from 'lodash/debounce';
 import {
   FiUser,
@@ -11,6 +11,7 @@ import {
   FiSave,
   FiRotateCcw,
   FiPrinter,
+  FiFileText,
   FiList,
   FiClipboard
 } from "react-icons/fi";
@@ -77,8 +78,51 @@ const waitForFonts = (printWindow) => {
   ]);
 };
 
+// Opens the receipt window synchronously, while the caller still holds the
+// user activation - any await before window.open() lets the popup blocker
+// reject it. Returns `null` in Electron, where there is no window to open, and
+// `false` when the pop-up was blocked.
+const openPrintWindow = () => {
+  if (window.electron && window.electron.isElectron) return null;
+  const printWindow = window.open('', '', 'width=800,height=400');
+  if (!printWindow) return false;
+  printWindow.document.open();
+  printWindow.document.write('<!doctype html><html><body></body></html>');
+  printWindow.document.close();
+  return printWindow;
+};
+
+// Hands the receipt to the printer: Electron prints it silently over IPC, the
+// browser gets a window with the print dialog already open. Throws on a failed
+// silent print, so the caller reports it.
+const printReceipt = async (printContent, printWindow) => {
+  if (printWindow) {
+    printWindow.document.open();
+    printWindow.document.write(printContent);
+    printWindow.document.close();
+    // Wait for the webfonts rather than a fixed 250ms. The receipt pulls
+    // Poppins/Allura from fonts.googleapis.com, so a fixed delay printed the
+    // fallback font whenever the network was slower than that - and silently
+    // did so every time when offline. document.fonts.ready settles once the
+    // stylesheet has loaded and the faces are usable, with a cap so a hung
+    // request cannot block the print indefinitely.
+    await waitForFonts(printWindow);
+    printWindow.focus();
+    printWindow.print();
+    return;
+  }
+
+  const result = await window.electron.silentPrintToken(printContent);
+  if (!result || !result.success) {
+    throw new Error((result && result.error) || 'Silent print failed');
+  }
+};
+
 const TokenPage = () => {
   const [state, dispatch] = useReducer(tokenReducer, initialState);
+  // Print-only has no save step, so it gets its own flag rather than sharing the
+  // reducer's isBusy, whose label reads "Saving & Printing...".
+  const [isPrintOnlyBusy, setIsPrintOnlyBusy] = useState(false);
   const searchCacheRef = useRef(new Map());
   const codeInputRef = useRef(null);
   const hasAutoFocusedCodeRef = useRef(false);
@@ -419,26 +463,20 @@ const TokenPage = () => {
     if (!validateForm()) return;
 
     const tokenData = getTokenData();
-    const isElectronEnv = !!(window.electron && window.electron.isElectron);
 
     // The print window has to be opened synchronously, while we still hold the
     // user activation. Any await before window.open() lets the popup blocker
     // reject it, which would leave the token saved but never printed.
-    let printWindow = null;
-    if (!isElectronEnv) {
-      printWindow = window.open('', '', 'width=800,height=400');
-      if (!printWindow) {
-        dispatch({
-          type: 'SET_FIELD',
-          field: 'error',
-          value: 'Print window was blocked. Allow pop-ups for this page and try again.'
-        });
-        return;
-      }
-      printWindow.document.open();
-      printWindow.document.write('<!doctype html><html><body></body></html>');
-      printWindow.document.close();
+    const printWindow = openPrintWindow();
+    if (printWindow === false) {
+      dispatch({
+        type: 'SET_FIELD',
+        field: 'error',
+        value: 'Print window was blocked. Allow pop-ups for this page and try again.'
+      });
+      return;
     }
+    const isElectronEnv = printWindow === null;
 
     isBusyRef.current = true;
     dispatch({ type: 'SET_FIELD', field: 'isBusy', value: true });
@@ -467,27 +505,13 @@ const TokenPage = () => {
 
       if (isElectronEnv) {
         dispatch({ type: 'SET_FIELD', field: 'success', value: 'Sending to printer...' });
-        const result = await window.electron.silentPrintToken(printContent);
-        if (!result || !result.success) {
-          throw new Error((result && result.error) || 'Silent print failed');
-        }
+      }
+      await printReceipt(printContent, printWindow);
+      if (isElectronEnv) {
         dispatch({ type: 'SET_FIELD', field: 'success', value: 'Token printed successfully!' });
         setTimeout(() => {
           dispatch({ type: 'SET_FIELD', field: 'success', value: '' });
         }, 3000);
-      } else {
-        printWindow.document.open();
-        printWindow.document.write(printContent);
-        printWindow.document.close();
-        // Wait for the webfonts rather than a fixed 250ms. The receipt pulls
-        // Poppins/Allura from fonts.googleapis.com, so a fixed delay printed the
-        // fallback font whenever the network was slower than that - and silently
-        // did so every time when offline. document.fonts.ready settles once the
-        // stylesheet has loaded and the faces are usable, with a cap so a hung
-        // request cannot block the print indefinitely.
-        await waitForFonts(printWindow);
-        printWindow.focus();
-        printWindow.print();
       }
     } catch (error) {
       console.error('Print error:', error);
@@ -504,6 +528,63 @@ const TokenPage = () => {
       dispatch({ type: 'SET_FIELD', field: 'isBusy', value: false });
     }
   }, [getTokenData, state.editMode, state.editId, validateForm, saveToken, resetAfterSave]);
+
+  // Prints the current form without persisting it. The token number is not
+  // consumed and the form is left untouched, so the operator can reprint a
+  // receipt as often as needed and still save the token afterwards.
+  const handlePrintOnly = useCallback(async () => {
+    if (isBusyRef.current) return;
+    if (!validateForm()) return;
+
+    const tokenData = getTokenData();
+
+    // Same synchronous open as handlePrint - the popup blocker only honours the
+    // user activation that is still live at the click.
+    const printWindow = openPrintWindow();
+    if (printWindow === false) {
+      dispatch({
+        type: 'SET_FIELD',
+        field: 'error',
+        value: 'Print window was blocked. Allow pop-ups for this page and try again.'
+      });
+      return;
+    }
+    const isElectronEnv = printWindow === null;
+
+    // Shares the isBusyRef guard with the save/print handlers, so a print-only
+    // run still blocks a concurrent save. Its own flag drives the button label
+    // without stealing the reducer's isBusy, which reads "Saving & Printing...".
+    isBusyRef.current = true;
+    setIsPrintOnlyBusy(true);
+
+    try {
+      const printContent = generatePrintContent(tokenData, await getPrintLogo());
+
+      if (isElectronEnv) {
+        dispatch({ type: 'SET_FIELD', field: 'success', value: 'Sending to printer...' });
+      }
+      await printReceipt(printContent, printWindow);
+      if (isElectronEnv) {
+        dispatch({ type: 'SET_FIELD', field: 'success', value: 'Token printed successfully!' });
+        setTimeout(() => {
+          dispatch({ type: 'SET_FIELD', field: 'success', value: '' });
+        }, 3000);
+      }
+    } catch (error) {
+      console.error('Print error:', error);
+      dispatch({
+        type: 'SET_FIELD',
+        field: 'error',
+        value: 'Failed to print token: ' + (error.message || 'Unknown error')
+      });
+    } finally {
+      if (printWindow && !printWindow.closed) {
+        printWindow.close();
+      }
+      isBusyRef.current = false;
+      setIsPrintOnlyBusy(false);
+    }
+  }, [getTokenData, validateForm]);
 
   // Debounced search. useCallback(debounce(...)) re-ran debounce() on every
   // render and threw away all but the newest instance; useMemo keeps exactly one
@@ -617,6 +698,11 @@ const TokenPage = () => {
       }
     }
   }), [handlePrint, updatePaymentStatus, handleCodeChange, deleteToken, generateTokenNumber, state.deleteConfirmation.tokenId, focusCodeInput]);
+
+  // Either print path holds the form: isBusyRef makes Save/Update and Save and
+  // Print no-op, but resetForm carries no such guard and would happily wipe the
+  // form underneath an in-flight print. All four buttons follow this instead.
+  const isFormBusy = state.isBusy || isPrintOnlyBusy;
 
   // Add error boundary wrapper
   return (
@@ -738,7 +824,7 @@ const TokenPage = () => {
                 <button
                   type="button"
                   onClick={resetForm}
-                  disabled={state.isBusy}
+                  disabled={isFormBusy}
                   className="inline-flex items-center px-3 py-1.5 text-sm border border-amber-200 border-solid text-amber-700 rounded-xl hover:bg-amber-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
                 >
                   <FiRotateCcw className="mr-1.5 h-4 w-4" />
@@ -746,7 +832,7 @@ const TokenPage = () => {
                 </button>
                 <button
                   type="submit"
-                  disabled={state.isBusy}
+                  disabled={isFormBusy}
                   className="inline-flex items-center px-3 py-1.5 text-sm bg-gradient-to-r from-amber-600 to-yellow-500 text-white rounded-xl hover:from-amber-700 hover:to-yellow-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <FiSave className="mr-1.5 h-4 w-4" />
@@ -755,11 +841,21 @@ const TokenPage = () => {
                 <button
                   type="button"
                   onClick={handlePrint}
-                  disabled={state.isBusy}
+                  disabled={isFormBusy}
                   className="inline-flex items-center px-3 py-1.5 text-sm bg-gradient-to-r from-amber-600 to-yellow-500 text-white rounded-xl hover:from-amber-700 hover:to-yellow-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <FiPrinter className="mr-1.5 h-4 w-4" />
                   {state.isBusy ? "Saving & Printing..." : "Save and Print"}
+                </button>
+                <button
+                  type="button"
+                  onClick={handlePrintOnly}
+                  disabled={isFormBusy}
+                  title="Print this receipt without saving the token"
+                  className="inline-flex items-center px-3 py-1.5 text-sm border border-amber-200 border-solid text-amber-700 rounded-xl hover:bg-amber-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                >
+                  <FiFileText className="mr-1.5 h-4 w-4" />
+                  {isPrintOnlyBusy ? "Printing..." : "Print Only"}
                 </button>
               </div>
             </form>

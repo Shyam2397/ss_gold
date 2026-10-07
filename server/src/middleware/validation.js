@@ -80,7 +80,7 @@ const validatePureExchange = (req, res, next) => {
   // Accept either so the route does not depend on that duplication.
   const { token_no, tokenNo, date, weight } = req.body;
 
-  if (!token_no || !tokenNo || !date || !weight) {
+  if (!(token_no || tokenNo) || !date || !weight) {
     return res.status(400).json({
       error: 'Missing required fields',
       detail: 'token_no, date, and weight are required'
