@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { loginUser } from '../../services/authService';
 import { useUser } from '../UserInterface/UserContext';
@@ -12,6 +12,11 @@ const Login = ({ setLoggedIn }) => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { adoptSessionUser } = useUser();
+  const usernameInputRef = useRef(null);
+
+  useEffect(() => {
+    usernameInputRef.current?.focus();
+  }, []);
 
   const validateForm = () => {
     if (!username || username.length < 3) {
@@ -27,6 +32,7 @@ const Login = ({ setLoggedIn }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (loading) return;
     setError('');
 
     // Validate form
@@ -65,6 +71,7 @@ const Login = ({ setLoggedIn }) => {
           password={password}
           error={error}
           loading={loading}
+          usernameInputRef={usernameInputRef}
           onUsernameChange={(e) => {
             setUsername(e.target.value);
             setError('');

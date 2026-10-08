@@ -14,9 +14,9 @@ const LoginHeader = () => {
         className="h-20 w-auto transition-transform hover:scale-105"
       />
       <div className="text-center mt-3">
-        <h2 className="text-2xl font-bold text-amber-900">
+        <h1 className="text-4xl font-bold text-amber-900">
           {companyName}
-        </h2>
+        </h1>
         <p className="text-xs text-gray-500 mt-1">
           Sign in to continue
         </p>

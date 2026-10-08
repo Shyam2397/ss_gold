@@ -1,5 +1,5 @@
-import React from 'react';
-import { FiUser, FiLock } from 'react-icons/fi';
+import React, { useState } from 'react';
+import { FiUser, FiLock, FiEye, FiEyeOff } from 'react-icons/fi';
 
 const LoginInput = ({ 
   id, 
@@ -7,7 +7,13 @@ const LoginInput = ({
   value, 
   onChange, 
   placeholder, 
-  icon: Icon 
+  icon: Icon,
+  inputRef,
+  autoComplete,
+  disabled,
+  onKeyUp,
+  onBlur,
+  suffix
 }) => (
   <div className="relative">
     <div className="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none">
@@ -18,15 +24,27 @@ const LoginInput = ({
       name={id}
       type={type}
       required
+      ref={inputRef}
       value={value}
       onChange={onChange}
-      className="w-full pl-8 pr-1 py-1.5 border rounded-xl 
+      onKeyUp={onKeyUp}
+      onBlur={onBlur}
+      autoComplete={autoComplete}
+      disabled={disabled}
+      aria-label={placeholder}
+      className={`w-full pl-8 ${suffix ? 'pr-8' : 'pr-1'} py-1.5 border rounded-xl 
                 bg-white text-amber-900 
                 border-amber-300 
                 focus:outline-none focus:ring-1 focus:ring-amber-400
-                transition duration-200 ease-in-out text-sm"
+                disabled:opacity-60 disabled:cursor-not-allowed
+                transition duration-200 ease-in-out text-sm`}
       placeholder={placeholder}
     />
+    {suffix && (
+      <div className="absolute inset-y-0 right-0 pr-2 flex items-center">
+        {suffix}
+      </div>
+    )}
   </div>
 );
 
@@ -37,8 +55,18 @@ const LoginForm = ({
   loading, 
   onUsernameChange, 
   onPasswordChange, 
-  onSubmit 
+  onSubmit,
+  usernameInputRef 
 }) => {
+  const [showPassword, setShowPassword] = useState(false);
+  const [capsLockOn, setCapsLockOn] = useState(false);
+
+  const detectCapsLock = (e) => {
+    if (typeof e.getModifierState === 'function') {
+      setCapsLockOn(e.getModifierState('CapsLock'));
+    }
+  };
+
   return (
     <form className="space-y-3" onSubmit={onSubmit}>
       <div className="space-y-2">
@@ -49,16 +77,46 @@ const LoginForm = ({
           onChange={onUsernameChange}
           placeholder="Username"
           icon={FiUser}
+          inputRef={usernameInputRef}
+          autoComplete="username"
+          disabled={loading}
         />
-        <LoginInput
-          id="password"
-          type="password"
-          value={password}
-          onChange={onPasswordChange}
-          placeholder="Password"
-          icon={FiLock}
-        />
-        <div className="h-4">
+        <div>
+          <LoginInput
+            id="password"
+            type={showPassword ? 'text' : 'password'}
+            value={password}
+            onChange={onPasswordChange}
+            placeholder="Password"
+            icon={FiLock}
+            autoComplete="current-password"
+            disabled={loading}
+            onKeyUp={detectCapsLock}
+            onBlur={() => setCapsLockOn(false)}
+            suffix={
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                className="text-amber-600 hover:text-amber-700 focus:outline-none"
+              >
+                {showPassword ? (
+                  <FiEyeOff className="h-4 w-4" />
+                ) : (
+                  <FiEye className="h-4 w-4" />
+                )}
+              </button>
+            }
+          />
+          <div className="min-h-4">
+            {capsLockOn && (
+              <div role="status" className="text-amber-600 text-xs text-center mt-1">
+                Caps Lock is on
+              </div>
+            )}
+          </div>
+        </div>
+        <div className="min-h-4" role="alert">
           {error && (
             <div className="text-red-500 text-xs text-center">
               {error}
