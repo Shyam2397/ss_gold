@@ -13,10 +13,37 @@ const Login = ({ setLoggedIn }) => {
   const navigate = useNavigate();
   const { adoptSessionUser } = useUser();
   const usernameInputRef = useRef(null);
+  const pageRef = useRef(null);
 
   useEffect(() => {
     usernameInputRef.current?.focus();
   }, []);
+
+  // Same behaviour as the Token page: clicking empty space returns focus to
+  // the username field. Clicks on other controls (password, buttons, links,
+  // labels) and submissions in flight are left alone.
+  useEffect(() => {
+    const container = pageRef.current;
+    if (!container) return undefined;
+
+    const handleMouseDown = (e) => {
+      if (loading) return;
+      const target = e.target;
+      if (!(target instanceof Element)) return;
+      if (target.closest('input, textarea, select, button, a, label, [contenteditable="true"]')) return;
+      // Deferred: the browser's default mousedown handling moves focus to
+      // <body> after the handlers run, which would immediately blur the input
+      // again. Same pattern as the Token page's focusCodeInput.
+      requestAnimationFrame(() => {
+        if (usernameInputRef.current && document.activeElement !== usernameInputRef.current) {
+          usernameInputRef.current.focus();
+        }
+      });
+    };
+
+    container.addEventListener('mousedown', handleMouseDown);
+    return () => container.removeEventListener('mousedown', handleMouseDown);
+  }, [loading]);
 
   const validateForm = () => {
     if (!username || username.length < 3) {
@@ -63,7 +90,7 @@ const Login = ({ setLoggedIn }) => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-amber-50 to-yellow-100 px-4 py-8 sm:px-8">
+    <div ref={pageRef} className="min-h-screen flex items-center justify-center bg-gradient-to-br from-amber-50 to-yellow-100 px-4 py-8 sm:px-8">
       <div className="max-w-sm w-full space-y-5 bg-white p-5 py-10 rounded-3xl shadow-lg">
         <LoginHeader />
         <LoginForm 

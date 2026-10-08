@@ -133,6 +133,7 @@ const PureExchange = () => {
     const isLoading = loading || isCreating;
 
     const tokenNoInputRef = useRef(null);
+    const pageContainerRef = useRef(null);
 
     // `disabled={isLoading}` only takes effect after React re-renders, so a fast
     // double-click can fire a submit handler twice before that happens. This ref
@@ -163,6 +164,33 @@ const PureExchange = () => {
         if (!isLoading) {
             focusTokenInput();
         }
+    }, [isLoading, focusTokenInput]);
+
+    // Same behaviour as the Token/Login pages: clicking empty space hands focus
+    // back to the Token Number input. Clicks on other controls (inputs, buttons,
+    // links, labels) and anything shown while a save/print is in flight are
+    // left alone.
+    useEffect(() => {
+        const container = pageContainerRef.current;
+        if (!container) return undefined;
+        let raf = null;
+
+        const handleMouseDown = (e) => {
+            if (isLoading) return;
+            const target = e.target;
+            if (!(target instanceof Element)) return;
+            if (target.closest('input, textarea, select, button, a, label, [contenteditable="true"], [role="dialog"]')) return;
+            // Deferred a frame: the browser's default mousedown handling would
+            // otherwise move focus to <body> right after we focus the input.
+            cancelAnimationFrame(raf);
+            raf = requestAnimationFrame(focusTokenInput);
+        };
+
+        container.addEventListener('mousedown', handleMouseDown);
+        return () => {
+            container.removeEventListener('mousedown', handleMouseDown);
+            cancelAnimationFrame(raf);
+        };
     }, [isLoading, focusTokenInput]);
 
     // Function to set error with auto-clear timeout.
@@ -541,7 +569,7 @@ const handleSubmitForm = (event) => {
     };
 
     return (
-        <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-8">
+        <div ref={pageContainerRef} className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-8">
             
             {/* Form Section */}
             <div className="bg-white rounded-lg shadow-sm p-3 border border-amber-100 border-solid">

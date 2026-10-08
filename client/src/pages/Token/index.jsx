@@ -125,6 +125,7 @@ const TokenPage = () => {
   const [isPrintOnlyBusy, setIsPrintOnlyBusy] = useState(false);
   const searchCacheRef = useRef(new Map());
   const codeInputRef = useRef(null);
+  const pageContainerRef = useRef(null);
   const hasAutoFocusedCodeRef = useRef(false);
   const isBusyRef = useRef(false);
   const isDeleteBusyRef = useRef(false);
@@ -165,6 +166,27 @@ const TokenPage = () => {
       }
     });
   }, []);
+
+  // Keep the Code input as the active field: clicking empty space anywhere on
+  // the token page returns focus to it, so scanning can resume without hunting
+  // for the field. Clicks on other controls (inputs, buttons, links, labels)
+  // and anything shown while the delete dialog or a save/print is in flight
+  // are left alone.
+  useEffect(() => {
+    const container = pageContainerRef.current;
+    if (!container) return undefined;
+
+    const handleMouseDown = (e) => {
+      if (state.deleteConfirmation.isOpen || state.isBusy || isPrintOnlyBusy) return;
+      const target = e.target;
+      if (!(target instanceof Element)) return;
+      if (target.closest('input, textarea, select, button, a, label, [contenteditable="true"], [role="dialog"]')) return;
+      focusCodeInput();
+    };
+
+    container.addEventListener('mousedown', handleMouseDown);
+    return () => container.removeEventListener('mousedown', handleMouseDown);
+  }, [focusCodeInput, state.deleteConfirmation.isOpen, state.isBusy, isPrintOnlyBusy]);
 
   // Custom hook for token operations
   const {
@@ -726,7 +748,7 @@ const TokenPage = () => {
       fallback="Something went wrong. Please try again."
     >
       <Suspense fallback={<div>Loading...</div>}>
-        <div className="container mx-auto px-4 py-3">
+        <div ref={pageContainerRef} className="container mx-auto px-4 py-3">
           <div className="bg-white rounded-xl shadow-sm p-4 border border-amber-100 border-solid">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center">

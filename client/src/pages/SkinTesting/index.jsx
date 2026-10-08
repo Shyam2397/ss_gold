@@ -101,6 +101,7 @@ const SkinTesting = () => {
 
   const tokenInputRef = useRef(null);
   const highestInputRef = useRef(null);
+  const pageContainerRef = useRef(null);
 
   // The target input may not be mounted yet when this runs (a save reset
   // re-renders the field list, and a token lookup populates it a tick later),
@@ -245,6 +246,26 @@ const SkinTesting = () => {
       setIsPrintOnlyBusy(false);
     }
   }, [formData, printValuesOnly]);
+
+  // Same behaviour as the Token page: clicking empty space hands focus back to
+  // the Token No field. Clicks on other controls (inputs, buttons, links,
+  // labels) and anything shown while the delete dialog or a save/print is in
+  // flight are left alone.
+  useEffect(() => {
+    const container = pageContainerRef.current;
+    if (!container) return undefined;
+
+    const handleMouseDown = (e) => {
+      if (deleteConfirmation.isOpen || loading || isPrintOnlyBusy) return;
+      const target = e.target;
+      if (!(target instanceof Element)) return;
+      if (target.closest('input, textarea, select, button, a, label, [contenteditable="true"], [role="dialog"]')) return;
+      focusTokenInput();
+    };
+
+    container.addEventListener('mousedown', handleMouseDown);
+    return () => container.removeEventListener('mousedown', handleMouseDown);
+  }, [deleteConfirmation.isOpen, loading, isPrintOnlyBusy, focusTokenInput]);
   
   // Stable so the memoized table's shallow prop check actually passes; an
   // inline arrow here is a new function on every render and re-renders the
@@ -290,7 +311,7 @@ const SkinTesting = () => {
   const getFieldIcon = useCallback((key) => FIELD_ICONS[key.toLowerCase()] || null, []);
 
   return (
-    <div className="container mx-auto px-4 py-4">
+    <div ref={pageContainerRef} className="container mx-auto px-4 py-4">
       {/* Form Section */}
       <SkinTestForm
         formData={formData}
