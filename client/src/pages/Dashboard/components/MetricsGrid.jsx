@@ -2,7 +2,7 @@ import React from 'react';
 import DashboardCard from './DashboardCard';
 import { 
   CurrencyRupeeIcon, ScaleIcon, BanknotesIcon, 
-  UserGroupIcon, BeakerIcon, ArrowsRightLeftIcon, ChartBarIcon,
+  UserGroupIcon, BeakerIcon, ArrowsRightLeftIcon, ArrowTrendingUpIcon,
 } from '@heroicons/react/24/solid';
 import useTrends from '../hooks/useTrends';
 import usePerformanceMonitor from '../hooks/usePerformanceMonitor';
@@ -85,7 +85,7 @@ const MetricsGrid = ({ metrics, tokens, expenses, exchanges, sparklineData, sele
         title="Profit Margin" 
         value={`${Number(safeMetrics.profitMargin || 0).toFixed(2)}%`}
         trend={trends.marginGrowth || 0}
-        icon={ChartBarIcon}
+        icon={ArrowTrendingUpIcon}
         description="Current profit margin"
         className="bg-white"
         iconClassName="text-purple-500"
@@ -162,7 +162,7 @@ const MetricsGrid = ({ metrics, tokens, expenses, exchanges, sparklineData, sele
         }
         trend={trends.weightTrend || 0}
         icon={ArrowsRightLeftIcon}
-        description={`${periodLabel} exchange weights`}
+        description={`Impure/Pure weights for ${periodLabel.toLowerCase()}`}
         sparklineData={sparklineData?.weights}
         className="bg-white"
         sparklineColor="#10B981" // Green color for weights

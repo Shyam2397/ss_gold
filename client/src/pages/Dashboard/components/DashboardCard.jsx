@@ -79,11 +79,11 @@ const DashboardCard = ({ title, value, trend, icon: Icon, description, sparkline
 
   return (
     <motion.div
-      className={`bg-white rounded-3xl shadow-sm hover:shadow relative overflow-hidden min-h-[120px] ${className}`}
-      whileHover={{ scale: 1.02 }}
+      className={`bg-white rounded-3xl shadow-sm hover:shadow relative overflow-hidden min-h-[140px] ${className}`}
+      whileHover={{ scale: 1.01 }}
     >
       <div className="absolute inset-0 bg-gradient-to-br from-transparent to-gray-50 opacity-50" />
-      <div className="p-4 relative">
+      <div className="p-4 relative h-full flex flex-col justify-between">
         {/* Card Header */}
         <div className="flex items-center justify-between mb-3">
           {/* Title and Icon */}
@@ -98,7 +98,7 @@ const DashboardCard = ({ title, value, trend, icon: Icon, description, sparkline
 
           {/* Trend Indicator - only show if trend is provided */}
           {trend !== undefined && trend !== null && (
-            <div className={`flex items-center px-2 py-0.5 rounded-full ${trendBgColor} flex-shrink-0`}>
+            <div className={`flex items-center px-2 py-0.5 rounded-full ${trendBgColor} flex-shrink-0`} aria-label={`${title} ${isPositive ? 'up' : 'down'} ${Math.abs(trend)} percent`}>
               {isPositive ?
                 <ArrowUpIcon className={`w-3 h-3 ${trendTextColor}`} /> :
                 <ArrowDownIcon className={`w-3 h-3 ${trendTextColor}`} />
@@ -113,7 +113,7 @@ const DashboardCard = ({ title, value, trend, icon: Icon, description, sparkline
         {/* Card Content */}
         <div className="space-y-1 sm:space-y-2">
           <div className="flex items-center justify-between w-full">
-            <div className={`text-xl sm:text-2xl font-bold ${valueClassName}`}>{value}</div>
+            <div className={`text-xl sm:text-2xl font-bold tabular-nums ${valueClassName}`}>{value}</div>
             {sparklineData && <TrendSparkline data={sparklineData} color={sparklineColor || trendColor} gradientId={gradientId} />}
           </div>
           <p className="text-xs sm:text-sm text-gray-500 truncate" title={description}>{description}</p>

@@ -11,12 +11,12 @@ const TodayStats = ({ todayTotal }) => {
         <span className="text-sm font-medium text-amber-700">Today's Expenses</span>
         <span className="text-lg font-bold text-red-600">{todayTotal.formattedExpenses}</span>
       </div>
-      <div className="flex flex-col">
-        <span className="text-sm font-medium text-amber-700">Today's Net Total</span>
-        <span className={`text-lg font-bold ${todayTotal.netTotal >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-          {todayTotal.formattedNetTotal}
-        </span>
-      </div>
+        <div className="flex flex-col">
+          <span className="text-sm font-medium text-amber-700">Today's Net Total</span>
+          <span className={`text-lg font-bold tabular-nums ${todayTotal.netTotal >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+            {(todayTotal.netTotal >= 0 ? '+' : '')}{todayTotal.formattedNetTotal}
+          </span>
+        </div>
     </div>
   );
 };
