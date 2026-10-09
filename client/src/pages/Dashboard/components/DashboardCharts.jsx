@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import TimeSelector from './TimeSelector';
 
@@ -62,92 +62,15 @@ const getDateKey = (date, format) => {
   return dateCache.get(key);
 };
 
-const THROTTLE_THRESHOLD = 1000; // Maximum points to display at once
-
-const DashboardCharts = ({ tokens = [], expenses = [], entries = [], exchanges = [] }) => {
+const DashboardCharts = ({ tokens = [], expenses = [], exchanges = [] }) => {
   const [period, setPeriod] = useState('daily');
-  const [workerData, setWorkerData] = useState(null);
-  const chartRef = useRef(null);
-  
-  // Initialize worker with cleanup
-  const worker = useMemo(() => {
-    const newWorker = new Worker(
-      new URL('../workers/chartProcessor.js', import.meta.url),
-      { type: 'module' }
-    );
-
-    return newWorker;
-  }, []);
-
-  // Improved worker communication with error handling and cleanup
-  useEffect(() => {
-    if (!worker) return;
-
-    const handleWorkerMessage = (event) => {
-      if (event.data.error) {
-        console.error('Worker error:', event.data.error);
-        return;
-      }
-      setWorkerData(event.data);
-    };
-
-    worker.addEventListener('message', handleWorkerMessage);
-    
-    // Send initial data to worker with improved chunking
-    const sendChunkedData = async () => {
-      // Process data in smaller chunks to avoid blocking
-      const dataToProcess = { 
-        tokens: tokens || [], 
-        expenses: expenses || [], 
-        entries: entries || [], 
-        exchanges: exchanges || [] 
-      };
-      
-      // Send data in chunks
-      for (const [key, items] of Object.entries(dataToProcess)) {
-        if (!Array.isArray(items)) continue;
-        
-        // Process in chunks
-        for (let i = 0; i < items.length; i += 100) {
-          const chunk = items.slice(i, i + 100);
-          worker.postMessage({ 
-            type: 'chunk',
-            dataType: key,
-            data: chunk,
-            isLastChunk: i + 100 >= items.length
-          });
-          
-          // Yield to main thread
-          await new Promise(resolve => setTimeout(resolve, 0));
-        }
-      }
-      
-      // Signal completion
-      worker.postMessage({ type: 'process' });
-    };
-
-    sendChunkedData();
-
-    return () => {
-      worker.removeEventListener('message', handleWorkerMessage);
-      worker.terminate();
-    };
-  }, [worker, tokens, expenses, entries, exchanges]);
-
-  // Throttle data points for better performance
-  const throttleDataPoints = useCallback((data) => {
-    if (!data || data.length <= THROTTLE_THRESHOLD) return data;
-
-    const step = Math.ceil(data.length / THROTTLE_THRESHOLD);
-    return data.filter((_, index) => index % step === 0);
-  }, []);
 
   const chartData = useMemo(() => {
     try {
       const today = new Date();
       let startDate = new Date();
       
-      // Updated time ranges
+      // Time ranges chosen to match each selector label
       switch (period) {
         case 'yearly':
           startDate.setFullYear(today.getFullYear() - 5);
@@ -156,8 +79,9 @@ const DashboardCharts = ({ tokens = [], expenses = [], entries = [], exchanges =
           startDate.setFullYear(today.getFullYear() - 1);
           break;
         case 'weekly':
-          startDate.setMonth(today.getMonth() - 7); // Changed from 3 to 7 months
-          startDate.setDate(startDate.getDate() - startDate.getDay()); // Align to week start
+          // Last 12 weeks, aligned to the start of the week
+          startDate.setDate(today.getDate() - 7 * 12);
+          startDate.setDate(startDate.getDate() - startDate.getDay());
           break;
         default:
           startDate.setDate(today.getDate() - 30);
@@ -298,7 +222,7 @@ const DashboardCharts = ({ tokens = [], expenses = [], entries = [], exchanges =
             <TimeSelector period={period} setPeriod={setPeriod} />
           </div>
         </div>
-        <div className="h-[400px]" ref={chartRef}>
+        <div className="h-[400px]">
           <ResponsiveContainer>
             <AreaChart 
               data={chartData} 
@@ -402,12 +326,11 @@ const DashboardCharts = ({ tokens = [], expenses = [], entries = [], exchanges =
   );
 };
 
-// Add performance monitoring
+// Only re-render when the underlying data arrays change by reference
 const MemoizedDashboardCharts = React.memo(DashboardCharts, (prevProps, nextProps) => {
-  // Deep compare only the necessary props
-  return ['tokens', 'expenses', 'entries', 'exchanges'].every(key => 
-    JSON.stringify(prevProps[key] || []) === JSON.stringify(nextProps[key] || [])
-  );
+  return prevProps.tokens === nextProps.tokens &&
+         prevProps.expenses === nextProps.expenses &&
+         prevProps.exchanges === nextProps.exchanges;
 });
 
 export default MemoizedDashboardCharts;

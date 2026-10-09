@@ -1,29 +1,5 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
-
-// Date cache for performance
-const dateCache = new Map();
-const MAX_CACHE_SIZE = 100;
-
-// Helper function to parse dates with caching
-const parseDate = (dateStr) => {
-  if (!dateStr) return new Date();
-  if (dateCache.has(dateStr)) return dateCache.get(dateStr);
-
-  if (dateCache.size >= MAX_CACHE_SIZE) {
-    const firstKey = dateCache.keys().next().value;
-    dateCache.delete(firstKey);
-  }
-
-  let date = new Date(dateStr);
-  if (isNaN(date.getTime())) {
-    // Try parsing different date formats
-    const [d, m, y] = dateStr.split(/[\/\s-]/);
-    date = new Date(y, m - 1, d);
-  }
-
-  dateCache.set(dateStr, date);
-  return date;
-};
+import { useState, useEffect } from 'react';
+import { parseDate } from '../utils/dateUtils';
 
 // Fallback function to calculate sparkline data on the main thread if Web Worker fails
 const calculateSparklineDataFallback = ({ tokens = [], expenseData = [], entries = [], exchanges = [] }) => {
@@ -39,9 +15,9 @@ const calculateSparklineDataFallback = ({ tokens = [], expenseData = [], entries
     return days.map(day => {
       const dayValue = items
         .filter(item => {
-          if (!item) return false;
-          const itemDate = new Date(item[dateField]);
-          return itemDate.toDateString() === day.toDateString();
+          if (!item || !item[dateField]) return false;
+          const itemDate = parseDate(item[dateField]);
+          return !isNaN(itemDate.getTime()) && itemDate.toDateString() === day.toDateString();
         })
         .reduce((sum, item) => sum + (parseFloat(item[valueField]) || 0), 0);
         
@@ -67,12 +43,12 @@ const calculateSparklineDataFallback = ({ tokens = [], expenseData = [], entries
 
     // Customers sparkline data
     const customers = days.map(day => {
-      const value = entries.filter(entry => {
+      const value = (entries || []).filter(entry => {
         if (!entry) return false;
-        const entryDate = new Date(entry.createdAt || entry.date);
-        return entryDate.toDateString() === day.toDateString();
+        const entryDate = parseDate(entry.created_at || entry.date);
+        return !isNaN(entryDate.getTime()) && entryDate.toDateString() === day.toDateString();
       }).length;
-      
+
       return {
         date: day.toISOString(),
         value
@@ -83,10 +59,24 @@ const calculateSparklineDataFallback = ({ tokens = [], expenseData = [], entries
     const dailyTokens = days.map(day => {
       const value = (tokens || []).filter(token => {
         if (!token) return false;
-        const tokenDate = new Date(token.date);
-        return tokenDate.toDateString() === day.toDateString();
+        const tokenDate = parseDate(token.date);
+        return !isNaN(tokenDate.getTime()) && tokenDate.toDateString() === day.toDateString();
       }).length;
-      
+
+      return {
+        date: day.toISOString(),
+        value
+      };
+    });
+
+    // Exchanges sparkline data (daily count of exchanges)
+    const dailyExchanges = days.map(day => {
+      const value = (exchanges || []).filter(exchange => {
+        if (!exchange) return false;
+        const exchangeDate = parseDate(exchange.date);
+        return !isNaN(exchangeDate.getTime()) && exchangeDate.toDateString() === day.toDateString();
+      }).length;
+
       return {
         date: day.toISOString(),
         value
@@ -95,14 +85,14 @@ const calculateSparklineDataFallback = ({ tokens = [], expenseData = [], entries
 
     // Weights sparkline data
     const weights = days.map(day => {
-      const value = exchanges
+      const value = (exchanges || [])
         .filter(exchange => {
           if (!exchange) return false;
-          const exchangeDate = new Date(exchange.date);
-          return exchangeDate.toDateString() === day.toDateString();
+          const exchangeDate = parseDate(exchange.date);
+          return !isNaN(exchangeDate.getTime()) && exchangeDate.toDateString() === day.toDateString();
         })
         .reduce((sum, exchange) => sum + parseFloat(exchange.weight || '0'), 0);
-      
+
       return {
         date: day.toISOString(),
         value
@@ -115,6 +105,7 @@ const calculateSparklineDataFallback = ({ tokens = [], expenseData = [], entries
       profit,
       customers,
       tokens: dailyTokens,
+      exchanges: dailyExchanges,
       weights
     };
   } catch (error) {
@@ -125,6 +116,7 @@ const calculateSparklineDataFallback = ({ tokens = [], expenseData = [], entries
       profit: [],
       customers: [],
       tokens: [],
+      exchanges: [],
       weights: []
     };
   }
@@ -137,96 +129,70 @@ const useSparklineData = ({ tokens = [], expenseData = [], entries = [], exchang
     profit: [],
     customers: [],
     tokens: [],
+    exchanges: [],
     weights: []
   });
 
-  // Create a memoized worker instance
-  const worker = useMemo(() => {
-    if (typeof window === 'undefined') return null;
-    
+  // A worker is created per data change and terminated once it answers (or the
+  // effect cleans up). This keeps it StrictMode-safe and leak-free.
+  useEffect(() => {
+    let isMounted = true;
+    let worker = null;
+    let timeoutId = null;
+    let settled = false;
+
+    const data = { tokens, expenseData, entries, exchanges };
+
+    const finish = (result) => {
+      if (settled) return;
+      settled = true;
+      if (timeoutId) clearTimeout(timeoutId);
+      if (worker) {
+        worker.terminate();
+        worker = null;
+      }
+      if (isMounted) setSparklineData(result);
+    };
+
+    if (typeof window === 'undefined' || typeof Worker === 'undefined') {
+      finish(calculateSparklineDataFallback(data));
+      return () => { isMounted = false; };
+    }
+
     try {
-      return new Worker(
+      worker = new Worker(
         new URL('../workers/sparklineProcessor.js', import.meta.url),
         { type: 'module' }
       );
+
+      worker.addEventListener('message', (event) => {
+        finish(event.data?.error ? calculateSparklineDataFallback(data) : event.data);
+      });
+
+      worker.addEventListener('error', () => {
+        finish(calculateSparklineDataFallback(data));
+      });
+
+      // Timeout in case the worker never responds.
+      timeoutId = setTimeout(() => {
+        finish(calculateSparklineDataFallback(data));
+      }, 2000);
+
+      worker.postMessage(data);
     } catch (err) {
       console.warn('Web Worker initialization failed, using fallback', err);
-      return null;
-    }
-  }, []);
-
-  // Function to process data using Web Worker
-  const processWithWorker = useCallback((data) => {
-    if (!worker) {
-      setUsingFallback(true);
-      return Promise.resolve(calculateSparklineDataFallback(data));
+      finish(calculateSparklineDataFallback(data));
     }
 
-    return new Promise((resolve) => {
-      let timeoutId;
-      
-      const handleWorkerResponse = (event) => {
-        // Clean up the timeout and event listener
-        clearTimeout(timeoutId);
-        worker.removeEventListener('message', handleWorkerResponse);
-        
-        if (event.data.error) {
-          setError(event.data.error);
-          resolve(calculateSparklineDataFallback(data));
-          return;
-        }
-        
-        resolve(event.data);
-      };
-      
-      // Set up the worker message listener
-      worker.addEventListener('message', handleWorkerResponse);
-      
-      // Set a timeout to handle cases where the worker doesn't respond
-      timeoutId = setTimeout(() => {
-        worker.removeEventListener('message', handleWorkerResponse);
-        setUsingFallback(true);
-        resolve(calculateSparklineDataFallback(data));
-      }, 2000); // 2 second timeout
-      
-      // Send data to worker for processing
-      try {
-        worker.postMessage(data);
-      } catch (error) {
-        clearTimeout(timeoutId);
-        worker.removeEventListener('message', handleWorkerResponse);
-        setUsingFallback(true);
-        resolve(calculateSparklineDataFallback(data));
-      }
-    });
-  }, [worker]);
-
-  // Process data when dependencies change
-  useEffect(() => {
-    let isMounted = true;
-    
-    const processData = async () => {
-      try {
-        const data = { tokens, expenseData, entries, exchanges };
-        const result = await processWithWorker(data);
-        
-        if (isMounted) {
-          setSparklineData(result);
-        }
-      } catch (err) {
-        console.warn('Error processing with worker, using fallback:', err);
-        if (isMounted) {
-          setSparklineData(calculateSparklineDataFallback(data));
-        }
-      }
-    };
-    
-    processData();
-    
     return () => {
       isMounted = false;
+      if (timeoutId) clearTimeout(timeoutId);
+      if (worker) {
+        worker.terminate();
+        worker = null;
+      }
     };
-  }, [tokens, expenseData, entries, exchanges, processWithWorker]);
+  }, [tokens, expenseData, entries, exchanges]);
 
   return sparklineData;
 };

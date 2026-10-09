@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, Suspense } from 'react';
+import React, { Suspense } from 'react';
 import { ActivitySkeleton } from './LoadingSkeleton';
 import SimpleList from './SimpleList';
 import ActivityIcon from './ActivityIcon';
@@ -60,9 +60,6 @@ const ActivityRow = React.memo(({ data, index, style }) => {
 const RecentActivity = ({ activities = [], loading = false }) => {
   // Fixed height at 350px for all screens
   const listHeight = 350;
-  const containerRef = useRef(null);
-
-  // Removed the useEffect for dynamic height calculation
 
   if (loading) {
     return (
@@ -79,7 +76,7 @@ const RecentActivity = ({ activities = [], loading = false }) => {
   }
 
   return (
-    <div className="bg-white p-4 sm:p-6 rounded-lg shadow-sm" ref={containerRef}>
+    <div className="bg-white p-4 sm:p-6 rounded-lg shadow-sm">
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-lg font-semibold text-yellow-900">Today's Activity</h3>
         <span className="text-sm text-gray-500">
@@ -90,17 +87,23 @@ const RecentActivity = ({ activities = [], loading = false }) => {
         </span>
       </div>
       <div className="w-full" style={{ height: listHeight }}>
-        <Suspense fallback={<SimpleList data={activities} rowComponent={ActivityRow} height={listHeight} />}>
-          <FixedSizeList
-            height={listHeight}
-            itemCount={activities.length}
-            itemSize={80}
-            width="100%"
-            itemData={activities}
-          >
-            {ActivityRow}
-          </FixedSizeList>
-        </Suspense>
+        {activities.length === 0 ? (
+          <div className="flex items-center justify-center h-full text-sm text-gray-400">
+            No activity recorded today
+          </div>
+        ) : (
+          <Suspense fallback={<SimpleList data={activities} rowComponent={ActivityRow} height={listHeight} />}>
+            <FixedSizeList
+              height={listHeight}
+              itemCount={activities.length}
+              itemSize={80}
+              width="100%"
+              itemData={activities}
+            >
+              {ActivityRow}
+            </FixedSizeList>
+          </Suspense>
+        )}
       </div>
     </div>
   );

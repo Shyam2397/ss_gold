@@ -1,79 +1,29 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import DashboardCard from './DashboardCard';
 import { 
   CurrencyRupeeIcon, ScaleIcon, BanknotesIcon, 
-  UserGroupIcon, BeakerIcon, ArrowsRightLeftIcon,
+  UserGroupIcon, BeakerIcon, ArrowsRightLeftIcon, ChartBarIcon,
 } from '@heroicons/react/24/solid';
 import useTrends from '../hooks/useTrends';
 import usePerformanceMonitor from '../hooks/usePerformanceMonitor';
 
-const MetricsGrid = ({ metrics, tokens, expenses, entries, exchanges, cashAdjustments, sparklineData, selectedPeriod }) => {
+const PERIOD_LABELS = {
+  daily: 'Today',
+  weekly: 'This week',
+  monthly: 'This month',
+  yearly: 'This year'
+};
+
+const MetricsGrid = ({ metrics, tokens, expenses, exchanges, sparklineData, selectedPeriod }) => {
   usePerformanceMonitor('MetricsGrid');
-
-  // Calculate total revenue separately
-  const totalRevenue = useMemo(() => {
-    return (tokens || []).reduce((sum, token) => sum + (parseFloat(token.totalAmount) || 0), 0);
-  }, [tokens]);
-
-  // Calculate total expenses separately
-  const totalExpenses = useMemo(() => {
-    return (expenses || []).reduce((sum, expense) => {
-      const amount = parseFloat(expense.amount) || 0;
-      return sum + amount;
-    }, 0);
-  }, [expenses]);
-
-  // Calculate cash adjustments separately
-  const adjustments = useMemo(() => {
-    return (cashAdjustments || []).reduce((result, adj) => {
-      const amount = parseFloat(adj?.amount) || 0;
-      const adjustmentType = adj?.adjustment_type?.toLowerCase(); // 'addition' or 'deduction'
-      
-      if (adjustmentType === 'addition') {
-        result.credit += amount;
-      } else if (adjustmentType === 'deduction') {
-        result.debit += amount;
-      } else {
-        // Fallback for any unexpected adjustment types
-        result.debit += amount;
-      }
-      return result;
-    }, { credit: 0, debit: 0 });
-  }, [cashAdjustments]);
-
-  // Calculate adjusted totals
-  const adjustedRevenue = useMemo(() => {
-    return totalRevenue + adjustments.credit;
-  }, [totalRevenue, adjustments.credit]);
-
-  const adjustedExpenses = useMemo(() => {
-    return totalExpenses + adjustments.debit;
-  }, [totalExpenses, adjustments.debit]);
-
-  // Calculate final financial metrics
-  const netProfit = useMemo(() => {
-    return adjustedRevenue - adjustedExpenses;
-  }, [adjustedRevenue, adjustedExpenses]);
-
-  const profitMargin = useMemo(() => {
-    return adjustedRevenue > 0 ? ((netProfit / adjustedRevenue) * 100).toFixed(2) : 0;
-  }, [adjustedRevenue, netProfit]);
-
-  const calculations = useMemo(() => {
-    return {
-      totalRevenue: adjustedRevenue,
-      totalExpenses: adjustedExpenses,
-      netProfit,
-      profitMargin
-    };
-  }, [adjustedRevenue, adjustedExpenses, netProfit, profitMargin]);
 
   const trends = useTrends({ 
     tokens: tokens || [], 
     expenses: expenses || [], 
-    entries: entries || [], 
     exchanges: exchanges || [] 
   });
+
+  const periodLabel = PERIOD_LABELS[selectedPeriod] || 'Total';
 
   // Provide default metrics if none provided
   const safeMetrics = metrics || {
@@ -83,14 +33,18 @@ const MetricsGrid = ({ metrics, tokens, expenses, entries, exchanges, cashAdjust
     photoTestCount: 0,
     totalExchanges: 0,
     totalWeight: 0,
-    totalExWeight: 0
+    totalExWeight: 0,
+    totalRevenue: 0,
+    totalExpenses: 0,
+    netProfit: 0,
+    profitMargin: 0
   };
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       <DashboardCard 
         title="Total Revenue" 
-        value={`₹${calculations.totalRevenue.toLocaleString()}`}
+        value={`₹${Number(safeMetrics.totalRevenue || 0).toLocaleString()}`}
         trend={trends.revenueGrowth || 0}
         icon={CurrencyRupeeIcon}
         description="Total revenue from tokens"
@@ -103,10 +57,10 @@ const MetricsGrid = ({ metrics, tokens, expenses, entries, exchanges, cashAdjust
       />
       <DashboardCard 
         title="Total Expenses" 
-        value={`₹${calculations.totalExpenses.toLocaleString()}`}
+        value={`₹${Number(safeMetrics.totalExpenses || 0).toLocaleString()}`}
         trend={trends.expensesGrowth || 0}
         icon={ScaleIcon}
-        description="Total expenses this month"
+        description="Total expenses"
         sparklineData={sparklineData?.expenses}
         sparklineColor="#EF4444" // Red color for expenses
         className="bg-white"
@@ -116,7 +70,7 @@ const MetricsGrid = ({ metrics, tokens, expenses, entries, exchanges, cashAdjust
       />
       <DashboardCard 
         title="Net Profit" 
-        value={`₹${calculations.netProfit.toLocaleString()}`}
+        value={`₹${Number(safeMetrics.netProfit || 0).toLocaleString()}`}
         trend={trends.profitGrowth || 0}
         icon={BanknotesIcon}
         description="Net profit after expenses"
@@ -129,9 +83,9 @@ const MetricsGrid = ({ metrics, tokens, expenses, entries, exchanges, cashAdjust
       />  
       <DashboardCard 
         title="Profit Margin" 
-        value={`${calculations.profitMargin}%`}
+        value={`${Number(safeMetrics.profitMargin || 0).toFixed(2)}%`}
         trend={trends.marginGrowth || 0}
-        icon={UserGroupIcon}
+        icon={ChartBarIcon}
         description="Current profit margin"
         className="bg-white"
         iconClassName="text-purple-500"
@@ -167,7 +121,7 @@ const MetricsGrid = ({ metrics, tokens, expenses, entries, exchanges, cashAdjust
         }
         trend={trends.tokensTrend || 0}
         icon={BeakerIcon}
-        description="Test-wise token breakdown"
+        description="Total test-wise tokens"
         sparklineData={sparklineData?.tokens}
         sparklineColor="#10B981" // Green color for tokens
         className="bg-white"
@@ -193,13 +147,13 @@ const MetricsGrid = ({ metrics, tokens, expenses, entries, exchanges, cashAdjust
         value={
           <div className="flex flex-col space-y-2 w-full">
             <div className="flex justify-between items-center">
-              
+              <span className="text-xs text-gray-500">Impure</span>
               <span className="text-lg font-bold">
                 {Number(safeMetrics.totalWeight || 0).toFixed(3)} g
               </span>
             </div>
             <div className="flex justify-between items-center">
-            
+              <span className="text-xs text-gray-500">Pure</span>
               <span className="text-lg font-bold">
                 {Number(safeMetrics.totalExWeight || 0).toFixed(3)} g
               </span>
@@ -208,7 +162,7 @@ const MetricsGrid = ({ metrics, tokens, expenses, entries, exchanges, cashAdjust
         }
         trend={trends.weightTrend || 0}
         icon={ArrowsRightLeftIcon}
-        description={`${selectedPeriod || 'Monthly'} exchange weights`}
+        description={`${periodLabel} exchange weights`}
         sparklineData={sparklineData?.weights}
         className="bg-white"
         sparklineColor="#10B981" // Green color for weights

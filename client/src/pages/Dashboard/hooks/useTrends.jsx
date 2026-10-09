@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
+import { parseDate } from '../utils/dateUtils';
 
 // Fallback function to calculate trends on the main thread
-const calculateTrendsFallback = ({ tokens, expenses, entries, exchanges }) => {
+const calculateTrendsFallback = ({ tokens, expenses, exchanges }) => {
   try {
     // Get dates for last 30 days and previous 30 days
     const today = new Date();
@@ -9,40 +10,6 @@ const calculateTrendsFallback = ({ tokens, expenses, entries, exchanges }) => {
     thirtyDaysAgo.setDate(today.getDate() - 30);
     const sixtyDaysAgo = new Date(today);
     sixtyDaysAgo.setDate(today.getDate() - 60);
-
-    // Helper function to parse dates
-    const parseDate = (dateStr) => {
-      if (!dateStr) return new Date();
-      
-      try {
-        // Handle ISO date strings with time (e.g., "2025-10-29T18:30:00.000Z")
-        if (typeof dateStr === 'string' && dateStr.includes('T') && dateStr.includes('Z')) {
-          return new Date(dateStr);
-        }
-        
-        if (typeof dateStr === 'string') {
-          if (dateStr.includes('-')) {
-            const isoParts = dateStr.split('-');
-            if (isoParts.length === 3 && isoParts[0].length === 4) {
-              return new Date(dateStr);
-            } else {
-              const parts = dateStr.split('-');
-              if (parts.length === 3) {
-                return new Date(`${parts[1]}-${parts[0]}-${parts[2]}`);
-              }
-            }
-          } else if (dateStr.includes('/')) {
-            const parts = dateStr.split('/');
-            if (parts.length === 3) {
-              return new Date(`${parts[1]}/${parts[0]}/${parts[2]}`);
-            }
-          }
-        }
-        return new Date(dateStr);
-      } catch (e) {
-        return new Date();
-      }
-    };
 
     // Helper function to calculate percentage change
     const calculateTrend = (current, previous) => {
@@ -157,7 +124,7 @@ const calculateTrendsFallback = ({ tokens, expenses, entries, exchanges }) => {
   }
 };
 
-function useTrends({ tokens, expenses, entries, exchanges }) {
+function useTrends({ tokens, expenses, exchanges }) {
   const [trends, setTrends] = useState({
     revenueGrowth: 0,
     expensesGrowth: 0,
@@ -170,9 +137,9 @@ function useTrends({ tokens, expenses, entries, exchanges }) {
   
   // Always use fallback since worker has issues
   useEffect(() => {
-    const fallbackResult = calculateTrendsFallback({ tokens, expenses, entries, exchanges });
+    const fallbackResult = calculateTrendsFallback({ tokens, expenses, exchanges });
     setTrends(fallbackResult);
-  }, [tokens, expenses, entries, exchanges]);
+  }, [tokens, expenses, exchanges]);
   
   return trends;
 }

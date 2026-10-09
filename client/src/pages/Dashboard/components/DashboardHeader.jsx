@@ -8,6 +8,5 @@ const DashboardHeader = ({ todayTotal }) => (
 );
 
 export default React.memo(DashboardHeader, (prev, next) => {
-  return JSON.stringify(prev.todayTotal) === JSON.stringify(next.todayTotal) &&
-         prev.dateRange === next.dateRange;
+  return JSON.stringify(prev.todayTotal) === JSON.stringify(next.todayTotal);
 });

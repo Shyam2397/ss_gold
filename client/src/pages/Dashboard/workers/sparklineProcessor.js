@@ -95,17 +95,27 @@ const processSparklineData = ({ tokens = [], expenseData = [], entries = [], exc
     // Expenses sparkline data
     const expenses = getDailyTotal(expenseData, 'date', 'amount');
 
-    // Profit sparkline data with minimum height for visibility
-    const profit = days.map((day, index) => {
-      const profitValue = revenue[index].value - expenses[index].value;
-      // Ensure profit is at least 10% of revenue (but not more than the actual profit)
-      // This makes sure the line is visible even when profit is very small
-      const minVisibleValue = revenue[index].value * 0.1;
-      const displayValue = profitValue > 0 && profitValue < minVisibleValue ? minVisibleValue : profitValue;
-      
+    // Profit sparkline data (actual revenue - expenses; no artificial floor)
+    const profit = days.map((day, index) => ({
+      date: day.toISOString(),
+      value: revenue[index].value - expenses[index].value
+    }));
+
+    // Customers sparkline data (daily count of newly registered customers)
+    const customers = days.map(day => {
+      const dayKey = day.toDateString();
+      const value = (entries || []).filter(entry => {
+        if (!entry) return false;
+        try {
+          return parseDate(entry.created_at || entry.date).toDateString() === dayKey;
+        } catch (e) {
+          return false;
+        }
+      }).length;
+
       return {
         date: day.toISOString(),
-        value: displayValue
+        value
       };
     });
 
@@ -169,6 +179,7 @@ const processSparklineData = ({ tokens = [], expenseData = [], entries = [], exc
       revenue,
       expenses,
       profit,
+      customers,
       tokens: dailyTokens,
       exchanges: dailyExchanges,
       weights

@@ -1,43 +1,14 @@
-import React, { useState, useMemo, useEffect, useRef, Suspense, useCallback } from 'react';
+import React, { useState, useMemo, Suspense } from 'react';
 import { CurrencyRupeeIcon, ExclamationCircleIcon, MagnifyingGlassIcon } from '@heroicons/react/24/solid';
 import { debounce } from 'lodash';
 import { CustomerSkeleton } from './LoadingSkeleton';
 import SimpleList from './SimpleList';
-
-// Throttle function for resize events
-const throttle = (func, limit) => {
-  let inThrottle;
-  return function() {
-    const args = arguments;
-    const context = this;
-    if (!inThrottle) {
-      func.apply(context, args);
-      inThrottle = true;
-      setTimeout(() => inThrottle = false, limit);
-    }
-  }
-}
+import { parseDate } from '../utils/dateUtils';
 
 // Lazy load react-window
 const FixedSizeList = React.lazy(() => import('react-window').then(mod => ({ 
   default: mod.FixedSizeList 
 })));
-
-// Cache for parsed dates to avoid repeated creation
-const dateCache = new Map();
-const MAX_DATE_CACHE_SIZE = 100;
-
-const parseDate = (dateString) => {
-  if (!dateCache.has(dateString)) {
-    // Implement cache size limit
-    if (dateCache.size >= MAX_DATE_CACHE_SIZE) {
-      const firstKey = dateCache.keys().next().value;
-      dateCache.delete(firstKey);
-    }
-    dateCache.set(dateString, new Date(dateString));
-  }
-  return dateCache.get(dateString);
-};
 
 const CustomerRow = ({ data, index, style }) => {
   const customer = data[index];
@@ -84,7 +55,6 @@ const UnpaidCustomers = ({ tokens = [], loading = false }) => {
   const [searchQuery, setSearchQuery] = useState('');
   // Fixed height at 350px for all screens
   const listHeight = 350;
-  const containerRef = useRef(null);
 
   const debouncedSearch = useMemo(
     () => debounce((value) => setSearchQuery(value), 300),
@@ -96,7 +66,7 @@ const UnpaidCustomers = ({ tokens = [], loading = false }) => {
       .filter(token => !token.isPaid)
       .map(token => ({
         id: token._id,
-        name: token.name,
+        name: token.name || '',
         amount: parseFloat(token.amount) || 0,
         date: token.date, // Keep original date string
         parsedDate: parseDate(token.date), // Parse once and cache
@@ -134,13 +104,10 @@ const UnpaidCustomers = ({ tokens = [], loading = false }) => {
     
     if (!query) return unpaidCustomers;
     
-    // Use search index for better performance
-    const nameMatches = searchIndex.get(query) || [];
-    const codeMatches = searchIndex.get(query) || [];
-    
-    // Combine and deduplicate results
-    const matchedIndices = [...new Set([...nameMatches, ...codeMatches])];
-    
+    // The index is keyed by both name and code, so a single lookup covers both.
+    // Dedupe in case a customer's name and code are identical.
+    const matchedIndices = [...new Set(searchIndex.get(query) || [])];
+
     // If we have matches from index, use them; otherwise fall back to filter
     if (matchedIndices.length > 0) {
       return matchedIndices.map(idx => unpaidCustomers[idx]);
@@ -174,7 +141,7 @@ const UnpaidCustomers = ({ tokens = [], loading = false }) => {
   }
 
   return (
-    <div className="bg-white p-4 sm:p-6 rounded-lg shadow-sm" ref={containerRef}>
+    <div className="bg-white p-4 sm:p-6 rounded-lg shadow-sm">
       <div className="space-y-4">
         <div className="flex justify-between items-center">
           <h3 className="text-lg font-semibold text-yellow-900">Unpaid Customers</h3>
@@ -196,17 +163,23 @@ const UnpaidCustomers = ({ tokens = [], loading = false }) => {
         </div>
       </div>
       <div className="w-full" style={{ height: listHeight }}>
-        <Suspense fallback={<SimpleList data={filteredCustomers} rowComponent={CustomerRow} height={listHeight} />}>
-          <FixedSizeList
-            height={listHeight}
-            itemCount={filteredCustomers.length}
-            itemSize={80}
-            width="100%"
-            itemData={filteredCustomers}
-          >
-            {CustomerRow}
-          </FixedSizeList>
-        </Suspense>
+        {filteredCustomers.length === 0 ? (
+          <div className="flex items-center justify-center h-full text-sm text-gray-400">
+            {unpaidCustomers.length === 0 ? 'No unpaid customers' : 'No matching customers'}
+          </div>
+        ) : (
+          <Suspense fallback={<SimpleList data={filteredCustomers} rowComponent={CustomerRow} height={listHeight} />}>
+            <FixedSizeList
+              height={listHeight}
+              itemCount={filteredCustomers.length}
+              itemSize={80}
+              width="100%"
+              itemData={filteredCustomers}
+            >
+              {CustomerRow}
+            </FixedSizeList>
+          </Suspense>
+        )}
       </div>
     </div>
   );
