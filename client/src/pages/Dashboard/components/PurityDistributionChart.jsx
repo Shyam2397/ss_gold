@@ -21,20 +21,20 @@ const PurityDistributionChart = ({ purity }) => {
   const total = purity?.total || 0;
 
   return (
-    <Card className="flex h-[31.5rem] flex-col">
+    <Card className="flex flex-col sm:h-[31.5rem]">
       <CardHeader icon={FiPieChart} title="Purity Distribution" subtitle="Completed tests by karat" />
       <div className="flex flex-1 flex-col justify-center p-4">
         {total > 0 ? (
           <>
-            <div className="relative mx-auto h-64 w-64">
+            <div className="relative mx-auto h-56 w-56 sm:h-64 sm:w-64">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
                     data={slices}
                     dataKey="value"
                     nameKey="name"
-                    innerRadius={82}
-                    outerRadius={120}
+                    innerRadius="64%"
+                    outerRadius="94%"
                     paddingAngle={2}
                     stroke="none"
                   >

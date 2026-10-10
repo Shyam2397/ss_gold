@@ -72,7 +72,7 @@ const GoldRateCard = ({ rate24k, rate22k, rate18k, updatedAt, hasRate, onSave })
               <p className="text-xs uppercase tracking-wide text-white/70">24K · per gram</p>
               <p className="text-4xl font-bold tabular-nums sm:text-5xl">{formatMoney(rate24k)}</p>
             </div>
-            <div className="mt-3 flex items-center justify-center gap-10 text-xl">
+            <div className="mt-3 flex flex-wrap items-center justify-center gap-x-6 gap-y-1 text-lg sm:gap-x-10 sm:text-xl">
               <p className="text-white/80">
                 22K <span className="ml-3 font-semibold tabular-nums text-white">{formatMoney(rate22k)}</span>
               </p>

@@ -17,9 +17,9 @@ const TONES = {
 const KpiCard = ({ icon: Icon, label, value, hint, tone = 'gold' }) => {
   return (
     <motion.div whileHover={{ y: -2 }} transition={{ duration: 0.15 }} className="h-full">
-      <Card className="flex h-full flex-col gap-1.5 p-3">
-        <div className="flex items-center justify-between gap-2">
-          <span className="truncate text-[11px] font-medium text-muted">
+      <Card className="flex h-full flex-col gap-1.5 overflow-hidden p-3">
+        <div className="flex min-w-0 items-center justify-between gap-2">
+          <span className="min-w-0 truncate text-[11px] font-medium text-muted">
             {label}
           </span>
           <span
@@ -31,7 +31,7 @@ const KpiCard = ({ icon: Icon, label, value, hint, tone = 'gold' }) => {
             <Icon className="h-3.5 w-3.5" />
           </span>
         </div>
-        <div className="text-base font-bold leading-tight tabular-nums text-ink sm:text-lg">
+        <div className="truncate text-base font-bold leading-tight tabular-nums text-ink sm:text-lg">
           {value}
         </div>
         {hint && (

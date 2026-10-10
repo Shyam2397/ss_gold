@@ -1,9 +1,16 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { FiPrinter, FiX } from 'react-icons/fi';
 import { generatePrintContent, printData } from '../../SkinTesting/utils/printUtils';
 
+// The print sheet is authored at 210mm x 99mm; convert to CSS pixels (96dpi)
+// so the iframe can be scaled down to fit smaller viewports.
+const PREVIEW_WIDTH = Math.round((210 / 25.4) * 96);
+const PREVIEW_HEIGHT = Math.round((99 / 25.4) * 96);
+
 const PrintPreviewModal = ({ open, data, onClose }) => {
   const [printing, setPrinting] = useState(false);
+  const [scale, setScale] = useState(1);
+  const previewRef = useRef(null);
 
   const content = useMemo(
     () => (open && data ? generatePrintContent(data) : ''),
@@ -18,6 +25,32 @@ const PrintPreviewModal = ({ open, data, onClose }) => {
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
   }, [open, onClose]);
+
+  // Fit the fixed-size sheet into the available preview area so it stays fully
+  // visible on tablets and phones instead of being clipped.
+  useEffect(() => {
+    if (!open) return undefined;
+    const el = previewRef.current;
+    if (!el) return undefined;
+    const update = () => {
+      const availableWidth = el.clientWidth - 32;
+      const availableHeight = window.innerHeight - 120;
+      setScale(
+        Math.max(
+          0.1,
+          Math.min(1, availableWidth / PREVIEW_WIDTH, availableHeight / PREVIEW_HEIGHT)
+        )
+      );
+    };
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    window.addEventListener('resize', update);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', update);
+    };
+  }, [open]);
 
   if (!open || !data) return null;
 
@@ -73,14 +106,27 @@ const PrintPreviewModal = ({ open, data, onClose }) => {
             </button>
           </div>
         </div>
-        <div className="flex flex-1 items-center justify-center overflow-hidden bg-ivory p-4">
-          <iframe
-            title="Print preview"
-            srcDoc={content}
-            scrolling="no"
-            className="rounded-lg border border-hairline bg-white shadow-sm"
-            style={{ width: '210mm', height: '99mm' }}
-          />
+        <div
+          ref={previewRef}
+          className="flex flex-1 items-center justify-center overflow-hidden bg-ivory p-4"
+        >
+          <div
+            className="overflow-hidden rounded-lg"
+            style={{ width: PREVIEW_WIDTH * scale, height: PREVIEW_HEIGHT * scale }}
+          >
+            <iframe
+              title="Print preview"
+              srcDoc={content}
+              scrolling="no"
+              className="rounded-lg border border-hairline bg-white shadow-sm"
+              style={{
+                width: PREVIEW_WIDTH,
+                height: PREVIEW_HEIGHT,
+                transform: `scale(${scale})`,
+                transformOrigin: 'top left',
+              }}
+            />
+          </div>
         </div>
       </div>
     </div>

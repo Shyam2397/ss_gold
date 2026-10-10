@@ -8,7 +8,7 @@ const RecentSamplesTable = ({ samples = [] }) => {
 
   return (
     <>
-      <Card className="flex h-[31.5rem] flex-col">
+      <Card className="flex flex-col sm:h-[31.5rem]">
         <CardHeader icon={FiInbox} title="Recent Samples" subtitle="Today's tests" />
         <div className="flex-1 overflow-y-auto p-2 sm:p-3">
           {samples.length > 0 ? (
