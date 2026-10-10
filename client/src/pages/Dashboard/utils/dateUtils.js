@@ -67,13 +67,3 @@ export function parseDate(dateStr, timeStr) {
   dateCache.set(key, parsed);
   return parsed;
 }
-
-export function isValidDate(date) {
-  return date instanceof Date && !isNaN(date.getTime());
-}
-
-export function clearDateCache() {
-  dateCache.clear();
-}
-
-export default { parseDate, isValidDate, clearDateCache };

@@ -1,4 +1,3 @@
-import { getApi } from '../../../services/api';
 import cashAdjustmentService from '../../../services/cashAdjustmentService';
 
 // Simple in-memory cache implementation
@@ -38,78 +37,6 @@ const clearExpiredCache = () => {
 // Periodically clean up expired cache entries
 setInterval(clearExpiredCache, 60000); // Every minute
 
-export const fetchTokens = async () => {
-  const cacheKey = 'tokens';
-  const cachedData = getCache(cacheKey);
-  if (cachedData) {
-    return cachedData;
-  }
-  
-  try {
-    const api = await getApi();
-    const { data } = await api.get('/tokens');
-    const result = Array.isArray(data) ? data : [];
-    setCache(cacheKey, result);
-    return result;
-  } catch (error) {
-    return []; // Return empty array instead of throwing
-  }
-};
-
-export const fetchExpenses = async () => {
-  const cacheKey = 'expenses';
-  const cachedData = getCache(cacheKey);
-  if (cachedData) {
-    return cachedData;
-  }
-  
-  try {
-    const api = await getApi();
-    const { data } = await api.get('/api/expenses');
-    const result = Array.isArray(data) ? data : [];
-    setCache(cacheKey, result);
-    return result;
-  } catch (error) {
-    return []; // Return empty array instead of throwing
-  }
-};
-
-export const fetchEntries = async () => {
-  const cacheKey = 'entries';
-  const cachedData = getCache(cacheKey);
-  if (cachedData) {
-    return cachedData;
-  }
-  
-  try {
-    const api = await getApi();
-    const { data } = await api.get('/entries');
-    const result = Array.isArray(data) ? data : [];
-    setCache(cacheKey, result);
-    return result;
-  } catch (error) {
-    return []; // Return empty array instead of throwing
-  }
-};
-
-export const fetchExchanges = async () => {
-  const cacheKey = 'exchanges';
-  const cachedData = getCache(cacheKey);
-  if (cachedData) {
-    return cachedData;
-  }
-  
-  try {
-    const api = await getApi();
-    const { data } = await api.get('/pure-exchange');
-    const result = (data && Array.isArray(data.data)) ? data.data : [];
-    setCache(cacheKey, result);
-    return result;
-  } catch (error) {
-    return []; // Return empty array instead of throwing
-  }
-};
-
 export const fetchCashAdjustments = async (filters = {}) => {
   const cacheKey = `cashAdjustments-${JSON.stringify(filters)}`;
   const cachedData = getCache(cacheKey);
@@ -125,14 +52,4 @@ export const fetchCashAdjustments = async (filters = {}) => {
   } catch (error) {
     return [];
   }
-};
-
-// Function to clear all cache
-export const clearDashboardCache = () => {
-  cache.clear();
-};
-
-// Function to clear specific cache entry
-export const clearCacheEntry = (key) => {
-  cache.delete(key);
 };

@@ -52,68 +52,12 @@ function getPeriodRange(period) {
   return { start, end };
 }
 
-const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-// Ordered time buckets backing the trend chart for each period.
-function buildBuckets(period) {
-  const buckets = [];
-  const today = startOfDay(new Date());
-
-  if (period === 'yearly') {
-    const year = today.getFullYear();
-    for (let i = 4; i >= 0; i -= 1) {
-      const y = year - i;
-      buckets.push({
-        label: String(y),
-        start: new Date(y, 0, 1),
-        end: endOfDay(new Date(y, 11, 31)),
-      });
-    }
-    return buckets;
-  }
-
-  if (period === 'monthly') {
-    for (let i = 5; i >= 0; i -= 1) {
-      const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
-      buckets.push({
-        label: MONTHS_SHORT[d.getMonth()],
-        start: new Date(d.getFullYear(), d.getMonth(), 1),
-        end: endOfDay(new Date(d.getFullYear(), d.getMonth() + 1, 0)),
-      });
-    }
-    return buckets;
-  }
-
-  if (period === 'weekly') {
-    for (let i = 7; i >= 0; i -= 1) {
-      const start = startOfDay(today);
-      start.setDate(start.getDate() - (start.getDay() + i * 7));
-      const end = endOfDay(new Date(start));
-      end.setDate(end.getDate() + 6);
-      buckets.push({ label: `${start.getDate()} ${MONTHS_SHORT[start.getMonth()]}`, start, end });
-    }
-    return buckets;
-  }
-
-  // daily -> last 7 days
-  for (let i = 6; i >= 0; i -= 1) {
-    const day = new Date(today);
-    day.setDate(day.getDate() - i);
-    buckets.push({
-      label: `${day.getDate()} ${MONTHS_SHORT[day.getMonth()]}`,
-      start: startOfDay(day),
-      end: endOfDay(day),
-    });
-  }
-  return buckets;
-}
-
 // Karat tiers with the karat threshold each group starts at, ordered high to low.
 // Reference (karat → hallmark fineness → gold purity):
 //   24K → 999/995 → 99.9/99.5% | 23K → 958 → 95.8% | 22K → 916 → 91.6%
 //   20K → 833 → 83.3% | 18K → 750 → 75.0% | 14K → 585 → 58.5%
 //   12K → 500 → 50.0% | 10K → 417 → 41.7% | 9K → 375 → 37.5%
-export const PURITY_TYPES = [
+const PURITY_TYPES = [
   { name: '24K', min: 23.5, color: '#9A7019' },
   { name: '23K', min: 22.5, color: '#B08A1E' },
   { name: '22K', min: 21.5, color: '#C69A32' },
@@ -125,7 +69,7 @@ export const PURITY_TYPES = [
   { name: '9K', min: 8.5, color: '#B7AE9A' },
 ];
 
-export const PURITY_ORDER = [...PURITY_TYPES.map((type) => type.name), 'Other'];
+const PURITY_ORDER = [...PURITY_TYPES.map((type) => type.name), 'Other'];
 
 const PURITY_COLORS = {
   ...Object.fromEntries(PURITY_TYPES.map((type) => [type.name, type.color])),
@@ -133,7 +77,7 @@ const PURITY_COLORS = {
 };
 
 // Maps a result's karat (or gold fineness) to the purity group used by the charts.
-export function karatCategory(karat, fineness) {
+function karatCategory(karat, fineness) {
   let k = toNumber(karat);
   if (!k) {
     const f = toNumber(fineness);
@@ -185,7 +129,6 @@ function useDashboardOverview() {
         ...token,
         weight: toNumber(token.weight),
         amount: toNumber(token.amount),
-        _ts: parseDate(token.date, token.time).getTime() || 0,
       }));
 
       const normalisedSkinTests = asArray(skinTestsRes?.data).map((test) => ({
@@ -193,7 +136,6 @@ function useDashboardOverview() {
         weight: toNumber(test.weight),
         gold_fineness: toNumber(test.gold_fineness),
         karat: toNumber(test.karat),
-        _ts: parseDate(test.date, test.time).getTime() || 0,
         _category: karatCategory(test.karat, test.gold_fineness),
       }));
 
@@ -309,38 +251,6 @@ function useDashboardOverview() {
     };
   }, [tokens, expenses, exchanges, cashAdjustments, selectedPeriod]);
 
-  const trend = useMemo(() => {
-    const buckets = buildBuckets(selectedPeriod).map((bucket) => {
-      const row = { label: bucket.label, start: bucket.start, end: bucket.end, Samples: 0 };
-      PURITY_ORDER.forEach((name) => {
-        row[name] = 0;
-      });
-      return row;
-    });
-
-    if (buckets.length === 0) return [];
-
-    const first = buckets[0].start;
-    const last = buckets[buckets.length - 1].end;
-
-    const findBucket = (date) => {
-      if (!date || Number.isNaN(date.getTime()) || date < first || date > last) return null;
-      return buckets.find((b) => date >= b.start && date <= b.end) || null;
-    };
-
-    skinTests.forEach((test) => {
-      const bucket = findBucket(parseDate(test.date, test.time));
-      if (bucket && bucket[test._category] !== undefined) bucket[test._category] += 1;
-    });
-
-    tokens.forEach((token) => {
-      const bucket = findBucket(parseDate(token.date, token.time));
-      if (bucket) bucket.Samples += 1;
-    });
-
-    return buckets.map(({ start, end, ...row }) => row);
-  }, [skinTests, tokens, selectedPeriod]);
-
   const purity = useMemo(() => {
     const range = getPeriodRange(selectedPeriod);
     const counts = {};
@@ -391,21 +301,6 @@ function useDashboardOverview() {
       }));
   }, [skinTests]);
 
-  const latestResults = useMemo(() => {
-    return [...skinTests]
-      .sort((a, b) => b._ts - a._ts)
-      .slice(0, 5)
-      .map((test) => ({
-        tokenNo: test.token_no,
-        name: test.name || 'Unknown',
-        date: test.date,
-        time: test.time,
-        goldFineness: test.gold_fineness,
-        karat: test.karat,
-        category: test._category,
-      }));
-  }, [skinTests]);
-
   return {
     loading,
     error,
@@ -414,14 +309,11 @@ function useDashboardOverview() {
     lastUpdated,
     kpis,
     finance,
-    trend,
     purity,
     recentSamples,
-    latestResults,
     tokens,
     expenses,
     exchanges,
-    refresh: fetchData,
   };
 }
 
