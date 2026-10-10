@@ -108,6 +108,30 @@ function buildBuckets(period) {
   return buckets;
 }
 
+// Karat tiers with the karat threshold each group starts at, ordered high to low.
+// Reference (karat → hallmark fineness → gold purity):
+//   24K → 999/995 → 99.9/99.5% | 23K → 958 → 95.8% | 22K → 916 → 91.6%
+//   20K → 833 → 83.3% | 18K → 750 → 75.0% | 14K → 585 → 58.5%
+//   12K → 500 → 50.0% | 10K → 417 → 41.7% | 9K → 375 → 37.5%
+export const PURITY_TYPES = [
+  { name: '24K', min: 23.5, color: '#9A7019' },
+  { name: '23K', min: 22.5, color: '#B08A1E' },
+  { name: '22K', min: 21.5, color: '#C69A32' },
+  { name: '20K', min: 19.5, color: '#D8B14A' },
+  { name: '18K', min: 17.5, color: '#E4C46B' },
+  { name: '14K', min: 13.5, color: '#EAD79B' },
+  { name: '12K', min: 11.5, color: '#F1E3BB' },
+  { name: '10K', min: 9.5, color: '#CFC7B4' },
+  { name: '9K', min: 8.5, color: '#B7AE9A' },
+];
+
+export const PURITY_ORDER = [...PURITY_TYPES.map((type) => type.name), 'Other'];
+
+const PURITY_COLORS = {
+  ...Object.fromEntries(PURITY_TYPES.map((type) => [type.name, type.color])),
+  Other: '#8C8577',
+};
+
 // Maps a result's karat (or gold fineness) to the purity group used by the charts.
 export function karatCategory(karat, fineness) {
   let k = toNumber(karat);
@@ -116,19 +140,9 @@ export function karatCategory(karat, fineness) {
     if (f) k = f / 4.1667;
   }
   if (!k) return 'Other';
-  if (k >= 23.5) return '24K';
-  if (k >= 21.5) return '22K';
-  if (k >= 17.5) return '18K';
-  return 'Other';
+  const match = PURITY_TYPES.find((type) => k >= type.min);
+  return match ? match.name : 'Other';
 }
-
-const PURITY_ORDER = ['24K', '22K', '18K', 'Other'];
-const PURITY_COLORS = {
-  '24K': '#C69A32',
-  '22K': '#E4C46B',
-  '18K': '#9A7019',
-  Other: '#D8D2C4',
-};
 
 function within(date, range) {
   if (!date || Number.isNaN(date.getTime())) return false;
@@ -296,16 +310,13 @@ function useDashboardOverview() {
   }, [tokens, expenses, exchanges, cashAdjustments, selectedPeriod]);
 
   const trend = useMemo(() => {
-    const buckets = buildBuckets(selectedPeriod).map((bucket) => ({
-      label: bucket.label,
-      start: bucket.start,
-      end: bucket.end,
-      '24K': 0,
-      '22K': 0,
-      '18K': 0,
-      Other: 0,
-      Samples: 0,
-    }));
+    const buckets = buildBuckets(selectedPeriod).map((bucket) => {
+      const row = { label: bucket.label, start: bucket.start, end: bucket.end, Samples: 0 };
+      PURITY_ORDER.forEach((name) => {
+        row[name] = 0;
+      });
+      return row;
+    });
 
     if (buckets.length === 0) return [];
 
@@ -319,7 +330,7 @@ function useDashboardOverview() {
 
     skinTests.forEach((test) => {
       const bucket = findBucket(parseDate(test.date, test.time));
-      if (bucket) bucket[test._category] += 1;
+      if (bucket && bucket[test._category] !== undefined) bucket[test._category] += 1;
     });
 
     tokens.forEach((token) => {
@@ -327,24 +338,21 @@ function useDashboardOverview() {
       if (bucket) bucket.Samples += 1;
     });
 
-    return buckets.map(({ label, '24K': k24, '22K': k22, '18K': k18, Other, Samples }) => ({
-      label,
-      '24K': k24,
-      '22K': k22,
-      '18K': k18,
-      Other,
-      Samples,
-    }));
+    return buckets.map(({ start, end, ...row }) => row);
   }, [skinTests, tokens, selectedPeriod]);
 
   const purity = useMemo(() => {
     const range = getPeriodRange(selectedPeriod);
-    const counts = { '24K': 0, '22K': 0, '18K': 0, Other: 0 };
+    const counts = {};
+    PURITY_ORDER.forEach((name) => {
+      counts[name] = 0;
+    });
 
     skinTests
       .filter((test) => within(parseDate(test.date, test.time), range))
       .forEach((test) => {
-        counts[test._category] += 1;
+        const category = counts[test._category] === undefined ? 'Other' : test._category;
+        counts[category] += 1;
       });
 
     const total = PURITY_ORDER.reduce((sum, key) => sum + counts[key], 0);
@@ -358,21 +366,33 @@ function useDashboardOverview() {
     return { total, slices };
   }, [skinTests, selectedPeriod]);
 
+  // Today's skin tests, mirroring the Skin Test page list but limited to the
+  // current day and ordered newest-token first for the dashboard card.
   const recentSamples = useMemo(() => {
-    return [...tokens]
-      .sort((a, b) => b._ts - a._ts)
-      .slice(0, 8)
-      .map((token) => ({
-        tokenNo: token.token_no,
-        name: token.name || 'Unknown',
-        sample: token.sample || '',
-        test: token.test || 'Testing',
-        date: token.date,
-        time: token.time,
-        paid: Number(token.is_paid) === 1,
-        completed: skinTestTokenNos.has(String(token.token_no)),
+    const today = startOfDay(new Date()).getTime();
+
+    return [...skinTests]
+      .filter((test) => {
+        const date = parseDate(test.date, test.time);
+        return !Number.isNaN(date.getTime()) && startOfDay(date).getTime() === today;
+      })
+      .sort((a, b) => {
+        const an = Number(a.token_no);
+        const bn = Number(b.token_no);
+        if (!Number.isNaN(an) && !Number.isNaN(bn)) return bn - an;
+        return String(b.token_no).localeCompare(String(a.token_no));
+      })
+      .map((test) => ({
+        tokenNo: test.token_no,
+        name: test.name || 'Unknown',
+        sample: test.sample || '',
+        weight: test.weight,
+        goldFineness: test.gold_fineness,
+        karat: test.karat,
+        date: test.date,
+        time: test.time,
       }));
-  }, [tokens, skinTestTokenNos]);
+  }, [skinTests]);
 
   const latestResults = useMemo(() => {
     return [...skinTests]

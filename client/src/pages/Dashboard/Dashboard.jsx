@@ -20,7 +20,6 @@ import DashboardCharts from './components/DashboardCharts';
 import PurityDistributionChart from './components/PurityDistributionChart';
 import QuickActions from './components/QuickActions';
 import RecentSamplesTable from './components/RecentSamplesTable';
-import LatestTestResults from './components/LatestTestResults';
 import SystemStatusBar from './components/SystemStatusBar';
 
 const formatCurrency = (value) =>
@@ -37,7 +36,6 @@ const Dashboard = () => {
     finance,
     purity,
     recentSamples,
-    latestResults,
     tokens,
     expenses,
     exchanges,
@@ -156,8 +154,6 @@ const Dashboard = () => {
             <RecentSamplesTable samples={recentSamples} />
           </div>
         </div>
-
-        <LatestTestResults results={latestResults} />
 
         <SystemStatusBar
           error={error}

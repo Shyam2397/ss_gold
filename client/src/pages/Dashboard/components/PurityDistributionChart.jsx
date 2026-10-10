@@ -21,20 +21,20 @@ const PurityDistributionChart = ({ purity }) => {
   const total = purity?.total || 0;
 
   return (
-    <Card className="flex h-full flex-col">
+    <Card className="flex h-[31.5rem] flex-col">
       <CardHeader icon={FiPieChart} title="Purity Distribution" subtitle="Completed tests by karat" />
-      <div className="flex flex-1 flex-col p-5">
+      <div className="flex flex-1 flex-col justify-center p-4">
         {total > 0 ? (
           <>
-            <div className="relative mx-auto h-44 w-44">
+            <div className="relative mx-auto h-64 w-64">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
                     data={slices}
                     dataKey="value"
                     nameKey="name"
-                    innerRadius={58}
-                    outerRadius={82}
+                    innerRadius={82}
+                    outerRadius={120}
                     paddingAngle={2}
                     stroke="none"
                   >
@@ -46,12 +46,12 @@ const PurityDistributionChart = ({ purity }) => {
                 </PieChart>
               </ResponsiveContainer>
               <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-2xl font-bold tabular-nums text-ink">{total}</span>
-                <span className="text-xs text-muted">tests</span>
+                <span className="text-4xl font-bold tabular-nums text-ink">{total}</span>
+                <span className="text-sm text-muted">tests</span>
               </div>
             </div>
 
-            <ul className="mt-5 space-y-2">
+            <ul className="mt-4 grid grid-cols-2 gap-x-4 gap-y-1.5">
               {slices.map((slice) => (
                 <li key={slice.name} className="flex items-center justify-between text-sm">
                   <span className="flex items-center gap-2 text-muted">
