@@ -15,8 +15,8 @@ const LoginInput = ({
   onBlur,
   suffix
 }) => (
-  <div className="relative">
-    <div className="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none">
+  <div className="relative rounded-xl bg-gradient-to-r from-amber-300 via-amber-300 to-amber-300 p-[1.5px] transition-colors focus-within:from-gold-dark focus-within:via-gold-light focus-within:to-gold-dark focus-within:shadow-[0_0_0_3px_rgba(255,215,0,0.25)]">
+    <div className="absolute inset-y-0 left-0 z-10 pl-2 flex items-center pointer-events-none">
       <Icon className="h-4 w-4 text-amber-600" />
     </div>
     <input
@@ -32,16 +32,15 @@ const LoginInput = ({
       autoComplete={autoComplete}
       disabled={disabled}
       aria-label={placeholder}
-      className={`w-full pl-8 ${suffix ? 'pr-8' : 'pr-1'} py-1.5 border rounded-xl 
-                bg-white text-amber-900 
-                border-amber-300 
-                focus:outline-none focus:ring-1 focus:ring-amber-400
-                disabled:opacity-60 disabled:cursor-not-allowed
+      className={`w-full rounded-[10px] border-0 bg-white pl-8 ${suffix ? 'pr-8' : 'pr-1'} py-1.5 
+                text-amber-900 
+                focus:outline-none focus:ring-0
+                disabled:text-amber-900/60 disabled:cursor-not-allowed
                 transition duration-200 ease-in-out text-sm`}
       placeholder={placeholder}
     />
     {suffix && (
-      <div className="absolute inset-y-0 right-0 pr-2 flex items-center">
+      <div className="absolute inset-y-0 right-0 z-10 pr-2 flex items-center">
         {suffix}
       </div>
     )}
@@ -127,8 +126,8 @@ const LoginForm = ({
         <button 
           type="submit" 
           disabled={loading}
-          className="w-full py-1.5 bg-amber-600 text-white rounded-xl 
-                     hover:bg-amber-700 transition duration-300
+          className="w-full py-1.5 bg-gradient-to-r from-gold-bright via-gold to-gold-dark text-white rounded-xl 
+                     hover:brightness-95 transition duration-300
                      disabled:opacity-50 disabled:cursor-not-allowed
                      text-sm"
         >

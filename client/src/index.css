@@ -45,3 +45,17 @@
   overflow: hidden;
   pointer-events: none;
 }
+
+/* Chromium paints a pale yellow/orange fill over autofilled inputs (saved
+   credentials). Force the field back to the input's own white background and
+   keep the text color so the autofill tint never shows. */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px #ffffff inset !important;
+  box-shadow: 0 0 0 1000px #ffffff inset !important;
+  -webkit-text-fill-color: #78350f !important;
+  caret-color: #78350f;
+  transition: background-color 9999s ease-in-out 0s;
+}

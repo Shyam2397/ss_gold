@@ -4,6 +4,7 @@ import { loginUser } from '../../services/authService';
 import { useUser } from '../UserInterface/UserContext';
 import LoginHeader from './LoginHeader';
 import LoginForm from './LoginForm';
+import loginBg from '../../asset/loginBG.png';
 
 const Login = ({ setLoggedIn }) => {
   const [username, setUsername] = useState('');
@@ -90,8 +91,12 @@ const Login = ({ setLoggedIn }) => {
   };
 
   return (
-    <div ref={pageRef} className="min-h-screen flex items-center justify-center bg-gradient-to-br from-amber-50 to-yellow-100 px-4 py-8 sm:px-8">
-      <div className="max-w-sm w-full space-y-5 bg-white p-5 py-10 rounded-3xl shadow-lg">
+    <div
+      ref={pageRef}
+      className="min-h-screen flex items-center justify-center bg-cover bg-center bg-no-repeat px-4 py-8 sm:px-8"
+      style={{ backgroundImage: `url(${loginBg})` }}
+    >
+      <div className="max-w-sm w-full space-y-5 bg-white p-5 py-10 rounded-3xl shadow-[0_10px_40px_-5px_rgba(255,215,0,0.6)]">
         <LoginHeader />
         <LoginForm 
           username={username}
