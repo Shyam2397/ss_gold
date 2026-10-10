@@ -383,14 +383,11 @@ function useDashboardOverview() {
         return String(b.token_no).localeCompare(String(a.token_no));
       })
       .map((test) => ({
+        ...test,
         tokenNo: test.token_no,
         name: test.name || 'Unknown',
         sample: test.sample || '',
-        weight: test.weight,
         goldFineness: test.gold_fineness,
-        karat: test.karat,
-        date: test.date,
-        time: test.time,
       }));
   }, [skinTests]);
 

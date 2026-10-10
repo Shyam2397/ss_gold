@@ -89,7 +89,7 @@ export const generatePrintContent = (data, logoSrc = logo, valuesOnly = false) =
   const companyInfoP23Color = vo ? hidden : 'color: #32CD32;';
   const goldInfoBarBg = vo
     ? 'background-color: transparent; color: #000; border: none;'
-    : 'background-color: #32CD32; color: yellow; border-top: 3px solid #FFD700; border-bottom: 3px solid #FFD700;';
+    : 'background-color: #FFD700; color: #FF0000; border-top: 3px solid #FFD700; border-bottom: 3px solid #FFD700;';
   const goldInfoBarLabelStyle = vo ? hidden : '';
   const goldInfoBarValueStyle = vo
     ? `${visible} color: #FF0000 !important; margin-top: 1mm;`
