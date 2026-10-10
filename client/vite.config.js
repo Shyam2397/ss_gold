@@ -1,9 +1,26 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { readFileSync } from 'node:fs';
+
+// The desktop app's real version lives in the repository root package.json
+// (the client package keeps its own placeholder version). Read it so the
+// dashboard/status bar can show the shipped build number.
+let appVersion = '0.0.0';
+try {
+    const rootPkg = JSON.parse(
+        readFileSync(new URL('../package.json', import.meta.url), 'utf-8')
+    );
+    appVersion = rootPkg.version || appVersion;
+} catch {
+    // Keep the fallback when the file cannot be read (e.g. unusual checkout)
+}
 
 export default defineConfig({
     base: './',
     plugins: [react()],
+    define: {
+        __APP_VERSION__: JSON.stringify(appVersion),
+    },
     server: {
         port: 3000,
         open: true

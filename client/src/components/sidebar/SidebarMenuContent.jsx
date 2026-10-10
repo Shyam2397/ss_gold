@@ -2,7 +2,6 @@ import React, { memo, useCallback } from 'react';
 import { FiChevronDown, FiChevronRight } from 'react-icons/fi';
 import { SidebarMenuSection } from './SidebarMenuSection';
 import { SidebarMenuItem } from './SidebarMenuItem';
-import { SidebarUserCard } from './SidebarUserCard';
 import { VirtualizedMenuItems } from './VirtualizedMenuItems';
 import { useSidebar } from './SidebarProvider';
 import { Icons } from './SidebarIcons';
@@ -59,11 +58,11 @@ export const SidebarMenuContent = memo(({
         type="button"
         aria-current={itemActive ? 'page' : undefined}
         className={cn(
-          "w-full flex items-center h-8 px-2",
+          "w-full flex items-center h-9 px-2",
           itemActive
-            ? "bg-amber-100 text-amber-900"
-            : "text-gray-600 hover:bg-amber-50 hover:text-amber-900",
-          "rounded-lg transition-all duration-200 text-left"
+            ? "bg-gold-bright/15 text-gold-bright font-semibold"
+            : "text-white/60 hover:bg-white/5 hover:text-gold-bright",
+          "rounded-xl transition-all duration-200 text-left"
         )}
         onClick={() => {
           // Single dispatch point: onExpenseItemClick (handleExpenseClick) runs
@@ -73,8 +72,8 @@ export const SidebarMenuContent = memo(({
           if (isMobile) setMobileOpen(false);
         }}
       >
-        <div className="flex items-center justify-center w-5"><item.icon className="h-5 w-5 flex-shrink-0" /></div>
-        <span className={cn("font-medium text-md ml-3", itemActive && "text-amber-900")}>{item.label}</span>
+        <div className="flex items-center justify-center w-5"><item.icon className={cn("h-5 w-5 flex-shrink-0", itemActive && "text-gold-bright")} /></div>
+        <span className={cn("font-medium text-md ml-3", itemActive && "text-gold-bright")}>{item.label}</span>
       </button>
     );
   }, [onExpenseItemClick, isMobile, setMobileOpen, isActive]);
@@ -110,10 +109,10 @@ export const SidebarMenuContent = memo(({
             aria-label="Toggle Data section"
             title={open || isMobile ? undefined : "Data"}
             className={cn(
-              "w-full flex items-center justify-between h-8 px-2",
-              isDataSectionActive ? "text-amber-900" : "text-gray-600",
-              "hover:bg-amber-50 hover:text-amber-900",
-              "rounded-lg transition-all duration-200"
+              "w-full flex items-center justify-between h-9 px-2",
+              isDataSectionActive ? "text-gold-bright" : "text-white/60",
+              "hover:bg-white/5 hover:text-gold-bright",
+              "rounded-xl transition-all duration-200"
             )}
           >
             <div className="flex items-center">
@@ -152,10 +151,10 @@ export const SidebarMenuContent = memo(({
             aria-label="Toggle Expenses section"
             title={open || isMobile ? undefined : "Expenses"}
             className={cn(
-              "w-full flex items-center justify-between h-8 px-2",
-              isExpensesSectionActive ? "text-amber-900" : "text-gray-600",
-              "hover:bg-amber-50 hover:text-amber-900",
-              "rounded-lg transition-all duration-200"
+              "w-full flex items-center justify-between h-9 px-2",
+              isExpensesSectionActive ? "text-gold-bright" : "text-white/60",
+              "hover:bg-white/5 hover:text-gold-bright",
+              "rounded-xl transition-all duration-200"
             )}
           >
             <div className="flex items-center">
@@ -181,16 +180,6 @@ export const SidebarMenuContent = memo(({
         <SidebarMenuItem icon={Icons.Settings} label="Settings" to="/settings" isActive={isActive("/settings")} handleNavigation={handleNavigation} onClick={isMobile ? () => setMobileOpen(false) : undefined} />
       </SidebarMenuSection>
       )}
-
-      {/* Account Section */}
-      <div className="mt-1 border-t border-amber-100 pt-2">
-        <SidebarUserCard
-          user={user}
-          isActive={isActive}
-          handleNavigation={handleNavigation}
-          isMobile={isMobile}
-        />
-      </div>
     </div>
   );
 });

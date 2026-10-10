@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import Sidebar from '../sidebar/Sidebar';
 import MainContent from './MainContent';
+import TopHeader from './TopHeader';
 import { useUser } from '../UserInterface/UserContext';
 
 // App.jsx remounts the whole route tree on every navigation
@@ -31,7 +32,7 @@ const MainLayout = ({ setLoggedIn }) => {
   }, [location.pathname, setIsSidebarOpen]);
 
   return (
-    <div className="flex flex-col md:flex-row h-screen bg-gray-50 overflow-hidden">
+    <div className="flex flex-col md:flex-row h-screen bg-ivory overflow-hidden">
       <Sidebar 
         open={isSidebarOpen}
         setOpen={setIsSidebarOpen}
@@ -60,6 +61,7 @@ const MainLayout = ({ setLoggedIn }) => {
             },
           }}
         />
+        <TopHeader setLoggedIn={setLoggedIn} />
         <div className="flex-1 overflow-y-auto">
           <MainContent />
         </div>

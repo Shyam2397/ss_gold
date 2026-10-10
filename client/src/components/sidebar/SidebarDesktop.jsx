@@ -3,10 +3,10 @@ import { motion } from "framer-motion";
 import { cn } from "../../lib/utils";
 import { useSidebar } from './SidebarProvider';
 import { SidebarHeader } from './SidebarHeader';
-import { SidebarFooter } from './SidebarFooter';
 import { SidebarMenuContent } from './SidebarMenuContent';
 import ErrorBoundary from '../common/ErrorBoundary';
 import { useResizeObserver } from '../../hooks/useResizeObserver';
+import sidebarBG from '../../asset/sidebarBG.png';
 
 const sidebarVariants = {
   expanded: { width: "260px", transition: { duration: 0.2, ease: [0.4, 0, 0.2, 1] } },
@@ -75,11 +75,19 @@ export const SidebarDesktop = memo(({
     willChange: 'width', backfaceVisibility: 'hidden', WebkitFontSmoothing: 'subpixel-antialiased'
   }), []);
 
+  // Decorative backdrop behind the whole rail.
+  const backgroundStyle = useMemo(() => ({
+    backgroundImage: `url(${sidebarBG})`,
+    backgroundSize: 'cover',
+    backgroundPosition: 'center',
+    backgroundRepeat: 'no-repeat'
+  }), []);
+
   return (
     <motion.div
       ref={sidebarRef}
-      className={cn("h-screen border-r border-gray-200 hidden md:flex md:flex-col bg-white overflow-hidden transform-gpu")}
-      style={contentStyle}
+      className={cn("h-screen border-r border-white/10 hidden md:flex md:flex-col bg-charcoal overflow-hidden transform-gpu")}
+      style={{ ...contentStyle, ...backgroundStyle }}
       variants={sidebarVariants}
       animate={open ? "expanded" : "collapsed"}
       initial={false}
@@ -91,7 +99,6 @@ export const SidebarDesktop = memo(({
       <ErrorBoundary>
         <div className="flex-1 flex flex-col min-h-0">
           <SidebarMenuContent {...{ mainMenuItems, dataMenuItems, expenseMenuItems, canAccessSettings, hasAnyDataItem, hasAnyExpenseItem, user, isActive, handleNavigation, isDataOpen, setIsDataOpen, isExpensesOpen, setIsExpensesOpen, onExpenseItemClick }} />
-          <SidebarFooter handleLogout={handleLogout} />
         </div>
       </ErrorBoundary>
     </motion.div>

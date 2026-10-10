@@ -5,7 +5,7 @@ import SimpleTransition from '../transitions/SimpleTransition';
 
 const MainContent = () => {
   return (
-    <main className="flex-1 min-h-screen bg-gradient-to-br from-amber-50 to-yellow-100 overflow-y-auto">
+    <main className="flex-1 min-h-screen bg-ivory overflow-y-auto">
       <AnimatePresence mode="wait">
         <SimpleTransition />
       </AnimatePresence>

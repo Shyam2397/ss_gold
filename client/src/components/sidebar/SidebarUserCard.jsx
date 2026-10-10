@@ -35,15 +35,15 @@ export const SidebarUserCard = memo(({ user, isActive, handleNavigation, isMobil
         className={cn(
           'group flex items-center gap-2 rounded-xl border px-2 py-3 transition-all duration-200 pl-2.5',
           active
-            ? 'border-amber-200 bg-amber-100'
-            : 'border-transparent hover:border-amber-200 hover:bg-amber-50'
+            ? 'border-gold/30 bg-gold/15'
+            : 'border-transparent hover:border-white/10 hover:bg-white/5'
         )}
       >
         <UserAvatar
           username={username}
           src={user?.profileImage}
           size="sm"
-          ringClassName={active ? 'ring-2 ring-amber-300' : 'ring-2 ring-amber-200'}
+          ringClassName={active ? 'ring-2 ring-gold' : 'ring-2 ring-white/15'}
         />
 
         {isExpanded && (
@@ -52,7 +52,7 @@ export const SidebarUserCard = memo(({ user, isActive, handleNavigation, isMobil
               <p
                 className={cn(
                   'truncate text-sm font-semibold',
-                  active ? 'text-amber-900' : 'text-gray-700 group-hover:text-amber-900'
+                  active ? 'text-white' : 'text-white/80 group-hover:text-white'
                 )}
               >
                 {username}
@@ -60,7 +60,7 @@ export const SidebarUserCard = memo(({ user, isActive, handleNavigation, isMobil
               <p
                 className={cn(
                   'mt-0.5 flex items-center text-xs',
-                  mustChangePassword ? 'text-red-500' : 'text-gray-500'
+                  mustChangePassword ? 'text-branddanger' : 'text-white/50'
                 )}
               >
                 {mustChangePassword ? (
@@ -79,7 +79,7 @@ export const SidebarUserCard = memo(({ user, isActive, handleNavigation, isMobil
             <FiChevronRight
               className={cn(
                 'h-4 w-4 flex-shrink-0 transition-colors',
-                active ? 'text-amber-600' : 'text-gray-300 group-hover:text-amber-600'
+                active ? 'text-gold' : 'text-white/30 group-hover:text-gold'
               )}
             />
           </>

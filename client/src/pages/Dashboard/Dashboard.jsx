@@ -1,98 +1,173 @@
-import React, { Suspense, lazy } from 'react';
+import React from 'react';
 import { motion } from 'framer-motion';
-import { Toaster } from 'react-hot-toast';
+import {
+  FiActivity,
+  FiDollarSign,
+  FiHash,
+  FiPercent,
+  FiRepeat,
+  FiTrendingDown,
+  FiTrendingUp,
+  FiUsers,
+} from 'react-icons/fi';
 import { LoadingSpinner } from './components/LoadingSkeleton';
-import { useDashboardData } from './components/useDashboardData';
-import useSparklineData from './hooks/useSparklineData';
 import ErrorBoundary from './ErrorBoundary';
-import usePerformanceMonitor from './hooks/usePerformanceMonitor';
-import TimeSelector from './components/TimeSelector';
+import { useDashboardOverview } from './hooks/useDashboardOverview';
+import { useGoldRate } from './hooks/useGoldRate';
+import KpiCard from './components/KpiCard';
+import GoldRateCard from './components/GoldRateCard';
+import DashboardCharts from './components/DashboardCharts';
+import PurityDistributionChart from './components/PurityDistributionChart';
+import QuickActions from './components/QuickActions';
+import RecentSamplesTable from './components/RecentSamplesTable';
+import LatestTestResults from './components/LatestTestResults';
+import SystemStatusBar from './components/SystemStatusBar';
 
-// Lazy load components
-const DashboardHeader = lazy(() => import('./components/DashboardHeader'));
-const MetricsGrid = lazy(() => import('./components/MetricsGrid'));
-const DashboardCharts = lazy(() => import('./components/DashboardCharts'));
-const RecentActivity = lazy(() => import('./components/RecentActivity'));
-const UnpaidCustomers = lazy(() => import('./components/UnpaidCustomers'));
+const formatCurrency = (value) =>
+  `₹${Number(value || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
 
-function DashboardContent() {
-  usePerformanceMonitor('Dashboard');
-
+const Dashboard = () => {
   const {
-    tokens, entries, expenses, exchanges, loading, error,
-    recentActivities, todayTotal, metrics, selectedPeriod, setSelectedPeriod
-  } = useDashboardData();
+    loading,
+    error,
+    selectedPeriod,
+    setSelectedPeriod,
+    lastUpdated,
+    kpis,
+    finance,
+    purity,
+    recentSamples,
+    latestResults,
+    tokens,
+    expenses,
+    exchanges,
+  } = useDashboardOverview();
 
-  const sparklineData = useSparklineData({
-    tokens: tokens || [],
-    expenseData: expenses || [],
-    entries: entries || [],
-    exchanges: exchanges || []
-  });
-
-  // Provide safe defaults for optional data
-  const safeTokens = tokens || [];
-  const safeExpenses = expenses || [];
-  const safeEntries = entries || [];
-  const safeExchanges = exchanges || [];
-  const safeRecentActivities = recentActivities || [];
+  const goldRate = useGoldRate();
 
   if (loading) {
-    return <LoadingSpinner />;
-  }
-
-  if (error) {
     return (
-      <motion.div className="p-6 text-red-500">
-        Error loading dashboard: {error}
-      </motion.div>
+      <div className="p-6">
+        <LoadingSpinner />
+      </div>
     );
   }
 
   return (
     <ErrorBoundary>
-      <motion.div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-6">
-        <Toaster />
-        <Suspense fallback={<LoadingSpinner />}>
-          <>
-            <DashboardHeader todayTotal={todayTotal} />
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.2, ease: 'easeOut' }}
+        className="mx-auto max-w-[1500px] space-y-5 p-4 sm:p-6"
+      >
+        {error && (
+          <div className="rounded-xl border border-branddanger/30 bg-branddanger/5 px-4 py-3 text-sm text-branddanger">
+            Some dashboard data could not be loaded: {error}
+          </div>
+        )}
 
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-yellow-900">Overview</h2>
-              <TimeSelector period={selectedPeriod} setPeriod={setSelectedPeriod} />
-            </div>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">
+          <KpiCard
+            icon={FiDollarSign}
+            label="Total Revenue"
+            value={formatCurrency(finance.totalRevenue)}
+            hint="Tokens + additions"
+            tone="gold"
+          />
+          <KpiCard
+            icon={FiTrendingDown}
+            label="Total Expenses"
+            value={formatCurrency(finance.totalExpenses)}
+            hint="Expenses + deductions"
+            tone="red"
+          />
+          <KpiCard
+            icon={FiTrendingUp}
+            label="Net Profit"
+            value={formatCurrency(finance.netProfit)}
+            hint="Revenue − expenses"
+            tone="green"
+          />
+          <KpiCard
+            icon={FiPercent}
+            label="Profit Margin"
+            value={`${Number(finance.profitMargin || 0).toFixed(1)}%`}
+            hint="Net profit / revenue"
+            tone="violet"
+          />
+          <KpiCard
+            icon={FiUsers}
+            label="Total Customers"
+            value={kpis.totalCustomers}
+            hint={`${kpis.customersThisWeek} new this week`}
+            tone="blue"
+          />
+          <KpiCard
+            icon={FiHash}
+            label="Token"
+            value={finance.totalTokens}
+            hint={`${finance.skinTestCount} skin · ${finance.photoTestCount} photo`}
+            tone="amber"
+          />
+          <KpiCard
+            icon={FiRepeat}
+            label="Total Exchange"
+            value={finance.totalExchanges}
+            hint="All-time exchanges"
+            tone="sky"
+          />
+          <KpiCard
+            icon={FiActivity}
+            label="Pure Exchange"
+            value={`${finance.pureWeight.toFixed(2)} g`}
+            hint={`Impure ${finance.impureWeight.toFixed(2)} g`}
+            tone="teal"
+          />
+        </div>
 
-            <MetricsGrid
-              metrics={metrics}
-              tokens={safeTokens}
-              expenses={safeExpenses}
-              exchanges={safeExchanges}
-              sparklineData={sparklineData}
-              selectedPeriod={selectedPeriod}
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+          <div className="xl:col-span-2">
+            <DashboardCharts
+              tokens={tokens}
+              expenses={expenses}
+              exchanges={exchanges}
+              period={selectedPeriod}
+              setPeriod={setSelectedPeriod}
             />
-
-            <ErrorBoundary>
-              <DashboardCharts
-                tokens={safeTokens}
-                expenses={safeExpenses}
-                entries={safeEntries}
-                exchanges={safeExchanges}
+          </div>
+          <QuickActions
+            corner={
+              <GoldRateCard
+                rate24k={goldRate.rate24k}
+                rate22k={goldRate.rate22k}
+                rate18k={goldRate.rate18k}
+                updatedAt={goldRate.updatedAt}
+                hasRate={goldRate.hasRate}
+                onSave={goldRate.save}
               />
-            </ErrorBoundary>
+            }
+          />
+        </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <RecentActivity activities={safeRecentActivities} loading={loading} />
-              <UnpaidCustomers tokens={safeTokens} loading={loading} />
-            </div>
-          </>
-        </Suspense>
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+          <PurityDistributionChart purity={purity} />
+          <div className="xl:col-span-2">
+            <RecentSamplesTable samples={recentSamples} />
+          </div>
+        </div>
+
+        <LatestTestResults results={latestResults} />
+
+        <SystemStatusBar
+          error={error}
+          lastUpdated={lastUpdated}
+          samplesToday={kpis.samplesToday}
+          hasGoldRate={goldRate.hasRate}
+        />
       </motion.div>
     </ErrorBoundary>
   );
-}
-
-function Dashboard() {
-  return <DashboardContent />;
-}
+};
 
 export default Dashboard;

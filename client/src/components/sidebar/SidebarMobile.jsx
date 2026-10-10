@@ -2,9 +2,9 @@ import React, { memo, useEffect } from 'react';
 import { AnimatePresence, motion } from "framer-motion";
 import { useSidebar } from './SidebarProvider';
 import { SidebarHeader } from './SidebarHeader';
-import { SidebarFooter } from './SidebarFooter';
 import { SidebarMenuContent } from './SidebarMenuContent';
 import { Icons } from './SidebarIcons';
+import sidebarBG from '../../asset/sidebarBG.png';
 
 export const SidebarMobile = memo(({
   user,
@@ -45,16 +45,16 @@ export const SidebarMobile = memo(({
   return (
     <>
       {/* Mobile Sidebar Button */}
-      <div className="md:hidden fixed top-0 left-0 z-20 m-4">
+      <div className="md:hidden fixed top-0 left-0 z-40 m-4">
         <button
           type="button"
           onClick={() => setMobileOpen(!mobileOpen)}
           aria-label="Toggle navigation menu"
           aria-expanded={mobileOpen}
           aria-controls="sidebar-mobile-menu"
-          className="p-2 rounded-lg bg-white shadow-lg hover:bg-gray-50"
+          className="p-2 rounded-lg bg-charcoal shadow-lg hover:bg-black"
         >
-          <Icons.Menu className="h-6 w-6 text-gray-600" />
+          <Icons.Menu className="h-6 w-6 text-white" />
         </button>
       </div>
 
@@ -83,7 +83,13 @@ export const SidebarMobile = memo(({
               role="dialog"
               aria-modal="true"
               aria-label="Navigation menu"
-              className="absolute inset-y-0 left-0 w-64 bg-white flex flex-col overflow-hidden"
+              className="absolute inset-y-0 left-0 w-64 bg-charcoal flex flex-col overflow-hidden"
+              style={{
+                backgroundImage: `url(${sidebarBG})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+                backgroundRepeat: 'no-repeat'
+              }}
               initial={{ x: "-100%" }}
               animate={{ x: 0 }}
               exit={{ x: "-100%" }}
@@ -92,7 +98,6 @@ export const SidebarMobile = memo(({
               <SidebarHeader isMobile={true} />
               <div className="flex-1 flex flex-col min-h-0">
                 <SidebarMenuContent isMobile={true} {...{ mainMenuItems, dataMenuItems, expenseMenuItems, canAccessSettings, hasAnyDataItem, hasAnyExpenseItem, user, isActive, handleNavigation, isDataOpen, setIsDataOpen, isExpensesOpen, setIsExpensesOpen, onExpenseItemClick }} />
-                <SidebarFooter handleLogout={handleLogout} />
               </div>
             </motion.div>
           </motion.div>

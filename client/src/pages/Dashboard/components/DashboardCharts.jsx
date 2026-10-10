@@ -1,17 +1,29 @@
-import React, { useState, useMemo, useCallback } from 'react';
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import React, { useMemo, useCallback } from 'react';
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+  ResponsiveContainer,
+} from 'recharts';
+import { FiBarChart2 } from 'react-icons/fi';
 import TimeSelector from './TimeSelector';
+import { Card, CardHeader, EmptyState } from './Card';
+import { parseDate } from '../utils/dateUtils';
 
 const CHART_COLORS = {
-  revenue: '#FFD93D',     // Modern gold
-  expenses: '#FF6B6B',    // Soft red
-  profit: '#4ADE80',      // Fresh green
-  tokens: '#A78BFA',      // Lavender
-  exchanges: '#60A5FA',   // Sky blue
-  exchangeWeight: '#F472B6',  // Rose pink
-  exchangeExWeight: '#C084FC', // Purple
-  skinTest: '#38BDF8',    // Light blue
-  photoTest: '#2DD4BF'    // Teal
+  revenue: '#C69A32',       // Primary gold
+  expenses: '#DC4444',      // Danger red (semantic)
+  profit: '#16A36A',        // Success green (semantic)
+  tokens: '#9A7019',        // Dark gold
+  exchanges: '#667085',     // Muted slate
+  exchangeCount: '#667085', // Muted slate (matches the "Exchange Count" data key)
+  exchangeWeight: '#B08968',// Bronze
+  exchangeExWeight: '#D8D2C4', // Sand
+  skinTest: '#E4C46B',      // Light gold
+  photoTest: '#FFD700'      // Bright gold
 };
 
 const CHART_SERIES = [
@@ -26,6 +38,13 @@ const CHART_SERIES = [
   ['exchangeExWeight', 'Pure Weight', CHART_COLORS.exchangeExWeight, 'right']
 ];
 
+const PERIOD_LABELS = {
+  daily: 'last 30 days',
+  weekly: 'last 12 weeks',
+  monthly: 'last 12 months',
+  yearly: 'last 5 years',
+};
+
 // Create a date cache with size limit for better performance and memory management
 const MAX_CACHE_SIZE = 1000;
 const dateCache = new Map();
@@ -37,7 +56,7 @@ const getDateKey = (date, format) => {
       const firstKey = dateCache.keys().next().value;
       dateCache.delete(firstKey);
     }
-    
+
     const d = new Date(date);
     // Adjust to local timezone by subtracting the offset
     d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
@@ -62,14 +81,43 @@ const getDateKey = (date, format) => {
   return dateCache.get(key);
 };
 
-const DashboardCharts = ({ tokens = [], expenses = [], exchanges = [] }) => {
-  const [period, setPeriod] = useState('daily');
+const formatSeriesValue = (name, value) => {
+  if (['revenue', 'expenses', 'profit'].includes(String(name).toLowerCase())) {
+    return `₹${Number(value).toLocaleString()}`;
+  }
+  if (name === 'Impure Weight' || name === 'Pure Weight') {
+    return `${Number(value).toFixed(3)} g`;
+  }
+  if (name === 'Exchange Count') {
+    return `${value}`;
+  }
+  return Number(value).toLocaleString();
+};
 
+const ChartTooltip = ({ active, payload, label }) => {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="rounded-lg border border-hairline bg-white px-3 py-2 shadow-md">
+      <p className="mb-1 text-xs font-semibold text-ink">{label}</p>
+      {payload.map((entry) => (
+        <p key={entry.dataKey} className="flex items-center gap-2 text-xs text-muted">
+          <span className="h-2 w-2 rounded-full" style={{ background: entry.color }} />
+          <span className="min-w-24">{entry.name}</span>
+          <span className="font-medium tabular-nums text-ink">
+            {formatSeriesValue(entry.name, entry.value)}
+          </span>
+        </p>
+      ))}
+    </div>
+  );
+};
+
+const DashboardCharts = ({ tokens = [], expenses = [], exchanges = [], period = 'daily', setPeriod }) => {
   const chartData = useMemo(() => {
     try {
       const today = new Date();
       let startDate = new Date();
-      
+
       // Time ranges chosen to match each selector label
       switch (period) {
         case 'yearly':
@@ -104,16 +152,16 @@ const DashboardCharts = ({ tokens = [], expenses = [], exchanges = [] }) => {
       // Process tokens with improved weekly handling
       (tokens || []).forEach(token => {
         const date = new Date(token.date);
-        const key = period === 'weekly' ? 
-          getWeekKey(date) : 
+        const key = period === 'weekly' ?
+          getWeekKey(date) :
           getDateKey(token.date, period);
 
         if (!tokenMap.has(key)) {
-          tokenMap.set(key, { 
-            amount: 0, 
-            count: 0, 
-            skinTest: 0, 
-            photoTest: 0 
+          tokenMap.set(key, {
+            amount: 0,
+            count: 0,
+            skinTest: 0,
+            photoTest: 0
           });
         }
         const data = tokenMap.get(key);
@@ -126,8 +174,8 @@ const DashboardCharts = ({ tokens = [], expenses = [], exchanges = [] }) => {
       // Process expenses with improved weekly handling
       (expenses || []).forEach(expense => {
         const date = new Date(expense.date);
-        const key = period === 'weekly' ? 
-          getWeekKey(date) : 
+        const key = period === 'weekly' ?
+          getWeekKey(date) :
           getDateKey(expense.date, period);
 
         if (!expenseMap.has(key)) {
@@ -140,10 +188,10 @@ const DashboardCharts = ({ tokens = [], expenses = [], exchanges = [] }) => {
       (exchanges || []).forEach(exchange => {
         if (!exchange.date) return;
         try {
-          const [day, month, year] = exchange.date.split('/');
-          const date = new Date(year, month - 1, day);
-          const key = period === 'weekly' ? 
-            getWeekKey(date) : 
+          const date = parseDate(exchange.date);
+          if (isNaN(date.getTime())) return;
+          const key = period === 'weekly' ?
+            getWeekKey(date) :
             getDateKey(date.toISOString(), period);
 
           if (!exchangeMap.has(key)) {
@@ -162,8 +210,8 @@ const DashboardCharts = ({ tokens = [], expenses = [], exchanges = [] }) => {
       const dataPoints = new Map();
       for (let d = new Date(startDate); d <= today; d.setDate(d.getDate() + (period === 'weekly' ? 7 : 1))) {
         const key = period === 'weekly' ? getWeekKey(d) : getDateKey(d, period);
-        const tokenData = tokenMap.get(key) || { 
-          amount: 0, count: 0, skinTest: 0, photoTest: 0 
+        const tokenData = tokenMap.get(key) || {
+          amount: 0, count: 0, skinTest: 0, photoTest: 0
         };
         const expenseAmount = expenseMap.get(key) || 0;
         const exchangeData = exchangeMap.get(key) || { count: 0, weight: 0, exweight: 0 };
@@ -194,7 +242,7 @@ const DashboardCharts = ({ tokens = [], expenses = [], exchanges = [] }) => {
     try {
       const d = new Date(date);
       if (isNaN(d.getTime())) return date;
-      
+
       switch (period) {
         case 'yearly':
           return d.getFullYear().toString();
@@ -213,116 +261,98 @@ const DashboardCharts = ({ tokens = [], expenses = [], exchanges = [] }) => {
     }
   }, [period]);
 
+  const hasData = chartData.some(
+    (row) =>
+      row.revenue ||
+      row.expenses ||
+      row.profit ||
+      row.tokens ||
+      row.exchangeCount ||
+      row.exchangeWeight ||
+      row.exchangeExWeight
+  );
+
   return (
-    <div className="grid grid-cols-1 gap-6 mt-6">
-      <div className="bg-white p-4 rounded-lg shadow-sm">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-semibold text-yellow-900 px-5">Statistics</h3>
-          <div className="flex items-center space-x-4">
-            <TimeSelector period={period} setPeriod={setPeriod} />
-          </div>
-        </div>
-        <div className="h-[400px]">
-          <ResponsiveContainer>
-            <AreaChart 
-              data={chartData} 
-              margin={{ top: 20, right: 30, left: 10, bottom: 0 }}
-              baseValue="dataMin"
-            >
-              <defs>
-                {Object.entries(CHART_COLORS).map(([name, color]) => (
-                  <linearGradient key={name} id={`color${name}`} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={color} stopOpacity={0.4} />
-                    <stop offset="50%" stopColor={color} stopOpacity={0.1} />
-                    <stop offset="100%" stopColor={color} stopOpacity={0.02} />
-                  </linearGradient>
-                ))}
-              </defs>
-              <XAxis 
-                dataKey="date" 
-                tickFormatter={formatDate}
-                axisLine={false} 
-                tickLine={false}
-                dy={10}
-                tick={{ fill: '#6B7280', fontSize: 12 }}
-              />
-              <YAxis 
-                yAxisId="left"
-                axisLine={false} 
-                tickLine={false}
-                tickFormatter={value => `₹${value.toLocaleString()}`}
-                tick={{ fill: '#6B7280', fontSize: 12 }}
-                dx={-10}
-              />
-              <YAxis 
-                yAxisId="right"
-                orientation="right"
-                axisLine={false} 
-                tickLine={false}
-                tickFormatter={value => value.toLocaleString()}
-                tick={{ fill: '#6B7280', fontSize: 12 }}
-                dx={10}
-                
-              />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                  borderRadius: '12px',
-                  boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
-                  border: 'none',
-                  padding: '12px 16px'
-                }}
-                labelStyle={{
-                  color: '#374151',
-                  fontWeight: 600,
-                  marginBottom: '8px'
-                }}
-                itemStyle={{
-                  padding: '4px 0'
-                }}
-                labelFormatter={formatDate}
-                formatter={(value, name) => {
-                  if (['revenue', 'expenses', 'profit'].includes(name.toLowerCase())) {
-                    return [`₹${value.toLocaleString()}`, name];
-                  } else if (name === 'Impure Weight' || name === 'Pure Weight') {
-                    return [`${value.toFixed(3)} g`, name];
-                  } else if (name === 'Exchange Count') {
-                    return [`${value}`, 'Exchanges'];
-                  } else if (name === 'Skin Tests' || name === 'Photo Tests') {
-                    return [`${value}`, name];
-                  } else {
-                    return [value.toLocaleString(), name];
-                  }
-                }}
-              />
-              {CHART_SERIES.map(([key, name, color, axis]) => (
-                <Area
-                  key={key}
-                  yAxisId={axis}
-                  type="monotoneX"
-                  dataKey={key}
-                  name={name}
-                  stroke={color}
-                  strokeWidth={2}
-                  fill={`url(#color${key})`}
-                  fillOpacity={1}
-                  animationDuration={1500}
-                  animationEasing="ease-in-out"
-                  dot={false}
-                  activeDot={{
-                    r: 8,
-                    strokeWidth: 2,
-                    stroke: '#fff',
-                    fill: color,
-                    boxShadow: '0 0 10px rgba(0,0,0,0.2)'
-                  }}
+    <Card className="flex h-full flex-col">
+      <CardHeader
+        icon={FiBarChart2}
+        title="Statistics"
+        subtitle={`Revenue, expenses, tokens & exchanges · ${PERIOD_LABELS[period] || ''}`}
+        action={<TimeSelector period={period} setPeriod={setPeriod} />}
+      />
+      <div className="flex-1 p-5">
+        {hasData ? (
+          <div className="h-80 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart
+                data={chartData}
+                margin={{ top: 8, right: 8, left: -8, bottom: 0 }}
+                baseValue="dataMin"
+              >
+                <defs>
+                  {Object.entries(CHART_COLORS).map(([name, color]) => (
+                    <linearGradient key={name} id={`stat-color${name}`} x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={color} stopOpacity={0.45} />
+                      <stop offset="100%" stopColor={color} stopOpacity={0.03} />
+                    </linearGradient>
+                  ))}
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#EAE7E0" vertical={false} />
+                <XAxis
+                  dataKey="date"
+                  tickFormatter={formatDate}
+                  tickLine={false}
+                  axisLine={false}
+                  tick={{ fontSize: 12, fill: '#667085' }}
+                  dy={6}
                 />
-              ))}
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
+                <YAxis
+                  yAxisId="left"
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={(value) => `₹${value.toLocaleString()}`}
+                  tick={{ fontSize: 12, fill: '#667085' }}
+                  width={56}
+                />
+                <YAxis
+                  yAxisId="right"
+                  orientation="right"
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={(value) => value.toLocaleString()}
+                  tick={{ fontSize: 12, fill: '#667085' }}
+                  width={40}
+                />
+                <Tooltip
+                  content={<ChartTooltip />}
+                  cursor={{ stroke: '#C69A32', strokeDasharray: '4 3' }}
+                />
+                {CHART_SERIES.map(([key, name, color, axis]) => (
+                  <Area
+                    key={key}
+                    yAxisId={axis}
+                    type="monotone"
+                    dataKey={key}
+                    name={name}
+                    stroke={color}
+                    strokeWidth={2}
+                    fill={`url(#stat-color${key})`}
+                    fillOpacity={1}
+                    dot={false}
+                  />
+                ))}
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        ) : (
+          <EmptyState
+            icon={FiBarChart2}
+            title="No statistics yet"
+            message="Recorded tokens, expenses and exchanges will appear here."
+          />
+        )}
       </div>
-    </div>
+    </Card>
   );
 };
 
@@ -330,7 +360,8 @@ const DashboardCharts = ({ tokens = [], expenses = [], exchanges = [] }) => {
 const MemoizedDashboardCharts = React.memo(DashboardCharts, (prevProps, nextProps) => {
   return prevProps.tokens === nextProps.tokens &&
          prevProps.expenses === nextProps.expenses &&
-         prevProps.exchanges === nextProps.exchanges;
+         prevProps.exchanges === nextProps.exchanges &&
+         prevProps.period === nextProps.period;
 });
 
 export default MemoizedDashboardCharts;
