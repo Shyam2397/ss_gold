@@ -54,6 +54,7 @@
       "preload.js",
       "splash-preload.js",
       "splash.html",
+      "client/src/asset/splashBG.png",
       "client/dist/**/*",
       "node_modules/pdf-to-printer/**/*",
       "node_modules/koffi/**/*"
