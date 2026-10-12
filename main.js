@@ -518,6 +518,9 @@ function revealApplication() {
 
 function showMainWindow() {
   if (!mainWindow || mainWindow.isDestroyed()) return;
+  if (!mainWindow.isMaximized()) {
+    mainWindow.maximize();
+  }
   mainWindow.show();
   mainWindow.focus();
 }
@@ -629,7 +632,7 @@ async function createWindow() {
     width,
     height,
     ...(hasPosition ? { x: savedWindowState.x, y: savedWindowState.y } : {}),
-    fullscreen: true,
+    maximized: true,
     backgroundColor: '#FEFEFE',
     icon: iconPath,
     webPreferences: {
