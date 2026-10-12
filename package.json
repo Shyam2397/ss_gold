@@ -1,6 +1,6 @@
 {
   "name": "ss_gold",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "main": "main.js",
   "author": "Shyam Sundar",
   "description": "gold testing applicaton",
@@ -50,6 +50,7 @@
     },
     "files": [
       "main.js",
+      "main/**/*",
       "devmode-helper.js",
       "preload.js",
       "splash-preload.js",
