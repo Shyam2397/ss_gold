@@ -4,6 +4,7 @@ import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
 import { logoutUser } from './services/authService';
+import loginBg from './asset/loginBG.png';
 
 // Closing the application ends the session: drop any credentials left behind by
 // the previous run so every launch starts at the login screen. This runs before
@@ -29,19 +30,54 @@ const reportMetric = (metric) => {
   }
 };
 
+const preloadImage = (src) => new Promise((resolve) => {
+  if (!src) {
+    resolve();
+    return;
+  }
+
+  const image = new Image();
+  let settled = false;
+  const done = () => {
+    if (settled) return;
+    settled = true;
+    resolve();
+  };
+
+  const timeoutId = setTimeout(done, 3000);
+
+  image.onload = () => {
+    clearTimeout(timeoutId);
+    if (typeof image.decode === 'function') {
+      image.decode().then(done).catch(done);
+    } else {
+      done();
+    }
+  };
+  image.onerror = () => {
+    clearTimeout(timeoutId);
+    done();
+  };
+
+  image.src = src;
+});
+
 // Create root with concurrent features
 const root = ReactDOM.createRoot(document.getElementById('root'));
 
-// Render with selective StrictMode
-root.render(
-  process.env.NODE_ENV === 'development' ? (
-    <React.StrictMode>
+// Render with selective StrictMode once the login backdrop is decoded so the
+// first painted frame already contains the background (no white flash).
+preloadImage(loginBg).finally(() => {
+  root.render(
+    process.env.NODE_ENV === 'development' ? (
+      <React.StrictMode>
+        <App />
+      </React.StrictMode>
+    ) : (
       <App />
-    </React.StrictMode>
-  ) : (
-    <App />
-  )
-);
+    )
+  );
+});
 
 // Performance monitoring
 reportWebVitals(reportMetric);

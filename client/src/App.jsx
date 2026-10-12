@@ -218,6 +218,10 @@ function App() {
   const [loggedIn, setLoggedIn] = React.useState(false);
 
   useEffect(() => {
+    if (window.electron && typeof window.electron.notifyContentReady === 'function') {
+      window.electron.notifyContentReady();
+    }
+
     // Register service worker - DISABLED FOR ELECTRON
     // if ('serviceWorker' in navigator) {
     //   navigator.serviceWorker.register('/service-worker.js')

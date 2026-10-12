@@ -113,6 +113,7 @@ contextBridge.exposeInMainWorld(
     // API configuration
     getApiUrl: () => ipcRenderer.invoke('get-api-url'),
     cacheSplashBranding: (details) => ipcRenderer.invoke('cache-splash-branding', details),
+    notifyContentReady: () => ipcRenderer.send('renderer-content-ready'),
     // Printer management
     getAvailablePrinters: () => getAvailablePrinters(),
     getPrinterSettings: () => getPrinterSettings(),

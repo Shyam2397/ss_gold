@@ -172,6 +172,7 @@ let backendPort;
 let backendReadyPromise;
 let mainWindowReady = false;
 let splashBrandingReady = false;
+let contentReady = false;
 let splashRevealed = false;
 let splashRevealTimer;
 
@@ -500,7 +501,7 @@ const stateManager = {
 };
 
 function revealApplication() {
-  if (splashRevealed || !mainWindowReady || !splashBrandingReady) return;
+  if (splashRevealed || !mainWindowReady || !splashBrandingReady || !contentReady) return;
   if (!mainWindow || mainWindow.isDestroyed()) return;
 
   splashRevealed = true;
@@ -508,11 +509,56 @@ function revealApplication() {
     clearTimeout(splashRevealTimer);
     splashRevealTimer = null;
   }
-  if (splashWindow && !splashWindow.isDestroyed()) {
-    splashWindow.destroy();
-    splashWindow = null;
-  }
+
+  const splash = splashWindow;
+  splashWindow = null;
+
+  fadeSplashThenReveal(splash);
+}
+
+function showMainWindow() {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
   mainWindow.show();
+  mainWindow.focus();
+}
+
+function fadeSplashThenReveal(splash) {
+  if (!splash || splash.isDestroyed()) {
+    showMainWindow();
+    return;
+  }
+
+  const FADE_MS = 180;
+  let finished = false;
+
+  const finish = () => {
+    if (finished) return;
+    finished = true;
+    if (splash && !splash.isDestroyed()) {
+      splash.destroy();
+    }
+    showMainWindow();
+  };
+
+  try {
+    splash.webContents
+      .executeJavaScript(
+        `(() => {
+          const el = document.body;
+          if (!el) return false;
+          el.style.transition = 'opacity ${FADE_MS}ms ease-out';
+          void el.offsetWidth;
+          el.style.opacity = '0';
+          return true;
+        })();`
+      )
+      .catch(() => {});
+  } catch (error) {
+    finish();
+    return;
+  }
+
+  setTimeout(finish, FADE_MS + 40);
 }
 
 function scheduleSplashRevealTimeout() {
@@ -520,6 +566,7 @@ function scheduleSplashRevealTimeout() {
   splashRevealTimer = setTimeout(() => {
     splashRevealTimer = null;
     splashBrandingReady = true;
+    contentReady = true;
     revealApplication();
   }, 5000);
 }
@@ -533,15 +580,24 @@ function createSplashWindow() {
   splashWindow = new BrowserWindow({
     width: 400,
     height: 400,
+    center: true,
     frame: false,
     transparent: true,
     alwaysOnTop: true,
+    show: false,
     icon: iconPath,
     webPreferences: {
       preload: path.join(__dirname, 'splash-preload.js'),
       contextIsolation: true
     }
   });
+
+  splashWindow.once('ready-to-show', () => {
+    if (splashWindow && !splashWindow.isDestroyed()) {
+      splashWindow.show();
+    }
+  });
+
   splashWindow.loadFile(path.join(__dirname, 'splash.html')).catch((error) => {
     log.error('Failed to load splash screen:', error);
     splashBrandingReady = true;
@@ -551,6 +607,7 @@ function createSplashWindow() {
 
 async function createWindow() {
   mainWindowReady = false;
+  contentReady = false;
   splashRevealed = false;
   if (splashRevealTimer) {
     clearTimeout(splashRevealTimer);
@@ -562,9 +619,18 @@ async function createWindow() {
     app.isPackaged ? 'assets/logo.ico' : 'client/src/assets/logo.ico'
   );
   
-  const windowState = getWindowState();
+  const savedWindowState = getWindowState() || {};
+  const width = Number.isFinite(savedWindowState.width) ? savedWindowState.width : 1200;
+  const height = Number.isFinite(savedWindowState.height) ? savedWindowState.height : 800;
+  const hasPosition =
+    Number.isFinite(savedWindowState.x) && Number.isFinite(savedWindowState.y);
+
   mainWindow = new BrowserWindow({
-    ...windowState,
+    width,
+    height,
+    ...(hasPosition ? { x: savedWindowState.x, y: savedWindowState.y } : {}),
+    maximized: true,
+    backgroundColor: '#FEFEFE',
     icon: iconPath,
     webPreferences: {
       nodeIntegration: false,
@@ -574,16 +640,19 @@ async function createWindow() {
     show: false
   });
 
-  // Remove default menu in production
   if (app.isPackaged) {
     mainWindow.setMenuBarVisibility(false);
     mainWindow.setAutoHideMenuBar(true);
   }
 
-  mainWindow.webContents.on('did-finish-load', () => {
+  mainWindow.once('ready-to-show', () => {
     mainWindowReady = true;
     scheduleSplashRevealTimeout();
     revealApplication();
+  });
+
+  mainWindow.webContents.on('did-finish-load', () => {
+    log.info('Main window finished loading.');
   });
 
   mainWindow.webContents.on('did-fail-load', () => {
@@ -686,6 +755,11 @@ ipcMain.handle('cache-splash-branding', (_event, details) => {
 
 ipcMain.on('splash-branding-ready', () => {
   splashBrandingReady = true;
+  revealApplication();
+});
+
+ipcMain.on('renderer-content-ready', () => {
+  contentReady = true;
   revealApplication();
 });
 
