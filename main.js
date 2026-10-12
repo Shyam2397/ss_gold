@@ -629,7 +629,7 @@ async function createWindow() {
     width,
     height,
     ...(hasPosition ? { x: savedWindowState.x, y: savedWindowState.y } : {}),
-    maximized: true,
+    fullscreen: true,
     backgroundColor: '#FEFEFE',
     icon: iconPath,
     webPreferences: {
