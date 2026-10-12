@@ -11,7 +11,7 @@ export const SidebarHeader = memo(({ isMobile = false }) => {
 
   return (
     <div className={`flex items-center ${isMobile ? 'h-16 px-4' : 'h-20 px-4'} border-b border-white/10 flex-shrink-0`}>
-      <div className="flex items-center align-middle overflow-hidden">
+      <div className="flex items-center align-middle overflow-hidden min-w-0">
         <img
           src={companyLogo}
           alt={companyName}
@@ -23,8 +23,14 @@ export const SidebarHeader = memo(({ isMobile = false }) => {
           </span>
         )}
       </div>
+
       {isMobile && (
-        <button type="button" onClick={() => setMobileOpen(false)} aria-label="Close navigation menu" className="ml-auto p-2 rounded-lg text-white/70 hover:bg-white/10 hover:text-white">
+        <button
+          type="button"
+          onClick={() => setMobileOpen(false)}
+          aria-label="Close navigation menu"
+          className="ml-auto p-2 rounded-lg text-white/70 hover:bg-white/10 hover:text-white transition-colors motion-reduce:transition-none"
+        >
           <Icons.X className="h-6 w-6" />
         </button>
       )}

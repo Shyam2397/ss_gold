@@ -4,6 +4,31 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer utilities {
+  /* Dynamic viewport height with a 100vh fallback for engines without dvh.
+     Keeps the shell and the mobile drawer from hiding under mobile browser
+     chrome (URL bar) without changing layout on desktop. */
+  .h-viewport {
+    height: 100vh;
+    height: 100dvh;
+  }
+
+  /* Device safe-area insets (notches / home indicator). Zero on desktop and
+     anywhere the env() variables are unsupported. */
+  .pt-safe {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .pl-safe {
+    padding-left: env(safe-area-inset-left, 0px);
+  }
+  .pr-safe {
+    padding-right: env(safe-area-inset-right, 0px);
+  }
+}
+
 * {
   font-family: "Poppins", sans-serif;
 }

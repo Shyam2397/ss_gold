@@ -62,7 +62,7 @@ export const SidebarMenuContent = memo(({
           itemActive
             ? "bg-gold-bright/15 text-gold-bright font-semibold"
             : "text-white/60 hover:bg-white/5 hover:text-gold-bright",
-          "rounded-xl transition-all duration-200 text-left"
+          "rounded-xl transition-all duration-200 motion-reduce:transition-none text-left"
         )}
         onClick={() => {
           // Single dispatch point: onExpenseItemClick (handleExpenseClick) runs
@@ -73,7 +73,7 @@ export const SidebarMenuContent = memo(({
         }}
       >
         <div className="flex items-center justify-center w-5"><item.icon className={cn("h-5 w-5 flex-shrink-0", itemActive && "text-gold-bright")} /></div>
-        <span className={cn("font-medium text-md ml-3", itemActive && "text-gold-bright")}>{item.label}</span>
+        <span className={cn("font-medium text-base ml-3", itemActive && "text-gold-bright")}>{item.label}</span>
       </button>
     );
   }, [onExpenseItemClick, isMobile, setMobileOpen, isActive]);
@@ -112,12 +112,12 @@ export const SidebarMenuContent = memo(({
               "w-full flex items-center justify-between h-9 px-2",
               isDataSectionActive ? "text-gold-bright" : "text-white/60",
               "hover:bg-white/5 hover:text-gold-bright",
-              "rounded-xl transition-all duration-200"
+              "rounded-xl transition-all duration-200 motion-reduce:transition-none"
             )}
           >
             <div className="flex items-center">
               <div className="flex items-center justify-center w-5 pl-1"><Icons.Database className="h-5 w-5 flex-shrink-0" /></div>
-              {(open || isMobile) && <span className="font-medium text-md ml-3">Data</span>}
+              {(open || isMobile) && <span className="font-medium text-base ml-3">Data</span>}
             </div>
             {(open || isMobile) && (
               <div className="ml-2">{isDataOpen ? <FiChevronDown className="h-5 w-5" /> : <FiChevronRight className="h-5 w-5" />}</div>
@@ -154,12 +154,12 @@ export const SidebarMenuContent = memo(({
               "w-full flex items-center justify-between h-9 px-2",
               isExpensesSectionActive ? "text-gold-bright" : "text-white/60",
               "hover:bg-white/5 hover:text-gold-bright",
-              "rounded-xl transition-all duration-200"
+              "rounded-xl transition-all duration-200 motion-reduce:transition-none"
             )}
           >
             <div className="flex items-center">
               <div className="flex items-center justify-center w-5 pl-1"><Icons.DollarSign className="h-5 w-5 flex-shrink-0" /></div>
-              {(open || isMobile) && <span className="font-medium text-md ml-3">Expenses</span>}
+              {(open || isMobile) && <span className="font-medium text-base ml-3">Expenses</span>}
             </div>
             {(open || isMobile) && (
               <div className="ml-2">{isExpensesOpen ? <FiChevronDown className="h-5 w-5" /> : <FiChevronRight className="h-5 w-5" />}</div>
