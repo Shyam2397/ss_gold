@@ -3,6 +3,7 @@ export const ROUTE_PRIORITIES = {
   '/entries': { priority: 1, preloadChunks: true, keepInMemory: true },
   '/token': { priority: 2, preloadChunks: false },
   '/skin-testing': { priority: 2, preloadChunks: false },
+  '/photo-studio': { priority: 2, preloadChunks: false },
   '/cash-adjustments': { priority: 2, preloadChunks: true },
   '/cashbook': { priority: 2, preloadChunks: true, keepInMemory: true },
   '/expenses/add': { priority: 1, preloadChunks: true },

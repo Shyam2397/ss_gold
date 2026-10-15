@@ -74,6 +74,11 @@ async function testPrint(printerType, htmlContent) {
   return ipcRenderer.invoke('test-print', { printerType, htmlContent });
 }
 
+// Photo Studio image export (native save dialog in main process)
+async function saveImage(payload) {
+  return ipcRenderer.invoke('save-image', payload);
+}
+
 /**
  * sendWhatsApp()
  * Hands a pre-filled WhatsApp link to the OS so the installed WhatsApp desktop
@@ -126,6 +131,8 @@ contextBridge.exposeInMainWorld(
     silentPrintSkinTest: (htmlContent, printerName, copies) =>
       silentPrintSkinTest(htmlContent, printerName, copies),
     testPrint: (printerType, htmlContent) => testPrint(printerType, htmlContent),
+    // Photo Studio image export
+    saveImage: (payload) => saveImage(payload),
     // WhatsApp sharing (OS-level, no in-app window)
     sendWhatsApp: (payload) => sendWhatsApp(payload),
     // Check if we're running in Electron

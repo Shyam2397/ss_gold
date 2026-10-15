@@ -119,6 +119,7 @@ const SidebarContent = memo(({ user, setLoggedIn }) => {
     { icon: Icons.Tag, label: 'Token', path: '/token' },
     { icon: Icons.TestTubes, label: 'Skin Testing', path: '/skin-testing' },
     { icon: Icons.Camera, label: 'Photo Testing', path: '/photo-testing' },
+    { icon: Icons.Sliders, label: 'Photo Studio', path: '/photo-studio' },
     { icon: Icons.GoldBar, label: 'Pure Exchange', path: '/pure-exchange' },
   ], []);
 

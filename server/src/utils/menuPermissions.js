@@ -9,6 +9,7 @@ const MENU_KEYS = [
   { key: 'token', label: 'Token', group: 'Main' },
   { key: 'skin-testing', label: 'Skin Testing', group: 'Main' },
   { key: 'photo-testing', label: 'Photo Testing', group: 'Main' },
+  { key: 'photo-studio', label: 'Photo Studio', group: 'Main' },
   { key: 'pure-exchange', label: 'Pure Exchange', group: 'Main' },
   { key: 'customer-data', label: 'Customer Data', group: 'Data' },
   { key: 'token-data', label: 'Token Data', group: 'Data' },

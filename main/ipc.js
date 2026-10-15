@@ -1,5 +1,7 @@
-const { ipcMain, shell } = require('electron');
+const { ipcMain, shell, dialog } = require('electron');
 const os = require('os');
+const fs = require('fs');
+const path = require('path');
 const log = require('electron-log');
 
 const { state, getBackendBaseUrl } = require('./state');
@@ -138,6 +140,38 @@ function registerIpcHandlers() {
 
   // ============================================================
   // END PRINTER MANAGEMENT IPC HANDLERS
+  // ============================================================
+
+  // ============================================================
+  // PHOTO STUDIO - IMAGE EXPORT
+  // ============================================================
+  ipcMain.handle('save-image', async (_event, payload) => {
+    try {
+      if (!payload || !payload.buffer) {
+        return { success: false, error: 'No image data provided.' };
+      }
+      const suggested = payload.defaultPath || 'photo.png';
+      const result = await dialog.showSaveDialog(state.mainWindow, {
+        title: 'Export image',
+        defaultPath: path.join(require('os').homedir(), 'Pictures', suggested),
+        filters:
+          payload.filters && payload.filters.length
+            ? payload.filters
+            : [{ name: 'Image', extensions: ['png', 'jpg', 'jpeg', 'webp'] }],
+      });
+      if (result.canceled || !result.filePath) {
+        return { success: false, canceled: true };
+      }
+      await fs.promises.writeFile(result.filePath, Buffer.from(payload.buffer));
+      log.info(`Photo Studio exported image to ${result.filePath}`);
+      return { success: true, path: result.filePath };
+    } catch (error) {
+      log.error('save-image failed:', error);
+      return { success: false, error: error.message };
+    }
+  });
+  // ============================================================
+  // END PHOTO STUDIO - IMAGE EXPORT
   // ============================================================
 }
 

@@ -15,6 +15,7 @@ export const MENU_DEFINITIONS = [
   { key: 'token', label: 'Token', group: 'Main', path: '/token' },
   { key: 'skin-testing', label: 'Skin Testing', group: 'Main', path: '/skin-testing' },
   { key: 'photo-testing', label: 'Photo Testing', group: 'Main', path: '/photo-testing' },
+  { key: 'photo-studio', label: 'Photo Studio', group: 'Main', path: '/photo-studio' },
   { key: 'pure-exchange', label: 'Pure Exchange', group: 'Main', path: '/pure-exchange' },
   { key: 'customer-data', label: 'Customer Data', group: 'Data', path: '/customer-data' },
   { key: 'token-data', label: 'Token Data', group: 'Data', path: '/token-data' },

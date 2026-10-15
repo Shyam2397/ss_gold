@@ -51,6 +51,11 @@ const PhotoTesting = lazyLoad(() => import(
   '../pages/PhotoTesting/PhotoTesting'
 ));
 
+const PhotoStudio = lazyLoad(() => import(
+  /* webpackChunkName: "photo-studio" */
+  '../pages/PhotoStudio/PhotoStudio'
+));
+
 const Token = lazyLoad(() => import(
   /* webpackChunkName: "token" */
   /* webpackPrefetch: true */
@@ -230,6 +235,12 @@ const routesConfig = [
     Component: PhotoTesting,
     preload: () => import('../pages/PhotoTesting/PhotoTesting'),
     ...ROUTE_PRIORITIES['/photo-testing']
+  },
+  {
+    path: '/photo-studio',
+    Component: PhotoStudio,
+    preload: () => import('../pages/PhotoStudio/PhotoStudio'),
+    ...ROUTE_PRIORITIES['/photo-studio']
   },
   {
     path: '/customer-data',

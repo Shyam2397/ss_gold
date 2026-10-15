@@ -84,3 +84,70 @@ input:-webkit-autofill:active {
   caret-color: #78350f;
   transition: background-color 9999s ease-in-out 0s;
 }
+
+/* ------------------------------------------------------------------ */
+/* Photo Studio - adjustment sliders                                   */
+/* ------------------------------------------------------------------ */
+.ps-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  border-radius: 9999px;
+  outline: none;
+  cursor: pointer;
+  background: linear-gradient(
+    to right,
+    #c69a32 0%,
+    #c69a32 var(--ps-fill, 50%),
+    #e2e8f0 var(--ps-fill, 50%),
+    #e2e8f0 100%
+  );
+}
+
+.ps-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2px solid #c69a32;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.25);
+  transition: transform 0.12s ease;
+}
+
+.ps-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+}
+
+.ps-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2px solid #c69a32;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.25);
+}
+
+.ps-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+.ps-scroll::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+.ps-scroll::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Checkerboard for transparent areas (e.g. after straightening) */
+.ps-checker {
+  background-color: #f1f5f9;
+  background-image:
+    linear-gradient(45deg, #e2e8f0 25%, transparent 25%),
+    linear-gradient(-45deg, #e2e8f0 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #e2e8f0 75%),
+    linear-gradient(-45deg, transparent 75%, #e2e8f0 75%);
+  background-size: 20px 20px;
+  background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+}
