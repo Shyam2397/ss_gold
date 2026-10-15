@@ -8,6 +8,7 @@ const PhotoTestingLayout = ({
   onTokenSearch,
   onResetForm,
   onKeyDown,
+  tokenInputRef,
   formData,
   onPrint,
   onPhotoChange,
@@ -54,6 +55,7 @@ const PhotoTestingLayout = ({
             onSearch={onTokenSearch}
             onReset={onResetForm}
             onKeyDown={onKeyDown}
+            inputRef={tokenInputRef}
           />
         )}
       </div>
@@ -67,12 +69,12 @@ const PhotoTestingLayout = ({
             {GridOverlay && <GridOverlay />}
             <div
               className="w-full h-full flex p-[4px] box-border"
-              style={{ boxShadow: 'inset 0 0 0 1px #dc2626' }}
+              style={{ boxShadow: 'inset 0 0 0 1px #FFD700' }}
             >
               {/* Left Wrapper */}
               <div
                 className="w-1/2 h-full flex flex-col"
-                style={{ boxShadow: 'inset 0 0 0 1px #dc2626' }}
+                style={{ boxShadow: 'inset 0 0 0 1px #FFD700' }}
               >
                 {Header && <Header />}
                 <div className="p-1 flex-grow">
@@ -83,7 +85,7 @@ const PhotoTestingLayout = ({
               {/* Right Wrapper */}
               <div
                 className="w-1/2 h-full flex flex-col p-[5px] box-border"
-                style={{ boxShadow: 'inset 0 0 0 1px #dc2626' }}
+                style={{ boxShadow: 'inset 0 0 0 1px #FFD700' }}
               >
                 <div
                   ref={photoAreaRef}

@@ -1,6 +1,6 @@
 import React from 'react';
 
-const TokenSearchForm = ({ tokenNo, onTokenNoChange, onSearch, onReset, onKeyDown }) => (
+const TokenSearchForm = ({ tokenNo, onTokenNoChange, onSearch, onReset, onKeyDown, inputRef }) => (
   <div className="space-y-1">
     <label htmlFor="tokenInput" className="block text-sm font-medium text-amber-700">
       Token Number
@@ -8,6 +8,7 @@ const TokenSearchForm = ({ tokenNo, onTokenNoChange, onSearch, onReset, onKeyDow
     <div className="flex items-center space-x-2">
       <input
         id="tokenInput"
+        ref={inputRef}
         type="text"
         value={tokenNo}
         onChange={(e) => onTokenNoChange(e.target.value)}

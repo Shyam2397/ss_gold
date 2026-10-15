@@ -83,6 +83,7 @@ export default function PhotoArrows({ arrows = [], onChange, containerRef }) {
       {arrows.map((arrow) => (
         <div
           key={arrow.id}
+          data-no-refocus="true"
           className="absolute z-20 cursor-move touch-none select-none"
           style={{
             left: `${arrow.x * 100}%`,

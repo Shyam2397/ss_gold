@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState, Suspense, lazy } from 'react';
+import React, { useCallback, useEffect, useRef, useState, Suspense, lazy } from 'react';
 import { usePhotoTestingState } from './hooks/usePhotoTestingState';
 import { useTokenSearch } from './hooks/useTokenSearch';
 import { useProgressiveLoading } from './hooks/useComponentLoader';
@@ -113,6 +113,56 @@ const PhotoTesting = () => {
 
   const { handleTokenSearch, resetForm } = useTokenSearch(dispatch);
 
+  // The token-no input is the operator's primary control, so a single ref is
+  // shared by the navigation (auto-focus on entry), reset, add and print actions.
+  const tokenInputRef = useRef(null);
+  const hasAutoFocusedTokenRef = useRef(false);
+  const pageContainerRef = useRef(null);
+
+  const focusTokenInput = useCallback(() => {
+    requestAnimationFrame(() => {
+      const node = tokenInputRef.current;
+      if (node && document.activeElement !== node) {
+        node.focus();
+        if (typeof node.select === 'function') node.select();
+      }
+    });
+  }, []);
+
+  // Callback ref: TokenSearchForm is lazy-loaded, so focus the input as soon as
+  // the node attaches (page load / navigation) instead of on mount.
+  const attachTokenInputRef = useCallback((node) => {
+    tokenInputRef.current = node;
+    if (node && !hasAutoFocusedTokenRef.current) {
+      hasAutoFocusedTokenRef.current = true;
+      requestAnimationFrame(() => {
+        if (tokenInputRef.current && document.activeElement !== tokenInputRef.current) {
+          tokenInputRef.current.focus();
+        }
+      });
+    }
+  }, []);
+
+  // Keep the token box as the active field: clicking empty space anywhere on the
+  // page returns focus to it, so the next token can be typed without hunting for
+  // the field. Clicks on other controls (inputs, buttons, links, labels) and the
+  // Photo Studio overlay are left alone.
+  useEffect(() => {
+    const container = pageContainerRef.current;
+    if (!container) return undefined;
+
+    const handleMouseDown = (e) => {
+      if (editorOpen) return;
+      const target = e.target;
+      if (!(target instanceof Element)) return;
+      if (target.closest('input, textarea, select, button, a, label, [contenteditable="true"], [role="dialog"], [data-no-refocus]')) return;
+      focusTokenInput();
+    };
+
+    container.addEventListener('mousedown', handleMouseDown);
+    return () => container.removeEventListener('mousedown', handleMouseDown);
+  }, [editorOpen, focusTokenInput]);
+
   // Initialize progressive loading for development insights
   const progressiveLoading = useProgressiveLoading([
     { name: 'PhotoTestingLayout', loader: componentDefinitions.PhotoTestingLayout.loader },
@@ -136,11 +186,22 @@ const PhotoTesting = () => {
     }
   }, [progressiveLoading.loadingState.progress]);
 
+  const handleSearchAndRefocus = useCallback(async () => {
+    await handleTokenSearch(tokenNo);
+    focusTokenInput();
+  }, [handleTokenSearch, tokenNo, focusTokenInput]);
+
+  // Enter in the token box runs the Add action.
   const handleKeyDown = (e) => {
-    if (e.key === 'Enter') {
-      handleTokenSearch(tokenNo);
-    }
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    handleSearchAndRefocus();
   };
+
+  const handleReset = useCallback(() => {
+    resetForm();
+    focusTokenInput();
+  }, [resetForm, focusTokenInput]);
 
   const handleTokenNoChange = useCallback((value) => {
     dispatch({ type: 'SET_TOKEN_NO', payload: value });
@@ -214,40 +275,44 @@ const PhotoTesting = () => {
     } catch (error) {
       console.error('Error preparing print data:', error);
       alert('Error preparing print data. Please try again.');
+    } finally {
+      focusTokenInput();
     }
-  }, [formData, tokenNo, photoScale, arrows]);
+  }, [formData, tokenNo, photoScale, arrows, focusTokenInput]);
 
   return (
     <Suspense fallback={<LoadingFallback progress={progressiveLoading.loadingState.progress} />}>
-      <PhotoTestingLayoutWithFallback
-        onPrint={handlePrint}
-        tokenNo={tokenNo}
-        onTokenNoChange={handleTokenNoChange}
-        onTokenSearch={() => handleTokenSearch(tokenNo)}
-        onResetForm={resetForm}
-        onKeyDown={handleKeyDown}
-        formData={formData}
-        onPhotoChange={handlePhotoChange}
-        photoScale={photoScale}
-        onZoomIn={handleZoomIn}
-        onZoomOut={handleZoomOut}
-        onEditImage={handleOpenEditor}
-        arrows={arrows}
-        onArrowChange={handleArrowChange}
-        // Pass enhanced lazy-loaded components with fallbacks
-        components={{
-          TestResultForm: TestResultFormWithFallback,
-          TokenSearchForm: TokenSearchFormWithFallback,
-          Header: HeaderWithFallback,
-          GridOverlay: GridOverlayWithFallback
-        }}
-        // Progressive loading state for development insights
-        loadingState={progressiveLoading.loadingState}
-      />
+      <div ref={pageContainerRef}>
+        <PhotoTestingLayoutWithFallback
+          onPrint={handlePrint}
+          tokenNo={tokenNo}
+          onTokenNoChange={handleTokenNoChange}
+          onTokenSearch={handleSearchAndRefocus}
+          onResetForm={handleReset}
+          onKeyDown={handleKeyDown}
+          tokenInputRef={attachTokenInputRef}
+          formData={formData}
+          onPhotoChange={handlePhotoChange}
+          photoScale={photoScale}
+          onZoomIn={handleZoomIn}
+          onZoomOut={handleZoomOut}
+          onEditImage={handleOpenEditor}
+          arrows={arrows}
+          onArrowChange={handleArrowChange}
+          // Pass enhanced lazy-loaded components with fallbacks
+          components={{
+            TestResultForm: TestResultFormWithFallback,
+            TokenSearchForm: TokenSearchFormWithFallback,
+            Header: HeaderWithFallback,
+            GridOverlay: GridOverlayWithFallback
+          }}
+          // Progressive loading state for development insights
+          loadingState={progressiveLoading.loadingState}
+        />
 
-      {/* Photo Studio editor overlay */}
-      {editorOpen && formData.photoUrl && (
-        <div className="fixed inset-0 z-[100] flex flex-col bg-black/60 sm:p-4">
+        {/* Photo Studio editor overlay */}
+        {editorOpen && formData.photoUrl && (
+          <div className="fixed inset-0 z-[100] flex flex-col bg-black/60 sm:p-4">
           <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-white shadow-2xl sm:rounded-xl">
             <Suspense fallback={<LoadingFallback progress={0} />}>
               <LazyPhotoStudioEditor
@@ -272,6 +337,7 @@ const PhotoTesting = () => {
           )}
         </div>
       )}
+      </div>
     </Suspense>
   );
 };
