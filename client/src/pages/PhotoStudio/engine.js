@@ -158,7 +158,8 @@ const balanceWeight = (t, kind) => {
 
 /**
  * Compose everything value-based into one LUT per channel:
- * white balance -> tone -> levels -> curves -> colour balance (3-zone).
+ * white balance -> tone -> RGB levels -> RGB curve -> per-channel levels ->
+ * per-channel curve -> colour balance (3-zone).
  * Value-based ops baked into LUTs are essentially free at render time.
  */
 export function buildChannelLuts(adj) {
@@ -170,6 +171,11 @@ export function buildChannelLuts(adj) {
     adj.basic.tint
   );
   const gains = [gr, gg, gb];
+
+  // Composite (RGB) levels + curve apply to every channel.
+  const rgbLevels = buildLevelsLut(adj.levels.rgb);
+  const rgbCurve = buildCurveLut(adj.curves.rgb.points);
+
   const levelsLut = [
     buildLevelsLut(adj.levels.r),
     buildLevelsLut(adj.levels.g),
@@ -183,13 +189,17 @@ export function buildChannelLuts(adj) {
   const bal = adj.color.balance;
   const luts = [new Uint8ClampedArray(256), new Uint8ClampedArray(256), new Uint8ClampedArray(256)];
 
+  const sample = (lut, v) => lut[Math.round(clamp(v, 0, 255))];
+
   for (let c = 0; c < 3; c += 1) {
     for (let i = 0; i < 256; i += 1) {
       let v = (i / 255) * gains[c];
       v = tone(clamp01(v));
       let x = v * 255;
-      x = levelsLut[c][Math.round(clamp(x, 0, 255))];
-      x = curveLut[c][Math.round(clamp(x, 0, 255))];
+      x = sample(rgbLevels, x);
+      x = sample(rgbCurve, x);
+      x = sample(levelsLut[c], x);
+      x = sample(curveLut[c], x);
 
       // Colour balance, referenced on the *input* level so zones stay put.
       const t = i / 255;
