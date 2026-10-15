@@ -242,25 +242,23 @@ export const printPhotoData = (formData) => {
             justify-content: center;
           }
           
-          /* High-DPI print optimization - Excel-level quality */
+          /* High-DPI print optimization - smooth, high-quality rescaling */
           @media print and (min-resolution: 300dpi) {
             .right-wrapper img {
-              image-rendering: pixelated !important;
-              image-rendering: -moz-crisp-edges !important;
-              image-rendering: -webkit-optimize-contrast !important;
-              -ms-interpolation-mode: nearest-neighbor !important;
+              image-rendering: auto !important;
+              image-rendering: high-quality !important;
+              -ms-interpolation-mode: bicubic !important;
               filter: none !important;
               transform: translateZ(0) !important;
             }
           }
           
-          /* Force pixel-perfect rendering in all browsers */
+          /* Keep smooth (non-pixelated) rescaling in all browsers */
           @media print {
             .right-wrapper img {
-              image-rendering: pixelated !important;
-              image-rendering: -moz-crisp-edges !important;
-              image-rendering: -webkit-optimize-contrast !important;
-              -ms-interpolation-mode: nearest-neighbor !important;
+              image-rendering: auto !important;
+              image-rendering: high-quality !important;
+              -ms-interpolation-mode: bicubic !important;
               backface-visibility: hidden !important;
               -webkit-backface-visibility: hidden !important;
               transform: translate3d(0,0,0) !important;
@@ -360,23 +358,17 @@ export const printPhotoData = (formData) => {
                         src="${formData.photoUrl}" 
                         alt="Uploaded Photo" 
                         style="
-                          max-width: 100%;
-                          max-height: 100%;
-                          width: auto;
-                          height: auto;
+                          width: calc(100% * ${formData.photoScale || 1});
+                          height: calc(100% * ${formData.photoScale || 1});
+                          flex-shrink: 0;
                           object-fit: contain;
-                          image-rendering: pixelated;
-                          image-rendering: -moz-crisp-edges;
-                          image-rendering: -webkit-optimize-contrast;
-                          -ms-interpolation-mode: nearest-neighbor;
+                          image-rendering: auto;
                           -webkit-print-color-adjust: exact !important;
                           print-color-adjust: exact !important;
                           color-adjust: exact !important;
                           background-color: white;
                           filter: contrast(1.1) saturate(1.1);
                         "
-                        onload="this.style.opacity=1"
-                        style="opacity: 0; transition: opacity 0.3s ease-in-out;"
                       />
                     </div>
                   ` : `

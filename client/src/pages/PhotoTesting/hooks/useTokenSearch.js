@@ -31,7 +31,8 @@ export const useTokenSearch = (dispatch) => {
             copper: tokenData?.copper || skinTestData?.copper || '0.00',
             zinc: tokenData?.zinc || skinTestData?.zinc || '0.00',
             cadmium: tokenData?.cadmium || skinTestData?.cadmium || '0.00',
-            remarks: tokenData?.remarks || skinTestData?.remarks || ''
+            remarks: tokenData?.remarks || skinTestData?.remarks || '',
+            photoUrl: null
           }
         });
       } else {

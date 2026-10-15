@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, Suspense } from 'react';
+import React, { useCallback, useEffect, useState, Suspense } from 'react';
 import { usePhotoTestingState } from './hooks/usePhotoTestingState';
 import { useTokenSearch } from './hooks/useTokenSearch';
 import { useProgressiveLoading } from './hooks/useComponentLoader';
@@ -94,9 +94,15 @@ const LoadingFallback = ({ progress }) => (
 );
 
 
+// Photo zoom limits (scale of the printed/preview image area)
+const MIN_PHOTO_SCALE = 0.2;
+const MAX_PHOTO_SCALE = 4;
+const PHOTO_SCALE_STEP = 0.1;
+
 const PhotoTesting = () => {
   const [state, dispatch] = usePhotoTestingState();
   const { tokenNo, formData } = state;
+  const [photoScale, setPhotoScale] = useState(1);
 
   const { handleTokenSearch, resetForm } = useTokenSearch(dispatch);
 
@@ -133,6 +139,35 @@ const PhotoTesting = () => {
     dispatch({ type: 'SET_TOKEN_NO', payload: value });
   }, [dispatch]);
 
+  const handlePhotoChange = useCallback((file) => {
+    if (!file) {
+      dispatch({ type: 'UPDATE_FORM_DATA', payload: { photoUrl: null } });
+      setPhotoScale(1);
+      return;
+    }
+
+    if (!file.type.startsWith('image/')) {
+      alert('Please choose an image file (PNG, JPG or WEBP).');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      dispatch({ type: 'UPDATE_FORM_DATA', payload: { photoUrl: event.target.result } });
+      setPhotoScale(1);
+    };
+    reader.onerror = () => alert('Could not read the selected file.');
+    reader.readAsDataURL(file);
+  }, [dispatch]);
+
+  const handleZoomIn = useCallback(() => {
+    setPhotoScale((scale) => Math.min(MAX_PHOTO_SCALE, Math.round((scale + PHOTO_SCALE_STEP) * 100) / 100));
+  }, []);
+
+  const handleZoomOut = useCallback(() => {
+    setPhotoScale((scale) => Math.max(MIN_PHOTO_SCALE, Math.round((scale - PHOTO_SCALE_STEP) * 100) / 100));
+  }, []);
+
   const handlePrint = useCallback(async () => {
     try {
       const { printPhotoData } = await loadUtility('printUtils');
@@ -140,7 +175,8 @@ const PhotoTesting = () => {
       const printData = {
         ...formData,
         tokenNo,
-        photoUrl: null,
+        photoUrl: formData.photoUrl || null,
+        photoScale,
         date: new Date().toISOString()
       };
 
@@ -149,7 +185,7 @@ const PhotoTesting = () => {
       console.error('Error preparing print data:', error);
       alert('Error preparing print data. Please try again.');
     }
-  }, [formData, tokenNo]);
+  }, [formData, tokenNo, photoScale]);
 
   return (
     <Suspense fallback={<LoadingFallback progress={progressiveLoading.loadingState.progress} />}>
@@ -161,6 +197,10 @@ const PhotoTesting = () => {
         onResetForm={resetForm}
         onKeyDown={handleKeyDown}
         formData={formData}
+        onPhotoChange={handlePhotoChange}
+        photoScale={photoScale}
+        onZoomIn={handleZoomIn}
+        onZoomOut={handleZoomOut}
         // Pass enhanced lazy-loaded components with fallbacks
         components={{
           TestResultForm: TestResultFormWithFallback,

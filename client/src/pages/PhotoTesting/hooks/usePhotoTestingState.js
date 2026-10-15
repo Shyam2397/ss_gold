@@ -27,7 +27,8 @@ const initialState = {
     copper: '',
     zinc: '',
     cadmium: '',
-    remarks: ''
+    remarks: '',
+    photoUrl: null
   }
 };
 
