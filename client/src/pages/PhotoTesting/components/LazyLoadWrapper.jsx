@@ -104,17 +104,6 @@ export const SkeletonLoader = ({ type = 'default', className = '' }) => {
       </div>
     ),
     
-    imageEditor: (
-      <div className={`p-4 ${className}`}>
-        <div className={`h-64 ${skeletonClasses} mb-4`}></div>
-        <div className="flex space-x-2">
-          <div className={`h-8 w-8 ${skeletonClasses}`}></div>
-          <div className={`h-8 w-8 ${skeletonClasses}`}></div>
-          <div className={`h-8 w-8 ${skeletonClasses}`}></div>
-        </div>
-      </div>
-    ),
-    
     header: (
       <div className={`p-4 ${className}`}>
         <div className={`h-16 ${skeletonClasses} w-full`}></div>
@@ -174,78 +163,5 @@ export const withEnhancedLazyLoading = (
         <LazyComponent {...props} />
       </Suspense>
     </LazyLoadErrorBoundary>
-  );
-};
-
-/**
- * Smart fallback component that adapts based on component type
- */
-export const SmartFallback = ({ componentType, error, componentName }) => {
-  const fallbackMap = {
-    form: <SkeletonLoader type="form" />,
-    imageEditor: <SkeletonLoader type="imageEditor" />,
-    header: <SkeletonLoader type="header" />,
-    layout: (
-      <div className="min-h-[700px] border-2 border-amber-100 bg-white p-6 m-4 rounded-xl flex items-center justify-center">
-        <EnhancedLoadingSpinner componentName="Layout" />
-      </div>
-    )
-  };
-
-  if (error) {
-    return (
-      <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-        <div className="text-yellow-800 font-medium">
-          {componentName} is temporarily unavailable
-        </div>
-        <div className="text-yellow-600 text-sm mt-1">
-          Please try refreshing the page
-        </div>
-      </div>
-    );
-  }
-
-  return fallbackMap[componentType] || <SkeletonLoader />;
-};
-
-/**
- * Progressive disclosure component for lazy loading
- */
-export const ProgressiveDisclosure = ({ 
-  children, 
-  threshold = 0.1,
-  rootMargin = '50px',
-  triggerOnce = true 
-}) => {
-  const [isVisible, setIsVisible] = React.useState(false);
-  const [hasTriggered, setHasTriggered] = React.useState(false);
-  const ref = React.useRef();
-
-  React.useEffect(() => {
-    if (!ref.current || (triggerOnce && hasTriggered)) return;
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setIsVisible(true);
-          if (triggerOnce) {
-            setHasTriggered(true);
-          }
-        } else if (!triggerOnce) {
-          setIsVisible(false);
-        }
-      },
-      { threshold, rootMargin }
-    );
-
-    observer.observe(ref.current);
-
-    return () => observer.disconnect();
-  }, [threshold, rootMargin, triggerOnce, hasTriggered]);
-
-  return (
-    <div ref={ref}>
-      {isVisible ? children : <SkeletonLoader />}
-    </div>
   );
 };

@@ -85,16 +85,6 @@ export const componentDefinitions = {
     options: { preload: true, priority: 'high' }
   },
   
-  ImageEditor: {
-    loader: () => import(
-      /* webpackChunkName: "image-editor" */
-      /* webpackPrefetch: true */
-      '../components/ImageEditor'
-    ),
-    chunkName: 'image-editor',
-    options: { preload: true, priority: 'high' }
-  },
-
   // Medium Priority Components - Forms
   TestResultForm: {
     loader: () => import(
@@ -131,15 +121,6 @@ export const componentDefinitions = {
     ),
     chunkName: 'grid-overlay',
     options: { priority: 'low' }
-  },
-
-  ImageAdjustmentPanel: {
-    loader: () => import(
-      /* webpackChunkName: "image-adjustment" */
-      '../components/ImageAdjustmentPanel'
-    ),
-    chunkName: 'image-adjustment',
-    options: { priority: 'low' }
   }
 };
 
@@ -153,56 +134,7 @@ export const utilityLoaders = {
       './printUtils'
     ),
     chunkName: 'print-utils'
-  },
-
-  excelQualityCapture: {
-    loader: () => import(
-      /* webpackChunkName: "excel-capture" */
-      './excelQualityCapture'
-    ),
-    chunkName: 'excel-capture'
-  },
-
-  imageCapture: {
-    loader: () => import(
-      /* webpackChunkName: "image-capture" */
-      './imageCapture'
-    ),
-    chunkName: 'image-capture'
-  },
-
-  pixelPerfectCapture: {
-    loader: () => import(
-      /* webpackChunkName: "pixel-perfect" */
-      './pixelPerfectCapture'
-    ),
-    chunkName: 'pixel-perfect'
-  },
-
-  printImageOptimizer: {
-    loader: () => import(
-      /* webpackChunkName: "print-optimizer" */
-      './printImageOptimizer'
-    ),
-    chunkName: 'print-optimizer'
   }
-};
-
-/**
- * Create all lazy components
- */
-export const createLazyComponents = () => {
-  const components = {};
-  
-  Object.entries(componentDefinitions).forEach(([name, definition]) => {
-    components[name] = createLazyComponent(
-      definition.loader,
-      definition.chunkName,
-      definition.options
-    );
-  });
-  
-  return components;
 };
 
 /**
