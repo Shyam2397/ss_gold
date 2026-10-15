@@ -75,20 +75,31 @@ const skinTestService = {
   // Get token data
   getTokenData: async (tokenNo) => {
     const api = await getApi();
-    const response = await api.get(`/tokens/${tokenNo}`);
-    
-    // Check if the response has the expected structure
-    if (response.data && response.data.success && response.data.data) {
-      return response.data.data; // Return the nested data object
+
+    try {
+      const response = await api.get(`/tokens/${encodeURIComponent(tokenNo)}`);
+
+      // Check if the response has the expected structure
+      if (response.data && response.data.success && response.data.data) {
+        return response.data.data; // Return the nested data object
+      }
+
+      // If the token is not found, the backend may return 200 with success: false
+      if (response.data && response.data.success === false) {
+        return null;
+      }
+
+      // For backward compatibility, return the response as is
+      return response.data;
+    } catch (error) {
+      // The tokens endpoint returns 404 when no token record exists. That is a
+      // normal "no token" result, not a failure - return null so callers can
+      // still fall back to the skin-test lookup.
+      if (error.response?.status === 404) {
+        return null;
+      }
+      throw error;
     }
-    
-    // If the token is not found, the backend returns success: false
-    if (response.data && response.data.success === false) {
-      return null;
-    }
-    
-    // For backward compatibility, return the response as is
-    return response.data;
   },
 
   // Get phone number by code with caching

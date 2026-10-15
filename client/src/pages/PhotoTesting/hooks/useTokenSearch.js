@@ -3,28 +3,28 @@ import skinTestService from '../../../services/skinTestService';
 
 export const useTokenSearch = (dispatch) => {
   const handleTokenSearch = useCallback(async (tokenNo) => {
-    if (!tokenNo) return;
-    
+    const query = String(tokenNo ?? '').trim();
+    if (!query) return;
+
     try {
-      // First try to get the token data
-      const tokenData = await skinTestService.getTokenData(tokenNo);
-      
-      // Then get the skin test data for this token
-      const skinTests = await skinTestService.getSkinTests();
-      const skinTestData = skinTests.find(test => 
-        (test.tokenNo === tokenNo || test.token_no === tokenNo)
-      );
+      // Token records and skin-test results live in separate tables, so either
+      // may be missing. Look both up directly by token number instead of
+      // downloading the whole skin-test table to filter client-side.
+      const [tokenData, skinTestData] = await Promise.all([
+        skinTestService.getTokenData(query),
+        skinTestService.getSkinTestByTokenNo(query)
+      ]);
 
       if (tokenData || skinTestData) {
         dispatch({
           type: 'UPDATE_FORM_DATA',
           payload: {
-            tokenNo: tokenData?.tokenNo || skinTestData?.tokenNo || skinTestData?.token_no || '',
+            tokenNo: tokenData?.tokenNo || skinTestData?.tokenNo || skinTestData?.token_no || query,
             date: tokenData?.date || skinTestData?.date || '',
             name: tokenData?.name || skinTestData?.name || '',
             sample: tokenData?.sample || skinTestData?.sample || '',
             weight: tokenData?.weight || skinTestData?.weight || '',
-            goldFineness: tokenData?.gold_fineness || tokenData?.goldFineness || 
+            goldFineness: tokenData?.gold_fineness || tokenData?.goldFineness ||
                           skinTestData?.gold_fineness || skinTestData?.goldFineness || '',
             karat: tokenData?.karat || skinTestData?.karat || '',
             silver: tokenData?.silver || skinTestData?.silver || '0.00',
@@ -35,11 +35,10 @@ export const useTokenSearch = (dispatch) => {
           }
         });
       } else {
-        // If no data found, update just the token number
-        dispatch({
-          type: 'UPDATE_FORM_DATA',
-          payload: { tokenNo: tokenNo }
-        });
+        // Nothing found - clear any fields left from a previous search so the
+        // card reflects only the searched token number.
+        dispatch({ type: 'RESET_FORM_DATA' });
+        dispatch({ type: 'UPDATE_FORM_DATA', payload: { tokenNo: query } });
       }
     } catch (error) {
       console.error('Error fetching data:', error);

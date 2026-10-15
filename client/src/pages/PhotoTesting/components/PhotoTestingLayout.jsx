@@ -25,7 +25,7 @@ const PhotoTestingLayout = ({
           <Camera className="w-6 h-6 text-amber-600 mr-3" />
           <div className="flex-1">
             <h2 className="text-xl font-bold text-amber-900">
-              Photo Testing Module
+              Photo Testing
             </h2>
           </div>
           <button
@@ -66,7 +66,7 @@ const PhotoTestingLayout = ({
 
             {/* Right Wrapper */}
             <div className="w-1/2 h-full border border-yellow-400 flex flex-col p-[5px] box-border">
-              <div className="flex-grow max-h-[calc(100%-20px)]" />
+              <div className=" photoArea flex-grow max-h-[calc(100%-20px)]" />
               <div className="text-red-600 font-bold text-[10px] text-center mt-auto">
                 Result are only for skin of the sample.
               </div>

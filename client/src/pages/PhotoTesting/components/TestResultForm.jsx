@@ -10,8 +10,12 @@ const formatDate = (dateString) => {
 };
 
 const formatValue = (value, isWeight = false) => {
-  if (value == null) return '-';
-  return isWeight ? parseFloat(value).toFixed(3) : value;
+  if (value == null || value === '') return '-';
+  if (isWeight) {
+    const num = parseFloat(value);
+    return Number.isNaN(num) ? '-' : num.toFixed(3);
+  }
+  return value;
 };
 
 const TestResultForm = ({ formData }) => (
@@ -60,23 +64,23 @@ const TestResultForm = ({ formData }) => (
 
     {/* Results Table */}
     <div className="pt-0.5">
-      <table className="border-2 border-yellow-500 w-[264px]">
+      <table className="border-2 border-red-600 w-[264px]">
         <thead>
           <tr>
-            <th className="bg-green-500 text-yellow-400 text-base font-bold p-1.5 border border-yellow-500">
+            <th className="bg-[#FFD700] text-red-600 text-base font-bold p-1.5 border border-red-600">
               GOLD %
             </th>
-            <th className="bg-green-500 text-yellow-400 text-base font-bold p-1.5 border border-yellow-500">
+            <th className="bg-[#FFD700] text-red-600 text-base font-bold p-1.5 border border-red-600">
               KARAT
             </th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td className="bg-green-500 text-yellow-400 text-base font-bold p-1.5 border border-yellow-500 text-center">
+            <td className="bg-[#FFD700] text-red-600 text-base font-bold p-1.5 border border-red-600 text-center">
               {formData.goldFineness || '0.00'}
             </td>
-            <td className="bg-green-500 text-yellow-400 text-base font-bold p-1.5 border border-yellow-500 text-center">
+            <td className="bg-[#FFD700] text-red-600 text-base font-bold p-1.5 border border-red-600 text-center">
               {formData.karat || '0.00'}
             </td>
           </tr>
