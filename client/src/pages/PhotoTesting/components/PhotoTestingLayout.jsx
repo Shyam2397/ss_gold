@@ -1,5 +1,5 @@
 import React from 'react';
-import { Camera, Printer, ImagePlus, RefreshCw, Trash2, ZoomIn, ZoomOut } from 'lucide-react';
+import { Camera, Printer, ImagePlus, RefreshCw, Trash2, ZoomIn, ZoomOut, SlidersHorizontal } from 'lucide-react';
 
 const PhotoTestingLayout = ({
   tokenNo,
@@ -13,6 +13,7 @@ const PhotoTestingLayout = ({
   photoScale = 1,
   onZoomIn,
   onZoomOut,
+  onEditImage,
   components = {}
 }) => {
   // Destructure the lazy-loaded components with default fallbacks
@@ -60,9 +61,15 @@ const PhotoTestingLayout = ({
             style={{ width: '6in', height: '4in', boxShadow: 'inset 0 0 0 1.4px #FFD700' }}
           >
             {GridOverlay && <GridOverlay />}
-            <div className="w-full h-full flex border border-red-600 p-[4px] box-border">
+            <div
+              className="w-full h-full flex p-[4px] box-border"
+              style={{ boxShadow: 'inset 0 0 0 1px #dc2626' }}
+            >
               {/* Left Wrapper */}
-              <div className="w-1/2 h-full border border-red-600 flex flex-col">
+              <div
+                className="w-1/2 h-full flex flex-col"
+                style={{ boxShadow: 'inset 0 0 0 1px #dc2626' }}
+              >
                 {Header && <Header />}
                 <div className="p-1 flex-grow">
                   {TestResultForm && <TestResultForm formData={formData} />}
@@ -70,7 +77,10 @@ const PhotoTestingLayout = ({
               </div>
 
               {/* Right Wrapper */}
-              <div className="w-1/2 h-full border border-red-600 flex flex-col p-[5px] box-border">
+              <div
+                className="w-1/2 h-full flex flex-col p-[5px] box-border"
+                style={{ boxShadow: 'inset 0 0 0 1px #dc2626' }}
+              >
                 <div className="relative flex-grow max-h-[calc(100%-20px)] flex items-center justify-center overflow-hidden">
                   {formData.photoUrl ? (
                     <img
@@ -114,6 +124,14 @@ const PhotoTestingLayout = ({
           {/* Photo controls (overlaid on the z-axis, outside the card) */}
           {formData.photoUrl && (
             <div className="absolute left-full top-1/2 z-10 ml-4 flex -translate-y-1/2 flex-col gap-2">
+              <button
+                type="button"
+                onClick={onEditImage}
+                title="Edit with Studio"
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-600 text-white shadow-lg transition-colors hover:bg-indigo-700"
+              >
+                <SlidersHorizontal className="h-4 w-4" />
+              </button>
               <button
                 type="button"
                 onClick={onZoomIn}

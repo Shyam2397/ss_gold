@@ -48,6 +48,23 @@ export function renderPreview(imageData, adjustments) {
   });
 }
 
+/**
+ * Render that is never dropped as "stale". Used for the one-off full-quality
+ * render on Apply/Export, where a concurrent preview frame must not cancel it.
+ */
+export function renderFull(imageData, adjustments) {
+  const w = ensureWorker();
+  const id = ++seq;
+  return new Promise((resolve, reject) => {
+    pending.set(id, { resolve, reject, kind: 'full' });
+    const buffer = imageData.data.slice().buffer;
+    w.postMessage(
+      { id, type: 'render', buffer, width: imageData.width, height: imageData.height, adjustments },
+      [buffer]
+    );
+  });
+}
+
 export function computeHistogramAsync(imageData) {
   const w = ensureWorker();
   const id = ++seq;

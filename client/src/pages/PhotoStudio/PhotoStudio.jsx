@@ -10,6 +10,8 @@ import {
   FiMaximize,
   FiEye,
   FiImage,
+  FiCheck,
+  FiX,
 } from 'react-icons/fi';
 import { cn } from '../../lib/utils';
 import { createInitialHistory, historyReducer } from './state';
@@ -24,7 +26,7 @@ import {
   mimeFor,
   saveBlob,
 } from './imageIO';
-import { renderPreview } from './processorClient';
+import { renderPreview, renderFull } from './processorClient';
 import PreviewStage from './components/PreviewStage';
 import AdjustmentPanel from './components/AdjustmentPanel';
 import ExportDialog from './components/ExportDialog';
@@ -36,7 +38,15 @@ const formatBytes = (bytes) => {
   return mb >= 1 ? `${mb.toFixed(1)} MB` : `${Math.round(bytes / 1024)} KB`;
 };
 
-export default function PhotoStudio() {
+// Long-edge cap for an "applied" image so the baked data URL stays reasonable.
+const APPLY_MAX = 3000;
+
+export default function PhotoStudio({
+  initialFile = null,
+  onApply = null,
+  onClose = null,
+  embedded = false,
+} = {}) {
   const [history, dispatch] = useReducer(historyReducer, undefined, createInitialHistory);
   const adjustments = history.present;
 
@@ -84,6 +94,12 @@ export default function PhotoStudio() {
       setLoading(false);
     }
   }, []);
+
+  // When launched as an embedded editor, open the provided image immediately.
+  useEffect(() => {
+    if (initialFile) openFile(initialFile);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialFile]);
 
   /* ---------------------------------------------- geometry -> preview */
 
@@ -155,17 +171,17 @@ export default function PhotoStudio() {
       } else if ((event.key.toLowerCase() === 'z' && event.shiftKey) || event.key.toLowerCase() === 'y') {
         event.preventDefault();
         dispatch({ type: 'REDO' });
-      } else if (event.key.toLowerCase() === 'o') {
+      } else if (event.key.toLowerCase() === 'o' && !embedded) {
         event.preventDefault();
         inputRef.current?.click();
       } else if (event.key.toLowerCase() === 's') {
         event.preventDefault();
-        if (source) setExportOpen(true);
+        if (source && !embedded) setExportOpen(true);
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [source]);
+  }, [source, embedded]);
 
   const showToast = (message) => {
     setToast(message);
@@ -194,7 +210,7 @@ export default function PhotoStudio() {
 
       const geometryCanvas = renderGeometry(source.source, activeTransform, { width: targetW }, false);
       const imageData = readPixels(geometryCanvas);
-      const result = await renderPreview(imageData, adjustments);
+      const result = await renderFull(imageData, adjustments);
       if (!result.buffer) throw new Error('Render failed');
       const processed = new ImageData(new Uint8ClampedArray(result.buffer), result.width, result.height);
 
@@ -225,6 +241,45 @@ export default function PhotoStudio() {
     }
   };
 
+  /* ----------------------------------------------------------- apply */
+
+  const handleApply = async () => {
+    if (!source || !onApply) return;
+    setExporting(true);
+    setError(null);
+    try {
+      const activeTransform = transform;
+      const oriented = orientedSize(source.source, activeTransform);
+      const c = activeTransform.crop || { x: 0, y: 0, width: 1, height: 1 };
+      const cw = c.width * oriented.width;
+      const ch = c.height * oriented.height;
+      const scale = Math.min(1, APPLY_MAX / Math.max(cw, ch));
+      const targetW = Math.max(1, Math.round(cw * scale));
+
+      const geometryCanvas = renderGeometry(source.source, activeTransform, { width: targetW }, false);
+      const imageData = readPixels(geometryCanvas);
+      const result = await renderFull(imageData, adjustments);
+      if (!result.buffer) throw new Error('Render failed');
+      const processed = new ImageData(new Uint8ClampedArray(result.buffer), result.width, result.height);
+
+      const temp = document.createElement('canvas');
+      putPixels(temp, processed);
+      const finalCanvas = document.createElement('canvas');
+      finalCanvas.width = temp.width;
+      finalCanvas.height = temp.height;
+      const ctx = finalCanvas.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, finalCanvas.width, finalCanvas.height);
+      ctx.drawImage(temp, 0, 0);
+
+      onApply(finalCanvas.toDataURL('image/jpeg', 0.95));
+    } catch (err) {
+      setError(err.message || 'Apply failed');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   /* ----------------------------------------------------------- render */
 
   const cropTransform = isCropping ? { ...transform, crop: null } : transform;
@@ -241,7 +296,7 @@ export default function PhotoStudio() {
   return (
     <div
       className="flex flex-col overflow-hidden bg-slate-50"
-      style={{ height: 'calc(100dvh - 4rem)' }}
+      style={{ height: embedded ? '100%' : 'calc(100dvh - 4rem)' }}
     >
       {/* Header / toolbar */}
       <header className="flex flex-wrap items-center gap-2 border-b border-slate-200 bg-white px-4 py-2.5">
@@ -271,11 +326,15 @@ export default function PhotoStudio() {
           onChange={(event) => openFile(event.target.files?.[0])}
         />
 
-        <ActionButton onClick={() => inputRef.current?.click()}>
-          <FiUploadCloud size={14} /> Open
-        </ActionButton>
+        {!embedded && (
+          <>
+            <ActionButton onClick={() => inputRef.current?.click()}>
+              <FiUploadCloud size={14} /> Open
+            </ActionButton>
 
-        <div className="mx-1 h-6 w-px bg-slate-200" />
+            <div className="mx-1 h-6 w-px bg-slate-200" />
+          </>
+        )}
 
         <IconButton
           title="Undo (Ctrl+Z)"
@@ -318,13 +377,24 @@ export default function PhotoStudio() {
           >
             <FiRefreshCw size={13} /> Reset all
           </ActionButton>
-          <ActionButton
-            variant="primary"
-            disabled={!source}
-            onClick={() => setExportOpen(true)}
-          >
-            <FiDownload size={13} /> Export
-          </ActionButton>
+          {embedded ? (
+            <>
+              <ActionButton variant="ghost" onClick={onClose}>
+                <FiX size={13} /> Cancel
+              </ActionButton>
+              <ActionButton variant="primary" disabled={!source || exporting} onClick={handleApply}>
+                <FiCheck size={13} /> {exporting ? 'Applying…' : 'Apply'}
+              </ActionButton>
+            </>
+          ) : (
+            <ActionButton
+              variant="primary"
+              disabled={!source}
+              onClick={() => setExportOpen(true)}
+            >
+              <FiDownload size={13} /> Export
+            </ActionButton>
+          )}
         </div>
       </header>
 
@@ -450,14 +520,16 @@ export default function PhotoStudio() {
         </div>
       )}
 
-      <ExportDialog
-        open={exportOpen}
-        busy={exporting}
-        onClose={() => !exporting && setExportOpen(false)}
-        onExport={handleExport}
-        defaultName={source ? source.name.replace(/\.[^.]+$/, '') : 'photo'}
-        sourceSize={outSize}
-      />
+      {!embedded && (
+        <ExportDialog
+          open={exportOpen}
+          busy={exporting}
+          onClose={() => !exporting && setExportOpen(false)}
+          onExport={handleExport}
+          defaultName={source ? source.name.replace(/\.[^.]+$/, '') : 'photo'}
+          sourceSize={outSize}
+        />
+      )}
     </div>
   );
 }

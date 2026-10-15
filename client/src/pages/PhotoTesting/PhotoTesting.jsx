@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState, Suspense } from 'react';
+import React, { useCallback, useEffect, useState, Suspense, lazy } from 'react';
 import { usePhotoTestingState } from './hooks/usePhotoTestingState';
 import { useTokenSearch } from './hooks/useTokenSearch';
 import { useProgressiveLoading } from './hooks/useComponentLoader';
@@ -10,6 +10,10 @@ import {
   loadUtility 
 } from './utils/componentLoader';
 import { withEnhancedLazyLoading } from './components/LazyLoadWrapper';
+
+// Reuse the Photo Studio editor (lazily) so its worker/engine chunks only load
+// when the user actually opens the editor.
+const LazyPhotoStudioEditor = lazy(() => import('../PhotoStudio/PhotoStudio'));
 
 // Create lazy components with enhanced loading and webpack chunk names
 const LazyPhotoTestingLayout = createLazyComponent(
@@ -103,6 +107,7 @@ const PhotoTesting = () => {
   const [state, dispatch] = usePhotoTestingState();
   const { tokenNo, formData } = state;
   const [photoScale, setPhotoScale] = useState(1);
+  const [editorOpen, setEditorOpen] = useState(false);
 
   const { handleTokenSearch, resetForm } = useTokenSearch(dispatch);
 
@@ -168,6 +173,17 @@ const PhotoTesting = () => {
     setPhotoScale((scale) => Math.max(MIN_PHOTO_SCALE, Math.round((scale - PHOTO_SCALE_STEP) * 100) / 100));
   }, []);
 
+  const handleOpenEditor = useCallback(() => {
+    if (!formData.photoUrl) return;
+    setEditorOpen(true);
+  }, [formData.photoUrl]);
+
+  const handleApplyEdited = useCallback((dataUrl) => {
+    dispatch({ type: 'UPDATE_FORM_DATA', payload: { photoUrl: dataUrl } });
+    setPhotoScale(1);
+    setEditorOpen(false);
+  }, [dispatch]);
+
   const handlePrint = useCallback(async () => {
     try {
       const { printPhotoData } = await loadUtility('printUtils');
@@ -201,6 +217,7 @@ const PhotoTesting = () => {
         photoScale={photoScale}
         onZoomIn={handleZoomIn}
         onZoomOut={handleZoomOut}
+        onEditImage={handleOpenEditor}
         // Pass enhanced lazy-loaded components with fallbacks
         components={{
           TestResultForm: TestResultFormWithFallback,
@@ -211,7 +228,24 @@ const PhotoTesting = () => {
         // Progressive loading state for development insights
         loadingState={progressiveLoading.loadingState}
       />
-      
+
+      {/* Photo Studio editor overlay */}
+      {editorOpen && formData.photoUrl && (
+        <div className="fixed inset-0 z-[100] flex flex-col bg-black/60 sm:p-4">
+          <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-white shadow-2xl sm:rounded-xl">
+            <Suspense fallback={<LoadingFallback progress={0} />}>
+              <LazyPhotoStudioEditor
+                embedded
+                initialFile={formData.photoUrl}
+                onApply={handleApplyEdited}
+                onClose={() => setEditorOpen(false)}
+              />
+            </Suspense>
+          </div>
+        </div>
+      )}
+
+
       {/* Development insights */}
       {process.env.NODE_ENV === 'development' && (
         <div className="fixed bottom-4 right-4 bg-gray-900 text-white p-2 rounded text-xs">

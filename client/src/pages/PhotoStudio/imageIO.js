@@ -16,21 +16,29 @@ const loadHtmlImage = (url) =>
     img.src = url;
   });
 
-export async function loadImageFile(file) {
-  if (!file || !file.type.startsWith('image/')) {
+const dataUrlMime = (url) => {
+  const match = /^data:([^;,]+)/i.exec(url);
+  return match ? match[1] : 'image/png';
+};
+
+export async function loadImageFile(input) {
+  const isString = typeof input === 'string';
+  if (!isString && (!input || !input.type || !input.type.startsWith('image/'))) {
     throw new Error('Please choose an image file');
   }
   let source;
-  if (typeof createImageBitmap === 'function') {
+  if (isString) {
+    source = await loadHtmlImage(input);
+  } else if (typeof createImageBitmap === 'function') {
     try {
-      source = await createImageBitmap(file, { imageOrientation: 'from-image' });
+      source = await createImageBitmap(input, { imageOrientation: 'from-image' });
     } catch {
-      const url = URL.createObjectURL(file);
+      const url = URL.createObjectURL(input);
       source = await loadHtmlImage(url);
       URL.revokeObjectURL(url);
     }
   } else {
-    const url = URL.createObjectURL(file);
+    const url = URL.createObjectURL(input);
     source = await loadHtmlImage(url);
     URL.revokeObjectURL(url);
   }
@@ -38,9 +46,9 @@ export async function loadImageFile(file) {
     source,
     width: source.width || source.naturalWidth,
     height: source.height || source.naturalHeight,
-    name: file.name,
-    type: file.type,
-    size: file.size,
+    name: isString ? 'edited-image' : input.name,
+    type: isString ? dataUrlMime(input) : input.type,
+    size: isString ? 0 : input.size,
   };
 }
 

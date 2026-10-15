@@ -360,7 +360,9 @@ export const printPhotoData = (formData) => {
                         style="
                           width: calc(100% * ${formData.photoScale || 1});
                           height: calc(100% * ${formData.photoScale || 1});
-                          flex-shrink: 0;
+                          flex: 0 0 auto;
+                          max-width: none;
+                          max-height: none;
                           object-fit: contain;
                           image-rendering: auto;
                           -webkit-print-color-adjust: exact !important;
