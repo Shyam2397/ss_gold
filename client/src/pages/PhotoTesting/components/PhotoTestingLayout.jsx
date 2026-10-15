@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { Camera, Printer, ImagePlus, RefreshCw, Trash2, ZoomIn, ZoomOut, SlidersHorizontal } from 'lucide-react';
+import PhotoArrows from './PhotoArrows';
 
 const PhotoTestingLayout = ({
   tokenNo,
@@ -14,6 +15,8 @@ const PhotoTestingLayout = ({
   onZoomIn,
   onZoomOut,
   onEditImage,
+  arrows = [],
+  onArrowChange,
   components = {}
 }) => {
   // Destructure the lazy-loaded components with default fallbacks
@@ -23,6 +26,7 @@ const PhotoTestingLayout = ({
     TestResultForm,
     GridOverlay
   } = components;
+  const photoAreaRef = useRef(null);
   return (
     <div className="min-h-[660px] border-2 border-amber-100 bg-white p-6 m-4 rounded-xl flex flex-col">
       <div className="mb-6">
@@ -81,7 +85,10 @@ const PhotoTestingLayout = ({
                 className="w-1/2 h-full flex flex-col p-[5px] box-border"
                 style={{ boxShadow: 'inset 0 0 0 1px #dc2626' }}
               >
-                <div className="relative flex-grow max-h-[calc(100%-20px)] flex items-center justify-center overflow-hidden">
+                <div
+                  ref={photoAreaRef}
+                  className="relative flex-grow max-h-[calc(100%-20px)] flex items-center justify-center overflow-hidden"
+                >
                   {formData.photoUrl ? (
                     <img
                       src={formData.photoUrl}
@@ -101,6 +108,9 @@ const PhotoTestingLayout = ({
                       <ImagePlus className="mb-1 h-8 w-8" />
                       <span className="text-[11px] font-semibold">Upload Photo</span>
                     </label>
+                  )}
+                  {formData.photoUrl && (
+                    <PhotoArrows arrows={arrows} onChange={onArrowChange} containerRef={photoAreaRef} />
                   )}
                   <input
                     id="photo-upload"

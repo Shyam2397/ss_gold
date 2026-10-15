@@ -1,8 +1,25 @@
 import logo from '../../../assets/logo.png';
+import { ARROW_W, ARROW_H, ARROW_VIEWBOX, ARROW_COLOR, ARROW_PATH } from './arrowGeometry';
 
 export const printPhotoData = (formData) => {
   const printWindow = window.open('', '_blank', 'width=900,height=700,left=100,top=100');
-  
+
+  // Red pointer arrows overlaid on the sample photo (positions are fractions
+  // of the photo area, matching the on-screen preview).
+  const arrowList = Array.isArray(formData.arrows) ? formData.arrows : [];
+  const arrowsHtml = formData.photoUrl
+    ? arrowList
+        .map(
+          (a) => `
+        <div style="position:absolute;left:${a.x * 100}%;top:${a.y * 100}%;width:${ARROW_W}px;height:${ARROW_H}px;transform:translate(-50%,-50%) rotate(${a.angle}deg);z-index:5;pointer-events:none;-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important;">
+          <svg width="${ARROW_W}" height="${ARROW_H}" viewBox="${ARROW_VIEWBOX}" style="shape-rendering:geometricPrecision;">
+            <path d="${ARROW_PATH}" fill="${ARROW_COLOR}" shape-rendering="geometricPrecision"/>
+          </svg>
+        </div>`
+        )
+        .join('')
+    : '';
+
   const content = `
     <!DOCTYPE html>
     <html>
@@ -344,6 +361,7 @@ export const printPhotoData = (formData) => {
                 ">
                   ${formData.photoUrl ? `
                     <div style="
+                      position: relative;
                       width: 100%;
                       height: 100%;
                       display: flex;
@@ -372,6 +390,7 @@ export const printPhotoData = (formData) => {
                           filter: contrast(1.1) saturate(1.1);
                         "
                       />
+                      ${arrowsHtml}
                     </div>
                   ` : `
                     <div style="

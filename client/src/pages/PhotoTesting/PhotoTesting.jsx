@@ -10,6 +10,7 @@ import {
   loadUtility 
 } from './utils/componentLoader';
 import { withEnhancedLazyLoading } from './components/LazyLoadWrapper';
+import { createDefaultArrows } from './components/PhotoArrows';
 
 // Reuse the Photo Studio editor (lazily) so its worker/engine chunks only load
 // when the user actually opens the editor.
@@ -108,6 +109,7 @@ const PhotoTesting = () => {
   const { tokenNo, formData } = state;
   const [photoScale, setPhotoScale] = useState(1);
   const [editorOpen, setEditorOpen] = useState(false);
+  const [arrows, setArrows] = useState([]);
 
   const { handleTokenSearch, resetForm } = useTokenSearch(dispatch);
 
@@ -148,6 +150,7 @@ const PhotoTesting = () => {
     if (!file) {
       dispatch({ type: 'UPDATE_FORM_DATA', payload: { photoUrl: null } });
       setPhotoScale(1);
+      setArrows([]);
       return;
     }
 
@@ -160,10 +163,20 @@ const PhotoTesting = () => {
     reader.onload = (event) => {
       dispatch({ type: 'UPDATE_FORM_DATA', payload: { photoUrl: event.target.result } });
       setPhotoScale(1);
+      setArrows(createDefaultArrows());
     };
     reader.onerror = () => alert('Could not read the selected file.');
     reader.readAsDataURL(file);
   }, [dispatch]);
+
+  // Clear annotations whenever the photo is gone (e.g. after a token reset).
+  useEffect(() => {
+    if (!formData.photoUrl) setArrows([]);
+  }, [formData.photoUrl]);
+
+  const handleArrowChange = useCallback((id, patch) => {
+    setArrows((prev) => prev.map((arrow) => (arrow.id === id ? { ...arrow, ...patch } : arrow)));
+  }, []);
 
   const handleZoomIn = useCallback(() => {
     setPhotoScale((scale) => Math.min(MAX_PHOTO_SCALE, Math.round((scale + PHOTO_SCALE_STEP) * 100) / 100));
@@ -193,6 +206,7 @@ const PhotoTesting = () => {
         tokenNo,
         photoUrl: formData.photoUrl || null,
         photoScale,
+        arrows,
         date: new Date().toISOString()
       };
 
@@ -201,7 +215,7 @@ const PhotoTesting = () => {
       console.error('Error preparing print data:', error);
       alert('Error preparing print data. Please try again.');
     }
-  }, [formData, tokenNo, photoScale]);
+  }, [formData, tokenNo, photoScale, arrows]);
 
   return (
     <Suspense fallback={<LoadingFallback progress={progressiveLoading.loadingState.progress} />}>
@@ -218,6 +232,8 @@ const PhotoTesting = () => {
         onZoomIn={handleZoomIn}
         onZoomOut={handleZoomOut}
         onEditImage={handleOpenEditor}
+        arrows={arrows}
+        onArrowChange={handleArrowChange}
         // Pass enhanced lazy-loaded components with fallbacks
         components={{
           TestResultForm: TestResultFormWithFallback,
