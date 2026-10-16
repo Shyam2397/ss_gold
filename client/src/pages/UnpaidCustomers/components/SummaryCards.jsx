@@ -1,15 +1,8 @@
 import React from 'react';
 import { AlertCircle, Users, TrendingUp } from 'lucide-react';
+import { formatCurrency } from '../../../utils/format';
 
 const SummaryCards = ({ totalUnpaid, totalInvoices, customerCount }) => {
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount);
-  };
 
   const cards = [
     {

@@ -1,9 +1,9 @@
 import React, { useMemo } from 'react';
 import { ArrowUp, ArrowDown, CircleDollarSign } from 'lucide-react';
 import PropTypes from 'prop-types';
+import { formatAmount } from '../../../utils/format';
 
 const BalanceSummary = ({ cashInfo }) => {
-  const formatAmount = (amount) => amount.toLocaleString('en-IN', { minimumFractionDigits: 2 });
 
   const summaryItems = useMemo(() => [
     {

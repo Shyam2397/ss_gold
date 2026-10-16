@@ -20,6 +20,7 @@ import DeleteConfirmationModal from './components/DeleteConfirmationModal';
 import { useSkinTest } from './hooks/useSkinTest';
 import { initialFormData } from './constants/initialState';
 import { printData } from './utils/printUtils';
+import { getPreference, setPreference, usePreference } from '../../lib/preferences';
 
 // Fuzzy search helper function
 const fuzzySearch = (query, text) => {
@@ -81,22 +82,10 @@ const SkinTesting = () => {
     isOpen: false,
     itemId: null
   });
-  const [printValuesOnly, setPrintValuesOnlyState] = useState(() => {
-    try {
-      const stored = window.localStorage.getItem('skinTest_printValuesOnly');
-      return stored === 'true';
-    } catch (e) {
-      return false;
-    }
-  });
+  const printValuesOnly = usePreference('skinTest_printValuesOnly');
 
   const setPrintValuesOnly = useCallback((value) => {
-    setPrintValuesOnlyState(value);
-    try {
-      window.localStorage.setItem('skinTest_printValuesOnly', String(value));
-    } catch (e) {
-      /* ignore */
-    }
+    setPreference('skinTest_printValuesOnly', value);
   }, []);
 
   const tokenInputRef = useRef(null);
@@ -270,8 +259,15 @@ const SkinTesting = () => {
   // Stable so the memoized table's shallow prop check actually passes; an
   // inline arrow here is a new function on every render and re-renders the
   // whole virtualized grid each time.
+  const handleDeleteRef = useRef(handleDelete);
+  handleDeleteRef.current = handleDelete;
+
   const openDeleteConfirmation = useCallback((id) => {
-    setDeleteConfirmation({ isOpen: true, itemId: id });
+    if (getPreference('confirmBeforeDelete')) {
+      setDeleteConfirmation({ isOpen: true, itemId: id });
+      return;
+    }
+    handleDeleteRef.current(id).catch(() => {});
   }, []);
 
   // Memoize the table row component to prevent unnecessary re-renders

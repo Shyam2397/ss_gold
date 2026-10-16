@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { ChevronDown, ChevronRight, Phone, CreditCard, Printer } from 'lucide-react';
 import { printCustomerStatement } from '../utils/printUtils';
+import { formatCurrency } from '../../../utils/format';
 
 const CustomerGroup = ({
   code,
@@ -41,15 +42,6 @@ const CustomerGroup = ({
       isPrintingRef.current = false;
       setTimeout(() => setPrintStatus(''), 3000);
     }
-  };
-
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount);
   };
 
   const getInitials = (name) => {

@@ -6,6 +6,7 @@ import { SETTINGS_TABS } from "./constants";
 import { useCompanySettings } from "./hooks/useCompanySettings";
 import { useNotifications } from "./hooks/useNotifications";
 import { usePreferences } from "./hooks/usePreferences";
+import { MENU_DEFINITIONS, filterByPermission } from "../../utils/permissions";
 import { usePrinterSettings } from "./hooks/usePrinterSettings";
 import AboutPanel from "./components/AboutPanel";
 import CompanySettingsPanel from "./components/CompanySettingsPanel";
@@ -18,18 +19,20 @@ const Settings = () => {
   const [activeTab, setActiveTab] = useState("company");
   const [previewModal, setPreviewModal] = useState({ isOpen: false, htmlContent: "", title: "" });
 
-  const { isAdmin } = useUser();
+  const { isAdmin, user } = useUser();
 
-  const {
-    globalMessage,
-    showMessage,
-    clearMessage,
-    showSaveConfirmation,
-    updateSaveConfirmation,
-  } = useNotifications();
-  const { printValuesOnly, printValuesOnlySaved, updatePrintValuesOnly } =
-    usePreferences(showMessage);
+  const { globalMessage, showMessage, clearMessage } = useNotifications();
+  const { preferences, updatePreference, savedKey } = usePreferences(showMessage);
   const company = useCompanySettings(showMessage);
+
+  // Pages the signed in account is allowed to open, offered as landing choices.
+  const landingOptions = useMemo(
+    () =>
+      filterByPermission(user, MENU_DEFINITIONS)
+        .filter((item) => item.path)
+        .map((item) => ({ value: item.path, label: item.label })),
+    [user]
+  );
 
   const openPreview = useCallback((htmlContent, title) => {
     setPreviewModal({ isOpen: true, htmlContent, title });
@@ -94,11 +97,10 @@ const Settings = () => {
 
       {activeTab === "preferences" && (
         <PreferencesPanel
-          showSaveConfirmation={showSaveConfirmation}
-          onSaveConfirmationChange={updateSaveConfirmation}
-          printValuesOnly={printValuesOnly}
-          onPrintValuesOnlyChange={updatePrintValuesOnly}
-          printValuesOnlySaved={printValuesOnlySaved}
+          preferences={preferences}
+          onChange={updatePreference}
+          savedKey={savedKey}
+          landingOptions={landingOptions}
         />
       )}
 

@@ -2,6 +2,7 @@ import React, { useCallback, useMemo } from 'react';
 import PropTypes from 'prop-types';
 import { AutoSizer, Table, Column } from 'react-virtualized';
 import 'react-virtualized/styles.css';
+import { formatAmount } from '../../../utils/format';
 
 // Move formatters outside component to avoid recreating them
 const formatCurrencyValue = (value) => {
@@ -42,14 +43,7 @@ const TransactionTable = ({ filteredTransactions, cashInfo, rowGetter, totals })
     </div>
   ), []);
 
-  // Memoize formatting functions
-  const formatCurrency = useCallback((value) => {
-    if (typeof value !== 'number') return '0.00';
-    return new Intl.NumberFormat('en-IN', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    }).format(value);
-  }, []);
+  const formatCurrency = formatAmount;
 
   const formatDate = useCallback((date) => {
     if (!date) return '';

@@ -1,9 +1,9 @@
 import React, { useMemo } from 'react';
 import PropTypes from 'prop-types';
 import { TrendingUp, TrendingDown, PieChart, BarChart3 } from 'lucide-react';
+import { formatAmount } from '../../../utils/format';
 
-const formatCurrency = (amount) =>
-  Math.abs(amount).toLocaleString('en-IN', { minimumFractionDigits: 0 });
+const formatCurrency = (amount) => formatAmount(Math.abs(amount), 0);
 
 const EmptyState = ({ icon, message }) => (
   <div className="flex flex-col items-center justify-center py-8 px-4 text-gray-400">

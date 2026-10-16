@@ -3,9 +3,7 @@ import toast from 'react-hot-toast';
 import { getApi } from '../../../services/api';
 import { fetchCashAdjustments } from '../services/dashboardService';
 import { parseDate } from '../utils/dateUtils';
-
-// How often the dashboard silently refreshes its data (5 minutes)
-const REFRESH_INTERVAL = 5 * 60 * 1000;
+import { usePreference } from '../../../lib/preferences';
 
 const toNumber = (value) => {
   const parsed = parseFloat(value);
@@ -106,6 +104,7 @@ function useDashboardOverview() {
   const [selectedPeriod, setSelectedPeriod] = useState('daily');
   const [lastUpdated, setLastUpdated] = useState(null);
   const abortControllerRef = useRef(null);
+  const refreshMinutes = usePreference('dashboardRefreshInterval');
 
   const fetchData = useCallback(async () => {
     const signal = abortControllerRef.current?.signal;
@@ -170,12 +169,13 @@ function useDashboardOverview() {
     const controller = new AbortController();
     abortControllerRef.current = controller;
     fetchData();
-    const interval = setInterval(fetchData, REFRESH_INTERVAL);
+    const interval =
+      refreshMinutes > 0 ? setInterval(fetchData, refreshMinutes * 60 * 1000) : null;
     return () => {
-      clearInterval(interval);
+      if (interval) clearInterval(interval);
       controller.abort();
     };
-  }, [fetchData]);
+  }, [fetchData, refreshMinutes]);
 
   const skinTestTokenNos = useMemo(
     () => new Set(skinTests.map((test) => String(test.token_no))),

@@ -21,9 +21,7 @@ import PurityDistributionChart from './components/PurityDistributionChart';
 import QuickActions from './components/QuickActions';
 import RecentSamplesTable from './components/RecentSamplesTable';
 import SystemStatusBar from './components/SystemStatusBar';
-
-const formatCurrency = (value) =>
-  `₹${Number(value || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
+import { formatCurrency } from '../../utils/format';
 
 const Dashboard = () => {
   const {

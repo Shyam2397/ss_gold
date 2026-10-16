@@ -2,6 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { loginUser } from '../../services/authService';
 import { useUser } from '../UserInterface/UserContext';
+import { canAccessPath, firstAccessiblePath } from '../../utils/permissions';
+import { getPreference } from '../../lib/preferences';
 import LoginHeader from './LoginHeader';
 import LoginForm from './LoginForm';
 import loginBg from '../../asset/loginBG.png';
@@ -76,9 +78,15 @@ const Login = ({ setLoggedIn }) => {
       if (result.success) {
         // Load the signed in account into context so the sidebar and the
         // forced password change gate see the current user straight away.
-        await adoptSessionUser(result.user);
+        const session = await adoptSessionUser(result.user);
+        const activeUser = session?.user || result.user;
         setLoggedIn(true);
-        navigate('/dashboard');
+        const savedLanding = getPreference('defaultLandingPath');
+        const target =
+          savedLanding && canAccessPath(activeUser, savedLanding)
+            ? savedLanding
+            : firstAccessiblePath(activeUser);
+        navigate(target);
       } else {
         setError(result.error);
       }

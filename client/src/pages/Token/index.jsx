@@ -32,6 +32,7 @@ import useToken from './hooks/useTokenQuery';
 
 // Utils
 import { preloadImages, convertImageToBase64, generatePrintContent } from './utils/printUtils';
+import { getPreference } from '../../lib/preferences';
 
 import { tokenReducer, initialState } from './reducers/tokenReducer';
 
@@ -688,6 +689,35 @@ const TokenPage = () => {
     };
   }, [handleSearch]);
 
+  // Shared by the confirmation dialog and the "no confirm" preference path.
+  const performDelete = useCallback(
+    async (tokenId) => {
+      if (!tokenId) return;
+      // The modal stays mounted until the request resolves, so a double click
+      // would otherwise fire two DELETEs for the same id.
+      if (isDeleteBusyRef.current) return;
+      isDeleteBusyRef.current = true;
+
+      try {
+        dispatch({ type: 'SET_FIELD', field: 'isDeleting', value: true });
+        const deleted = await deleteToken(tokenId);
+        if (deleted) {
+          dispatch({ type: 'SET_FIELD', field: 'deleteConfirmation', value: { isOpen: false, tokenId: null } });
+          dispatch({ type: 'RESET_FORM', tokenNo: '' });
+          const newTokenNo = await generateTokenNumber();
+          if (newTokenNo) {
+            dispatch({ type: 'SET_FIELD', field: 'tokenNo', value: newTokenNo });
+          }
+          focusCodeInput();
+        }
+      } finally {
+        isDeleteBusyRef.current = false;
+        dispatch({ type: 'SET_FIELD', field: 'isDeleting', value: false });
+      }
+    },
+    [deleteToken, generateTokenNumber, focusCodeInput]
+  );
+
   // Memoize all handlers to prevent unnecessary re-renders
   const handlers = useMemo(() => ({
     handleEdit: (token) => {
@@ -706,36 +736,17 @@ const TokenPage = () => {
     },
     handleCodeChange,
     handleOpenDelete: (id) => {
-      dispatch({ type: 'SET_FIELD', field: 'deleteConfirmation', value: { isOpen: true, tokenId: id } });
+      if (getPreference('confirmBeforeDelete')) {
+        dispatch({ type: 'SET_FIELD', field: 'deleteConfirmation', value: { isOpen: true, tokenId: id } });
+        return;
+      }
+      performDelete(id);
     },
     handleCancelDelete: () => {
       dispatch({ type: 'SET_FIELD', field: 'deleteConfirmation', value: { isOpen: false, tokenId: null } });
     },
-    handleConfirmDelete: async () => {
-      if (!state.deleteConfirmation.tokenId) return;
-      // The modal stays mounted until the request resolves, so a double click
-      // would otherwise fire two DELETEs for the same id.
-      if (isDeleteBusyRef.current) return;
-      isDeleteBusyRef.current = true;
-
-      try {
-        dispatch({ type: 'SET_FIELD', field: 'isDeleting', value: true });
-        const deleted = await deleteToken(state.deleteConfirmation.tokenId);
-        if (deleted) {
-          dispatch({ type: 'SET_FIELD', field: 'deleteConfirmation', value: { isOpen: false, tokenId: null } });
-          dispatch({ type: 'RESET_FORM', tokenNo: '' });
-          const newTokenNo = await generateTokenNumber();
-          if (newTokenNo) {
-            dispatch({ type: 'SET_FIELD', field: 'tokenNo', value: newTokenNo });
-          }
-          focusCodeInput();
-        }
-      } finally {
-        isDeleteBusyRef.current = false;
-        dispatch({ type: 'SET_FIELD', field: 'isDeleting', value: false });
-      }
-    }
-  }), [handlePrint, updatePaymentStatus, handleCodeChange, deleteToken, generateTokenNumber, state.deleteConfirmation.tokenId, focusCodeInput]);
+    handleConfirmDelete: () => performDelete(state.deleteConfirmation.tokenId)
+  }), [handlePrint, updatePaymentStatus, handleCodeChange, performDelete, state.deleteConfirmation.tokenId]);
 
   // Either print path holds the form: isBusyRef makes Save/Update and Save and
   // Print no-op, but resetForm carries no such guard and would happily wipe the

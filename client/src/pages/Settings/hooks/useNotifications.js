@@ -1,11 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { setPreference, usePreference } from "../../../lib/preferences";
 
 export const useNotifications = () => {
   const [globalMessage, setGlobalMessage] = useState(null);
-  const [showSaveConfirmation, setShowSaveConfirmation] = useState(() => {
-    const saved = window.localStorage.getItem("showSaveConfirmation");
-    return saved !== null ? saved === "true" : false;
-  });
+  const showSaveConfirmation = usePreference("showSaveConfirmation");
   const timerRef = useRef(null);
 
   // Track the pending auto-clear timer so a newer message cannot be wiped early
@@ -37,8 +35,7 @@ export const useNotifications = () => {
   );
 
   const updateSaveConfirmation = useCallback((value) => {
-    setShowSaveConfirmation(value);
-    window.localStorage.setItem("showSaveConfirmation", String(value));
+    setPreference("showSaveConfirmation", value);
   }, []);
 
   return {

@@ -49,9 +49,6 @@ export default defineConfig({
                         if (path.includes('/node_modules/xlsx/')) {
                             return 'xlsx';
                         }
-                        if (id.includes('react') || id.includes('react-dom') || id.includes('react-router-dom') || id.includes('@tanstack/react-query')) {
-                            return 'vendor';
-                        }
                         if (id.includes('recharts') || id.includes('chart.js')) {
                             return 'charts';
                         }
@@ -61,8 +58,8 @@ export default defineConfig({
                         if (id.includes('lodash') || id.includes('date-fns') || id.includes('axios')) {
                             return 'utils';
                         }
-                        // Group other node_modules into a separate chunk
-                        return 'vendor-other';
+
+                        return 'vendor';
                     }
                 },
                 chunkFileNames: 'assets/[name]-[hash].js',

@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Check, AlertCircle, Loader2, Hash, Calendar, Clock, TestTube, IndianRupee, RefreshCw } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import tokenService from '../../../services/tokenService';
+import { formatCurrency } from '../../../utils/format';
 const ROW_HEIGHT = 36; // Height of each row in pixels
 
 // Define column widths as constants to ensure consistency
@@ -17,19 +18,6 @@ const columnWidths = {
 };
 
 // Move utility functions outside the component
-const formatCurrency = (amount) => {
-  try {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(parseFloat(amount) || 0);
-  } catch (e) {
-    return '₹0.00';
-  }
-};
-
 const formatDate = (dateString) => {
   if (!dateString || dateString === 'N/A') return 'N/A';
   try {

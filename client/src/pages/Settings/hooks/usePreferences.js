@@ -1,26 +1,23 @@
 import { useCallback, useState } from "react";
+import { usePreferences as usePreferencesStore } from "../../../lib/preferences";
 
 export const usePreferences = (showMessage) => {
-  const [printValuesOnly, setPrintValuesOnly] = useState(() => {
-    const saved = window.localStorage.getItem("skinTest_printValuesOnly");
-    return saved !== null ? saved === "true" : false;
-  });
-  const [printValuesOnlySaved, setPrintValuesOnlySaved] = useState(false);
+  const { preferences, setPreference } = usePreferencesStore();
+  const [savedKey, setSavedKey] = useState(null);
 
-  const updatePrintValuesOnly = useCallback(
-    (value) => {
-      setPrintValuesOnly(value);
+  const updatePreference = useCallback(
+    (key, value) => {
       try {
-        window.localStorage.setItem("skinTest_printValuesOnly", String(value));
-        setPrintValuesOnlySaved(true);
-        showMessage("success", "Skin Test print preference saved!");
-        setTimeout(() => setPrintValuesOnlySaved(false), 2000);
+        setPreference(key, value);
+        setSavedKey(key);
+        showMessage?.("success", "Preference saved!");
+        setTimeout(() => setSavedKey(null), 2000);
       } catch (error) {
-        showMessage("error", "Failed to save print preference: " + error.message);
+        showMessage?.("error", "Failed to save preference: " + error.message);
       }
     },
-    [showMessage]
+    [setPreference, showMessage]
   );
 
-  return { printValuesOnly, printValuesOnlySaved, updatePrintValuesOnly };
+  return { preferences, updatePreference, savedKey };
 };

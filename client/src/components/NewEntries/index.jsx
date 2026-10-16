@@ -1,5 +1,6 @@
 import React, { useReducer, useEffect, useCallback, Suspense } from 'react';
 import axios from 'axios';
+import { getPreference } from '../../lib/preferences';
 import LoadingSpinner from './LoadingSpinner';
 import { customerReducer, initialState, ActionTypes } from './customerReducer';
 import useCustomerAPI from './hooks/useCustomerAPI';
@@ -134,12 +135,21 @@ const NewEntries = () => {
     });
   }, []);
 
-  const confirmDelete = useCallback((id) => {
-    dispatch({
-      type: ActionTypes.SET_DELETE_CONFIRMATION,
-      payload: { isOpen: true, customerId: id }
-    });
-  }, []);
+  const confirmDelete = useCallback(
+    (id) => {
+      if (getPreference('confirmBeforeDelete')) {
+        dispatch({
+          type: ActionTypes.SET_DELETE_CONFIRMATION,
+          payload: { isOpen: true, customerId: id }
+        });
+        return;
+      }
+      deleteCustomer(id).catch((err) => {
+        console.error('Error deleting customer:', err);
+      });
+    },
+    [deleteCustomer]
+  );
 
   const cancelDelete = useCallback(() => {
     dispatch({
