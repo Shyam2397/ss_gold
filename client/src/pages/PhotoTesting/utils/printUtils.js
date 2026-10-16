@@ -30,18 +30,23 @@ export const printPhotoData = (formData) => {
         <style>
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Allura&display=swap');
           @page {
-            size: 6in 4in landscape;
+            size: 6in 4in;
             margin: 0;
             padding: 0;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
-            image-resolution: 600dpi;
           }
           
           /* Ensure high quality rendering for print */
           * {
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
+          }
+          html {
+            width: 6in;
+            height: 4in;
+            margin: 0;
+            padding: 0;
           }
           body {
             width: 6in;
@@ -51,6 +56,9 @@ export const printPhotoData = (formData) => {
             background: white;
             font-family: 'Poppins', sans-serif;
             box-sizing: border-box;
+            overflow: hidden;
+            page-break-after: avoid;
+            break-after: avoid;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
           }
@@ -439,7 +447,45 @@ export const printPhotoData = (formData) => {
     if (process.env.NODE_ENV === 'development') {
       console.log('Print window loaded');
     }
-    
+
+    let printStarted = false;
+
+    // Fonts can change the measured layout, so settle them before fitting/printing
+    // - capped so a hung request can never block the print.
+    const waitForFonts = () => {
+      const ready = printWindow.document.fonts && printWindow.document.fonts.ready;
+      if (!ready) return Promise.resolve();
+      return Promise.race([
+        ready.catch(() => {}),
+        new Promise((resolve) => setTimeout(resolve, 1500))
+      ]);
+    };
+
+    // Guarantee the whole card lands on one 6in x 4in page: if the content is
+    // taller/wider than the sheet, scale it down to fit (never scale up).
+    const fitToPage = () => {
+      const area = printWindow.document.querySelector('.photo-printarea');
+      if (!area) return;
+      area.style.transform = '';
+      area.style.transformOrigin = 'top left';
+      const scale = Math.min(
+        1,
+        area.clientWidth / area.scrollWidth,
+        area.clientHeight / area.scrollHeight
+      );
+      if (scale < 0.999) {
+        area.style.transform = `scale(${scale})`;
+      }
+    };
+
+    const prepareAndPrint = async () => {
+      if (printStarted) return;
+      printStarted = true;
+      await waitForFonts();
+      fitToPage();
+      initiatePrint();
+    };
+
     // Wait for images to load with simplified logic
     const images = printWindow.document.querySelectorAll('img');
     const totalImages = images.length;
@@ -448,7 +494,7 @@ export const printPhotoData = (formData) => {
       if (process.env.NODE_ENV === 'development') {
         console.log('No images - printing immediately (pure white background)');
       }
-      initiatePrint();
+      prepareAndPrint();
     } else {
       if (process.env.NODE_ENV === 'development') {
         console.log(`Waiting for ${totalImages} images to load`);
@@ -484,7 +530,7 @@ export const printPhotoData = (formData) => {
         if (process.env.NODE_ENV === 'development') {
           console.log('All images processed');
         }
-        initiatePrint();
+        prepareAndPrint();
       });
       
       // Fallback timeout to prevent hanging
@@ -492,7 +538,7 @@ export const printPhotoData = (formData) => {
         if (process.env.NODE_ENV === 'development') {
           console.log('Timeout reached - proceeding with print');
         }
-        initiatePrint();
+        prepareAndPrint();
       }, 3000);
     }
     
