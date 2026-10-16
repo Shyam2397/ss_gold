@@ -61,23 +61,23 @@ const TestResultForm = ({ formData }) => (
 
     {/* Results Table */}
     <div className="pt-3">
-      <table className="border-2 border-red-600 w-[264px]">
+      <table className="border-2 border-[#ffd700] w-[264px]">
         <thead>
           <tr>
-            <th className="bg-[#fff11a] text-red-600 text-base font-bold p-1.5 border border-red-600">
+            <th className="bg-[#00A800] text-[#FFEF00] text-base font-bold p-1.5 border border-[#FFD700]">
               GOLD %
             </th>
-            <th className="bg-[#fff11a] text-red-600 text-base font-bold p-1.5 border border-red-600">
+            <th className="bg-[#00A800] text-[#FFEF00] text-base font-bold p-1.5 border border-[#FFD700]">
               KARAT
             </th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td className="bg-[#fff11a] text-red-600 text-base font-bold p-1.5 border border-red-600 text-center">
+            <td className="bg-[#00A800] text-[#FFEF00] text-md font-bold p-1.5 border border-[#FFD700] text-center">
               {formData.goldFineness || '0.00'}
             </td>
-            <td className="bg-[#fff11a] text-red-600 text-base font-bold p-1.5 border border-red-600 text-center">
+            <td className="bg-[#00A800] text-[#FFEF00] text-md font-bold p-1.5 border border-[#FFD700] text-center">
               {formData.karat || '0.00'}
             </td>
           </tr>

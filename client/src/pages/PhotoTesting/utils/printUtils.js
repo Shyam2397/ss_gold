@@ -194,26 +194,26 @@ export const printPhotoData = (formData) => {
 
           .results-table {
             margin-top: 8px;
-            border: 2px solid #dc2626;
+            border: 2px solid #ffd700;
             border-collapse: collapse;
             width: 264px;
           }
           .results-table th {
-            background: #fff11a;
-            color: #dc2626;
+            background:  #00A800;
+            color: #FFEF00;
             font-size: 16px;
             font-weight: bold;
             padding: 6px;
-            border: 1px solid #dc2626;
+            border: 1px solid #ffd700;
             text-align: center;
           }
           .results-table td {
-            background: #fff11a;
-            color: #dc2626;
-            font-size: 16px;
+            background:  #00A800;
+            color: #FFEF00;
+            font-size: 18px;
             font-weight: bold;
             padding: 6px;
-            border: 1px solid #dc2626;
+            border: 1px solid #ffd700;
             text-align: center;
           }
           
