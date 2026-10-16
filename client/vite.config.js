@@ -42,6 +42,13 @@ export default defineConfig({
             output: {
                 manualChunks: (id) => {
                     if (id.includes('node_modules')) {
+                        const path = id.replace(/\\/g, '/');
+                        if (path.includes('exceljs')) {
+                            return 'exceljs';
+                        }
+                        if (path.includes('/node_modules/xlsx/')) {
+                            return 'xlsx';
+                        }
                         if (id.includes('react') || id.includes('react-dom') || id.includes('react-router-dom') || id.includes('@tanstack/react-query')) {
                             return 'vendor';
                         }

@@ -6,8 +6,8 @@ import { CompanyDetailsProvider } from './context/CompanyDetailsContext';
 import { UserProvider, useUser } from './components/UserInterface/UserContext';
 import Login from './components/login/Login';
 import MainLayout from './components/mainLayout/MainLayout';
-import UserInterface from './components/UserInterface/UserInterface';
 import LoadingSpinner from './components/common/LoadingSpinner';
+const UserInterface = React.lazy(() => import('./components/UserInterface/UserInterface'));
 import ErrorBoundary from './components/common/ErrorBoundary';
 import routes, { preloadRoute } from './routes';
 import { SCROLL_BEHAVIOR } from './routes/config';
@@ -116,13 +116,15 @@ const AuthenticatedApp = ({ setLoggedIn }) => {
   // rest of the app locked until a new one is set.
   if (mustChangePassword) {
     return (
-      <UserInterface
-        variant="required"
-        onSignOut={() => {
-          signOut();
-          setLoggedIn(false);
-        }}
-      />
+      <Suspense fallback={<LoadingSpinner />}>
+        <UserInterface
+          variant="required"
+          onSignOut={() => {
+            signOut();
+            setLoggedIn(false);
+          }}
+        />
+      </Suspense>
     );
   }
 
