@@ -14,7 +14,7 @@ import {
   FiX,
 } from 'react-icons/fi';
 import { cn } from '../../lib/utils';
-import { createInitialHistory, historyReducer } from './state';
+import { createInitialHistory, historyReducer, isDefaultAdjustments } from './state';
 import {
   loadImageFile,
   renderGeometry,
@@ -245,6 +245,15 @@ export default function PhotoStudio({
 
   const handleApply = async () => {
     if (!source || !onApply) return;
+
+    // Nothing edited and the original file/URL is still available: hand it back
+    // untouched so we do not add a lossy JPEG re-encode for no reason (and do
+    // not accumulate generation loss across repeated open/apply cycles).
+    if (isDefaultAdjustments(adjustments) && typeof initialFile === 'string' && initialFile) {
+      onApply(initialFile);
+      return;
+    }
+
     setExporting(true);
     setError(null);
     try {

@@ -110,6 +110,9 @@ const PhotoTesting = () => {
   const [photoScale, setPhotoScale] = useState(1);
   const [editorOpen, setEditorOpen] = useState(false);
   const [arrows, setArrows] = useState([]);
+  // Pristine copy of the uploaded photo, kept so every Studio edit re-applies
+  // from the original instead of re-encoding an already-edited (lossy) image.
+  const [originalPhotoUrl, setOriginalPhotoUrl] = useState(null);
 
   const { handleTokenSearch, resetForm } = useTokenSearch(dispatch);
 
@@ -210,6 +213,7 @@ const PhotoTesting = () => {
   const handlePhotoChange = useCallback((file) => {
     if (!file) {
       dispatch({ type: 'UPDATE_FORM_DATA', payload: { photoUrl: null } });
+      setOriginalPhotoUrl(null);
       setPhotoScale(1);
       setArrows([]);
       return;
@@ -222,6 +226,7 @@ const PhotoTesting = () => {
 
     const reader = new FileReader();
     reader.onload = (event) => {
+      setOriginalPhotoUrl(event.target.result);
       dispatch({ type: 'UPDATE_FORM_DATA', payload: { photoUrl: event.target.result } });
       setPhotoScale(1);
       setArrows(createDefaultArrows());
@@ -232,7 +237,10 @@ const PhotoTesting = () => {
 
   // Clear annotations whenever the photo is gone (e.g. after a token reset).
   useEffect(() => {
-    if (!formData.photoUrl) setArrows([]);
+    if (!formData.photoUrl) {
+      setArrows([]);
+      setOriginalPhotoUrl(null);
+    }
   }, [formData.photoUrl]);
 
   const handleArrowChange = useCallback((id, patch) => {
@@ -317,7 +325,7 @@ const PhotoTesting = () => {
             <Suspense fallback={<LoadingFallback progress={0} />}>
               <LazyPhotoStudioEditor
                 embedded
-                initialFile={formData.photoUrl}
+                initialFile={originalPhotoUrl || formData.photoUrl}
                 onApply={handleApplyEdited}
                 onClose={() => setEditorOpen(false)}
               />

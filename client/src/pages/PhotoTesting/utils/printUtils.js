@@ -121,7 +121,7 @@ export const printPhotoData = (formData) => {
             margin-left: 8px;
             margin:0;
             margin-top: -5px;
-            background: linear-gradient(90deg, rgba(214,164,6,1) 0%, rgba(255,215,0,1) 50%, rgba(214,164,6,1) 100%);
+            background: linear-gradient(90deg, rgba(214,164,6,1) 0%, hsl(51, 100%, 50%) 50%, rgba(214,164,6,1) 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             color: transparent;
@@ -156,7 +156,7 @@ export const printPhotoData = (formData) => {
           .form-fields .f-field span {
               font-size: 11px;
               font-weight: 600;
-              color: #1D6194;
+              color: #0000E3;
               width: 60px;
               margin:0;
           }
@@ -172,7 +172,7 @@ export const printPhotoData = (formData) => {
             margin: 0;
             font-size: 11px;
             font-weight: 600;
-            color: #1D6194;
+            color: #0000E3;
             padding-top: 6px;
           }
           .field span{
@@ -194,7 +194,7 @@ export const printPhotoData = (formData) => {
             width: 264px;
           }
           .results-table th {
-            background: #FFD700;
+            background: #fff11a;
             color: #dc2626;
             font-size: 16px;
             font-weight: bold;
@@ -203,7 +203,7 @@ export const printPhotoData = (formData) => {
             text-align: center;
           }
           .results-table td {
-            background: #FFD700;
+            background: #fff11a;
             color: #dc2626;
             font-size: 16px;
             font-weight: bold;
@@ -395,7 +395,6 @@ export const printPhotoData = (formData) => {
                           print-color-adjust: exact !important;
                           color-adjust: exact !important;
                           background-color: white;
-                          filter: contrast(1.1) saturate(1.1);
                         "
                       />
                       ${arrowsHtml}
@@ -462,12 +461,13 @@ export const printPhotoData = (formData) => {
     };
 
     // Guarantee the whole card lands on one 6in x 4in page: if the content is
-    // taller/wider than the sheet, scale it down to fit (never scale up).
+    // taller/wider than the sheet, scale it down to fit (never scale up). Scaling
+    // about the centre keeps the whole card centred on the sheet.
     const fitToPage = () => {
       const area = printWindow.document.querySelector('.photo-printarea');
       if (!area) return;
       area.style.transform = '';
-      area.style.transformOrigin = 'top left';
+      area.style.transformOrigin = 'center center';
       const scale = Math.min(
         1,
         area.clientWidth / area.scrollWidth,

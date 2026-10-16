@@ -118,6 +118,10 @@ export const isSectionDefault = (adjustments, section) => {
   return !diff(adjustments[section], base[section]);
 };
 
+/** Whole-tree "nothing has been edited?" check. */
+export const isDefaultAdjustments = (adjustments) =>
+  !diff(adjustments, createDefaultAdjustments());
+
 const setIn = (obj, path, value) => {
   const next = clone(obj);
   let cursor = next;
