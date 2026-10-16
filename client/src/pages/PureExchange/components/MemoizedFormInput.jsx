@@ -13,7 +13,7 @@ const FormInput = ({ label, name, value, onChange, readOnly = false, className, 
                 value={value}
                 onChange={onChange}
                 readOnly={readOnly}
-                className={`w-full px-2 py-1 text-sm rounded border border-amber-200 border-solid focus:ring-1 focus:ring-amber-500 focus:border-amber-500 text-amber-900 transition-all duration-200${readOnly ? 'bg-gray-50' : ''} rounded-xl`}
+                className={`w-full px-2 py-1.5 text-sm rounded-xl border border-amber-200 border-solid focus:ring-1 focus:ring-amber-500 focus:border-amber-500 text-amber-900 transition-all duration-200 ${readOnly ? 'bg-gray-50' : ''}`}
             />
         </div>
     );

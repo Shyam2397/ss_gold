@@ -37,7 +37,7 @@ const ThermalPrinter = ({ tableData, onEmpty, onPrinted, onError }) => {
     <button
       onClick={printContent}
       disabled={isPrinting}
-      className="px-2 py-1 border border-amber-300 text-amber-700 text-sm rounded hover:bg-amber-50 transition-colors flex items-center space-x-1 h-[30px] rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
+      className="px-2 py-1 border border-amber-300 text-amber-700 text-sm rounded hover:bg-amber-50 transition-colors flex items-center space-x-1 h-9 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
     >
       {isPrinting ? (
         <>

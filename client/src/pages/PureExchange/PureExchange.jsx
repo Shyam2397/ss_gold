@@ -21,7 +21,7 @@ const ThermalPrinter = React.lazy(() => import('./ThermalPrinter'));
 // Suspense fallback component
 const PrinterFallback = () => (
   <button
-    className="disabled px-2 py-1 border border-amber-300 border-solid text-amber-700 text-sm rounded hover:bg-amber-50 transition-colors flex items-center space-x-1 h-[30px] opacity-50 cursor-not-allowed"
+    className="disabled px-2 py-1 border border-amber-300 border-solid text-amber-700 text-sm rounded hover:bg-amber-50 transition-colors flex items-center space-x-1 h-9 opacity-50 cursor-not-allowed"
   >
     <div className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-amber-500 border-solid border-t-transparent" />
     <span>Loading Printer...</span>
@@ -569,11 +569,11 @@ const handleSubmitForm = (event) => {
     };
 
     return (
-        <div ref={pageContainerRef} className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-8">
+        <div ref={pageContainerRef} className="flex h-[calc(100dvh-4rem)] max-w-7xl mx-auto flex-col px-3 py-4 sm:px-4 sm:py-6 lg:px-6">
             
             {/* Form Section */}
-            <div className="bg-white rounded-lg shadow-sm p-3 border border-amber-100 border-solid">
-                <div className="flex items-center justify-between mb-3">
+            <div className="flex min-h-0 flex-1 flex-col rounded-lg border border-amber-100 border-solid bg-white p-3 shadow-sm">
+                <div className="flex flex-col items-start gap-2 mb-3 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex items-center">
                         <div
                             className="mr-2"
@@ -583,17 +583,16 @@ const handleSubmitForm = (event) => {
                         <h2 className="text-xl font-bold text-amber-900">Pure Exchange</h2>
                     </div>
                     {error && (
-                <div className={`p-1 rounded-md ${BANNER_CLASS[errorSeverity] || BANNER_CLASS.error}`}>
+                <div className={`p-1 rounded-md w-full sm:w-auto ${BANNER_CLASS[errorSeverity] || BANNER_CLASS.error}`}>
                     <div className="flex items-center">
-                        <FiAlertCircle className="h-4 w-4" />
-                        <p className="text-sm font-medium ml-2">{error}</p>
+                        <FiAlertCircle className="h-4 w-4 shrink-0" />
+                        <p className="text-sm font-medium ml-2 min-w-0">{error}</p>
                     </div>
                 </div>
             )}
                 </div>
-
                 {/* Input Section */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 p-2 bg-amber-50/50 rounded mb-3">
+                <div className="grid grid-cols-1 gap-3 p-2 bg-amber-50/50 rounded mb-3">
                     <form onSubmit={handleSubmitForm} className="flex items-end space-x-2">
                     {/* The inputs stay mounted while busy. Swapping them for skeletons removed the
                         very element focusTokenInput() targets, so the input lost focus
@@ -616,7 +615,7 @@ const handleSubmitForm = (event) => {
                         />
                         <button
                             type="submit"
-                            className="px-2 py-1 bg-amber-500 text-white text-sm rounded hover:bg-amber-600 transition-colors flex items-center space-x-1 h-[30px] rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="px-2 py-1 bg-amber-500 text-white text-sm rounded hover:bg-amber-600 transition-colors flex items-center space-x-1 h-9 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
                             disabled={isLoading}
                         >
                             {isLoading ? (
@@ -635,10 +634,7 @@ const handleSubmitForm = (event) => {
                 </div>
 
                 {/* Table Section */}
-                <div className="overflow-hidden rounded-xl border border-amber-100 border-solid mt-2">
-                    <div className="overflow-x-auto">
-                        <div className="flex flex-col h-[55vh] md:h-[calc(100vh-280px)]">
-                            <div className="flex-grow overflow-y-auto scrollbar-thin scrollbar-thumb-amber-500 scrollbar-track-amber-100">
+                <div className="mt-2 flex-1 min-h-0 overflow-auto rounded-xl border border-amber-100 border-solid scrollbar-thin scrollbar-thumb-amber-500 scrollbar-track-amber-100">
                                 <table className="min-w-full divide-y divide-amber-200">
                                 <thead className="bg-gradient-to-r from-amber-500 to-yellow-500 sticky top-0 z-10">
                                         <tr>
@@ -676,27 +672,24 @@ const handleSubmitForm = (event) => {
                                     )}
                                     </tbody>
                                 </table>
-                            </div>
-                        </div>
-                    </div>
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex justify-end space-x-2 mt-2">
+                <div className="flex flex-wrap justify-end gap-2 mt-2">
                     {/* Buttons stay visible and show their own "Saving..." labels; they are only
                     disabled. Swapping them for skeletons made those labels
                     unreachable and made the whole toolbar blink out mid-save. */}
                     <>
                         <button
                             onClick={handleNavigateToExchangeData}
-                                className="px-2 py-1 border border-amber-300 border-solid text-amber-700 text-sm rounded hover:bg-amber-50 transition-colors flex items-center space-x-1 h-[30px] rounded-xl"
+                                className="px-2 py-1 border border-amber-300 border-solid text-amber-700 text-sm rounded hover:bg-amber-50 transition-colors flex items-center space-x-1 h-9 rounded-xl"
                             >
                                 <FiDatabase className="w-3.5 h-3.5" />
                                 <span>Exchange Data</span>
                             </button>
                             <button
                                 onClick={handleReset}
-                                className="px-2 py-1 border border-amber-300 border-solid text-amber-700 text-sm rounded hover:bg-amber-50 transition-colors flex items-center space-x-1 h-[30px] rounded-xl"
+                                className="px-2 py-1 border border-amber-300 border-solid text-amber-700 text-sm rounded hover:bg-amber-50 transition-colors flex items-center space-x-1 h-9 rounded-xl"
                                 disabled={isLoading}
                             >
                                 <FiRotateCcw className="w-3.5 h-3.5" />
@@ -704,7 +697,7 @@ const handleSubmitForm = (event) => {
                             </button>
                             <button
                                 onClick={handleSave}
-                                className="px-2 py-1 bg-amber-500 text-white text-sm rounded hover:bg-amber-600 transition-colors flex items-center space-x-1 h-[30px] rounded-xl"
+                                className="px-2 py-1 bg-amber-500 text-white text-sm rounded hover:bg-amber-600 transition-colors flex items-center space-x-1 h-9 rounded-xl"
                                 disabled={isLoading}
                             >
                                 {isLoading ? (
@@ -721,7 +714,7 @@ const handleSubmitForm = (event) => {
                             </button>
                             <button
                                 onClick={handleSaveAndPrint}
-                                className="px-2 py-1 bg-amber-600 text-white text-sm rounded hover:bg-amber-700 transition-colors flex items-center space-x-1 h-[30px] rounded-xl"
+                                className="px-2 py-1 bg-amber-600 text-white text-sm rounded hover:bg-amber-700 transition-colors flex items-center space-x-1 h-9 rounded-xl"
                                 disabled={isLoading}
                             >
                                 {isLoading ? (
