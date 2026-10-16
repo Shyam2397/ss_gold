@@ -1,6 +1,13 @@
-import { useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Camera, Printer, ImagePlus, RefreshCw, Trash2, ZoomIn, ZoomOut, SlidersHorizontal } from 'lucide-react';
 import PhotoArrows from './PhotoArrows';
+
+// The card is authored at exactly 6in x 4in (96 CSS px per inch) so it matches
+// the printed sheet 1:1. On smaller viewports we scale the whole card (never the
+// print output) down about its top-left so it always fits the available width.
+const CARD_W = 6 * 96;
+const CARD_H = 4 * 96;
+const CONTROLS_EXTRA = 60; // width of the photo-control column that sits right of the card
 
 const PhotoTestingLayout = ({
   tokenNo,
@@ -28,8 +35,39 @@ const PhotoTestingLayout = ({
     GridOverlay
   } = components;
   const photoAreaRef = useRef(null);
+  const fitRef = useRef(null);
+  const [cardScale, setCardScale] = useState(1);
+
+  // Scale the fixed 6x4in card (plus its side controls) down to whatever width
+  // the container can give, so the preview fits phones/tablets without changing
+  // the card's internal geometry (arrows still map 1:1 to the print).
+  useEffect(() => {
+    const el = fitRef.current;
+    if (!el) return undefined;
+    const compute = () => {
+      const avail = el.clientWidth;
+      const availH = el.clientHeight;
+      if (!avail || !availH) return;
+      const byWidth = avail / (CARD_W + CONTROLS_EXTRA);
+      const byHeight = availH / CARD_H;
+      setCardScale(Math.min(1, byWidth, byHeight));
+    };
+    compute();
+    let observer;
+    if (typeof ResizeObserver !== 'undefined') {
+      observer = new ResizeObserver(compute);
+      observer.observe(el);
+    } else {
+      window.addEventListener('resize', compute);
+    }
+    return () => {
+      if (observer) observer.disconnect();
+      else window.removeEventListener('resize', compute);
+    };
+  }, []);
+
   return (
-    <div className="min-h-[660px] border-2 border-amber-100 bg-white p-6 m-4 rounded-xl flex flex-col">
+    <div className="flex h-[calc(100dvh-4rem-1rem)] flex-col overflow-hidden rounded-xl border-2 border-amber-100 bg-white p-3 m-2 sm:h-[calc(100dvh-4rem-2rem)] sm:p-6 sm:m-4">
       <div className="mb-6">
         <div className="flex items-center mb-4 border-b-2 border-amber-400 pb-2">
           <Camera className="w-6 h-6 text-amber-600 mr-3" />
@@ -60,8 +98,23 @@ const PhotoTestingLayout = ({
         )}
       </div>
 
-      <div className="flex-1 flex items-center justify-center">
-        <div className="relative">
+      <div ref={fitRef} className="flex-1 min-h-0 flex items-center justify-center overflow-hidden">
+        <div
+          style={{
+            width: (CARD_W + CONTROLS_EXTRA) * cardScale,
+            height: CARD_H * cardScale,
+            position: 'relative',
+          }}
+        >
+          <div
+            className="relative"
+            style={{
+              width: CARD_W,
+              height: CARD_H,
+              transform: `scale(${cardScale})`,
+              transformOrigin: 'top left',
+            }}
+          >
           <div
             className="bg-white shadow-2xl relative p-[12.4px] box-border"
             style={{ width: '6in', height: '4in', boxShadow: 'inset 0 0 0 1.4px #FFD700' }}
@@ -140,6 +193,7 @@ const PhotoTestingLayout = ({
                 type="button"
                 onClick={onEditImage}
                 title="Edit with Studio"
+                aria-label="Edit photo in Studio"
                 className="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-600 text-white shadow-lg transition-colors hover:bg-indigo-700"
               >
                 <SlidersHorizontal className="h-4 w-4" />
@@ -148,6 +202,7 @@ const PhotoTestingLayout = ({
                 type="button"
                 onClick={onZoomIn}
                 title="Increase image size"
+                aria-label="Zoom in"
                 className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-600 text-white shadow-lg transition-colors hover:bg-gray-700"
               >
                 <ZoomIn className="h-4 w-4" />
@@ -156,6 +211,7 @@ const PhotoTestingLayout = ({
                 type="button"
                 onClick={onZoomOut}
                 title="Decrease image size"
+                aria-label="Zoom out"
                 className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-600 text-white shadow-lg transition-colors hover:bg-gray-700"
               >
                 <ZoomOut className="h-4 w-4" />
@@ -166,6 +222,7 @@ const PhotoTestingLayout = ({
               <label
                 htmlFor="photo-upload"
                 title="Change photo"
+                aria-label="Change photo"
                 className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-amber-600 text-white shadow-lg transition-colors hover:bg-amber-700"
               >
                 <RefreshCw className="h-4 w-4" />
@@ -174,12 +231,14 @@ const PhotoTestingLayout = ({
                 type="button"
                 onClick={() => onPhotoChange(null)}
                 title="Remove photo"
+                aria-label="Remove photo"
                 className="flex h-9 w-9 items-center justify-center rounded-full bg-red-600 text-white shadow-lg transition-colors hover:bg-red-700"
               >
                 <Trash2 className="h-4 w-4" />
               </button>
             </div>
           )}
+        </div>
         </div>
       </div>
     </div>

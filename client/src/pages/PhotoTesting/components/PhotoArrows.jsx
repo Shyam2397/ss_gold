@@ -78,13 +78,34 @@ export default function PhotoArrows({ arrows = [], onChange, containerRef }) {
     }
   };
 
+  // Keyboard control: arrows move the arrow, Shift + left/right rotate it.
+  const handleKeyDown = (event, arrow) => {
+    const step = 0.01;
+    const rotStep = 5;
+    let patch = null;
+    if (event.shiftKey) {
+      if (event.key === 'ArrowLeft') patch = { angle: arrow.angle - rotStep };
+      else if (event.key === 'ArrowRight') patch = { angle: arrow.angle + rotStep };
+    } else if (event.key === 'ArrowLeft') patch = { x: clamp01(arrow.x - step) };
+    else if (event.key === 'ArrowRight') patch = { x: clamp01(arrow.x + step) };
+    else if (event.key === 'ArrowUp') patch = { y: clamp01(arrow.y - step) };
+    else if (event.key === 'ArrowDown') patch = { y: clamp01(arrow.y + step) };
+    if (!patch) return;
+    event.preventDefault();
+    event.stopPropagation();
+    onChange(arrow.id, patch);
+  };
+
   return (
     <>
-      {arrows.map((arrow) => (
+      {arrows.map((arrow, index) => (
         <div
           key={arrow.id}
           data-no-refocus="true"
-          className="absolute z-20 cursor-move touch-none select-none"
+          role="button"
+          tabIndex={0}
+          aria-label={`Pointer arrow ${index + 1}: drag to move, Shift-drag to rotate`}
+          className="absolute z-20 cursor-move touch-none select-none rounded outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
           style={{
             left: `${arrow.x * 100}%`,
             top: `${arrow.y * 100}%`,
@@ -96,6 +117,7 @@ export default function PhotoArrows({ arrows = [], onChange, containerRef }) {
           onPointerMove={move}
           onPointerUp={end}
           onPointerCancel={end}
+          onKeyDown={(event) => handleKeyDown(event, arrow)}
         >
           <ArrowGlyph />
         </div>

@@ -43,7 +43,7 @@ export const useTokenSearch = (dispatch) => {
       }
     } catch (error) {
       console.error('Error fetching data:', error);
-      // Handle error (e.g., show error message to user)
+      alert('Could not load token data. Please check your connection and try again.');
     }
   }, [dispatch]);
 

@@ -154,6 +154,14 @@ const PhotoTesting = () => {
     const container = pageContainerRef.current;
     if (!container) return undefined;
 
+    // Only devices with a precise pointer (mouse/trackpad) get the
+    // click-anywhere-to-refocus behaviour; on touch it would pop the keyboard
+    // on every background tap.
+    if (typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+      && !window.matchMedia('(pointer: fine)').matches) {
+      return undefined;
+    }
+
     const handleMouseDown = (e) => {
       if (editorOpen) return;
       const target = e.target;
