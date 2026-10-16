@@ -3,7 +3,7 @@
  * Based on successful dynamic import code splitting implementation
  */
 
-import React, { Suspense, Component } from 'react';
+import { Suspense, Component } from 'react';
 
 /**
  * Error boundary for lazy-loaded components

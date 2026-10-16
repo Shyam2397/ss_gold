@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState, Suspense, lazy } from 'react';
+import { useCallback, useEffect, useRef, useState, Suspense, lazy } from 'react';
 import { usePhotoTestingState } from './hooks/usePhotoTestingState';
 import { useTokenSearch } from './hooks/useTokenSearch';
 import { useProgressiveLoading } from './hooks/useComponentLoader';
@@ -179,11 +179,13 @@ const PhotoTesting = () => {
     enableMemoryOptimization: true
   });
   
-  // Performance monitoring and bundle analysis
+  // Performance monitoring and bundle analysis (run once on mount)
   useEffect(() => {
     analyzeBundleSize();
     preloadCriticalComponents();
-    
+  }, []);
+
+  useEffect(() => {
     if (process.env.NODE_ENV === 'development') {
       console.log('📊 Progressive Loading Progress:', progressiveLoading.loadingState.progress + '%');
     }
@@ -275,8 +277,7 @@ const PhotoTesting = () => {
         tokenNo,
         photoUrl: formData.photoUrl || null,
         photoScale,
-        arrows,
-        date: new Date().toISOString()
+        arrows
       };
 
       printPhotoData(printData);

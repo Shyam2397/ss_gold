@@ -1,5 +1,3 @@
-import React from 'react';
-
 const formatDate = (dateString) => {
   if (!dateString) return 'N/A';
   return new Date(dateString).toLocaleDateString('en-GB', {
@@ -54,7 +52,7 @@ const TestResultForm = ({ formData }) => (
     </div>
 
     <div className="flex items-center text-[11px] pt-2">
-      <span className="text-blue-800 font-medium w-[60px]">weight</span>
+      <span className="text-blue-800 font-medium w-[60px]">Weight</span>
       <span className="mx-1">:</span>
       <span className="text-blue-800 font-medium">
         {formatValue(formData.weight, true)}
@@ -62,7 +60,7 @@ const TestResultForm = ({ formData }) => (
     </div>
 
     {/* Results Table */}
-    <div className="pt-1">
+    <div className="pt-3">
       <table className="border-2 border-red-600 w-[264px]">
         <thead>
           <tr>

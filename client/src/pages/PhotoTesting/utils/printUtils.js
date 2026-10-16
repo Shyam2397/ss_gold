@@ -4,6 +4,11 @@ import { ARROW_W, ARROW_H, ARROW_VIEWBOX, ARROW_COLOR, ARROW_PATH } from './arro
 export const printPhotoData = (formData) => {
   const printWindow = window.open('', '_blank', 'width=900,height=700,left=100,top=100');
 
+  if (!printWindow) {
+    alert('Unable to open the print window. Please allow pop-ups for this app and try again.');
+    return;
+  }
+
   // Red pointer arrows overlaid on the sample photo (positions are fractions
   // of the photo area, matching the on-screen preview).
   const arrowList = Array.isArray(formData.arrows) ? formData.arrows : [];
@@ -121,7 +126,7 @@ export const printPhotoData = (formData) => {
             margin-left: 8px;
             margin:0;
             margin-top: -5px;
-            background: linear-gradient(90deg, rgba(214,164,6,1) 0%, hsl(51, 100%, 50%) 50%, rgba(214,164,6,1) 100%);
+            background: linear-gradient(90deg, rgba(214,164,6,1) 0%, #ffd700 50%, rgba(214,164,6,1) 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             color: transparent;
@@ -136,7 +141,7 @@ export const printPhotoData = (formData) => {
           .address {
             font-size: 11px;
             font-weight: 500;
-            color: #00B050;
+            color: #16a34a;
             margin: 0;
           }
           .address p {
@@ -156,7 +161,7 @@ export const printPhotoData = (formData) => {
           .form-fields .f-field span {
               font-size: 11px;
               font-weight: 600;
-              color: #0000E3;
+              color: #1e40af;
               width: 60px;
               margin:0;
           }
@@ -172,7 +177,7 @@ export const printPhotoData = (formData) => {
             margin: 0;
             font-size: 11px;
             font-weight: 600;
-            color: #0000E3;
+            color: #1e40af;
             padding-top: 6px;
           }
           .field span{
@@ -188,7 +193,7 @@ export const printPhotoData = (formData) => {
           }
 
           .results-table {
-            margin-top: 2px;
+            margin-top: 8px;
             border: 2px solid #dc2626;
             border-collapse: collapse;
             width: 264px;
@@ -212,7 +217,7 @@ export const printPhotoData = (formData) => {
             text-align: center;
           }
           
-          .additional-results{
+          .additional-result{
             margin-top : 2px; 
           }
           .additional-columns{
@@ -236,13 +241,6 @@ export const printPhotoData = (formData) => {
             background-color: white;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
-          }
-          .right-wrapper img {
-            flex-grow: 1;
-            max-width: 100%;
-            max-height: calc(100% - 20px);
-            object-fit: contain;
-            background-color: white;
           }
           
           /* Pure white background for no-image state */
@@ -313,7 +311,6 @@ export const printPhotoData = (formData) => {
 
                 <div class="address">
                   <p>59, Main Bazaar, Nilakottai - 624 208</p>
-                  <p>Ph.No - 8903225544</p>
                 </div>
 
                 <div class="form-fields">
@@ -326,7 +323,7 @@ export const printPhotoData = (formData) => {
                 </div>
                 <div class="field"><span>Name</span> <span> : </span> <span>${formData.name || 'N/A'}</span></div>
                 <div class="field"><span>Sample</span> <span> : </span> <span>${formData.sample || 'N/A'}</span></div>
-                <div class="field"><span>Weight</span> <span> : </span> <span>${formData.weight != null ? parseFloat(formData.weight).toFixed(3) : '-'}</span></div>
+                <div class="field"><span>Weight</span> <span> : </span> <span>${formData.weight != null && String(formData.weight).trim() !== '' && !Number.isNaN(parseFloat(formData.weight)) ? parseFloat(formData.weight).toFixed(3) : '-'}</span></div>
 
                 <table class="results-table">
                 <thead>

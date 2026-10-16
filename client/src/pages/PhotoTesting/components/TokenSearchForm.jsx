@@ -1,5 +1,3 @@
-import React from 'react';
-
 const TokenSearchForm = ({ tokenNo, onTokenNoChange, onSearch, onReset, onKeyDown, inputRef }) => (
   <div className="space-y-1">
     <label htmlFor="tokenInput" className="block text-sm font-medium text-amber-700">

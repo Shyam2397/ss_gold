@@ -76,49 +76,33 @@ export const createLazyComponent = (importFn, chunkName, options = {}) => {
 export const componentDefinitions = {
   // High Priority Components - Core functionality
   PhotoTestingLayout: {
-    loader: () => import(
-      /* webpackChunkName: "photo-layout" */
-      /* webpackPrefetch: true */
-      '../components/PhotoTestingLayout'
-    ),
+    loader: () => import('../components/PhotoTestingLayout'),
     chunkName: 'photo-layout',
     options: { preload: true, priority: 'high' }
   },
   
   // Medium Priority Components - Forms
   TestResultForm: {
-    loader: () => import(
-      /* webpackChunkName: "test-form" */
-      '../components/TestResultForm'
-    ),
+    loader: () => import('../components/TestResultForm'),
     chunkName: 'test-form',
     options: { priority: 'medium' }
   },
 
   TokenSearchForm: {
-    loader: () => import(
-      /* webpackChunkName: "token-form" */
-      '../components/TokenSearchForm'
-    ),
+    loader: () => import('../components/TokenSearchForm'),
     chunkName: 'token-form',
     options: { priority: 'medium' }
   },
 
   // Low Priority Components - UI enhancements
   Header: {
-    loader: () => import(
-      /* webpackChunkName: "header" */
-      '../components/Header'
-    ),
+    loader: () => import('../components/Header'),
     chunkName: 'header',
     options: { priority: 'low' }
   },
 
   GridOverlay: {
-    loader: () => import(
-      /* webpackChunkName: "grid-overlay" */
-      '../components/GridOverlay'
-    ),
+    loader: () => import('../components/GridOverlay'),
     chunkName: 'grid-overlay',
     options: { priority: 'low' }
   }
@@ -129,10 +113,7 @@ export const componentDefinitions = {
  */
 export const utilityLoaders = {
   printUtils: {
-    loader: () => import(
-      /* webpackChunkName: "print-utils" */
-      './printUtils'
-    ),
+    loader: () => import('./printUtils'),
     chunkName: 'print-utils'
   }
 };

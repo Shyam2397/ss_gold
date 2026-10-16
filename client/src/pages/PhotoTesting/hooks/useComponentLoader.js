@@ -30,11 +30,13 @@ export const useProgressiveLoading = (components = [], options = {}) => {
   const isLoadingRef = useRef(false);
 
   const updateLoadingState = (updates) => {
-    setLoadingState(prev => ({
-      ...prev,
-      ...updates,
-      progress: Math.round(((prev.loaded.size + (updates.loaded?.size || 0)) / components.length) * 100)
-    }));
+    setLoadingState(prev => {
+      const next = { ...prev, ...updates };
+      next.progress = components.length
+        ? Math.round((next.loaded.size / components.length) * 100)
+        : 0;
+      return next;
+    });
   };
 
   const loadNextBatch = async () => {
@@ -44,28 +46,40 @@ export const useProgressiveLoading = (components = [], options = {}) => {
 
     isLoadingRef.current = true;
     const batch = loadingQueue.current.splice(0, batchSize);
-    
-    const newLoading = new Set(loadingState.loading);
-    batch.forEach(comp => newLoading.add(comp.name));
-    
-    updateLoadingState({ loading: newLoading });
+
+    // Mark the whole batch as loading (functional update so concurrent batches
+    // never clobber each other's sets).
+    setLoadingState(prev => {
+      const loading = new Set(prev.loading);
+      batch.forEach(comp => loading.add(comp.name));
+      return { ...prev, loading };
+    });
 
     const loadPromises = batch.map(async (component) => {
       try {
         const module = await component.loader();
-        
+
         setLoadedComponents(prev => ({
           ...prev,
           [component.name]: module.default
         }));
 
-        const newLoaded = new Set(loadingState.loaded);
-        const newLoading = new Set(loadingState.loading);
-        
-        newLoaded.add(component.name);
-        newLoading.delete(component.name);
-        
-        updateLoadingState({ loaded: newLoaded, loading: newLoading });
+        // Functional update: read the fresh set so two components finishing in
+        // the same batch both register instead of overwriting each other.
+        setLoadingState(prev => {
+          const loaded = new Set(prev.loaded);
+          const loading = new Set(prev.loading);
+          loaded.add(component.name);
+          loading.delete(component.name);
+          return {
+            ...prev,
+            loaded,
+            loading,
+            progress: components.length
+              ? Math.round((loaded.size / components.length) * 100)
+              : 0,
+          };
+        });
 
         if (process.env.NODE_ENV === 'development') {
           console.log(`✅ Progressively loaded: ${component.name}`);
@@ -74,14 +88,14 @@ export const useProgressiveLoading = (components = [], options = {}) => {
         return { name: component.name, success: true };
       } catch (error) {
         console.error(`Failed to load component ${component.name}:`, error);
-        
-        const newFailed = new Set(loadingState.failed);
-        const newLoading = new Set(loadingState.loading);
-        
-        newFailed.add(component.name);
-        newLoading.delete(component.name);
-        
-        updateLoadingState({ failed: newFailed, loading: newLoading });
+
+        setLoadingState(prev => {
+          const failed = new Set(prev.failed);
+          const loading = new Set(prev.loading);
+          failed.add(component.name);
+          loading.delete(component.name);
+          return { ...prev, failed, loading };
+        });
 
         return { name: component.name, success: false, error };
       }

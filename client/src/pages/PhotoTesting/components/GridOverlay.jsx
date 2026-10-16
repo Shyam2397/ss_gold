@@ -1,5 +1,3 @@
-import React from 'react';
-
 const GridOverlay = () => (
   <div className="absolute inset-0 pointer-events-none">
     {/* Vertical Lines */}

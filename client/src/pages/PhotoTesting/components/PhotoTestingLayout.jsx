@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import { useRef } from 'react';
 import { Camera, Printer, ImagePlus, RefreshCw, Trash2, ZoomIn, ZoomOut, SlidersHorizontal } from 'lucide-react';
 import PhotoArrows from './PhotoArrows';
 
