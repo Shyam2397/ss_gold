@@ -12,7 +12,7 @@ const CompanySettingsPanel = ({
   saveStatus,
   dirty,
 }) => (
-  <div id="company-settings-panel" role="tabpanel" className="max-w-9xl animate-slideIn">
+  <div id="company-settings-panel" role="tabpanel" className="animate-slideIn">
     {dirty && (
       <div className="mb-4 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
         <FiAlertCircle className="h-5 w-5 mt-0.5 flex-shrink-0 text-amber-600" />

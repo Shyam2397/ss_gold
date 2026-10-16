@@ -4,7 +4,7 @@ const GlobalMessage = ({ message, onClose }) => {
   if (!message) return null;
 
   return (
-    <div className="fixed top-4 right-4 z-50 max-w-sm animate-slideIn">
+    <div className="fixed left-4 right-4 top-4 z-50 animate-slideIn sm:left-auto sm:right-4 sm:max-w-sm">
       <div
         className={`flex items-center rounded-xl p-3 shadow-lg ${
           message.type === "success"
@@ -17,7 +17,7 @@ const GlobalMessage = ({ message, onClose }) => {
         ) : (
           <FiAlertCircle className="w-5 h-5 mr-2 flex-shrink-0" />
         )}
-        <p className="text-sm">{message.text}</p>
+        <p className="min-w-0 text-sm">{message.text}</p>
         <button
           type="button"
           onClick={onClose}
