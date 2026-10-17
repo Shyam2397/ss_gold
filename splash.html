@@ -41,13 +41,15 @@
 
         .container {
             background: rgba(255, 255, 255, 0.9);
-            padding: 45px 60px;
+            padding: 45px 40px;
             border-radius: 24px;
             box-shadow: 0 10px 25px rgba(180, 83, 9, 0.1);
             display: flex;
             flex-direction: column;
             align-items: center;
             min-width: 150px;
+            max-width: calc(100% - 40px);
+            box-sizing: border-box;
         }
 
         .logo {
@@ -64,7 +66,10 @@
             font-weight: 800;
             margin: 0 0 25px;
             text-align: center;
-            background: linear-gradient(to right, #d97706, #b45309);
+            max-width: 100%;
+            overflow-wrap: anywhere;
+            line-height: 1.15;
+            background: linear-gradient(to right, #C69A32 0%, #FFD700 25%, #FFD700 75%, #C69A32 100%);
             -webkit-background-clip: text;
             background-clip: text;
             -webkit-text-fill-color: transparent;
@@ -118,6 +123,23 @@
             const defaultLogo = logo.src;
             const defaultCompany = company.textContent;
 
+            const fitCompanyName = () => {
+                const max = 32;
+                const min = 14;
+                company.style.whiteSpace = 'nowrap';
+                company.style.fontSize = max + 'px';
+                const available = company.clientWidth;
+                const natural = company.scrollWidth;
+                company.style.whiteSpace = '';
+                if (!available || natural <= available) {
+                    company.style.fontSize = max + 'px';
+                    return;
+                }
+                company.style.fontSize = Math.max(min, Math.floor((max * available) / natural)) + 'px';
+            };
+
+            fitCompanyName();
+
             const waitForLogo = () => new Promise((resolve) => {
                 if (logo.complete && logo.naturalWidth > 0) {
                     resolve();
@@ -158,6 +180,7 @@
             } catch (error) {
                 console.error('Failed to load company details:', error);
             } finally {
+                fitCompanyName();
                 await waitForLogo();
                 if (window.electronAPI && typeof window.electronAPI.notifySplashBrandingReady === 'function') {
                     window.electronAPI.notifySplashBrandingReady();
