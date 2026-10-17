@@ -8,6 +8,7 @@ import {
   FiGlobe,
   FiHash,
   FiUsers,
+  FiDroplet,
 } from "react-icons/fi";
 
 export const PAPER_SIZES_TOKEN = [
@@ -95,6 +96,7 @@ export const SETTINGS_TABS = [
   { id: "company", label: "Company", description: "Business details", icon: FiHome },
   { id: "printer", label: "Printer", description: "Print profiles", icon: FiPrinter },
   { id: "preferences", label: "Preferences", description: "App behaviour", icon: FiSliders },
+  { id: "appearance", label: "Appearance", description: "Colours & layout", icon: FiDroplet },
   { id: "users", label: "Users", description: "Accounts & access", icon: FiUsers, adminOnly: true },
   { id: "about", label: "About", description: "Info & notes", icon: FiInfo },
 ];

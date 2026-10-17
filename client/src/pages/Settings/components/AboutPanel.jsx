@@ -9,7 +9,7 @@ const NOTES = [
 ];
 
 const AboutPanel = () => (
-  <div id="about-settings-panel" role="tabpanel" className="max-w-5xl animate-slideIn">
+  <div id="about-settings-panel" role="tabpanel" className="animate-slideIn">
     <div className="rounded-xl border border-amber-100 bg-white p-5 shadow-sm">
       <div className="mb-5 flex items-start gap-4">
         <FiInfo className="h-6 w-6 flex-shrink-0 text-amber-600" />

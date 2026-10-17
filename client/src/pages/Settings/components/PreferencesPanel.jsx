@@ -18,7 +18,7 @@ const REFRESH_OPTIONS = [
 ];
 
 const PreferencesPanel = ({ preferences, onChange, savedKey, landingOptions = [] }) => (
-  <div id="preferences-settings-panel" role="tabpanel" className="max-w-5xl animate-slideIn">
+  <div id="preferences-settings-panel" role="tabpanel" className="animate-slideIn">
     <div className="rounded-xl border border-amber-100 bg-white p-5 shadow-sm">
       <div className="mb-5 flex items-start justify-between gap-4">
         <div>

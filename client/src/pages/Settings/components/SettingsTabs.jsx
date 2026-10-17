@@ -38,7 +38,7 @@ const SettingsTabs = ({ tabs, activeTab, onSelect }) => {
         role="tablist"
         aria-label="Settings sections"
         onKeyDown={handleKeyDown}
-        className="grid grid-cols-2 gap-1.5 rounded-2xl border border-amber-100 bg-amber-50/60 p-1.5 shadow-sm sm:grid-cols-5"
+        className="grid grid-cols-2 gap-1.5 rounded-2xl border border-amber-100 bg-amber-50/60 p-1.5 shadow-sm sm:grid-cols-3 lg:grid-cols-6"
       >
         {tabs.map((tab, index) => {
           const Icon = tab.icon;

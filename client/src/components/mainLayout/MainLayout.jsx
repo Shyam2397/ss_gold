@@ -32,7 +32,7 @@ const MainLayout = ({ setLoggedIn }) => {
   }, [location.pathname, setIsSidebarOpen]);
 
   return (
-    <div className="flex flex-col md:flex-row h-viewport bg-ivory overflow-hidden">
+    <div className="flex flex-col md:flex-row h-viewport bg-page overflow-hidden">
       <Sidebar 
         open={isSidebarOpen}
         setOpen={setIsSidebarOpen}

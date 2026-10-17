@@ -6,6 +6,7 @@ import { SidebarHeader } from './SidebarHeader';
 import { SidebarMenuContent } from './SidebarMenuContent';
 import ErrorBoundary from '../common/ErrorBoundary';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
+import { useAppearance } from '../../lib/appearance';
 import sidebarBG from '../../asset/sidebarBG.png';
 
 export const SidebarDesktop = memo(({
@@ -27,6 +28,7 @@ export const SidebarDesktop = memo(({
 }) => {
   const { open, setOpen, animate } = useSidebar();
   const reduceMotion = useReducedMotion();
+  const { density } = useAppearance();
   // Only devices with a true hover pointer should auto-expand on hover. On
   // touch tablets/laptops a tap fires mouseenter and would otherwise fling the
   // rail open.
@@ -80,10 +82,10 @@ export const SidebarDesktop = memo(({
   const sidebarVariants = useMemo(() => {
     const transition = { duration: reduceMotion ? 0 : 0.2, ease: [0.4, 0, 0.2, 1] };
     return {
-      expanded: { width: "260px", transition },
-      collapsed: { width: "70px", transition }
+      expanded: { width: `${density.sidebarWidth}px`, transition },
+      collapsed: { width: `${density.sidebarCollapsedWidth}px`, transition }
     };
-  }, [reduceMotion]);
+  }, [reduceMotion, density.sidebarWidth, density.sidebarCollapsedWidth]);
 
   const contentStyle = useMemo(() => ({
     willChange: 'width', backfaceVisibility: 'hidden', WebkitFontSmoothing: 'subpixel-antialiased'
@@ -101,7 +103,7 @@ export const SidebarDesktop = memo(({
 
   return (
     <motion.div
-      className={cn("relative h-viewport border-r border-white/10 hidden md:flex md:flex-col bg-charcoal overflow-hidden transform-gpu")}
+      className={cn("relative h-viewport border-r border-white/10 hidden md:flex md:flex-col bg-sidebar overflow-hidden transform-gpu")}
       style={contentStyle}
       variants={sidebarVariants}
       animate={open ? "expanded" : "collapsed"}
@@ -109,7 +111,7 @@ export const SidebarDesktop = memo(({
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
-      <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 left-0 w-[260px]" style={backgroundStyle} />
+      <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 left-0 w-[var(--app-sidebar-w)]" style={backgroundStyle} />
       <div className="relative z-10 flex flex-col flex-1 min-h-0">
         <SidebarHeader />
         <ErrorBoundary>

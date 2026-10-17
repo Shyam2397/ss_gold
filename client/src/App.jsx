@@ -4,6 +4,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from './lib/queryClient';
 import { CompanyDetailsProvider } from './context/CompanyDetailsContext';
 import { UserProvider, useUser } from './components/UserInterface/UserContext';
+import { AppearanceProvider } from './lib/appearance';
 import Login from './components/login/Login';
 import MainLayout from './components/mainLayout/MainLayout';
 import LoadingSpinner from './components/common/LoadingSpinner';
@@ -216,6 +217,11 @@ const AppRoutes = ({ loggedIn, setLoggedIn }) => {
   );
 };
 
+const AppearanceScope = ({ children }) => {
+  const { user } = useUser();
+  return <AppearanceProvider userId={user?.id ?? null}>{children}</AppearanceProvider>;
+};
+
 function App() {
   const [loggedIn, setLoggedIn] = React.useState(false);
 
@@ -246,12 +252,14 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <UserProvider>
-        <CompanyDetailsProvider>
-          <Router>
-            <PreFetchComponent />
-            <AppRoutes loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
-          </Router>
-        </CompanyDetailsProvider>
+        <AppearanceScope>
+          <CompanyDetailsProvider>
+            <Router>
+              <PreFetchComponent />
+              <AppRoutes loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
+            </Router>
+          </CompanyDetailsProvider>
+        </AppearanceScope>
       </UserProvider>
     </QueryClientProvider>
   );

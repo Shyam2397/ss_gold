@@ -9,6 +9,7 @@ import { usePreferences } from "./hooks/usePreferences";
 import { MENU_DEFINITIONS, filterByPermission } from "../../utils/permissions";
 import { usePrinterSettings } from "./hooks/usePrinterSettings";
 import AboutPanel from "./components/AboutPanel";
+import AppearancePanel from "./components/AppearancePanel";
 import CompanySettingsPanel from "./components/CompanySettingsPanel";
 import GlobalMessage from "./components/GlobalMessage";
 import PreferencesPanel from "./components/PreferencesPanel";
@@ -58,59 +59,63 @@ const Settings = () => {
   }, [visibleTabs, activeTab]);
 
   return (
-    <div className="container mx-auto px-4 py-6">
+    <div className="container mx-auto flex min-h-[calc(100dvh_-_var(--app-header-h)_-_3rem)] flex-col px-4 py-6">
       <GlobalMessage message={globalMessage} onClose={clearMessage} />
 
       <SettingsTabs tabs={visibleTabs} activeTab={activeTab} onSelect={setActiveTab} />
 
-      {activeTab === "company" && (
-        <CompanySettingsPanel
-          companyDetails={company.companyDetails}
-          onChangeField={company.updateCompanyField}
-          onLogoUpload={company.handleLogoUpload}
-          onRemoveLogo={company.removeLogo}
-          onReset={company.resetCompanyDetails}
-          onSave={company.saveCompanyDetails}
-          saveStatus={company.companySaveStatus}
-          dirty={company.companyDetailsDirty}
-        />
-      )}
+      <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col">
+        {activeTab === "company" && (
+          <CompanySettingsPanel
+            companyDetails={company.companyDetails}
+            onChangeField={company.updateCompanyField}
+            onLogoUpload={company.handleLogoUpload}
+            onRemoveLogo={company.removeLogo}
+            onReset={company.resetCompanyDetails}
+            onSave={company.saveCompanyDetails}
+            saveStatus={company.companySaveStatus}
+            dirty={company.companyDetailsDirty}
+          />
+        )}
 
-      {activeTab === "printer" && (
-        <PrinterSettingsPanel
-          tokenSettings={printer.tokenSettings}
-          onTokenSettingsChange={printer.setTokenSettings}
-          skinTestSettings={printer.skinTestSettings}
-          onSkinTestSettingsChange={printer.setSkinTestSettings}
-          printers={printer.printers}
-          loading={printer.loading}
-          onRefreshPrinters={printer.loadPrinters}
-          onSaveTokenSettings={printer.saveTokenSettings}
-          onSaveSkinTestSettings={printer.saveSkinTestSettings}
-          onTestTokenPrint={printer.testTokenPrint}
-          onTestSkinTestPrint={printer.testSkinTestPrint}
-          tokenSaveStatus={printer.tokenSaveStatus}
-          skinTestSaveStatus={printer.skinTestSaveStatus}
-          isElectronEnv={printer.isElectronEnv}
-        />
-      )}
+        {activeTab === "printer" && (
+          <PrinterSettingsPanel
+            tokenSettings={printer.tokenSettings}
+            onTokenSettingsChange={printer.setTokenSettings}
+            skinTestSettings={printer.skinTestSettings}
+            onSkinTestSettingsChange={printer.setSkinTestSettings}
+            printers={printer.printers}
+            loading={printer.loading}
+            onRefreshPrinters={printer.loadPrinters}
+            onSaveTokenSettings={printer.saveTokenSettings}
+            onSaveSkinTestSettings={printer.saveSkinTestSettings}
+            onTestTokenPrint={printer.testTokenPrint}
+            onTestSkinTestPrint={printer.testSkinTestPrint}
+            tokenSaveStatus={printer.tokenSaveStatus}
+            skinTestSaveStatus={printer.skinTestSaveStatus}
+            isElectronEnv={printer.isElectronEnv}
+          />
+        )}
 
-      {activeTab === "preferences" && (
-        <PreferencesPanel
-          preferences={preferences}
-          onChange={updatePreference}
-          savedKey={savedKey}
-          landingOptions={landingOptions}
-        />
-      )}
+        {activeTab === "preferences" && (
+          <PreferencesPanel
+            preferences={preferences}
+            onChange={updatePreference}
+            savedKey={savedKey}
+            landingOptions={landingOptions}
+          />
+        )}
 
-      {activeTab === "users" && isAdmin && (
-        <div id="users-settings-panel" role="tabpanel">
-          <UserManagement />
-        </div>
-      )}
+        {activeTab === "appearance" && <AppearancePanel />}
 
-      {activeTab === "about" && <AboutPanel />}
+        {activeTab === "users" && isAdmin && (
+          <div id="users-settings-panel" role="tabpanel">
+            <UserManagement />
+          </div>
+        )}
+
+        {activeTab === "about" && <AboutPanel />}
+      </main>
 
       <PreviewModal
         isOpen={previewModal.isOpen}

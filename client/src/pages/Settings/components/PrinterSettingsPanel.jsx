@@ -19,7 +19,7 @@ const PrinterSettingsPanel = ({
   isElectronEnv,
 }) => (
   <div id="printer-settings-panel" role="tabpanel" className="animate-slideIn">
-    <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 max-w-6xl">
+    <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
       <PrinterCard
         title="Token / Receipt Printer"
         subtitle="Thermal 80mm / 58mm printer"

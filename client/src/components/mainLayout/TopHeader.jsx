@@ -67,7 +67,7 @@ const TopHeader = ({ setLoggedIn }) => {
   };
 
   return (
-    <header className="relative z-30 flex h-16 flex-shrink-0 items-center gap-3 border-b border-hairline bg-white px-4 pl-16 sm:px-6 md:pl-6">
+    <header className="relative z-30 flex h-[var(--app-header-h)] flex-shrink-0 items-center gap-3 border-b border-hairline bg-header px-4 pl-16 sm:px-6 md:pl-6">
       <p className="min-w-0 truncate text-xs font-semibold text-gold-dark sm:text-sm">
         Accurate Testing <span className="mx-1 font-normal text-gold-dark">|</span> Trusted results
         <span className="mx-1 font-normal text-gold-dark">|</span> Pure gold assurance

@@ -379,8 +379,8 @@ const TableRow = React.memo(({
               <Table
                 width={Math.max(width, totalWidth)}
                 height={height}
-                headerHeight={40}
-                rowHeight={48}
+              headerHeight={40}
+              rowHeight={48}
                 rowCount={sortedTests.length || 0}
                 rowGetter={({ index }) => sortedTests[index]}
                 overscanRowCount={5} // Add this to improve scroll performance
