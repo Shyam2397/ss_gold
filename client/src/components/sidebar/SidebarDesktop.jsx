@@ -103,6 +103,7 @@ export const SidebarDesktop = memo(({
 
   return (
     <motion.div
+      data-sidebar-desktop
       className={cn("relative h-viewport border-r border-white/10 hidden md:flex md:flex-col bg-sidebar overflow-hidden transform-gpu")}
       style={contentStyle}
       variants={sidebarVariants}

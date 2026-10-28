@@ -22,7 +22,7 @@ export const SidebarMenuItem = memo(({ icon: Icon, label, to, isActive, onClick,
 
   const content = (
     <>
-      <div className="flex items-center justify-center w-5 pl-1"><Icon className={cn("h-5 w-5 flex-shrink-0", isActive && "text-gold-bright")} /></div>
+      <div className="flex items-center justify-center w-5 pl-1"><Icon className={cn("h-5 w-5 flex-shrink-0", (isActive || undefined) && "text-[#FFD700]")} /></div>
       <motion.span variants={labelVariants} animate={labelsVisible ? "visible" : "hidden"} className="font-medium text-base ml-3 whitespace-nowrap">{label}</motion.span>
     </>
   );
@@ -31,8 +31,8 @@ export const SidebarMenuItem = memo(({ icon: Icon, label, to, isActive, onClick,
     "flex items-center h-9 px-2 rounded-xl transition-all duration-200 motion-reduce:transition-none",
     "relative group",
     isActive
-      ? "bg-gold-bright/15 text-gold-bright font-semibold"
-      : "text-white/60 hover:bg-white/5 hover:text-gold-bright"
+      ? "bg-gold-bright/20 text-[#FFD700] font-semibold"
+      : "text-white/80 hover:bg-white/10 hover:text-[#FFD700]"
   );
 
   // Items without a route (e.g. Logout) are buttons instead of dead "#" anchors.
